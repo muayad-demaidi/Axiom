@@ -9,7 +9,7 @@ from models import init_db, get_db, save_dataset_record, find_similar_datasets, 
 from data_cleaner import clean_data, detect_column_types, get_data_quality_score
 from data_analyzer import get_basic_stats, get_numeric_stats, get_categorical_stats, get_correlation_matrix, find_strong_correlations, detect_outliers, generate_summary_report
 from visualizations import (create_histogram, create_bar_chart, create_box_plot, 
-                           create_scatter_plot, create_correlation_heatmap, 
+                           create_scatter_plot, create_correlation_heatmap, create_line_chart,
                            create_pie_chart, create_missing_values_chart,
                            create_distribution_overview, create_comparison_chart, create_trend_chart)
 from predictions import compare_datasets, simple_forecast, analyze_trend, predict_column, calculate_growth_metrics
