@@ -63,41 +63,64 @@ NEON_CSS = """
 
 .stApp {
     background: linear-gradient(135deg, #0f0f1a 0%, #0a0a12 50%, #0d0d18 100%);
-    position: relative;
-    z-index: 1;
 }
 
-.matrix-bg {
+.stApp::before {
+    content: "0 1 0 1 1 0 0 1 1 0 1 0 0 1 0 1 1 0 0 1 0 1";
     position: fixed;
     top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 0;
-    overflow: hidden;
-    background: 
-        radial-gradient(ellipse at 30% 30%, rgba(168, 85, 247, 0.06) 0%, transparent 50%),
-        radial-gradient(ellipse at 70% 70%, rgba(59, 130, 246, 0.04) 0%, transparent 50%);
-}
-
-.matrix-column {
-    position: absolute;
-    top: -150%;
+    left: 5%;
     font-family: 'Courier New', monospace;
-    font-size: 9px;
-    line-height: 1.8;
-    color: rgba(168, 85, 247, 0.12);
-    text-shadow: 0 0 8px rgba(168, 85, 247, 0.25);
-    animation: matrix-fall linear infinite;
+    font-size: 10px;
+    line-height: 2;
+    color: rgba(168, 85, 247, 0.08);
+    text-shadow: 0 0 10px rgba(168, 85, 247, 0.15);
     writing-mode: vertical-rl;
     text-orientation: upright;
-    letter-spacing: 0.3em;
+    letter-spacing: 0.5em;
+    pointer-events: none;
+    z-index: 0;
+    animation: matrix-fall-1 20s linear infinite;
+    opacity: 0.6;
 }
 
-@keyframes matrix-fall {
-    0% { transform: translateY(0); }
-    100% { transform: translateY(250vh); }
+.stApp::after {
+    content: "1 0 1 0 0 1 1 0 0 1 0 1 1 0 1 0 0 1 1 0 1 0";
+    position: fixed;
+    top: 0;
+    right: 10%;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    line-height: 2;
+    color: rgba(59, 130, 246, 0.08);
+    text-shadow: 0 0 10px rgba(59, 130, 246, 0.15);
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    letter-spacing: 0.5em;
+    pointer-events: none;
+    z-index: 0;
+    animation: matrix-fall-2 25s linear infinite;
+    opacity: 0.6;
+}
+
+@keyframes matrix-fall-1 {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+}
+
+@keyframes matrix-fall-2 {
+    0% { transform: translateY(-50%); }
+    100% { transform: translateY(150vh); }
+}
+
+[data-testid="stAppViewContainer"], 
+[data-testid="stHeader"],
+[data-testid="stSidebar"],
+section.main,
+.main .block-container {
+    position: relative;
+    z-index: 1 !important;
+    background: transparent;
 }
 
 @keyframes glow-pulse {
@@ -498,29 +521,6 @@ p, span, div {
     margin-bottom: 1rem;
 }
 </style>
-
-<div class="matrix-bg">
-    <div class="matrix-column" style="left: 2%; animation-duration: 15s; animation-delay: 0s;">1 0 1 1 0 0 1 0 1 1 0 1 0 0 1 1 0 1</div>
-    <div class="matrix-column" style="left: 7%; animation-duration: 18s; animation-delay: 2s;">0 1 0 0 1 1 0 1 0 0 1 0 1 1 0 0 1 0</div>
-    <div class="matrix-column" style="left: 12%; animation-duration: 14s; animation-delay: 1s;">1 1 0 1 0 1 1 0 0 1 0 1 1 0 1 0 0 1</div>
-    <div class="matrix-column" style="left: 17%; animation-duration: 20s; animation-delay: 3s;">0 0 1 0 1 0 0 1 1 0 1 0 0 1 0 1 1 0</div>
-    <div class="matrix-column" style="left: 22%; animation-duration: 16s; animation-delay: 0.5s;">1 0 0 1 1 0 1 0 1 0 0 1 0 1 1 0 1 0</div>
-    <div class="matrix-column" style="left: 27%; animation-duration: 19s; animation-delay: 4s;">0 1 1 0 0 1 0 1 0 1 1 0 1 0 0 1 0 1</div>
-    <div class="matrix-column" style="left: 32%; animation-duration: 13s; animation-delay: 1.5s;">1 0 1 0 1 0 1 1 0 0 1 0 1 0 1 1 0 0</div>
-    <div class="matrix-column" style="left: 37%; animation-duration: 17s; animation-delay: 2.5s;">0 1 0 1 0 1 0 0 1 1 0 1 0 1 0 0 1 1</div>
-    <div class="matrix-column" style="left: 42%; animation-duration: 21s; animation-delay: 0s;">1 1 0 0 1 0 1 0 1 0 1 1 0 0 1 0 1 0</div>
-    <div class="matrix-column" style="left: 47%; animation-duration: 15s; animation-delay: 3.5s;">0 0 1 1 0 1 0 1 0 1 0 0 1 1 0 1 0 1</div>
-    <div class="matrix-column" style="left: 52%; animation-duration: 18s; animation-delay: 1s;">1 0 1 0 1 1 0 0 1 0 1 0 1 0 1 1 0 0</div>
-    <div class="matrix-column" style="left: 57%; animation-duration: 14s; animation-delay: 4.5s;">0 1 0 1 0 0 1 1 0 1 0 1 0 1 0 0 1 1</div>
-    <div class="matrix-column" style="left: 62%; animation-duration: 20s; animation-delay: 2s;">1 1 0 0 1 0 1 0 1 1 0 0 1 0 1 0 1 1</div>
-    <div class="matrix-column" style="left: 67%; animation-duration: 16s; animation-delay: 0.5s;">0 0 1 1 0 1 0 1 0 0 1 1 0 1 0 1 0 0</div>
-    <div class="matrix-column" style="left: 72%; animation-duration: 19s; animation-delay: 3s;">1 0 0 1 0 1 1 0 1 0 0 1 0 1 1 0 1 0</div>
-    <div class="matrix-column" style="left: 77%; animation-duration: 13s; animation-delay: 1.5s;">0 1 1 0 1 0 0 1 0 1 1 0 1 0 0 1 0 1</div>
-    <div class="matrix-column" style="left: 82%; animation-duration: 17s; animation-delay: 4s;">1 0 1 0 0 1 0 1 1 0 1 0 0 1 0 1 1 0</div>
-    <div class="matrix-column" style="left: 87%; animation-duration: 21s; animation-delay: 2.5s;">0 1 0 1 1 0 1 0 0 1 0 1 1 0 1 0 0 1</div>
-    <div class="matrix-column" style="left: 92%; animation-duration: 15s; animation-delay: 0s;">1 1 0 0 1 1 0 0 1 1 0 0 1 1 0 0 1 1</div>
-    <div class="matrix-column" style="left: 97%; animation-duration: 18s; animation-delay: 3.5s;">0 0 1 1 0 0 1 1 0 0 1 1 0 0 1 1 0 0</div>
-</div>
 """
 
 st.markdown(NEON_CSS, unsafe_allow_html=True)
