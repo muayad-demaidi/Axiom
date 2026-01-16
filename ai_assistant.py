@@ -16,58 +16,56 @@ client = OpenAI(
 def generate_data_insights(df_summary: Dict, analysis_results: Dict) -> str:
     """Generate AI-powered insights from data analysis"""
     
-    prompt = f"""You are a professional data analyst. Analyze the following data and provide useful insights and recommendations.
+    prompt = f"""أنت محلل بيانات محترف. قم بتحليل البيانات التالية وتقديم رؤى وتوصيات مفيدة باللغة العربية.
 
-Data Summary:
-- Row Count: {df_summary.get('row_count', 'Unknown')}
-- Column Count: {df_summary.get('column_count', 'Unknown')}
-- Columns: {', '.join(df_summary.get('columns', [])[:10])}
+ملخص البيانات:
+- عدد الصفوف: {df_summary.get('row_count', 'غير محدد')}
+- عدد الأعمدة: {df_summary.get('column_count', 'غير محدد')}
+- الأعمدة: {', '.join(df_summary.get('columns', [])[:10])}
 
-Analysis Results:
+نتائج التحليل:
 {json.dumps(analysis_results, ensure_ascii=False, indent=2, default=str)[:3000]}
 
-Please provide:
-1. Top 5 key observations from the data
-2. 3 actionable recommendations
-3. Data strengths and weaknesses
-4. Suggestions for improvement
+قدم:
+1. أهم 5 ملاحظات من البيانات
+2. 3 توصيات عملية
+3. نقاط القوة والضعف في البيانات
+4. اقتراحات للتحسين
 
-Format your response in a clear, organized manner with bullet points."""
+اكتب الرد بشكل منظم ومختصر."""
 
     try:
+        # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
+        # do not change this unless explicitly requested by the user
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-5",
             messages=[
-                {"role": "system", "content": "You are an expert data analyst providing professional insights and recommendations. Be concise but thorough."},
+                {"role": "system", "content": "أنت محلل بيانات خبير تقدم رؤى وتوصيات احترافية باللغة العربية."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=2000
+            max_completion_tokens=2000
         )
-        result = response.choices[0].message.content
-        if result:
-            return result
-        return "No insights generated. Please try again."
+        return response.choices[0].message.content
     except Exception as e:
-        return f"Error generating analysis: {str(e)}"
+        return f"عذراً، حدث خطأ في توليد التحليل: {str(e)}"
 
 
 def chat_about_data(user_question: str, df_info: Dict, 
                     chat_history: List[Dict] = None) -> str:
     """Interactive chat about the data"""
     
-    context = f"""Available Data Information:
-- Row Count: {df_info.get('row_count', 'Unknown')}
-- Column Count: {df_info.get('column_count', 'Unknown')}
-- Column Names: {', '.join(df_info.get('columns', []))}
-- Data Types: {json.dumps(df_info.get('dtypes', {}), ensure_ascii=False)}
-- Statistical Summary: {json.dumps(df_info.get('numeric_summary', {}), ensure_ascii=False, default=str)[:1500]}"""
+    context = f"""معلومات عن البيانات المتاحة:
+- عدد الصفوف: {df_info.get('row_count', 'غير محدد')}
+- عدد الأعمدة: {df_info.get('column_count', 'غير محدد')}
+- أسماء الأعمدة: {', '.join(df_info.get('columns', []))}
+- أنواع البيانات: {json.dumps(df_info.get('dtypes', {}), ensure_ascii=False)}
+- ملخص إحصائي: {json.dumps(df_info.get('numeric_summary', {}), ensure_ascii=False, default=str)[:1500]}"""
 
     messages = [
-        {"role": "system", "content": f"""You are an intelligent assistant specialized in data analysis. 
-You have information about the user's dataset.
-Answer their questions accurately and helpfully.
-If asked about predictions, provide your analysis based on the available data.
-Be concise but informative.
+        {"role": "system", "content": f"""أنت مساعد ذكي متخصص في تحليل البيانات. 
+لديك معلومات عن مجموعة البيانات التي يتعامل معها المستخدم.
+أجب على أسئلته بشكل دقيق ومفيد باللغة العربية.
+إذا سأل عن تنبؤات، قدم تحليلك بناءً على البيانات المتاحة.
 
 {context}"""}
     ]
@@ -80,110 +78,105 @@ Be concise but informative.
     messages.append({"role": "user", "content": user_question})
     
     try:
+        # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
+        # do not change this unless explicitly requested by the user
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-5",
             messages=messages,
-            max_tokens=1500
+            max_completion_tokens=1500
         )
-        result = response.choices[0].message.content
-        if result:
-            return result
-        return "I couldn't generate a response. Please try rephrasing your question."
+        return response.choices[0].message.content
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"عذراً، حدث خطأ: {str(e)}"
 
 
 def generate_comparison_insights(comparison_data: Dict) -> str:
     """Generate insights from period comparison"""
     
-    prompt = f"""You are a professional data analyst. Analyze the following data comparison between two different periods and provide useful insights:
+    prompt = f"""أنت محلل بيانات محترف. قم بتحليل مقارنة البيانات التالية بين فترتين مختلفتين وقدم رؤى مفيدة:
 
-Comparison Data:
+بيانات المقارنة:
 {json.dumps(comparison_data, ensure_ascii=False, indent=2, default=str)[:3000]}
 
-Please provide:
-1. Key changes between the two periods
-2. Notable trends observed
-3. Recommendations based on the changes
-4. Warnings if there are significant negative changes"""
+قدم:
+1. أهم التغييرات بين الفترتين
+2. الاتجاهات الملحوظة
+3. توصيات بناءً على التغييرات
+4. تحذيرات إذا كانت هناك تغييرات سلبية كبيرة"""
 
     try:
+        # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
+        # do not change this unless explicitly requested by the user
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-5",
             messages=[
-                {"role": "system", "content": "You are an expert data analyst comparing different time periods. Be clear and actionable."},
+                {"role": "system", "content": "أنت محلل بيانات خبير تقارن بين فترات زمنية مختلفة."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=1500
+            max_completion_tokens=1500
         )
-        result = response.choices[0].message.content
-        if result:
-            return result
-        return "No comparison insights generated. Please try again."
+        return response.choices[0].message.content
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"عذراً، حدث خطأ: {str(e)}"
 
 
 def generate_prediction_insights(prediction_data: Dict, historical_context: str = "") -> str:
     """Generate insights about predictions"""
     
-    prompt = f"""You are a professional data analyst. Analyze the following prediction results and provide insights:
+    prompt = f"""أنت محلل بيانات متخصص في التنبؤات. حلل نتائج التنبؤ التالية:
 
-Prediction Data:
-{json.dumps(prediction_data, ensure_ascii=False, indent=2, default=str)[:2000]}
+نتائج التنبؤ:
+{json.dumps(prediction_data, ensure_ascii=False, indent=2, default=str)}
 
-Historical Context:
-{historical_context[:1000] if historical_context else 'No historical context available'}
+{f"السياق التاريخي: {historical_context}" if historical_context else ""}
 
-Please provide:
-1. Prediction accuracy assessment
-2. Expected trends
-3. Risk factors to consider
-4. Recommendations for decision making"""
+قدم:
+1. تفسير للتنبؤات
+2. مدى موثوقية التنبؤ
+3. العوامل المؤثرة
+4. توصيات للمستقبل
+5. تحذيرات أو ملاحظات مهمة"""
 
     try:
+        # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
+        # do not change this unless explicitly requested by the user
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-5",
             messages=[
-                {"role": "system", "content": "You are an expert data analyst providing prediction insights. Be practical and clear."},
+                {"role": "system", "content": "أنت خبير في تحليل التنبؤات والنماذج الإحصائية."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=1500
+            max_completion_tokens=1500
         )
-        result = response.choices[0].message.content
-        if result:
-            return result
-        return "No prediction insights generated. Please try again."
+        return response.choices[0].message.content
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"عذراً، حدث خطأ: {str(e)}"
 
 
-def analyze_data_quality(df_info: Dict) -> str:
-    """Analyze data quality and provide recommendations"""
+def generate_cleaning_report(cleaning_report: Dict) -> str:
+    """Generate a user-friendly cleaning report"""
     
-    prompt = f"""You are a data quality expert. Analyze the following dataset information and provide a quality assessment:
+    prompt = f"""حوّل تقرير تنظيف البيانات التالي إلى تقرير مفهوم ومفيد للمستخدم العادي:
 
-Dataset Info:
-{json.dumps(df_info, ensure_ascii=False, indent=2, default=str)[:3000]}
+تقرير التنظيف:
+{json.dumps(cleaning_report, ensure_ascii=False, indent=2)}
 
-Please provide:
-1. Overall data quality score (estimate)
-2. Potential data quality issues
-3. Recommendations for data cleaning
-4. Best practices for this type of data"""
+اكتب التقرير بأسلوب بسيط ومفهوم، واذكر:
+1. ما تم تنظيفه
+2. جودة البيانات بعد التنظيف
+3. أي ملاحظات مهمة"""
 
     try:
+        # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
+        # do not change this unless explicitly requested by the user
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-5",
             messages=[
-                {"role": "system", "content": "You are a data quality expert. Provide actionable insights."},
+                {"role": "system", "content": "أنت مساعد يشرح التقارير التقنية بلغة بسيطة."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=1500
+            max_completion_tokens=800
         )
-        result = response.choices[0].message.content
-        if result:
-            return result
-        return "No quality assessment generated. Please try again."
+        return response.choices[0].message.content
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"عذراً، حدث خطأ: {str(e)}"
