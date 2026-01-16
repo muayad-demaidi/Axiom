@@ -48,7 +48,6 @@ NEON_CSS = """
     --neon-pink: #ec4899;
     --neon-blue: #3b82f6;
     --neon-cyan: #06b6d4;
-    --neon-green: #10b981;
     --dark-bg: #0a0a0f;
     --dark-card: #12121a;
     --dark-card-hover: #1a1a28;
@@ -62,9 +61,7 @@ NEON_CSS = """
 }
 
 .stApp {
-    background: linear-gradient(135deg, #0f0f1a 0%, #0a0a12 50%, #0d0d18 100%);
-    position: relative;
-    z-index: 1;
+    background: radial-gradient(ellipse at top, #1a1033 0%, #0a0a0f 50%, #0a0a0f 100%);
 }
 
 .animated-bg {
@@ -76,157 +73,32 @@ NEON_CSS = """
     pointer-events: none;
     z-index: -1;
     overflow: hidden;
-    background: 
-        radial-gradient(ellipse at 20% 20%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 80%, rgba(59, 130, 246, 0.06) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 50%, rgba(236, 72, 153, 0.04) 0%, transparent 60%);
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .floating-element,
-    .floating-chart .bar,
-    .floating-pie,
-    .floating-grid .dot {
-        animation: none !important;
-        opacity: 0.3;
-    }
-}
-
-.floating-element {
+.floating-data {
     position: absolute;
-    opacity: 0;
-    animation: float-smooth 25s ease-in-out infinite;
-}
-
-.floating-chart {
-    width: 60px;
-    height: 40px;
-    display: flex;
-    align-items: flex-end;
-    gap: 4px;
-    padding: 6px;
-    border-radius: 8px;
-    background: rgba(168, 85, 247, 0.06);
-    border: 1px solid rgba(168, 85, 247, 0.1);
-}
-
-.floating-chart .bar {
-    flex: 1;
-    background: linear-gradient(to top, rgba(168, 85, 247, 0.4), rgba(236, 72, 153, 0.2));
-    border-radius: 2px;
-    animation: bar-grow 2s ease-in-out infinite alternate;
-}
-
-.floating-number {
-    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-family: 'Courier New', monospace;
+    color: rgba(168, 85, 247, 0.12);
     font-size: 14px;
-    color: rgba(168, 85, 247, 0.15);
-    font-weight: 600;
-    letter-spacing: 0.05em;
-}
-
-.floating-trend {
-    width: 80px;
-    height: 30px;
-    position: relative;
-}
-
-.floating-trend svg {
-    width: 100%;
-    height: 100%;
-}
-
-.floating-trend path {
-    stroke: rgba(16, 185, 129, 0.25);
-    stroke-width: 2;
-    fill: none;
-    stroke-linecap: round;
-    stroke-dasharray: 200;
-    animation: draw-line 4s ease-in-out infinite;
-}
-
-.floating-pie {
-    width: 45px;
-    height: 45px;
-    border-radius: 50%;
-    background: conic-gradient(
-        rgba(168, 85, 247, 0.3) 0deg 120deg,
-        rgba(59, 130, 246, 0.25) 120deg 220deg,
-        rgba(236, 72, 153, 0.2) 220deg 360deg
-    );
-    border: 1px solid rgba(168, 85, 247, 0.15);
-    animation: rotate-slow 20s linear infinite;
-}
-
-.floating-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 8px);
-    gap: 3px;
-}
-
-.floating-grid .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: rgba(168, 85, 247, 0.2);
-    animation: pulse-dot 2s ease-in-out infinite;
-}
-
-.floating-code {
-    font-family: 'SF Mono', 'Fira Code', monospace;
-    font-size: 11px;
-    color: rgba(59, 130, 246, 0.12);
+    animation: float-up 20s linear infinite;
     white-space: nowrap;
-    padding: 8px 12px;
-    background: rgba(59, 130, 246, 0.03);
-    border-radius: 6px;
-    border: 1px solid rgba(59, 130, 246, 0.08);
 }
 
-@keyframes float-smooth {
+@keyframes float-up {
     0% {
-        transform: translateY(100vh) translateX(0) scale(0.8);
+        transform: translateY(100vh) rotate(0deg);
         opacity: 0;
     }
-    5% {
-        opacity: 0.8;
+    10% {
+        opacity: 1;
     }
-    50% {
-        transform: translateY(0vh) translateX(20px) scale(1);
-    }
-    95% {
-        opacity: 0.8;
+    90% {
+        opacity: 1;
     }
     100% {
-        transform: translateY(-100vh) translateX(-10px) scale(0.9);
+        transform: translateY(-100vh) rotate(360deg);
         opacity: 0;
     }
-}
-
-@keyframes bar-grow {
-    0% { height: 30%; }
-    100% { height: 90%; }
-}
-
-@keyframes draw-line {
-    0% { stroke-dashoffset: 200; }
-    50% { stroke-dashoffset: 0; }
-    100% { stroke-dashoffset: -200; }
-}
-
-@keyframes rotate-slow {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-@keyframes pulse-dot {
-    0%, 100% { opacity: 0.3; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.2); }
-}
-
-@keyframes glow-pulse {
-    0%, 100% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.1); }
-    50% { box-shadow: 0 0 40px rgba(168, 85, 247, 0.2); }
 }
 
 .glow-text {
@@ -624,72 +496,21 @@ p, span, div {
 </style>
 
 <div class="animated-bg">
-    <!-- Floating Bar Charts -->
-    <div class="floating-element floating-chart" style="left: 5%; animation-delay: 0s;">
-        <div class="bar" style="height: 60%;"></div>
-        <div class="bar" style="height: 80%;"></div>
-        <div class="bar" style="height: 45%;"></div>
-        <div class="bar" style="height: 90%;"></div>
-    </div>
-    <div class="floating-element floating-chart" style="left: 75%; animation-delay: 8s;">
-        <div class="bar" style="height: 70%;"></div>
-        <div class="bar" style="height: 50%;"></div>
-        <div class="bar" style="height: 85%;"></div>
-        <div class="bar" style="height: 65%;"></div>
-    </div>
-    
-    <!-- Floating Trend Lines -->
-    <div class="floating-element floating-trend" style="left: 15%; animation-delay: 3s;">
-        <svg viewBox="0 0 80 30"><path d="M0 25 Q20 20 30 15 T50 10 T80 5"/></svg>
-    </div>
-    <div class="floating-element floating-trend" style="left: 60%; animation-delay: 12s;">
-        <svg viewBox="0 0 80 30"><path d="M0 20 Q15 25 30 15 T55 8 T80 12" style="stroke: rgba(168, 85, 247, 0.2);"/></svg>
-    </div>
-    <div class="floating-element floating-trend" style="left: 35%; animation-delay: 18s;">
-        <svg viewBox="0 0 80 30"><path d="M0 15 Q25 5 40 18 T80 8"/></svg>
-    </div>
-    
-    <!-- Floating Numbers/Stats -->
-    <div class="floating-element floating-number" style="left: 25%; animation-delay: 5s;">+127.4%</div>
-    <div class="floating-element floating-number" style="left: 55%; animation-delay: 10s;">$2.4M</div>
-    <div class="floating-element floating-number" style="left: 85%; animation-delay: 2s;">98.7%</div>
-    <div class="floating-element floating-number" style="left: 45%; animation-delay: 15s;">42.5K</div>
-    <div class="floating-element floating-number" style="left: 10%; animation-delay: 20s;">1.2B</div>
-    
-    <!-- Floating Pie Charts -->
-    <div class="floating-element floating-pie" style="left: 40%; animation-delay: 7s;"></div>
-    <div class="floating-element floating-pie" style="left: 90%; animation-delay: 14s;"></div>
-    
-    <!-- Floating Data Grids -->
-    <div class="floating-element floating-grid" style="left: 20%; animation-delay: 11s;">
-        <div class="dot" style="animation-delay: 0s;"></div>
-        <div class="dot" style="animation-delay: 0.2s;"></div>
-        <div class="dot" style="animation-delay: 0.4s;"></div>
-        <div class="dot" style="animation-delay: 0.1s;"></div>
-        <div class="dot" style="animation-delay: 0.3s;"></div>
-        <div class="dot" style="animation-delay: 0.5s;"></div>
-        <div class="dot" style="animation-delay: 0.2s;"></div>
-        <div class="dot" style="animation-delay: 0.4s;"></div>
-        <div class="dot" style="animation-delay: 0.6s;"></div>
-    </div>
-    <div class="floating-element floating-grid" style="left: 70%; animation-delay: 4s;">
-        <div class="dot" style="animation-delay: 0.1s;"></div>
-        <div class="dot" style="animation-delay: 0.3s;"></div>
-        <div class="dot" style="animation-delay: 0.5s;"></div>
-        <div class="dot" style="animation-delay: 0s;"></div>
-        <div class="dot" style="animation-delay: 0.2s;"></div>
-        <div class="dot" style="animation-delay: 0.4s;"></div>
-        <div class="dot" style="animation-delay: 0.3s;"></div>
-        <div class="dot" style="animation-delay: 0.5s;"></div>
-        <div class="dot" style="animation-delay: 0.7s;"></div>
-    </div>
-    
-    <!-- Floating Code Snippets -->
-    <div class="floating-element floating-code" style="left: 30%; animation-delay: 16s;">df.describe()</div>
-    <div class="floating-element floating-code" style="left: 65%; animation-delay: 22s;">predict(X)</div>
-    <div class="floating-element floating-code" style="left: 8%; animation-delay: 9s;">SELECT AVG(*)</div>
-    <div class="floating-element floating-code" style="left: 50%; animation-delay: 1s;">correlation()</div>
-    <div class="floating-element floating-code" style="left: 80%; animation-delay: 19s;">trend_analysis</div>
+    <div class="floating-data" style="left: 5%; animation-delay: 0s;">01001010 DATA 11010</div>
+    <div class="floating-data" style="left: 15%; animation-delay: 2s;">ANALYTICS ENGINE</div>
+    <div class="floating-data" style="left: 25%; animation-delay: 4s;">{ json: "data" }</div>
+    <div class="floating-data" style="left: 35%; animation-delay: 6s;">SELECT * FROM</div>
+    <div class="floating-data" style="left: 45%; animation-delay: 8s;">AI INSIGHTS</div>
+    <div class="floating-data" style="left: 55%; animation-delay: 1s;">SUM AVG MEDIAN</div>
+    <div class="floating-data" style="left: 65%; animation-delay: 3s;">PREDICT()</div>
+    <div class="floating-data" style="left: 75%; animation-delay: 5s;">TREND ANALYSIS</div>
+    <div class="floating-data" style="left: 85%; animation-delay: 7s;">ML MODEL</div>
+    <div class="floating-data" style="left: 95%; animation-delay: 9s;">BIG DATA</div>
+    <div class="floating-data" style="left: 10%; animation-delay: 10s;">REGRESSION</div>
+    <div class="floating-data" style="left: 30%; animation-delay: 11s;">NEURAL NET</div>
+    <div class="floating-data" style="left: 50%; animation-delay: 12s;">CLUSTER</div>
+    <div class="floating-data" style="left: 70%; animation-delay: 13s;">CORRELATION</div>
+    <div class="floating-data" style="left: 90%; animation-delay: 14s;">FORECAST</div>
 </div>
 """
 
