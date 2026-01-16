@@ -64,7 +64,7 @@ NEON_CSS = """
     background: radial-gradient(ellipse at top, #1a1033 0%, #0a0a0f 50%, #0a0a0f 100%);
 }
 
-.animated-bg {
+.matrix-bg {
     position: fixed;
     top: 0;
     left: 0;
@@ -73,30 +73,47 @@ NEON_CSS = """
     pointer-events: none;
     z-index: -1;
     overflow: hidden;
+    background: transparent;
 }
 
-.floating-data {
+.matrix-column {
     position: absolute;
+    top: -100%;
     font-family: 'Courier New', monospace;
-    color: rgba(168, 85, 247, 0.12);
-    font-size: 14px;
-    animation: float-up 20s linear infinite;
-    white-space: nowrap;
+    font-size: 16px;
+    line-height: 1.2;
+    color: rgba(168, 85, 247, 0.6);
+    text-shadow: 0 0 10px rgba(168, 85, 247, 0.8), 0 0 20px rgba(168, 85, 247, 0.4);
+    animation: matrix-fall linear infinite;
+    white-space: pre;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
 }
 
-@keyframes float-up {
+.matrix-column span {
+    display: block;
+    opacity: 0.7;
+}
+
+.matrix-column span:first-child {
+    color: #fff;
+    text-shadow: 0 0 15px #a855f7, 0 0 30px #ec4899;
+    opacity: 1;
+}
+
+@keyframes matrix-fall {
     0% {
-        transform: translateY(100vh) rotate(0deg);
+        transform: translateY(-100%);
         opacity: 0;
     }
-    10% {
+    5% {
         opacity: 1;
     }
-    90% {
+    95% {
         opacity: 1;
     }
     100% {
-        transform: translateY(-100vh) rotate(360deg);
+        transform: translateY(200vh);
         opacity: 0;
     }
 }
@@ -495,22 +512,32 @@ p, span, div {
 }
 </style>
 
-<div class="animated-bg">
-    <div class="floating-data" style="left: 5%; animation-delay: 0s;">01001010 DATA 11010</div>
-    <div class="floating-data" style="left: 15%; animation-delay: 2s;">ANALYTICS ENGINE</div>
-    <div class="floating-data" style="left: 25%; animation-delay: 4s;">{ json: "data" }</div>
-    <div class="floating-data" style="left: 35%; animation-delay: 6s;">SELECT * FROM</div>
-    <div class="floating-data" style="left: 45%; animation-delay: 8s;">AI INSIGHTS</div>
-    <div class="floating-data" style="left: 55%; animation-delay: 1s;">SUM AVG MEDIAN</div>
-    <div class="floating-data" style="left: 65%; animation-delay: 3s;">PREDICT()</div>
-    <div class="floating-data" style="left: 75%; animation-delay: 5s;">TREND ANALYSIS</div>
-    <div class="floating-data" style="left: 85%; animation-delay: 7s;">ML MODEL</div>
-    <div class="floating-data" style="left: 95%; animation-delay: 9s;">BIG DATA</div>
-    <div class="floating-data" style="left: 10%; animation-delay: 10s;">REGRESSION</div>
-    <div class="floating-data" style="left: 30%; animation-delay: 11s;">NEURAL NET</div>
-    <div class="floating-data" style="left: 50%; animation-delay: 12s;">CLUSTER</div>
-    <div class="floating-data" style="left: 70%; animation-delay: 13s;">CORRELATION</div>
-    <div class="floating-data" style="left: 90%; animation-delay: 14s;">FORECAST</div>
+<div class="matrix-bg">
+    <div class="matrix-column" style="left: 2%; animation-duration: 12s; animation-delay: 0s;"><span>0</span><span>1</span><span>1</span><span>0</span><span>1</span><span>∑</span><span>0</span><span>1</span></div>
+    <div class="matrix-column" style="left: 6%; animation-duration: 15s; animation-delay: 2s;"><span>A</span><span>I</span><span>∫</span><span>7</span><span>3</span><span>9</span><span>π</span></div>
+    <div class="matrix-column" style="left: 10%; animation-duration: 10s; animation-delay: 4s;"><span>1</span><span>0</span><span>0</span><span>1</span><span>√</span><span>∞</span><span>0</span><span>1</span><span>1</span></div>
+    <div class="matrix-column" style="left: 14%; animation-duration: 18s; animation-delay: 1s;"><span>データ</span><span>5</span><span>8</span><span>2</span><span>∑</span></div>
+    <div class="matrix-column" style="left: 18%; animation-duration: 14s; animation-delay: 6s;"><span>0</span><span>1</span><span>1</span><span>0</span><span>1</span><span>0</span><span>1</span></div>
+    <div class="matrix-column" style="left: 22%; animation-duration: 11s; animation-delay: 3s;"><span>π</span><span>4</span><span>2</span><span>0</span><span>∫</span><span>1</span><span>9</span><span>7</span></div>
+    <div class="matrix-column" style="left: 26%; animation-duration: 16s; animation-delay: 8s;"><span>分</span><span>析</span><span>3</span><span>1</span><span>4</span><span>∑</span></div>
+    <div class="matrix-column" style="left: 30%; animation-duration: 13s; animation-delay: 5s;"><span>1</span><span>0</span><span>1</span><span>1</span><span>0</span><span>0</span><span>1</span><span>0</span></div>
+    <div class="matrix-column" style="left: 34%; animation-duration: 17s; animation-delay: 0s;"><span>∞</span><span>6</span><span>2</span><span>8</span><span>3</span><span>√</span><span>1</span></div>
+    <div class="matrix-column" style="left: 38%; animation-duration: 12s; animation-delay: 7s;"><span>0</span><span>0</span><span>1</span><span>1</span><span>0</span><span>1</span><span>0</span><span>1</span></div>
+    <div class="matrix-column" style="left: 42%; animation-duration: 19s; animation-delay: 2s;"><span>A</span><span>I</span><span>π</span><span>∑</span><span>5</span><span>9</span></div>
+    <div class="matrix-column" style="left: 46%; animation-duration: 11s; animation-delay: 9s;"><span>1</span><span>1</span><span>0</span><span>1</span><span>0</span><span>0</span><span>1</span></div>
+    <div class="matrix-column" style="left: 50%; animation-duration: 14s; animation-delay: 4s;"><span>√</span><span>3</span><span>7</span><span>∫</span><span>2</span><span>1</span><span>8</span><span>4</span></div>
+    <div class="matrix-column" style="left: 54%; animation-duration: 16s; animation-delay: 1s;"><span>0</span><span>1</span><span>0</span><span>1</span><span>1</span><span>0</span><span>1</span></div>
+    <div class="matrix-column" style="left: 58%; animation-duration: 13s; animation-delay: 6s;"><span>∞</span><span>π</span><span>9</span><span>4</span><span>6</span><span>∑</span><span>2</span></div>
+    <div class="matrix-column" style="left: 62%; animation-duration: 18s; animation-delay: 3s;"><span>1</span><span>0</span><span>1</span><span>0</span><span>0</span><span>1</span><span>1</span><span>0</span></div>
+    <div class="matrix-column" style="left: 66%; animation-duration: 10s; animation-delay: 8s;"><span>デ</span><span>ー</span><span>タ</span><span>5</span><span>∫</span><span>7</span></div>
+    <div class="matrix-column" style="left: 70%; animation-duration: 15s; animation-delay: 0s;"><span>0</span><span>1</span><span>1</span><span>1</span><span>0</span><span>0</span><span>1</span></div>
+    <div class="matrix-column" style="left: 74%; animation-duration: 12s; animation-delay: 5s;"><span>√</span><span>8</span><span>3</span><span>1</span><span>∞</span><span>6</span><span>2</span><span>π</span></div>
+    <div class="matrix-column" style="left: 78%; animation-duration: 17s; animation-delay: 2s;"><span>1</span><span>0</span><span>0</span><span>1</span><span>1</span><span>0</span><span>1</span></div>
+    <div class="matrix-column" style="left: 82%; animation-duration: 14s; animation-delay: 7s;"><span>A</span><span>I</span><span>∑</span><span>4</span><span>9</span><span>∫</span><span>3</span></div>
+    <div class="matrix-column" style="left: 86%; animation-duration: 11s; animation-delay: 4s;"><span>0</span><span>1</span><span>0</span><span>1</span><span>0</span><span>1</span><span>1</span><span>0</span></div>
+    <div class="matrix-column" style="left: 90%; animation-duration: 16s; animation-delay: 1s;"><span>∞</span><span>7</span><span>2</span><span>5</span><span>√</span><span>π</span><span>8</span></div>
+    <div class="matrix-column" style="left: 94%; animation-duration: 13s; animation-delay: 6s;"><span>1</span><span>1</span><span>0</span><span>0</span><span>1</span><span>0</span><span>1</span></div>
+    <div class="matrix-column" style="left: 98%; animation-duration: 15s; animation-delay: 9s;"><span>∑</span><span>6</span><span>1</span><span>4</span><span>∫</span><span>9</span></div>
 </div>
 """
 
@@ -1336,6 +1363,53 @@ def show_dashboard():
                 
                 if st.session_state.ai_insights:
                     st.markdown(f'<div class="insight-box">{st.session_state.ai_insights}</div>', unsafe_allow_html=True)
+            
+            st.markdown("---")
+            st.subheader("📥 Download Report")
+            
+            col_dl1, col_dl2 = st.columns(2)
+            
+            with col_dl1:
+                report_content = f"""# DataVision Pro - Analysis Report
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+## Executive Summary
+- **Total Rows:** {len(df_report):,}
+- **Total Columns:** {len(df_report.columns)}
+- **Data Quality Score:** {quality['overall_score']}%
+- **Numeric Columns:** {len(df_report.select_dtypes(include=[np.number]).columns)}
+
+## Column Information
+{chr(10).join([f"- **{col}**: {df_report[col].dtype}" for col in df_report.columns])}
+
+## Statistical Summary
+"""
+                if st.session_state.analysis_results and 'numeric_summary' in st.session_state.analysis_results:
+                    for col, stats in st.session_state.analysis_results['numeric_summary'].items():
+                        report_content += f"\n### {col}\n"
+                        for stat, val in stats.items():
+                            report_content += f"- {stat}: {val}\n"
+                
+                if st.session_state.ai_insights:
+                    report_content += f"\n## AI Insights & Recommendations\n{st.session_state.ai_insights}\n"
+                
+                st.download_button(
+                    label="📄 Download Report (TXT)",
+                    data=report_content,
+                    file_name=f"datavision_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                    mime="text/plain",
+                    use_container_width=True
+                )
+            
+            with col_dl2:
+                csv_data = df_report.to_csv(index=False)
+                st.download_button(
+                    label="📊 Download Data (CSV)",
+                    data=csv_data,
+                    file_name=f"cleaned_data_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
     
     else:
         st.markdown("""

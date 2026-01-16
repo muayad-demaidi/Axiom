@@ -16,56 +16,55 @@ client = OpenAI(
 def generate_data_insights(df_summary: Dict, analysis_results: Dict) -> str:
     """Generate AI-powered insights from data analysis"""
     
-    prompt = f"""أنت محلل بيانات محترف. قم بتحليل البيانات التالية وتقديم رؤى وتوصيات مفيدة باللغة العربية.
+    prompt = f"""You are a professional data analyst. Analyze the following data and provide useful insights and recommendations.
 
-ملخص البيانات:
-- عدد الصفوف: {df_summary.get('row_count', 'غير محدد')}
-- عدد الأعمدة: {df_summary.get('column_count', 'غير محدد')}
-- الأعمدة: {', '.join(df_summary.get('columns', [])[:10])}
+Data Summary:
+- Rows: {df_summary.get('row_count', 'Unknown')}
+- Columns: {df_summary.get('column_count', 'Unknown')}
+- Column names: {', '.join(df_summary.get('columns', [])[:10])}
 
-نتائج التحليل:
+Analysis Results:
 {json.dumps(analysis_results, ensure_ascii=False, indent=2, default=str)[:3000]}
 
-قدم:
-1. أهم 5 ملاحظات من البيانات
-2. 3 توصيات عملية
-3. نقاط القوة والضعف في البيانات
-4. اقتراحات للتحسين
+Provide:
+1. Top 5 key observations from the data
+2. 3 actionable recommendations
+3. Strengths and weaknesses of the data
+4. Suggestions for improvement
 
-اكتب الرد بشكل منظم ومختصر."""
+Write the response in a clear and organized manner."""
 
     try:
-        # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
-        # do not change this unless explicitly requested by the user
         response = client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[
-                {"role": "system", "content": "أنت محلل بيانات خبير تقدم رؤى وتوصيات احترافية باللغة العربية."},
+                {"role": "system", "content": "You are an expert data analyst providing professional insights and recommendations."},
                 {"role": "user", "content": prompt}
             ],
-            max_completion_tokens=2000
+            max_tokens=2000
         )
-        return response.choices[0].message.content
+        result = response.choices[0].message.content
+        return result if result else "Unable to generate insights. Please try again."
     except Exception as e:
-        return f"عذراً، حدث خطأ في توليد التحليل: {str(e)}"
+        return f"Sorry, an error occurred while generating analysis: {str(e)}"
 
 
 def chat_about_data(user_question: str, df_info: Dict, 
                     chat_history: List[Dict] = None) -> str:
     """Interactive chat about the data"""
     
-    context = f"""معلومات عن البيانات المتاحة:
-- عدد الصفوف: {df_info.get('row_count', 'غير محدد')}
-- عدد الأعمدة: {df_info.get('column_count', 'غير محدد')}
-- أسماء الأعمدة: {', '.join(df_info.get('columns', []))}
-- أنواع البيانات: {json.dumps(df_info.get('dtypes', {}), ensure_ascii=False)}
-- ملخص إحصائي: {json.dumps(df_info.get('numeric_summary', {}), ensure_ascii=False, default=str)[:1500]}"""
+    context = f"""Available data information:
+- Rows: {df_info.get('row_count', 'Unknown')}
+- Columns: {df_info.get('column_count', 'Unknown')}
+- Column names: {', '.join(df_info.get('columns', []))}
+- Data types: {json.dumps(df_info.get('dtypes', {}), ensure_ascii=False)}
+- Statistical summary: {json.dumps(df_info.get('numeric_summary', {}), ensure_ascii=False, default=str)[:1500]}"""
 
     messages = [
-        {"role": "system", "content": f"""أنت مساعد ذكي متخصص في تحليل البيانات. 
-لديك معلومات عن مجموعة البيانات التي يتعامل معها المستخدم.
-أجب على أسئلته بشكل دقيق ومفيد باللغة العربية.
-إذا سأل عن تنبؤات، قدم تحليلك بناءً على البيانات المتاحة.
+        {"role": "system", "content": f"""You are an intelligent data analysis assistant.
+You have information about the user's dataset.
+Answer their questions accurately and helpfully.
+If they ask about predictions, provide your analysis based on available data.
 
 {context}"""}
     ]
@@ -78,16 +77,15 @@ def chat_about_data(user_question: str, df_info: Dict,
     messages.append({"role": "user", "content": user_question})
     
     try:
-        # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
-        # do not change this unless explicitly requested by the user
         response = client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=messages,
-            max_completion_tokens=1500
+            max_tokens=1500
         )
-        return response.choices[0].message.content
+        result = response.choices[0].message.content
+        return result if result else "I apologize, but I couldn't generate a response. Please try again."
     except Exception as e:
-        return f"عذراً، حدث خطأ: {str(e)}"
+        return f"Sorry, an error occurred: {str(e)}"
 
 
 def generate_comparison_insights(comparison_data: Dict) -> str:
@@ -105,15 +103,13 @@ def generate_comparison_insights(comparison_data: Dict) -> str:
 4. تحذيرات إذا كانت هناك تغييرات سلبية كبيرة"""
 
     try:
-        # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
-        # do not change this unless explicitly requested by the user
         response = client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "أنت محلل بيانات خبير تقارن بين فترات زمنية مختلفة."},
                 {"role": "user", "content": prompt}
             ],
-            max_completion_tokens=1500
+            max_tokens=1500
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -138,15 +134,13 @@ def generate_prediction_insights(prediction_data: Dict, historical_context: str 
 5. تحذيرات أو ملاحظات مهمة"""
 
     try:
-        # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
-        # do not change this unless explicitly requested by the user
         response = client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "أنت خبير في تحليل التنبؤات والنماذج الإحصائية."},
                 {"role": "user", "content": prompt}
             ],
-            max_completion_tokens=1500
+            max_tokens=1500
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -167,15 +161,13 @@ def generate_cleaning_report(cleaning_report: Dict) -> str:
 3. أي ملاحظات مهمة"""
 
     try:
-        # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
-        # do not change this unless explicitly requested by the user
         response = client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "أنت مساعد يشرح التقارير التقنية بلغة بسيطة."},
                 {"role": "user", "content": prompt}
             ],
-            max_completion_tokens=800
+            max_tokens=800
         )
         return response.choices[0].message.content
     except Exception as e:
