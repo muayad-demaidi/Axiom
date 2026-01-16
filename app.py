@@ -560,8 +560,25 @@ if 'comparison_data' not in st.session_state:
     st.session_state.comparison_data = None
 
 
+def user_to_dict(user):
+    """Convert SQLAlchemy User object to dictionary to avoid DetachedInstanceError"""
+    if user is None:
+        return None
+    return {
+        'id': user.id,
+        'email': user.email,
+        'username': user.username,
+        'full_name': user.full_name,
+        'subscription_type': user.subscription_type,
+        'is_admin': user.is_admin,
+        'analysis_count': user.analysis_count,
+        'created_at': user.created_at,
+        'last_login': user.last_login
+    }
+
+
 def get_user_limits():
-    if st.session_state.user and st.session_state.user.subscription_type == 'premium':
+    if st.session_state.user and st.session_state.user.get('subscription_type') == 'premium':
         return PREMIUM_LIMITS
     return FREE_LIMITS
 
@@ -587,6 +604,12 @@ def load_file(uploaded_file):
 
 
 def show_login_page():
+    # Redirect if already logged in
+    if st.session_state.user:
+        st.session_state.page = 'dashboard'
+        st.rerun()
+        return
+    
     st.markdown('<h2 class="glow-text" style="font-size: 2.5rem;">Welcome Back</h2>', unsafe_allow_html=True)
     st.markdown('<p class="sub-title">Sign in to access your dashboard</p>', unsafe_allow_html=True)
     
@@ -603,16 +626,19 @@ def show_login_page():
                     try:
                         user = authenticate_user(db, email, password)
                         if user:
-                            st.session_state.user = user
+                            st.session_state.user = user_to_dict(user)
                             st.session_state.page = 'dashboard'
-                            st.success("Successfully signed in!")
-                            st.rerun()
                         else:
                             st.error("Invalid email or password")
                     finally:
                         db.close()
                 else:
                     st.warning("Please fill in all fields")
+        
+        # Check if login was successful and rerun outside form
+        if st.session_state.user and st.session_state.page == 'dashboard':
+            st.success("Successfully signed in!")
+            st.rerun()
         
         st.markdown("---")
         col_a, col_b = st.columns(2)
@@ -627,6 +653,12 @@ def show_login_page():
 
 
 def show_register_page():
+    # Redirect if already logged in
+    if st.session_state.user:
+        st.session_state.page = 'dashboard'
+        st.rerun()
+        return
+    
     st.markdown('<h2 class="glow-text" style="font-size: 2.5rem;">Create Account</h2>', unsafe_allow_html=True)
     st.markdown('<p class="sub-title">Start your data analytics journey today</p>', unsafe_allow_html=True)
     
@@ -652,14 +684,17 @@ def show_register_page():
                     try:
                         user = create_user(db, email, username, password, full_name)
                         if user:
-                            st.session_state.user = user
+                            st.session_state.user = user_to_dict(user)
                             st.session_state.page = 'dashboard'
-                            st.success("Account created successfully!")
-                            st.rerun()
                         else:
                             st.error("Email or username already exists")
                     finally:
                         db.close()
+        
+        # Check if registration was successful and rerun outside form
+        if st.session_state.user and st.session_state.page == 'dashboard':
+            st.success("Account created successfully!")
+            st.rerun()
         
         st.markdown("---")
         col_a, col_b = st.columns(2)
@@ -854,22 +889,22 @@ def show_dashboard():
         
         if st.session_state.user:
             user = st.session_state.user
-            badge_class = "badge-premium" if user.subscription_type == "premium" else "badge-free"
-            badge_text = "💎 Premium" if user.subscription_type == "premium" else "🆓 Free"
+            badge_class = "badge-premium" if user.get('subscription_type') == "premium" else "badge-free"
+            badge_text = "💎 Premium" if user.get('subscription_type') == "premium" else "🆓 Free"
             
             st.markdown(f"""
             <div class="user-badge">
-                <div style="font-size: 1.1rem; font-weight: 600; color: #fff;">👤 {user.full_name or user.username}</div>
+                <div style="font-size: 1.1rem; font-weight: 600; color: #fff;">👤 {user.get('full_name') or user.get('username')}</div>
                 <div style="margin-top: 0.5rem;"><span class="{badge_class}">{badge_text}</span></div>
             </div>
             """, unsafe_allow_html=True)
             
-            if user.is_admin:
+            if user.get('is_admin'):
                 if st.button("⚙️ Admin Panel", use_container_width=True):
                     st.session_state.page = 'admin'
                     st.rerun()
             
-            if user.subscription_type != "premium":
+            if user.get('subscription_type') != "premium":
                 if st.button("💎 Upgrade to Premium", use_container_width=True):
                     st.session_state.page = 'pricing'
                     st.rerun()
@@ -948,7 +983,7 @@ def show_dashboard():
                                     st.session_state.similar_datasets = similar
                                     
                                     if st.session_state.user:
-                                        increment_analysis_count(db, st.session_state.user.id)
+                                        increment_analysis_count(db, st.session_state.user.get('id'))
                                 finally:
                                     db.close()
                                 
@@ -1432,7 +1467,7 @@ elif st.session_state.page == 'register':
 elif st.session_state.page == 'pricing':
     show_pricing_page()
 elif st.session_state.page == 'admin':
-    if st.session_state.user and st.session_state.user.is_admin:
+    if st.session_state.user and st.session_state.user.get('is_admin'):
         show_admin_panel()
     else:
         st.error("Access denied. Admin privileges required.")
