@@ -1278,7 +1278,14 @@ def show_dashboard():
                     with st.chat_message("assistant"):
                         with st.spinner("Analyzing..."):
                             df_chat = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
-                            response = chat_about_data(df_chat, prompt)
+                            df_info = {
+                                'row_count': len(df_chat),
+                                'column_count': len(df_chat.columns),
+                                'columns': df_chat.columns.tolist(),
+                                'dtypes': df_chat.dtypes.astype(str).to_dict(),
+                                'numeric_summary': df_chat.describe().to_dict() if not df_chat.select_dtypes(include=[np.number]).empty else {}
+                            }
+                            response = chat_about_data(prompt, df_info)
                             st.write(response)
                             st.session_state.chat_messages.append({"role": "assistant", "content": response})
                             
@@ -1317,7 +1324,13 @@ def show_dashboard():
                 st.subheader("🤖 AI Insights & Recommendations")
                 if st.button("Generate AI Insights", use_container_width=True):
                     with st.spinner("Analyzing data with AI..."):
-                        insights = generate_data_insights(df_report)
+                        df_summary = {
+                            'row_count': len(df_report),
+                            'column_count': len(df_report.columns),
+                            'columns': df_report.columns.tolist()
+                        }
+                        analysis_results = st.session_state.analysis_results if st.session_state.analysis_results else {}
+                        insights = generate_data_insights(df_summary, analysis_results)
                         st.session_state.ai_insights = insights
                         st.markdown(f'<div class="insight-box">{insights}</div>', unsafe_allow_html=True)
                 
