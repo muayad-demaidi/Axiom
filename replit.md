@@ -1,59 +1,93 @@
-# نظام تحليل البيانات الذكي
+# DataVision Pro - Intelligent Data Analytics Platform
 
-## نظرة عامة
-نظام تحليل بيانات شامل وذكي مبني على Streamlit يقوم بتحليل البيانات تلقائياً بضغطة زر واحدة. يتضمن النظام:
-- تنظيف البيانات تلقائياً
-- تحليل إحصائي شامل
-- رسومات بيانية تفاعلية
-- مقارنة بين فترات زمنية مختلفة
-- تنبؤات مستقبلية
-- محادثة تفاعلية مع الذكاء الاصطناعي
-- تقارير احترافية مع توصيات
+## Overview
+A comprehensive intelligent data analytics system built with Streamlit that provides one-click automated data analysis. The system features:
+- Automatic data cleaning
+- Comprehensive statistical analysis
+- Interactive visualizations
+- Time period comparisons
+- Predictive analytics
+- AI-powered chat assistant
+- Professional reports with recommendations
 
-## هيكل المشروع
+## Project Structure
 ```
-├── app.py                 # التطبيق الرئيسي (Streamlit)
-├── models.py              # نماذج قاعدة البيانات (SQLAlchemy)
-├── data_cleaner.py        # وحدة تنظيف البيانات
-├── data_analyzer.py       # وحدة التحليل الإحصائي
-├── visualizations.py      # وحدة الرسومات البيانية (Plotly)
-├── predictions.py         # وحدة التنبؤات والمقارنات
-├── ai_assistant.py        # وحدة الذكاء الاصطناعي (OpenAI GPT-5)
+├── app.py                 # Main application (Streamlit)
+├── models.py              # Database models (SQLAlchemy) - Users, Subscriptions, Datasets
+├── data_cleaner.py        # Data cleaning module
+├── data_analyzer.py       # Statistical analysis module
+├── visualizations.py      # Charts and graphs (Plotly)
+├── predictions.py         # Predictions and comparisons
+├── ai_assistant.py        # AI module (OpenAI GPT)
 ├── .streamlit/
-│   └── config.toml        # إعدادات Streamlit
-├── pyproject.toml         # إعدادات المشروع والمكتبات
-└── replit.md              # هذا الملف
+│   └── config.toml        # Streamlit configuration
+├── pyproject.toml         # Project dependencies
+└── replit.md              # This file
 ```
 
-## التقنيات المستخدمة
-- **Streamlit**: واجهة المستخدم التفاعلية
-- **Pandas & NumPy**: معالجة وتحليل البيانات
-- **Plotly**: الرسومات البيانية التفاعلية
-- **Seaborn & Matplotlib**: رسومات إحصائية إضافية
-- **Scikit-learn**: النماذج التنبؤية
-- **SQLAlchemy & PostgreSQL**: قاعدة البيانات لحفظ البيانات التاريخية
-- **OpenAI GPT-5**: الذكاء الاصطناعي للتحليل والمحادثة
+## Tech Stack
+- **Streamlit**: Interactive web interface
+- **Pandas & NumPy**: Data processing and analysis
+- **Plotly**: Interactive visualizations
+- **Seaborn & Matplotlib**: Additional statistical charts
+- **Scikit-learn**: Predictive models
+- **SQLAlchemy & PostgreSQL**: Database for users, subscriptions, and historical data
+- **OpenAI GPT**: AI for analysis and conversation
+- **bcrypt**: Secure password hashing
 
-## كيفية التشغيل
+## Running the App
 ```bash
 streamlit run app.py --server.port 5000
 ```
 
-## الميزات الرئيسية
-1. **رفع الملفات**: دعم CSV و Excel
-2. **تنظيف تلقائي**: إزالة التكرارات، معالجة القيم المفقودة والشاذة
-3. **تحليل شامل**: إحصاءات وصفية، ارتباطات، توزيعات
-4. **رسومات متنوعة**: أعمدة، مبعثرة، صندوقية، دائرية، خطية، خرائط حرارية
-5. **تتبع زمني**: حفظ البيانات ومقارنتها عبر الفترات
-6. **تنبؤات**: نماذج خطية وتحليل اتجاهات
-7. **محادثة ذكية**: اسأل أي سؤال عن بياناتك
-8. **تقارير AI**: رؤى وتوصيات احترافية
+## Key Features
+1. **File Upload**: Support for CSV and Excel files
+2. **Auto Cleaning**: Remove duplicates, handle missing values and outliers
+3. **Statistical Analysis**: Descriptive stats, correlations, distributions
+4. **Visualizations**: Bar, scatter, box, pie, line charts, heatmaps
+5. **Time Tracking**: Save and compare data across time periods
+6. **Predictions**: Linear models and trend analysis
+7. **AI Chat**: Ask any question about your data
+8. **AI Reports**: Insights and professional recommendations
 
-## قاعدة البيانات
-يستخدم النظام PostgreSQL لحفظ:
-- سجلات البيانات المرفوعة مع معلومات الفترة الزمنية
-- تاريخ التحليلات
-- محادثات المستخدم مع الذكاء الاصطناعي
+## User System
+- **Authentication**: Email/password login with bcrypt hashing
+- **User Roles**: Regular users and Admin
+- **Subscriptions**: Free and Premium tiers
 
-## التاريخ
-- **يناير 2026**: الإصدار الأول - النظام الكامل مع جميع الميزات
+### Subscription Tiers
+| Feature | Free | Premium ($29/mo) |
+|---------|------|------------------|
+| Max Rows | 1,000 | Unlimited |
+| Analyses/Day | 5 | Unlimited |
+| File Size | 5 MB | 100 MB |
+| AI Chat | ❌ | ✓ |
+| Predictions | ❌ | ✓ |
+| Export Reports | ❌ | ✓ |
+
+## Admin Panel
+Admins can access:
+- User management and statistics
+- Dataset analytics
+- Conversation history
+- Platform usage metrics
+
+## Database Schema
+- **Users**: Authentication, subscription info, usage stats
+- **Subscriptions**: Plan details, Stripe integration (future)
+- **DatasetRecord**: Uploaded files with metadata
+- **AnalysisHistory**: Analysis results
+- **ChatHistory**: AI conversation logs
+
+## Design
+- Theme: Neon purple/pink with dark background
+- Animated floating data background
+- Professional, modern UI
+- Responsive layout
+
+## Notes
+- **Stripe Integration**: User dismissed Stripe connector. For payment processing, manually add STRIPE_SECRET_KEY as a secret when ready to enable payments.
+
+## History
+- **January 2026**: Initial release with full features
+- **January 2026**: UI redesign with neon theme, user authentication, subscription system, admin panel, English interface
