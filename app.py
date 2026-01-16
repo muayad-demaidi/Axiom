@@ -517,12 +517,12 @@ p, span, div {
 st.markdown(NEON_CSS, unsafe_allow_html=True)
 
 FREE_LIMITS = {
-    'max_rows': 1000,
-    'max_analyses_per_day': 5,
-    'max_file_size_mb': 5,
-    'ai_chat_enabled': False,
-    'predictions_enabled': False,
-    'export_enabled': False
+    'max_rows': 1000000,  # Temporarily unlimited for testing
+    'max_analyses_per_day': 999999,  # Temporarily unlimited for testing
+    'max_file_size_mb': 100,  # Temporarily unlimited for testing
+    'ai_chat_enabled': True,  # Temporarily enabled for testing
+    'predictions_enabled': True,  # Temporarily enabled for testing
+    'export_enabled': True  # Temporarily enabled for testing
 }
 
 PREMIUM_LIMITS = {
