@@ -1236,7 +1236,8 @@ def show_dashboard():
                     
                     if st.button("🔮 Generate Forecast", use_container_width=True):
                         with st.spinner("Generating predictions..."):
-                            forecast = simple_forecast(df_pred, target_col, periods)
+                            values = df_pred[target_col].dropna().tolist()
+                            forecast = simple_forecast(values, periods)
                             if forecast is not None:
                                 trend_chart = create_trend_chart(df_pred, target_col, forecast)
                                 if trend_chart:
