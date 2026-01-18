@@ -1,10 +1,12 @@
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Any, Tuple, Optional
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, accuracy_score, classification_report
+from sklearn.cluster import KMeans
+from sklearn.ensemble import RandomForestClassifier
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -237,3 +239,156 @@ def calculate_growth_metrics(values: List[float]) -> Dict[str, float]:
         'min_growth_pct': round(min(period_growths), 2) if period_growths else 0,
         'cagr_pct': round(cagr, 2)
     }
+
+
+def build_ml_prediction_model(df: pd.DataFrame, target_col: str) -> Dict[str, Any]:
+    """Build ML model to predict a target variable (classification or regression)"""
+    try:
+        df_clean = df.dropna(subset=[target_col])
+        if len(df_clean) < 50:
+            return {'error': 'Not enough data for ML model (need at least 50 rows)'}
+        
+        numeric_cols = df_clean.select_dtypes(include=[np.number]).columns.tolist()
+        if target_col in numeric_cols:
+            numeric_cols.remove(target_col)
+        
+        if len(numeric_cols) < 2:
+            return {'error': 'Not enough numeric features for prediction'}
+        
+        X = df_clean[numeric_cols].fillna(0)
+        y = df_clean[target_col]
+        
+        is_classification = y.nunique() <= 10
+        
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+        
+        if is_classification:
+            model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
+            model.fit(X_train_scaled, y_train)
+            y_pred = model.predict(X_test_scaled)
+            accuracy = accuracy_score(y_test, y_pred)
+            
+            feature_importance = dict(zip(numeric_cols, model.feature_importances_))
+            feature_importance = dict(sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:10])
+            
+            return {
+                'model_type': 'classification',
+                'accuracy': round(accuracy * 100, 2),
+                'feature_importance': {k: round(v * 100, 2) for k, v in feature_importance.items()},
+                'features_used': numeric_cols,
+                'target': target_col,
+                'train_size': len(X_train),
+                'test_size': len(X_test),
+                'classes': y.unique().tolist()
+            }
+        else:
+            model = LinearRegression()
+            model.fit(X_train_scaled, y_train)
+            y_pred = model.predict(X_test_scaled)
+            r2 = r2_score(y_test, y_pred)
+            mae = mean_absolute_error(y_test, y_pred)
+            
+            return {
+                'model_type': 'regression',
+                'r2_score': round(r2 * 100, 2),
+                'mae': round(mae, 2),
+                'features_used': numeric_cols,
+                'target': target_col,
+                'train_size': len(X_train),
+                'test_size': len(X_test)
+            }
+            
+    except Exception as e:
+        return {'error': str(e)}
+
+
+def create_risk_clusters(df: pd.DataFrame, n_clusters: int = 4) -> Dict[str, Any]:
+    """Create customer/data risk clusters using KMeans"""
+    try:
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        
+        if len(numeric_cols) < 2:
+            return {'error': 'Not enough numeric columns for clustering'}
+        
+        df_cluster = df[numeric_cols].dropna()
+        
+        if len(df_cluster) < n_clusters * 10:
+            return {'error': f'Not enough data for {n_clusters} clusters'}
+        
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(df_cluster)
+        
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+        clusters = kmeans.fit_predict(X_scaled)
+        
+        df_cluster = df_cluster.copy()
+        df_cluster['cluster'] = clusters
+        
+        cluster_stats = {}
+        for i in range(n_clusters):
+            cluster_data = df_cluster[df_cluster['cluster'] == i]
+            cluster_stats[f'Cluster {i+1}'] = {
+                'size': len(cluster_data),
+                'percentage': round(len(cluster_data) / len(df_cluster) * 100, 2),
+                'characteristics': {}
+            }
+            for col in numeric_cols[:5]:
+                cluster_stats[f'Cluster {i+1}']['characteristics'][col] = {
+                    'mean': round(cluster_data[col].mean(), 2),
+                    'std': round(cluster_data[col].std(), 2)
+                }
+        
+        risk_levels = ['Low Risk', 'Medium-Low Risk', 'Medium-High Risk', 'High Risk']
+        cluster_means = []
+        for i in range(n_clusters):
+            cluster_data = df_cluster[df_cluster['cluster'] == i]
+            cluster_means.append((i, cluster_data[numeric_cols].mean().mean()))
+        cluster_means.sort(key=lambda x: x[1])
+        
+        risk_mapping = {}
+        for idx, (cluster_id, _) in enumerate(cluster_means):
+            risk_mapping[cluster_id] = risk_levels[idx] if idx < len(risk_levels) else f'Level {idx+1}'
+        
+        return {
+            'n_clusters': n_clusters,
+            'cluster_stats': cluster_stats,
+            'cluster_labels': clusters.tolist(),
+            'risk_mapping': risk_mapping,
+            'inertia': round(kmeans.inertia_, 2),
+            'features_used': numeric_cols
+        }
+        
+    except Exception as e:
+        return {'error': str(e)}
+
+
+def analyze_categorical_insights(df: pd.DataFrame) -> Dict[str, Any]:
+    """Deep analysis of categorical columns"""
+    cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+    
+    if not cat_cols:
+        return {'error': 'No categorical columns found'}
+    
+    insights = {}
+    for col in cat_cols:
+        value_counts = df[col].value_counts()
+        total = len(df[col].dropna())
+        
+        balance_ratio = value_counts.min() / value_counts.max() if value_counts.max() > 0 else 0
+        
+        insights[col] = {
+            'unique_values': df[col].nunique(),
+            'missing': df[col].isnull().sum(),
+            'missing_pct': round(df[col].isnull().sum() / len(df) * 100, 2),
+            'distribution': {k: {'count': v, 'pct': round(v/total*100, 2)} for k, v in value_counts.head(10).items()},
+            'is_balanced': balance_ratio > 0.3,
+            'balance_ratio': round(balance_ratio, 2),
+            'top_category': value_counts.index[0] if len(value_counts) > 0 else None,
+            'bottom_category': value_counts.index[-1] if len(value_counts) > 0 else None
+        }
+    
+    return insights

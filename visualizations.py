@@ -270,3 +270,149 @@ def create_trend_chart(values: List[float], labels: List[str],
         yaxis_title="القيمة"
     )
     return fig
+
+
+def create_categorical_distribution(df: pd.DataFrame, column: str, title: str = None) -> go.Figure:
+    """Create a pie chart for categorical distribution"""
+    value_counts = df[column].value_counts()
+    
+    colors = ['#a855f7', '#ec4899', '#3b82f6', '#06b6d4', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6']
+    
+    fig = go.Figure(data=[go.Pie(
+        labels=value_counts.index.tolist(),
+        values=value_counts.values.tolist(),
+        hole=0.4,
+        marker_colors=colors[:len(value_counts)],
+        textinfo='label+percent',
+        textposition='outside'
+    )])
+    
+    fig.update_layout(
+        title=title or f"Distribution of {column}",
+        template="plotly_white",
+        font=dict(size=12),
+        showlegend=True
+    )
+    return fig
+
+
+def create_categorical_bar_chart(df: pd.DataFrame, column: str, title: str = None) -> go.Figure:
+    """Create a horizontal bar chart for categorical data"""
+    value_counts = df[column].value_counts().sort_values(ascending=True)
+    
+    fig = go.Figure(go.Bar(
+        x=value_counts.values,
+        y=value_counts.index,
+        orientation='h',
+        marker=dict(
+            color=value_counts.values,
+            colorscale='Viridis',
+            showscale=True
+        ),
+        text=value_counts.values,
+        textposition='outside'
+    ))
+    
+    fig.update_layout(
+        title=title or f"Distribution of {column}",
+        template="plotly_white",
+        font=dict(size=12),
+        xaxis_title="Count",
+        yaxis_title=column,
+        height=max(400, len(value_counts) * 30)
+    )
+    return fig
+
+
+def create_cluster_scatter(df: pd.DataFrame, x_col: str, y_col: str, 
+                          cluster_labels: list, title: str = None) -> go.Figure:
+    """Create scatter plot colored by cluster"""
+    df_plot = df[[x_col, y_col]].copy()
+    df_plot['Cluster'] = cluster_labels
+    
+    colors = ['#a855f7', '#ec4899', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444']
+    
+    fig = go.Figure()
+    
+    for i, cluster in enumerate(sorted(df_plot['Cluster'].unique())):
+        mask = df_plot['Cluster'] == cluster
+        fig.add_trace(go.Scatter(
+            x=df_plot.loc[mask, x_col],
+            y=df_plot.loc[mask, y_col],
+            mode='markers',
+            name=f'Cluster {cluster + 1}',
+            marker=dict(
+                color=colors[i % len(colors)],
+                size=8,
+                opacity=0.7
+            )
+        ))
+    
+    fig.update_layout(
+        title=title or f"Customer Clusters: {x_col} vs {y_col}",
+        template="plotly_white",
+        font=dict(size=12),
+        xaxis_title=x_col,
+        yaxis_title=y_col
+    )
+    return fig
+
+
+def create_feature_importance_chart(feature_importance: dict, title: str = None) -> go.Figure:
+    """Create horizontal bar chart for feature importance"""
+    sorted_features = dict(sorted(feature_importance.items(), key=lambda x: x[1], reverse=True))
+    
+    fig = go.Figure(go.Bar(
+        x=list(sorted_features.values()),
+        y=list(sorted_features.keys()),
+        orientation='h',
+        marker=dict(
+            color=list(sorted_features.values()),
+            colorscale='Purples',
+            showscale=False
+        ),
+        text=[f"{v:.1f}%" for v in sorted_features.values()],
+        textposition='outside'
+    ))
+    
+    fig.update_layout(
+        title=title or "Feature Importance",
+        template="plotly_white",
+        font=dict(size=12),
+        xaxis_title="Importance (%)",
+        yaxis_title="Feature",
+        height=max(400, len(sorted_features) * 35)
+    )
+    return fig
+
+
+def create_outlier_visualization(df: pd.DataFrame, column: str, 
+                                 outliers_info: dict) -> go.Figure:
+    """Create box plot with outliers highlighted"""
+    fig = go.Figure()
+    
+    fig.add_trace(go.Box(
+        y=df[column],
+        name=column,
+        marker_color='#a855f7',
+        boxpoints='outliers',
+        jitter=0.3,
+        pointpos=-1.8
+    ))
+    
+    if outliers_info:
+        lower = outliers_info.get('lower_bound', df[column].min())
+        upper = outliers_info.get('upper_bound', df[column].max())
+        
+        fig.add_hline(y=lower, line_dash="dash", line_color="red", 
+                     annotation_text=f"Lower Bound: {lower:.2f}")
+        fig.add_hline(y=upper, line_dash="dash", line_color="red",
+                     annotation_text=f"Upper Bound: {upper:.2f}")
+    
+    fig.update_layout(
+        title=f"Outlier Analysis: {column}",
+        template="plotly_white",
+        font=dict(size=12),
+        yaxis_title=column
+    )
+    return fig

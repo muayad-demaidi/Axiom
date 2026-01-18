@@ -21,11 +21,14 @@ from visualizations import (
     create_histogram, create_bar_chart, create_box_plot, 
     create_scatter_plot, create_correlation_heatmap, create_line_chart,
     create_pie_chart, create_missing_values_chart,
-    create_distribution_overview, create_comparison_chart, create_trend_chart
+    create_distribution_overview, create_comparison_chart, create_trend_chart,
+    create_categorical_distribution, create_categorical_bar_chart,
+    create_cluster_scatter, create_feature_importance_chart, create_outlier_visualization
 )
 from predictions import (
     compare_datasets, simple_forecast, analyze_trend, 
-    predict_column, calculate_growth_metrics
+    predict_column, calculate_growth_metrics, build_ml_prediction_model,
+    create_risk_clusters, analyze_categorical_insights
 )
 from ai_assistant import (
     generate_data_insights, chat_about_data, 
@@ -1037,6 +1040,7 @@ def show_dashboard():
             "📈 Statistics",
             "📊 Visualizations",
             "🔄 Predictions",
+            "🤖 ML & Clusters",
             "💬 AI Chat",
             "📝 Report"
         ])
@@ -1275,6 +1279,142 @@ def show_dashboard():
                                     st.markdown(f'<div class="insight-box">📈 **Trend Analysis:** {trend_analysis}</div>', unsafe_allow_html=True)
         
         with tabs[5]:
+            st.header("🤖 ML & Clustering Analytics")
+            
+            df_ml = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
+            numeric_cols_ml = df_ml.select_dtypes(include=[np.number]).columns.tolist()
+            cat_cols_ml = df_ml.select_dtypes(include=['object', 'category']).columns.tolist()
+            
+            ml_subtabs = st.tabs(["📊 Categorical Analysis", "🎯 ML Prediction", "🔮 Risk Clustering", "⚠️ Outlier Detection"])
+            
+            with ml_subtabs[0]:
+                st.subheader("📊 Categorical Data Analysis")
+                if cat_cols_ml:
+                    cat_insights = analyze_categorical_insights(df_ml)
+                    
+                    for col in cat_cols_ml[:5]:
+                        with st.expander(f"📌 {col}", expanded=True):
+                            if col in cat_insights:
+                                insight = cat_insights[col]
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    st.metric("Unique Values", insight['unique_values'])
+                                with col2:
+                                    st.metric("Missing", f"{insight['missing_pct']}%")
+                                with col3:
+                                    st.metric("Balance Ratio", f"{insight['balance_ratio']:.2f}")
+                                
+                                chart_type = st.radio(f"Chart type for {col}", ["Pie Chart", "Bar Chart"], key=f"cat_chart_{col}", horizontal=True)
+                                if chart_type == "Pie Chart":
+                                    fig = create_categorical_distribution(df_ml, col)
+                                else:
+                                    fig = create_categorical_bar_chart(df_ml, col)
+                                st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No categorical columns found in the dataset.")
+            
+            with ml_subtabs[1]:
+                st.subheader("🎯 ML Prediction Model")
+                st.markdown("Build a machine learning model to predict any target variable in your data.")
+                
+                if len(numeric_cols_ml) >= 3:
+                    target_col_ml = st.selectbox("Select Target Variable to Predict", numeric_cols_ml, key="ml_target")
+                    
+                    if st.button("🚀 Build Prediction Model", use_container_width=True):
+                        with st.spinner("Training ML model..."):
+                            result = build_ml_prediction_model(df_ml, target_col_ml)
+                            
+                            if 'error' in result:
+                                st.error(result['error'])
+                            else:
+                                st.success(f"Model trained successfully!")
+                                
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    st.metric("Model Type", result['model_type'].title())
+                                with col2:
+                                    if result['model_type'] == 'classification':
+                                        st.metric("Accuracy", f"{result['accuracy']}%")
+                                    else:
+                                        st.metric("R² Score", f"{result['r2_score']}%")
+                                with col3:
+                                    st.metric("Training Size", f"{result['train_size']:,}")
+                                
+                                if 'feature_importance' in result:
+                                    st.subheader("📊 Feature Importance")
+                                    fig = create_feature_importance_chart(result['feature_importance'])
+                                    st.plotly_chart(fig, use_container_width=True)
+                                
+                                st.subheader("📋 Model Details")
+                                st.json(result)
+                else:
+                    st.warning("Need at least 3 numeric columns for ML prediction.")
+            
+            with ml_subtabs[2]:
+                st.subheader("🔮 Customer/Data Clustering")
+                st.markdown("Segment your data into risk-based clusters using K-Means algorithm.")
+                
+                if len(numeric_cols_ml) >= 2:
+                    n_clusters = st.slider("Number of Clusters", 2, 6, 4, key="n_clusters")
+                    
+                    if st.button("🎯 Create Clusters", use_container_width=True):
+                        with st.spinner("Creating clusters..."):
+                            result = create_risk_clusters(df_ml, n_clusters)
+                            
+                            if 'error' in result:
+                                st.error(result['error'])
+                            else:
+                                st.success(f"Created {n_clusters} clusters successfully!")
+                                
+                                st.subheader("📊 Cluster Distribution")
+                                for cluster_name, stats in result['cluster_stats'].items():
+                                    with st.expander(f"{cluster_name} ({stats['size']:,} records - {stats['percentage']}%)"):
+                                        st.write("**Characteristics:**")
+                                        for col, char in stats['characteristics'].items():
+                                            st.write(f"- {col}: Mean = {char['mean']}, Std = {char['std']}")
+                                
+                                st.subheader("📈 Cluster Visualization")
+                                if len(numeric_cols_ml) >= 2:
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        x_col = st.selectbox("X Axis", numeric_cols_ml, key="cluster_x")
+                                    with col2:
+                                        y_col = st.selectbox("Y Axis", [c for c in numeric_cols_ml if c != x_col], key="cluster_y")
+                                    
+                                    df_cluster_viz = df_ml[numeric_cols_ml].dropna()
+                                    if len(df_cluster_viz) == len(result['cluster_labels']):
+                                        fig = create_cluster_scatter(df_cluster_viz, x_col, y_col, result['cluster_labels'])
+                                        st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning("Need at least 2 numeric columns for clustering.")
+            
+            with ml_subtabs[3]:
+                st.subheader("⚠️ Outlier Detection")
+                
+                outliers = detect_outliers(df_ml)
+                
+                if outliers:
+                    st.write(f"Found outliers in **{len(outliers)}** columns:")
+                    
+                    for col, info in outliers.items():
+                        with st.expander(f"⚠️ {col} - {info['count']} outliers ({info['percentage']}%)"):
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Outlier Count", info['count'])
+                            with col2:
+                                st.metric("Lower Bound", f"{info['lower_bound']:.2f}")
+                            with col3:
+                                st.metric("Upper Bound", f"{info['upper_bound']:.2f}")
+                            
+                            if info.get('min_outlier') and info.get('max_outlier'):
+                                st.write(f"**Range of outliers:** {info['min_outlier']:.2f} to {info['max_outlier']:.2f}")
+                            
+                            fig = create_outlier_visualization(df_ml, col, info)
+                            st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.success("No significant outliers detected in the numeric columns.")
+        
+        with tabs[6]:
             st.header("💬 AI Chat Assistant")
             
             if not limits['ai_chat_enabled']:
@@ -1322,7 +1462,7 @@ def show_dashboard():
                             finally:
                                 db.close()
         
-        with tabs[6]:
+        with tabs[7]:
             st.header("📝 Comprehensive Report")
             
             df_report = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
