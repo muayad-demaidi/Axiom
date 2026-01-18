@@ -47,8 +47,13 @@ streamlit run app.py --server.port 5000
 4. **Visualizations**: Bar, scatter, box, pie, line charts, heatmaps
 5. **Time Tracking**: Save and compare data across time periods
 6. **Predictions**: Linear models and trend analysis
-7. **AI Chat**: Ask any question about your data
-8. **AI Reports**: Insights and professional recommendations
+7. **ML & Clustering Analytics**: Advanced tab with:
+   - Categorical data analysis with pie/bar charts
+   - ML prediction models (RandomForest/LinearRegression)
+   - K-Means risk clustering with scatter visualizations
+   - Enhanced outlier detection with box plots
+8. **AI Chat**: Ask any question about your data
+9. **AI Reports**: Insights and professional recommendations
 
 ## User System
 - **Authentication**: Email/password login with bcrypt hashing

@@ -34,6 +34,19 @@ from ai_assistant import (
     generate_data_insights, chat_about_data, 
     generate_comparison_insights, generate_prediction_insights
 )
+import math
+
+def sanitize_for_json(obj):
+    """Recursively replace NaN and Inf values with None for JSON serialization"""
+    if isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_for_json(item) for item in obj]
+    elif isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    return obj
 
 st.set_page_config(
     page_title="DataVision Pro - Intelligent Data Analytics",
@@ -1004,7 +1017,7 @@ def show_dashboard():
                                         column_count=len(df.columns),
                                         columns_info=columns_info,
                                         data_hash=data_hash,
-                                        summary_stats=analysis_results.get('numeric_summary', {})
+                                        summary_stats=sanitize_for_json(analysis_results.get('numeric_summary', {}))
                                     )
                                     st.session_state.current_dataset_id = record.id
                                     
