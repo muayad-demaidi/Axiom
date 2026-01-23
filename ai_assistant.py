@@ -77,6 +77,8 @@ If they ask about predictions, provide your analysis based on available data.
     messages.append({"role": "user", "content": user_question})
     
     try:
+        if not AI_INTEGRATIONS_OPENAI_API_KEY or not AI_INTEGRATIONS_OPENAI_BASE_URL:
+            return "AI service is not configured. Please contact support."
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=messages,
@@ -85,7 +87,10 @@ If they ask about predictions, provide your analysis based on available data.
         result = response.choices[0].message.content
         return result if result else "I apologize, but I couldn't generate a response. Please try again."
     except Exception as e:
-        return f"Sorry, an error occurred: {str(e)}"
+        error_msg = str(e)
+        if "connection" in error_msg.lower() or "timeout" in error_msg.lower():
+            return f"Connection error. Please try again later. Details: {error_msg}"
+        return f"Sorry, an error occurred: {error_msg}"
 
 
 def generate_comparison_insights(comparison_data: Dict) -> str:
