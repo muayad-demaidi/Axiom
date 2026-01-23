@@ -57,19 +57,18 @@ st.set_page_config(
 
 NEON_CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-    --matrix-green: #00ff41;
-    --matrix-green-dark: #008f11;
-    --matrix-green-light: #39ff14;
-    --matrix-cyan: #00d9ff;
-    --dark-bg: #000000;
-    --dark-card: #0a0f0a;
-    --dark-card-hover: #0f1a0f;
-    --text-primary: #00ff41;
-    --text-secondary: #00cc33;
-    --gradient-1: linear-gradient(135deg, #00ff41 0%, #008f11 50%, #00d9ff 100%);
+    --matrix-teal: #0d9488;
+    --matrix-teal-dark: #0f766e;
+    --matrix-teal-light: #14b8a6;
+    --emerald-muted: #059669;
+    --soft-silver: #94a3b8;
+    --deep-slate: #0f172a;
+    --obsidian: #020617;
+    --glass-bg: rgba(15, 23, 42, 0.7);
+    --glass-border: rgba(20, 184, 166, 0.15);
 }
 
 * {
@@ -77,7 +76,7 @@ NEON_CSS = """
 }
 
 .stApp {
-    background: radial-gradient(ellipse at center, #001a00 0%, #000000 50%, #000000 100%);
+    background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%);
 }
 
 .matrix-bg {
@@ -95,11 +94,11 @@ NEON_CSS = """
 .matrix-column {
     position: absolute;
     top: -100%;
-    font-family: 'Share Tech Mono', 'Courier New', monospace;
-    font-size: 18px;
-    line-height: 1.1;
-    color: rgba(0, 255, 65, 0.7);
-    text-shadow: 0 0 10px rgba(0, 255, 65, 0.9), 0 0 20px rgba(0, 255, 65, 0.5), 0 0 40px rgba(0, 255, 65, 0.3);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    line-height: 1.2;
+    color: rgba(13, 148, 136, 0.25);
+    text-shadow: 0 0 8px rgba(13, 148, 136, 0.3);
     animation: matrix-fall linear infinite;
     white-space: pre;
     writing-mode: vertical-rl;
@@ -108,13 +107,13 @@ NEON_CSS = """
 
 .matrix-column span {
     display: block;
-    opacity: 0.8;
+    opacity: 0.4;
 }
 
 .matrix-column span:first-child {
-    color: #ffffff;
-    text-shadow: 0 0 20px #00ff41, 0 0 40px #00ff41, 0 0 60px #00ff41;
-    opacity: 1;
+    color: rgba(20, 184, 166, 0.5);
+    text-shadow: 0 0 12px rgba(20, 184, 166, 0.4);
+    opacity: 0.6;
 }
 
 @keyframes matrix-fall {
@@ -122,10 +121,10 @@ NEON_CSS = """
         transform: translateY(-100%);
         opacity: 0;
     }
-    3% {
+    5% {
         opacity: 1;
     }
-    97% {
+    95% {
         opacity: 1;
     }
     100% {
@@ -135,73 +134,74 @@ NEON_CSS = """
 }
 
 .glow-text {
-    font-size: 3.5rem;
-    font-weight: 800;
+    font-size: 3rem;
+    font-weight: 700;
     text-align: center;
-    font-family: 'Share Tech Mono', monospace;
-    background: linear-gradient(135deg, #00ff41, #39ff14, #00d9ff);
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #14b8a6, #0d9488, #94a3b8);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-shadow: 0 0 60px rgba(0, 255, 65, 0.6);
     margin-bottom: 0.5rem;
-    letter-spacing: 0.05em;
+    letter-spacing: -0.02em;
 }
 
 .sub-title {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     text-align: center;
-    color: #00cc33;
+    color: #94a3b8;
     margin-bottom: 2.5rem;
     font-weight: 400;
 }
 
 .neon-card {
-    background: linear-gradient(145deg, rgba(0, 15, 0, 0.95), rgba(0, 25, 0, 0.9));
-    border: 1px solid rgba(0, 255, 65, 0.25);
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(20, 184, 166, 0.15);
     border-radius: 20px;
     padding: 1.75rem;
     margin: 1rem 0;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 60px rgba(0, 255, 65, 0.1);
-    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .neon-card:hover {
-    border-color: rgba(0, 255, 65, 0.6);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 80px rgba(0, 255, 65, 0.25);
+    border-color: rgba(20, 184, 166, 0.35);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
     transform: translateY(-4px);
 }
 
 .metric-card {
-    background: linear-gradient(145deg, rgba(0, 15, 0, 0.95), rgba(0, 25, 0, 0.95));
-    border: 1px solid rgba(0, 255, 65, 0.25);
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(20, 184, 166, 0.12);
     border-radius: 16px;
     padding: 1.5rem;
     text-align: center;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     transition: all 0.3s ease;
 }
 
 .metric-card:hover {
-    border-color: rgba(0, 255, 65, 0.5);
+    border-color: rgba(20, 184, 166, 0.3);
     transform: translateY(-2px);
 }
 
 .metric-value {
     font-size: 2.5rem;
     font-weight: 700;
-    font-family: 'Share Tech Mono', monospace;
-    background: linear-gradient(135deg, #00ff41, #39ff14);
+    font-family: 'JetBrains Mono', monospace;
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-shadow: 0 0 30px rgba(0, 255, 65, 0.5);
 }
 
 .metric-label {
     font-size: 0.875rem;
-    color: #00cc33;
+    color: #94a3b8;
     margin-top: 0.5rem;
     font-weight: 500;
     text-transform: uppercase;
@@ -209,19 +209,21 @@ NEON_CSS = """
 }
 
 .pricing-card {
-    background: linear-gradient(145deg, rgba(0, 15, 0, 0.95), rgba(0, 25, 0, 0.95));
-    border: 2px solid rgba(0, 255, 65, 0.2);
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(20, 184, 166, 0.15);
     border-radius: 24px;
     padding: 2.5rem;
     text-align: center;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
 }
 
 .pricing-card.premium {
-    border-color: #00ff41;
-    box-shadow: 0 0 60px rgba(0, 255, 65, 0.25);
+    border-color: rgba(20, 184, 166, 0.4);
+    box-shadow: 0 0 40px rgba(13, 148, 136, 0.15);
 }
 
 .pricing-card.premium::before {
@@ -229,8 +231,8 @@ NEON_CSS = """
     position: absolute;
     top: 20px;
     right: -40px;
-    background: linear-gradient(135deg, #00ff41, #008f11);
-    color: #000000;
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    color: #ffffff;
     padding: 8px 50px;
     font-size: 0.7rem;
     font-weight: 700;
@@ -241,22 +243,22 @@ NEON_CSS = """
 .pricing-title {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #00ff41;
+    color: #e2e8f0;
     margin-bottom: 0.5rem;
 }
 
 .pricing-price {
     font-size: 3rem;
     font-weight: 800;
-    font-family: 'Share Tech Mono', monospace;
-    background: linear-gradient(135deg, #00ff41, #39ff14);
+    font-family: 'JetBrains Mono', monospace;
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
 
 .pricing-period {
-    color: #00cc33;
+    color: #94a3b8;
     font-size: 0.875rem;
     font-weight: 500;
 }
@@ -268,7 +270,7 @@ NEON_CSS = """
 
 .feature-item {
     padding: 0.75rem 0;
-    color: #00cc33;
+    color: #94a3b8;
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -276,89 +278,92 @@ NEON_CSS = """
 }
 
 .feature-item.included {
-    color: #00ff41;
+    color: #14b8a6;
 }
 
 .neon-button {
-    background: linear-gradient(135deg, #00ff41, #008f11);
-    color: #000000;
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    color: #ffffff;
     border: none;
     padding: 14px 36px;
-    border-radius: 30px;
+    border-radius: 12px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 24px rgba(0, 255, 65, 0.4);
+    box-shadow: 0 4px 20px rgba(13, 148, 136, 0.25);
 }
 
 .neon-button:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 32px rgba(0, 255, 65, 0.6);
+    box-shadow: 0 8px 28px rgba(13, 148, 136, 0.35);
 }
 
 .auth-container {
     max-width: 420px;
     margin: 2rem auto;
-    background: linear-gradient(145deg, rgba(0, 15, 0, 0.95), rgba(0, 25, 0, 0.95));
-    border: 1px solid rgba(0, 255, 65, 0.3);
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(20, 184, 166, 0.2);
     border-radius: 24px;
     padding: 2.5rem;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
 }
 
 .sidebar-header {
-    background: linear-gradient(135deg, #00ff41, #39ff14);
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    font-size: 1.5rem;
-    font-weight: 800;
+    font-size: 1.4rem;
+    font-weight: 700;
     text-align: center;
     margin-bottom: 1.5rem;
-    letter-spacing: 0.02em;
-    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: -0.01em;
 }
 
 .user-badge {
-    background: linear-gradient(145deg, rgba(0, 25, 0, 0.9), rgba(0, 15, 0, 0.9));
-    border: 1px solid rgba(0, 255, 65, 0.25);
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(20, 184, 166, 0.15);
     border-radius: 16px;
     padding: 1.25rem;
     text-align: center;
     margin-bottom: 1.5rem;
+    backdrop-filter: blur(12px);
 }
 
 .badge-free {
-    background: linear-gradient(135deg, #004d00, #003300);
+    background: rgba(100, 116, 139, 0.3);
     padding: 6px 14px;
     border-radius: 20px;
     font-size: 0.75rem;
-    color: #00ff41;
+    color: #94a3b8;
     font-weight: 600;
     letter-spacing: 0.05em;
 }
 
 .badge-premium {
-    background: linear-gradient(135deg, #00ff41, #008f11);
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
     padding: 6px 14px;
     border-radius: 20px;
     font-size: 0.75rem;
-    color: #000000;
+    color: #ffffff;
     font-weight: 600;
     letter-spacing: 0.05em;
 }
 
 .admin-stat-card {
-    background: linear-gradient(145deg, rgba(0, 15, 0, 0.95), rgba(0, 25, 0, 0.95));
-    border: 1px solid rgba(0, 255, 65, 0.25);
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(20, 184, 166, 0.12);
     border-radius: 20px;
     padding: 2rem;
     text-align: center;
+    backdrop-filter: blur(12px);
     transition: all 0.3s ease;
 }
 
 .admin-stat-card:hover {
-    border-color: rgba(0, 255, 65, 0.5);
+    border-color: rgba(20, 184, 166, 0.3);
 }
 
 .admin-stat-icon {
@@ -369,12 +374,12 @@ NEON_CSS = """
 .admin-stat-value {
     font-size: 2.5rem;
     font-weight: 700;
-    color: #00ff41;
-    font-family: 'Share Tech Mono', monospace;
+    color: #14b8a6;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 .admin-stat-label {
-    color: #00cc33;
+    color: #94a3b8;
     font-size: 0.875rem;
     font-weight: 500;
     text-transform: uppercase;
@@ -383,8 +388,8 @@ NEON_CSS = """
 }
 
 .insight-box {
-    background: linear-gradient(145deg, rgba(0, 255, 65, 0.08), rgba(0, 143, 17, 0.04));
-    border-left: 4px solid #00ff41;
+    background: rgba(13, 148, 136, 0.08);
+    border-left: 4px solid #14b8a6;
     padding: 1.25rem;
     margin: 1rem 0;
     border-radius: 0 12px 12px 0;
@@ -407,52 +412,53 @@ NEON_CSS = """
 }
 
 [data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #000500 0%, #000a00 100%);
-    border-right: 1px solid rgba(0, 255, 65, 0.2);
+    background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+    border-right: 1px solid rgba(20, 184, 166, 0.1);
 }
 
 [data-testid="stSidebar"] [data-testid="stMarkdown"] {
-    color: #00ff41;
+    color: #e2e8f0;
 }
 
 .stButton > button {
-    background: linear-gradient(135deg, #00ff41, #008f11);
-    color: #000000;
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    color: #ffffff;
     border: none;
-    border-radius: 30px;
+    border-radius: 12px;
     padding: 0.625rem 2rem;
     font-weight: 600;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 20px rgba(0, 255, 65, 0.3);
+    box-shadow: 0 4px 16px rgba(13, 148, 136, 0.2);
     letter-spacing: 0.02em;
 }
 
 .stButton > button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 28px rgba(0, 255, 65, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(13, 148, 136, 0.3);
 }
 
 .stTextInput > div > div > input,
 .stSelectbox > div > div > div,
 .stTextArea > div > div > textarea {
-    background-color: rgba(0, 10, 0, 0.9) !important;
-    border: 1px solid rgba(0, 255, 65, 0.25) !important;
+    background-color: rgba(15, 23, 42, 0.8) !important;
+    border: 1px solid rgba(20, 184, 166, 0.15) !important;
     border-radius: 12px !important;
-    color: #00ff41 !important;
+    color: #e2e8f0 !important;
     font-size: 0.95rem !important;
 }
 
 .stTextInput > div > div > input:focus,
 .stSelectbox > div > div > div:focus,
 .stTextArea > div > div > textarea:focus {
-    border-color: #00ff41 !important;
-    box-shadow: 0 0 16px rgba(0, 255, 65, 0.3) !important;
+    border-color: rgba(20, 184, 166, 0.4) !important;
+    box-shadow: 0 0 12px rgba(13, 148, 136, 0.15) !important;
 }
 
 .stTabs [data-baseweb="tab-list"] {
-    background: linear-gradient(145deg, rgba(0, 15, 0, 0.9), rgba(0, 25, 0, 0.9));
+    background: rgba(15, 23, 42, 0.7);
     border-radius: 16px;
     padding: 6px;
+    backdrop-filter: blur(12px);
     gap: 6px;
 }
 
@@ -466,31 +472,32 @@ NEON_CSS = """
 
 .stTabs [data-baseweb="tab"] {
     background: transparent;
-    color: #00cc33;
+    color: #94a3b8;
     border-radius: 12px;
     padding: 12px 24px;
     font-weight: 500;
 }
 
 .stTabs [aria-selected="true"] {
-    background: linear-gradient(135deg, #00ff41, #008f11);
-    color: #000000;
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    color: #ffffff;
 }
 
 .stDataFrame {
-    background: rgba(0, 15, 0, 0.9);
+    background: rgba(15, 23, 42, 0.8);
     border-radius: 12px;
 }
 
 .stMetric {
-    background: linear-gradient(145deg, rgba(0, 15, 0, 0.95), rgba(0, 25, 0, 0.95));
-    border: 1px solid rgba(0, 255, 65, 0.2);
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(20, 184, 166, 0.1);
     border-radius: 16px;
     padding: 1.25rem;
+    backdrop-filter: blur(12px);
 }
 
 .stMetric label {
-    color: #00cc33 !important;
+    color: #94a3b8 !important;
     font-weight: 500 !important;
     text-transform: uppercase !important;
     font-size: 0.75rem !important;
@@ -498,50 +505,51 @@ NEON_CSS = """
 }
 
 .stMetric [data-testid="stMetricValue"] {
-    color: #00ff41 !important;
+    color: #14b8a6 !important;
     font-weight: 700 !important;
-    font-family: 'Share Tech Mono', monospace !important;
+    font-family: 'JetBrains Mono', monospace !important;
 }
 
 .stExpander {
-    background: linear-gradient(145deg, rgba(0, 15, 0, 0.9), rgba(0, 25, 0, 0.9));
-    border: 1px solid rgba(0, 255, 65, 0.2);
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(20, 184, 166, 0.1);
     border-radius: 16px;
+    backdrop-filter: blur(12px);
 }
 
 h1, h2, h3, h4, h5, h6 {
-    color: #00ff41 !important;
+    color: #e2e8f0 !important;
     font-weight: 700 !important;
 }
 
 p, span, div {
-    color: #00cc33;
+    color: #cbd5e1;
 }
 
 .stFileUploader {
-    background: linear-gradient(145deg, rgba(0, 15, 0, 0.9), rgba(0, 25, 0, 0.9));
-    border: 2px dashed rgba(0, 255, 65, 0.4);
+    background: rgba(15, 23, 42, 0.7);
+    border: 2px dashed rgba(20, 184, 166, 0.3);
     border-radius: 16px;
     padding: 1.25rem;
     transition: all 0.3s ease;
+    backdrop-filter: blur(12px);
 }
 
 .stFileUploader:hover {
-    border-color: #00ff41;
-    box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+    border-color: rgba(20, 184, 166, 0.6);
+    box-shadow: 0 0 20px rgba(13, 148, 136, 0.1);
 }
 
 .hero-badge {
     display: inline-block;
-    background: linear-gradient(135deg, rgba(0, 255, 65, 0.15), rgba(0, 143, 17, 0.15));
-    border: 1px solid rgba(0, 255, 65, 0.4);
+    background: rgba(13, 148, 136, 0.1);
+    border: 1px solid rgba(20, 184, 166, 0.25);
     border-radius: 30px;
     padding: 8px 20px;
     font-size: 0.875rem;
-    color: #00ff41;
+    color: #14b8a6;
     font-weight: 600;
     margin-bottom: 1rem;
-    font-family: 'Share Tech Mono', monospace;
 }
 </style>
 
@@ -1343,8 +1351,9 @@ def show_dashboard():
                         with st.spinner("Generating predictions..."):
                             values = df_pred[target_col].dropna().tolist()
                             forecast = simple_forecast(values, periods)
-                            if forecast is not None:
-                                trend_chart = create_trend_chart(df_pred, target_col, forecast)
+                            if forecast is not None and len(values) > 0:
+                                labels = [f"Point {i+1}" for i in range(len(values))]
+                                trend_chart = create_trend_chart(values, labels, f"Forecast for {target_col}", forecast)
                                 if trend_chart:
                                     st.plotly_chart(trend_chart, use_container_width=True)
                                 
