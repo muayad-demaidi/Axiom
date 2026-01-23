@@ -1350,16 +1350,23 @@ def show_dashboard():
                     if st.button("🔮 Generate Forecast", use_container_width=True):
                         with st.spinner("Generating predictions..."):
                             values = df_pred[target_col].dropna().tolist()
-                            forecast = simple_forecast(values, periods)
-                            if forecast is not None and len(values) > 0:
+                            forecast_result = simple_forecast(values, periods)
+                            if forecast_result is not None and len(values) > 0:
+                                predictions_list = forecast_result.get('predictions', []) if isinstance(forecast_result, dict) else forecast_result
                                 labels = [f"Point {i+1}" for i in range(len(values))]
-                                trend_chart = create_trend_chart(values, labels, f"Forecast for {target_col}", forecast)
+                                trend_chart = create_trend_chart(values, labels, f"Forecast for {target_col}", predictions_list)
                                 if trend_chart:
                                     st.plotly_chart(trend_chart, use_container_width=True)
                                 
+                                if isinstance(forecast_result, dict):
+                                    trend_info = forecast_result.get('trend', '')
+                                    confidence = forecast_result.get('confidence', '')
+                                    if trend_info:
+                                        st.markdown(f'<div class="insight-box">📈 **Trend:** {trend_info} | **Confidence:** {confidence}</div>', unsafe_allow_html=True)
+                                
                                 trend_analysis = analyze_trend(df_pred, target_col)
                                 if trend_analysis:
-                                    st.markdown(f'<div class="insight-box">📈 **Trend Analysis:** {trend_analysis}</div>', unsafe_allow_html=True)
+                                    st.markdown(f'<div class="insight-box">📊 **Analysis:** {trend_analysis}</div>', unsafe_allow_html=True)
         
         with tabs[5]:
             st.header("🤖 ML & Clustering Analytics")
