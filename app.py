@@ -586,22 +586,34 @@ p, span, div {
 
 st.markdown(NEON_CSS, unsafe_allow_html=True)
 
-FREE_LIMITS = {
+TIER1_LIMITS = {
     'max_rows': 10000,
     'max_analyses_per_day': 5,
     'max_file_size_mb': 50,
     'ai_chat_enabled': False,
     'predictions_enabled': False,
-    'export_enabled': False
+    'export_enabled': False,
+    'ml_enabled': True
 }
 
-PREMIUM_LIMITS = {
+TIER2_LIMITS = {
+    'max_rows': 500000,
+    'max_analyses_per_day': 50,
+    'max_file_size_mb': 200,
+    'ai_chat_enabled': False,
+    'predictions_enabled': True,
+    'export_enabled': False,
+    'ml_enabled': True
+}
+
+TIER3_LIMITS = {
     'max_rows': 1000000,
     'max_analyses_per_day': 999999,
     'max_file_size_mb': 200,
     'ai_chat_enabled': True,
     'predictions_enabled': True,
-    'export_enabled': True
+    'export_enabled': True,
+    'ml_enabled': True
 }
 
 init_db()
@@ -648,9 +660,13 @@ def user_to_dict(user):
 
 
 def get_user_limits():
-    if st.session_state.user and st.session_state.user.get('subscription_type') == 'premium':
-        return PREMIUM_LIMITS
-    return FREE_LIMITS
+    if st.session_state.user:
+        sub_type = st.session_state.user.get('subscription_type', 'tier1')
+        if sub_type == 'tier3':
+            return TIER3_LIMITS
+        elif sub_type == 'tier2':
+            return TIER2_LIMITS
+    return TIER1_LIMITS
 
 
 def calculate_data_hash(df):
@@ -823,56 +839,71 @@ def show_register_page():
 
 
 def show_pricing_page():
-    st.markdown('<h2 class="glow-text" style="font-size: 2.5rem;">Choose Your Plan</h2>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Select the perfect plan for your data analytics needs</p>', unsafe_allow_html=True)
+    st.markdown('<h2 class="glow-text" style="font-size: 2.5rem;">Available Tiers</h2>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Explore our feature tiers for data analytics</p>', unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         st.markdown("""
         <div class="pricing-card">
-            <div class="pricing-title">Starter</div>
-            <div class="pricing-price">$0</div>
-            <div class="pricing-period">Free Forever</div>
+            <div class="pricing-title">Tier 1</div>
+            <div class="pricing-price" style="font-size: 1.5rem;">Basic</div>
+            <div class="pricing-period">Essential Features</div>
             <div class="feature-list">
-                <div class="feature-item included">✓ Analyze up to 1,000 rows</div>
-                <div class="feature-item included">✓ 5 analyses per day</div>
+                <div class="feature-item included">✓ Upload up to 50MB files</div>
+                <div class="feature-item included">✓ Analyze up to 10,000 rows</div>
                 <div class="feature-item included">✓ Basic visualizations</div>
                 <div class="feature-item included">✓ Auto data cleaning</div>
-                <div class="feature-item">✗ AI Chat Assistant</div>
-                <div class="feature-item">✗ Advanced Predictions</div>
-                <div class="feature-item">✗ Export Reports</div>
+                <div class="feature-item included">✓ Statistical overview</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("Get Started Free", key="free_btn", use_container_width=True):
-            st.session_state.page = 'register'
-            st.rerun()
     
     with col2:
         st.markdown("""
         <div class="pricing-card premium">
-            <div class="pricing-title">Professional</div>
-            <div class="pricing-price">$29</div>
-            <div class="pricing-period">Per Month</div>
+            <div class="pricing-title">Tier 2</div>
+            <div class="pricing-price" style="font-size: 1.5rem;">Advanced</div>
+            <div class="pricing-period">Enhanced Analytics</div>
             <div class="feature-list">
-                <div class="feature-item included">✓ Unlimited data analysis</div>
-                <div class="feature-item included">✓ Unlimited analyses</div>
-                <div class="feature-item included">✓ All visualizations</div>
-                <div class="feature-item included">✓ Advanced data cleaning</div>
-                <div class="feature-item included">✓ AI Chat Assistant</div>
-                <div class="feature-item included">✓ Advanced Predictions</div>
-                <div class="feature-item included">✓ PDF Report Export</div>
+                <div class="feature-item included">✓ Everything in Tier 1</div>
+                <div class="feature-item included">✓ Upload up to 200MB files</div>
+                <div class="feature-item included">✓ Up to 1M rows</div>
+                <div class="feature-item included">✓ Advanced visualizations</div>
+                <div class="feature-item included">✓ Predictions & Forecasting</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("Subscribe Now", key="premium_btn", use_container_width=True):
-            st.info("Stripe payment integration coming soon!")
+    
+    with col3:
+        st.markdown("""
+        <div class="pricing-card">
+            <div class="pricing-title">Tier 3</div>
+            <div class="pricing-price" style="font-size: 1.5rem;">Pro</div>
+            <div class="pricing-period">Full Power</div>
+            <div class="feature-list">
+                <div class="feature-item included">✓ Everything in Tier 2</div>
+                <div class="feature-item included">✓ AI Chat Assistant</div>
+                <div class="feature-item included">✓ ML & Clustering</div>
+                <div class="feature-item included">✓ Export Reports</div>
+                <div class="feature-item included">✓ Priority Support</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
     st.markdown("---")
-    if st.button("← Back to Home", use_container_width=True):
-        st.session_state.page = 'home'
-        st.rerun()
+    st.markdown('<p style="text-align: center; color: #94a3b8;">All features are currently available for testing. Create an account to get started!</p>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📝 Create Account", use_container_width=True, type="primary"):
+            st.session_state.page = 'register'
+            st.rerun()
+    with col2:
+        if st.button("← Back to Home", use_container_width=True):
+            st.session_state.page = 'home'
+            st.rerun()
 
 
 def show_admin_panel():
@@ -896,9 +927,9 @@ def show_admin_panel():
         with col2:
             st.markdown(f"""
             <div class="admin-stat-card">
-                <div class="admin-stat-icon">💎</div>
+                <div class="admin-stat-icon">⭐</div>
                 <div class="admin-stat-value">{stats['premium_users']}</div>
-                <div class="admin-stat-label">Premium</div>
+                <div class="admin-stat-label">Tier 2+</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -934,7 +965,7 @@ def show_admin_panel():
                         'ID': u.id,
                         'Name': u.full_name or u.username,
                         'Email': u.email,
-                        'Plan': '💎 Premium' if u.subscription_type == 'premium' else '🆓 Free',
+                        'Plan': '⭐ Tier 3' if u.subscription_type == 'tier3' else ('📈 Tier 2' if u.subscription_type == 'tier2' else '🔹 Tier 1'),
                         'Analyses': u.analysis_count or 0,
                         'Joined': u.created_at.strftime('%Y-%m-%d') if u.created_at else '-',
                         'Last Login': u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else '-'
@@ -1003,8 +1034,16 @@ def show_dashboard():
         
         if st.session_state.user:
             user = st.session_state.user
-            badge_class = "badge-premium" if user.get('subscription_type') == "premium" else "badge-free"
-            badge_text = "💎 Premium" if user.get('subscription_type') == "premium" else "🆓 Free"
+            sub_type = user.get('subscription_type', 'tier1')
+            if sub_type == 'tier3':
+                badge_class = "badge-premium"
+                badge_text = "⭐ Tier 3"
+            elif sub_type == 'tier2':
+                badge_class = "badge-premium"
+                badge_text = "📈 Tier 2"
+            else:
+                badge_class = "badge-free"
+                badge_text = "🔹 Tier 1"
             
             st.markdown(f"""
             <div class="user-badge">
@@ -1018,10 +1057,9 @@ def show_dashboard():
                     st.session_state.page = 'admin'
                     st.rerun()
             
-            if user.get('subscription_type') != "premium":
-                if st.button("💎 Upgrade to Premium", use_container_width=True):
-                    st.session_state.page = 'pricing'
-                    st.rerun()
+            if st.button("📊 View Tiers", use_container_width=True):
+                st.session_state.page = 'pricing'
+                st.rerun()
             
             if st.button("🚪 Sign Out", use_container_width=True):
                 st.session_state.user = None
@@ -1317,13 +1355,13 @@ def show_dashboard():
             if not limits['predictions_enabled']:
                 st.markdown("""
                 <div class="neon-card">
-                    <h3 style="text-align: center;">💎 Premium Feature</h3>
+                    <h3 style="text-align: center;">📈 Tier 2 Feature</h3>
                     <p style="text-align: center; color: #94a3b8;">
-                        Advanced predictions and time-series comparisons are available exclusively for Premium subscribers.
+                        Advanced predictions and time-series comparisons are available in Tier 2 and above.
                     </p>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button("💎 Upgrade Now", use_container_width=True, key="upgrade_pred"):
+                if st.button("📊 View Tiers", use_container_width=True, key="upgrade_pred"):
                     st.session_state.page = 'pricing'
                     st.rerun()
             else:
@@ -1513,13 +1551,13 @@ def show_dashboard():
             if not limits['ai_chat_enabled']:
                 st.markdown("""
                 <div class="neon-card">
-                    <h3 style="text-align: center;">💎 Premium Feature</h3>
+                    <h3 style="text-align: center;">⭐ Tier 3 Feature</h3>
                     <p style="text-align: center; color: #94a3b8;">
-                        AI-powered data conversations are available exclusively for Premium subscribers.
+                        AI-powered data conversations are available in Tier 3.
                     </p>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button("💎 Upgrade Now", use_container_width=True, key="upgrade_chat"):
+                if st.button("📊 View Tiers", use_container_width=True, key="upgrade_chat"):
                     st.session_state.page = 'pricing'
                     st.rerun()
             else:
