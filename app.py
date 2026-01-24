@@ -1030,7 +1030,12 @@ def show_dashboard():
     limits = get_user_limits()
     
     with st.sidebar:
-        st.markdown('<div class="sidebar-header">🔮 DataVision Pro</div>', unsafe_allow_html=True)
+        if st.button("🏠", key="home_btn_dash", help="Go to Home"):
+            st.session_state.page = 'home'
+            st.session_state.df = None
+            st.session_state.df_cleaned = None
+            st.rerun()
+        st.image("static/logo.png", use_container_width=True)
         
         if st.session_state.user:
             user = st.session_state.user
@@ -1799,11 +1804,10 @@ with st.sidebar:
     if st.session_state.page not in ['home', 'login', 'register', 'pricing']:
         pass
     else:
-        st.markdown('<div class="sidebar-header">🔮 DataVision Pro</div>', unsafe_allow_html=True)
-        
-        if st.button("🏠 Home", use_container_width=True):
+        if st.button("🏠", key="home_btn_main", help="Go to Home"):
             st.session_state.page = 'home'
             st.rerun()
+        st.image("static/logo.png", use_container_width=True)
         
         if st.button("🔐 Sign In", use_container_width=True):
             st.session_state.page = 'login'
