@@ -553,6 +553,24 @@ p, span, div {
     font-weight: 600;
     margin-bottom: 1rem;
 }
+
+[data-testid="stSidebar"] [data-testid="stImage"] {
+    cursor: pointer;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+[data-testid="stSidebar"] [data-testid="stImage"]:hover {
+    transform: scale(1.02);
+    opacity: 0.9;
+}
+
+.clickable-logo {
+    cursor: pointer;
+    display: block;
+    margin-bottom: 1rem;
+}
 </style>
 
 <div class="matrix-bg">
@@ -1030,12 +1048,13 @@ def show_dashboard():
     limits = get_user_limits()
     
     with st.sidebar:
-        if st.button("🏠", key="home_btn_dash", help="Go to Home"):
+        st.image("static/logo.png", use_container_width=True)
+        
+        if st.button("🏠 Home", use_container_width=True, key="home_dash"):
             st.session_state.page = 'home'
             st.session_state.df = None
             st.session_state.df_cleaned = None
             st.rerun()
-        st.image("static/logo.png", use_container_width=True)
         
         if st.session_state.user:
             user = st.session_state.user
@@ -1804,10 +1823,11 @@ with st.sidebar:
     if st.session_state.page not in ['home', 'login', 'register', 'pricing']:
         pass
     else:
-        if st.button("🏠", key="home_btn_main", help="Go to Home"):
+        st.image("static/logo.png", use_container_width=True)
+        
+        if st.button("🏠 Home", use_container_width=True):
             st.session_state.page = 'home'
             st.rerun()
-        st.image("static/logo.png", use_container_width=True)
         
         if st.button("🔐 Sign In", use_container_width=True):
             st.session_state.page = 'login'
