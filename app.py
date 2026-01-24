@@ -9,7 +9,8 @@ from models import (
     init_db, get_db, save_dataset_record, find_similar_datasets, 
     get_datasets_by_name, save_chat_message, get_chat_history,
     create_user, authenticate_user, get_user_by_id, get_all_users,
-    get_all_datasets, get_admin_stats, increment_analysis_count, User
+    get_all_datasets, get_admin_stats, increment_analysis_count, User,
+    update_user_subscription
 )
 from data_cleaner import clean_data, detect_column_types, get_data_quality_score
 from data_analyzer import (
@@ -554,22 +555,21 @@ p, span, div {
     margin-bottom: 1rem;
 }
 
-[data-testid="stSidebar"] [data-testid="stImage"] {
-    cursor: pointer;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-[data-testid="stSidebar"] [data-testid="stImage"]:hover {
-    transform: scale(1.02);
-    opacity: 0.9;
-}
-
-.clickable-logo {
-    cursor: pointer;
+.logo-link {
     display: block;
     margin-bottom: 1rem;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.logo-link:hover {
+    transform: scale(1.02);
+    opacity: 0.85;
+}
+
+.sidebar-logo {
+    width: 100%;
+    border-radius: 12px;
+    cursor: pointer;
 }
 </style>
 
@@ -684,7 +684,21 @@ def get_user_limits():
             return TIER3_LIMITS
         elif sub_type == 'tier2':
             return TIER2_LIMITS
-    return TIER1_LIMITS
+        return TIER1_LIMITS
+    return TIER3_LIMITS
+
+
+def update_user_tier(new_tier):
+    """Update the current user's tier"""
+    if st.session_state.user:
+        user_id = st.session_state.user.get('id')
+        if user_id:
+            db = get_db()
+            try:
+                update_user_subscription(db, user_id, new_tier)
+                st.session_state.user['subscription_type'] = new_tier
+            finally:
+                db.close()
 
 
 def calculate_data_hash(df):
@@ -911,17 +925,48 @@ def show_pricing_page():
         """, unsafe_allow_html=True)
     
     st.markdown("---")
-    st.markdown('<p style="text-align: center; color: #94a3b8;">All features are currently available for testing. Create an account to get started!</p>', unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📝 Create Account", use_container_width=True, type="primary"):
-            st.session_state.page = 'register'
+    if st.session_state.user:
+        current_tier = st.session_state.user.get('subscription_type', 'tier1')
+        st.markdown(f'<p style="text-align: center; color: #14b8a6; font-weight: 600;">Currently on: {current_tier.upper()}</p>', unsafe_allow_html=True)
+        st.markdown('<p style="text-align: center; color: #94a3b8;">Select any tier below - all features are free!</p>', unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            btn_style1 = "primary" if current_tier == 'tier1' else "secondary"
+            if st.button("🔹 Select Tier 1", use_container_width=True, type=btn_style1):
+                update_user_tier('tier1')
+                st.success("Switched to Tier 1!")
+                st.rerun()
+        with col2:
+            btn_style2 = "primary" if current_tier == 'tier2' else "secondary"
+            if st.button("📈 Select Tier 2", use_container_width=True, type=btn_style2):
+                update_user_tier('tier2')
+                st.success("Switched to Tier 2!")
+                st.rerun()
+        with col3:
+            btn_style3 = "primary" if current_tier == 'tier3' else "secondary"
+            if st.button("⭐ Select Tier 3", use_container_width=True, type=btn_style3):
+                update_user_tier('tier3')
+                st.success("Switched to Tier 3!")
+                st.rerun()
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("← Back to Dashboard", use_container_width=True):
+            st.session_state.page = 'dashboard'
             st.rerun()
-    with col2:
-        if st.button("← Back to Home", use_container_width=True):
-            st.session_state.page = 'home'
-            st.rerun()
+    else:
+        st.markdown('<p style="text-align: center; color: #94a3b8;">All features are currently available for testing. Create an account to select your tier!</p>', unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📝 Create Account", use_container_width=True, type="primary"):
+                st.session_state.page = 'register'
+                st.rerun()
+        with col2:
+            if st.button("← Back to Home", use_container_width=True):
+                st.session_state.page = 'home'
+                st.rerun()
 
 
 def show_admin_panel():
@@ -1044,11 +1089,30 @@ def show_admin_panel():
         st.rerun()
 
 
+def render_clickable_logo(key_suffix=""):
+    """Render clickable logo that navigates to home"""
+    logo_clicked = st.button("", key=f"logo_btn_{key_suffix}", help="Go to Home")
+    st.markdown('''
+    <style>
+    [data-testid="stButton"]:has(button[kind="secondary"][data-testid="stBaseButton-secondary"]) {
+        display: none;
+    }
+    </style>
+    <div class="sidebar-logo-container" onclick="window.location.reload()">
+        <img src="app/static/logo.png" class="sidebar-logo" alt="DataVision Pro">
+    </div>
+    ''', unsafe_allow_html=True)
+    return logo_clicked
+
 def show_dashboard():
     limits = get_user_limits()
     
     with st.sidebar:
-        st.image("static/logo.png", use_container_width=True)
+        st.markdown('''
+        <a href="/" target="_self" class="logo-link">
+            <img src="app/static/logo.png" class="sidebar-logo" alt="DataVision Pro">
+        </a>
+        ''', unsafe_allow_html=True)
         
         if st.button("🏠 Home", use_container_width=True, key="home_dash"):
             st.session_state.page = 'home'
@@ -1823,7 +1887,11 @@ with st.sidebar:
     if st.session_state.page not in ['home', 'login', 'register', 'pricing']:
         pass
     else:
-        st.image("static/logo.png", use_container_width=True)
+        st.markdown('''
+        <a href="/" target="_self" class="logo-link">
+            <img src="app/static/logo.png" class="sidebar-logo" alt="DataVision Pro">
+        </a>
+        ''', unsafe_allow_html=True)
         
         if st.button("🏠 Home", use_container_width=True):
             st.session_state.page = 'home'
