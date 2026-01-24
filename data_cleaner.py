@@ -82,24 +82,24 @@ def detect_column_types(df: pd.DataFrame) -> Dict[str, str]:
     for col in df.columns:
         if df[col].dtype in ['int64', 'float64']:
             if df[col].nunique() < 10:
-                column_types[col] = 'فئوي رقمي'
+                column_types[col] = 'Numeric Categorical'
             else:
-                column_types[col] = 'رقمي مستمر'
+                column_types[col] = 'Numeric Continuous'
         elif df[col].dtype == 'object':
             try:
                 pd.to_datetime(df[col], errors='raise')
-                column_types[col] = 'تاريخ'
+                column_types[col] = 'DateTime'
             except:
                 if df[col].nunique() < 20:
-                    column_types[col] = 'فئوي نصي'
+                    column_types[col] = 'Text Categorical'
                 else:
-                    column_types[col] = 'نصي'
+                    column_types[col] = 'Text'
         elif df[col].dtype == 'datetime64[ns]':
-            column_types[col] = 'تاريخ'
+            column_types[col] = 'DateTime'
         elif df[col].dtype == 'bool':
-            column_types[col] = 'منطقي'
+            column_types[col] = 'Boolean'
         else:
-            column_types[col] = 'غير محدد'
+            column_types[col] = 'Unknown'
     
     return column_types
 

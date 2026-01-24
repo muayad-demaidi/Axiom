@@ -459,7 +459,9 @@ NEON_CSS = """
     border-radius: 16px;
     padding: 6px;
     backdrop-filter: blur(12px);
-    gap: 6px;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
 }
 
 .stTabs [data-baseweb="tab"] {
@@ -585,18 +587,18 @@ p, span, div {
 st.markdown(NEON_CSS, unsafe_allow_html=True)
 
 FREE_LIMITS = {
-    'max_rows': 1000000,  # Temporarily unlimited for testing
-    'max_analyses_per_day': 999999,  # Temporarily unlimited for testing
-    'max_file_size_mb': 100,  # Temporarily unlimited for testing
-    'ai_chat_enabled': True,  # Temporarily enabled for testing
-    'predictions_enabled': True,  # Temporarily enabled for testing
-    'export_enabled': True  # Temporarily enabled for testing
+    'max_rows': 10000,
+    'max_analyses_per_day': 5,
+    'max_file_size_mb': 50,
+    'ai_chat_enabled': False,
+    'predictions_enabled': False,
+    'export_enabled': False
 }
 
 PREMIUM_LIMITS = {
     'max_rows': 1000000,
     'max_analyses_per_day': 999999,
-    'max_file_size_mb': 100,
+    'max_file_size_mb': 200,
     'ai_chat_enabled': True,
     'predictions_enabled': True,
     'export_enabled': True
@@ -1031,10 +1033,11 @@ def show_dashboard():
         st.markdown("---")
         st.header("📤 Upload Data")
         
+        file_limit_mb = limits['max_file_size_mb']
         uploaded_file = st.file_uploader(
             "Choose CSV or Excel file",
             type=['csv', 'xlsx', 'xls'],
-            help="Upload your data file for analysis"
+            help=f"Drag and drop file here. Limit {file_limit_mb}MB per file (CSV, Excel)"
         )
         
         if uploaded_file:
