@@ -1649,37 +1649,109 @@ def show_dashboard():
                     st.session_state.page = 'pricing'
                     st.rerun()
             else:
-                st.markdown("Ask any question about your data and get AI-powered insights")
+                st.markdown("""
+                <style>
+                .chat-container {
+                    display: flex;
+                    flex-direction: column;
+                    height: 500px;
+                    background: rgba(15, 23, 42, 0.5);
+                    border: 1px solid rgba(20, 184, 166, 0.2);
+                    border-radius: 12px;
+                    overflow: hidden;
+                }
+                .chat-messages {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 1rem;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                }
+                .chat-bubble {
+                    max-width: 80%;
+                    padding: 0.75rem 1rem;
+                    border-radius: 12px;
+                    line-height: 1.5;
+                    animation: fadeIn 0.3s ease;
+                }
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .chat-bubble.user {
+                    background: linear-gradient(135deg, rgba(13, 148, 136, 0.3), rgba(5, 150, 105, 0.3));
+                    border: 1px solid rgba(20, 184, 166, 0.3);
+                    align-self: flex-end;
+                    color: #e2e8f0;
+                }
+                .chat-bubble.assistant {
+                    background: rgba(30, 41, 59, 0.8);
+                    border: 1px solid rgba(148, 163, 184, 0.2);
+                    align-self: flex-start;
+                    color: #cbd5e1;
+                }
+                .chat-role {
+                    font-size: 0.7rem;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    margin-bottom: 0.25rem;
+                    opacity: 0.7;
+                }
+                .chat-bubble.user .chat-role { color: #14b8a6; }
+                .chat-bubble.assistant .chat-role { color: #94a3b8; }
+                </style>
+                """, unsafe_allow_html=True)
                 
-                for msg in st.session_state.chat_messages:
-                    with st.chat_message(msg["role"]):
-                        st.write(msg["content"])
+                st.markdown('<p style="color: #94a3b8; margin-bottom: 1rem;">Ask any question about your data and get AI-powered insights</p>', unsafe_allow_html=True)
                 
-                if prompt := st.chat_input("Type your question here..."):
+                chat_container = st.container(height=450)
+                
+                with chat_container:
+                    if not st.session_state.chat_messages:
+                        st.markdown("""
+                        <div style="text-align: center; padding: 3rem; color: #64748b;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">💬</div>
+                            <p>Start a conversation about your data!</p>
+                            <p style="font-size: 0.85rem;">Try asking: "What patterns do you see?" or "Summarize the key insights"</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        for msg in st.session_state.chat_messages:
+                            role_icon = "👤" if msg["role"] == "user" else "🤖"
+                            role_label = "You" if msg["role"] == "user" else "AI Assistant"
+                            bubble_class = msg["role"]
+                            st.markdown(f"""
+                            <div class="chat-bubble {bubble_class}">
+                                <div class="chat-role">{role_icon} {role_label}</div>
+                                <div>{msg["content"]}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                
+                prompt = st.chat_input("Type your question here...", key="chat_input_main")
+                
+                if prompt:
                     st.session_state.chat_messages.append({"role": "user", "content": prompt})
                     
-                    with st.chat_message("user"):
-                        st.write(prompt)
+                    with st.spinner("🤖 Analyzing your data..."):
+                        df_chat = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
+                        df_info = {
+                            'row_count': len(df_chat),
+                            'column_count': len(df_chat.columns),
+                            'columns': df_chat.columns.tolist(),
+                            'dtypes': df_chat.dtypes.astype(str).to_dict(),
+                            'numeric_summary': df_chat.describe().to_dict() if not df_chat.select_dtypes(include=[np.number]).empty else {}
+                        }
+                        response = chat_about_data(prompt, df_info)
+                        st.session_state.chat_messages.append({"role": "assistant", "content": response})
+                        
+                        db = get_db()
+                        try:
+                            save_chat_message(db, st.session_state.current_dataset_id, prompt, response)
+                        finally:
+                            db.close()
                     
-                    with st.chat_message("assistant"):
-                        with st.spinner("Analyzing..."):
-                            df_chat = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
-                            df_info = {
-                                'row_count': len(df_chat),
-                                'column_count': len(df_chat.columns),
-                                'columns': df_chat.columns.tolist(),
-                                'dtypes': df_chat.dtypes.astype(str).to_dict(),
-                                'numeric_summary': df_chat.describe().to_dict() if not df_chat.select_dtypes(include=[np.number]).empty else {}
-                            }
-                            response = chat_about_data(prompt, df_info)
-                            st.write(response)
-                            st.session_state.chat_messages.append({"role": "assistant", "content": response})
-                            
-                            db = get_db()
-                            try:
-                                save_chat_message(db, st.session_state.current_dataset_id, prompt, response)
-                            finally:
-                                db.close()
+                    st.rerun()
         
         with tabs[7]:
             st.header("📝 Comprehensive Report")
