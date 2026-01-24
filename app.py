@@ -4,6 +4,7 @@ import numpy as np
 import hashlib
 from datetime import datetime
 import io
+import base64
 
 from models import (
     init_db, get_db, save_dataset_record, find_similar_datasets, 
@@ -36,6 +37,14 @@ from ai_assistant import (
     generate_comparison_insights, generate_prediction_insights
 )
 import math
+
+def get_logo_base64():
+    """Load logo as base64 for HTML embedding"""
+    try:
+        with open("static/logo.png", "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except:
+        return ""
 
 def sanitize_for_json(obj):
     """Recursively replace NaN and Inf values with None for JSON serialization"""
@@ -1106,11 +1115,12 @@ def render_clickable_logo(key_suffix=""):
 
 def show_dashboard():
     limits = get_user_limits()
+    logo_b64 = get_logo_base64()
     
     with st.sidebar:
-        st.markdown('''
+        st.markdown(f'''
         <a href="/" target="_self" class="logo-link">
-            <img src="app/static/logo.png" class="sidebar-logo" alt="DataVision Pro">
+            <img src="data:image/png;base64,{logo_b64}" class="sidebar-logo" alt="DataVision Pro">
         </a>
         ''', unsafe_allow_html=True)
         
@@ -1955,13 +1965,15 @@ def show_home_page():
     show_pricing_page()
 
 
+logo_b64_main = get_logo_base64()
+
 with st.sidebar:
     if st.session_state.page not in ['home', 'login', 'register', 'pricing']:
         pass
     else:
-        st.markdown('''
+        st.markdown(f'''
         <a href="/" target="_self" class="logo-link">
-            <img src="app/static/logo.png" class="sidebar-logo" alt="DataVision Pro">
+            <img src="data:image/png;base64,{logo_b64_main}" class="sidebar-logo" alt="DataVision Pro">
         </a>
         ''', unsafe_allow_html=True)
         
