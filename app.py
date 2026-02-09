@@ -63,7 +63,7 @@ st.set_page_config(
     page_title="DataVision Pro - Intelligent Data Analytics",
     page_icon="🔮",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 NEON_CSS = """
@@ -2097,7 +2097,7 @@ def show_home_page():
     st.markdown(f'''
     <div style="text-align: center; margin-top: 2rem; margin-bottom: 1rem;">
         <a href="/" target="_self" style="display: inline-block;">
-            <img src="data:image/png;base64,{logo_b64}" style="max-width: 350px; border-radius: 12px;" alt="DataVision Pro">
+            <img src="data:image/png;base64,{logo_b64}" style="max-width: 500px; width: 90%; border-radius: 12px;" alt="DataVision Pro">
         </a>
     </div>
     ''', unsafe_allow_html=True)
@@ -2147,11 +2147,15 @@ def show_home_page():
 
 logo_b64_main = get_logo_base64()
 
-with st.sidebar:
-    if st.session_state.page not in ['home', 'login', 'register', 'pricing']:
-        pass
-    else:
-        st.markdown('<p style="text-align: center; color: #64748b; font-size: 0.85rem; padding: 1rem;">Use the main page to navigate</p>', unsafe_allow_html=True)
+if st.session_state.page in ['home', 'login', 'register', 'pricing']:
+    st.markdown("""
+    <style>
+        [data-testid="stSidebar"] { display: none !important; }
+        [data-testid="collapsedControl"] { display: none !important; }
+        .stApp > header { display: none !important; }
+        section[data-testid="stSidebarContent"] { display: none !important; }
+    </style>
+    """, unsafe_allow_html=True)
 
 if st.session_state.page == 'home':
     show_home_page()
