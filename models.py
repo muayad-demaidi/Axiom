@@ -34,6 +34,25 @@ class User(Base):
     last_login = Column(DateTime, nullable=True)
     analysis_count = Column(Integer, default=0)
     storage_used = Column(Float, default=0.0)
+    phone = Column(String(50), nullable=True)
+    country = Column(String(100), nullable=True)
+    gender = Column(String(20), nullable=True)
+    specialty = Column(String(100), nullable=True)
+    specialty_other = Column(String(255), nullable=True)
+    trial_start = Column(DateTime, default=datetime.utcnow)
+    trial_end = Column(DateTime, nullable=True)
+
+
+class SupportMessage(Base):
+    """Model for support messages"""
+    __tablename__ = "support_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=True)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_read = Column(Boolean, default=False)
 
 
 class Subscription(Base):
@@ -187,19 +206,28 @@ def verify_password(password, hashed):
         return False
 
 
-def create_user(db, email, username, password, full_name=None, is_admin=False):
+def create_user(db, email, username, password, full_name=None, is_admin=False,
+                phone=None, country=None, gender=None, specialty=None, specialty_other=None):
     """Create a new user"""
     existing = db.query(User).filter((User.email == email) | (User.username == username)).first()
     if existing:
         return None
     
+    now = datetime.utcnow()
     user = User(
         email=email,
         username=username,
         password_hash=hash_password(password),
         full_name=full_name,
         is_admin=is_admin,
-        subscription_type="free"
+        subscription_type="tier3",
+        phone=phone,
+        country=country,
+        gender=gender,
+        specialty=specialty,
+        specialty_other=specialty_other,
+        trial_start=now,
+        trial_end=now + timedelta(days=60)
     )
     db.add(user)
     db.commit()
@@ -268,7 +296,7 @@ def get_admin_stats(db):
     """Get statistics for admin dashboard"""
     total_users = db.query(User).count()
     active_users = db.query(User).filter(User.is_active == True).count()
-    premium_users = db.query(User).filter(User.subscription_type == "premium").count()
+    premium_users = db.query(User).filter(User.subscription_type != "tier1").count()
     total_datasets = db.query(DatasetRecord).count()
     total_analyses = db.query(AnalysisHistory).count()
     total_chats = db.query(ChatHistory).count()
@@ -282,3 +310,23 @@ def get_admin_stats(db):
         'total_analyses': total_analyses,
         'total_chats': total_chats
     }
+
+
+def save_support_message(db, email, name, message):
+    """Create a SupportMessage record"""
+    msg = SupportMessage(
+        email=email,
+        name=name,
+        message=message
+    )
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    return msg
+
+
+def check_trial_active(user):
+    """Check if a user's trial is still active"""
+    if user.trial_end is None:
+        return True
+    return user.trial_end > datetime.utcnow()
