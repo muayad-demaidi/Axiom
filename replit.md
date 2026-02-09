@@ -9,16 +9,21 @@ A comprehensive intelligent data analytics system built with Streamlit that prov
 - Predictive analytics
 - AI-powered chat assistant
 - Professional reports with recommendations
+- 60-day free trial system with email notifications
+- Support contact form
 
 ## Project Structure
 ```
 ├── app.py                 # Main application (Streamlit)
-├── models.py              # Database models (SQLAlchemy) - Users, Subscriptions, Datasets
+├── models.py              # Database models (SQLAlchemy) - Users, Subscriptions, Datasets, SupportMessages
+├── email_service.py       # Email sending service (Resend integration)
 ├── data_cleaner.py        # Data cleaning module
 ├── data_analyzer.py       # Statistical analysis module
 ├── visualizations.py      # Charts and graphs (Plotly)
 ├── predictions.py         # Predictions and comparisons
 ├── ai_assistant.py        # AI module (OpenAI GPT)
+├── static/
+│   └── logo.png           # Transparent logo (DataVision Pro)
 ├── .streamlit/
 │   └── config.toml        # Streamlit configuration
 ├── pyproject.toml         # Project dependencies
@@ -34,6 +39,7 @@ A comprehensive intelligent data analytics system built with Streamlit that prov
 - **SQLAlchemy & PostgreSQL**: Database for users, subscriptions, and historical data
 - **OpenAI GPT**: AI for analysis and conversation
 - **bcrypt**: Secure password hashing
+- **Resend**: Transactional email sending (welcome emails, support notifications)
 
 ## Running the App
 ```bash
@@ -52,23 +58,42 @@ streamlit run app.py --server.port 5000
    - ML prediction models (RandomForest/LinearRegression)
    - K-Means risk clustering with scatter visualizations
    - Enhanced outlier detection with box plots
-8. **AI Chat**: Ask any question about your data
+8. **AI Chat**: Professional chat interface (bottom-aligned input, scrollable history)
 9. **AI Reports**: Insights and professional recommendations
 
 ## User System
 - **Authentication**: Email/password login with bcrypt hashing
+- **Registration**: Full name, email, phone, country, gender, specialty (dropdown with Other option)
 - **User Roles**: Regular users and Admin
-- **Subscriptions**: Free and Premium tiers
+- **Trial System**: 60-day free trial with full Tier 3 access from account creation
+- **No guest access**: Account required to use the platform
 
-### Subscription Tiers
-| Feature | Free | Premium ($29/mo) |
-|---------|------|------------------|
-| Max Rows | 1,000 | Unlimited |
-| Analyses/Day | 5 | Unlimited |
-| File Size | 5 MB | 100 MB |
-| AI Chat | ❌ | ✓ |
-| Predictions | ❌ | ✓ |
-| Export Reports | ❌ | ✓ |
+### Tier System (No Payment - All Free for Testing)
+| Feature | Tier 1 | Tier 2 | Tier 3 |
+|---------|--------|--------|--------|
+| Max File Size | 50 MB | 200 MB | 200 MB |
+| Max Rows | 10,000 | 500,000 | 1,000,000 |
+| AI Chat | ❌ | ❌ | ✓ |
+| Predictions | ❌ | ✓ | ✓ |
+| ML & Clustering | ❌ | ✓ | ✓ |
+| Export Reports | ❌ | ❌ | ✓ |
+
+### Trial System
+- New users get 60-day free trial with Tier 3 (full access)
+- Welcome email sent on registration with trial end date
+- After trial expires, access is blocked with message to contact for activation
+- Users can select any tier freely from the Tiers page
+
+## Email System
+- **Provider**: Resend (via Replit connector)
+- **Welcome Email**: Sent on registration with trial end date
+- **Support Notifications**: Sent to muayad.demaidi.work@gmail.com when users submit support form
+- **From Email**: Configured via Resend connector
+
+## Support System
+- Contact form at bottom of website (email, name, message)
+- Messages saved to database (support_messages table)
+- Email notification sent to muayad.demaidi.work@gmail.com
 
 ## Admin Panel
 Admins can access:
@@ -78,21 +103,30 @@ Admins can access:
 - Platform usage metrics
 
 ## Database Schema
-- **Users**: Authentication, subscription info, usage stats
-- **Subscriptions**: Plan details, Stripe integration (future)
+- **Users**: Authentication, subscription info, usage stats, phone, country, gender, specialty, trial dates
+- **SupportMessages**: Contact form submissions
+- **Subscriptions**: Plan details
 - **DatasetRecord**: Uploaded files with metadata
 - **AnalysisHistory**: Analysis results
 - **ChatHistory**: AI conversation logs
 
 ## Design
-- Theme: Neon purple/pink with dark background
+- Theme: Matrix-inspired with deep teal/emerald color palette
+- Glassmorphism effects
 - Animated floating data background
 - Professional, modern UI
-- Responsive layout
+- Transparent logo (DataVision Pro)
+- Home page: No sidebar, centered logo, tagline, CTA buttons
+- Dashboard: Sidebar with logo, navigation, user badge
 
-## Notes
-- **Stripe Integration**: User dismissed Stripe connector. For payment processing, manually add STRIPE_SECRET_KEY as a secret when ready to enable payments.
+## User Preferences
+- Language: Arabic (Levantine dialect) for communication
+- No payment integration - all tiers freely accessible
+- Professional, sophisticated design aesthetic
+- Column types displayed in English
 
 ## History
 - **January 2026**: Initial release with full features
 - **January 2026**: UI redesign with neon theme, user authentication, subscription system, admin panel, English interface
+- **February 2026**: Converted to 3-tier system without payment, Matrix theme with glassmorphism
+- **February 2026**: Major redesign - removed sidebar from home, professional registration form, 60-day trial system, email notifications, support contact form, require account for all access
