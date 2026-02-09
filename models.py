@@ -158,7 +158,16 @@ def find_similar_datasets(db, columns_info):
             similarity = len(current_cols.intersection(record_cols)) / max(len(current_cols.union(record_cols)), 1)
             if similarity > 0.7:
                 similar.append({
-                    'record': record,
+                    'record': {
+                        'id': record.id,
+                        'dataset_name': record.dataset_name,
+                        'period_month': record.period_month,
+                        'period_year': record.period_year,
+                        'row_count': record.row_count,
+                        'column_count': record.column_count,
+                        'summary_stats': record.summary_stats,
+                        'columns_info': record.columns_info,
+                    },
                     'similarity': similarity
                 })
     

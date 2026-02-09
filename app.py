@@ -1371,7 +1371,7 @@ def show_dashboard():
                         )
                         st.session_state.current_dataset_id = record.id
                         similar = find_similar_datasets(db, columns_info)
-                        similar = [s for s in similar if s['record'].id != record.id]
+                        similar = [s for s in similar if s['record']['id'] != record.id]
                         st.session_state.similar_datasets = similar
                         if st.session_state.user:
                             increment_analysis_count(db, st.session_state.user.get('id'))
@@ -1677,11 +1677,11 @@ def show_dashboard():
                     
                     for similar in st.session_state.similar_datasets[:3]:
                         record = similar['record']
-                        with st.expander(f"📁 {record.dataset_name} ({record.period_month}/{record.period_year})"):
+                        with st.expander(f"📁 {record['dataset_name']} ({record['period_month']}/{record['period_year']})"):
                             st.write(f"**Similarity:** {similar['similarity']*100:.1f}%")
-                            st.write(f"**Rows:** {record.row_count:,}")
-                            if record.summary_stats:
-                                st.json(record.summary_stats)
+                            st.write(f"**Rows:** {record['row_count']:,}")
+                            if record.get('summary_stats'):
+                                st.json(record['summary_stats'])
                 
                 st.subheader("📈 Forecasting")
                 if numeric_cols:
