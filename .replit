@@ -5,7 +5,7 @@ run = ["streamlit", "run", "app.py", "--server.port", "5000"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["cairo", "cargo", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "libiconv", "libxcrypt", "pkg-config", "qhull", "rustc", "tcl", "tk", "xsimd"]
+packages = ["cairo", "freetype", "glibcLocales", "pkg-config", "qhull", "tcl", "tk"]
 
 [agent]
 integrations = ["python_openai_ai_integrations:1.0.0", "streamlit_database:1.0.0", "resend:1.0.0"]
