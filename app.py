@@ -1273,153 +1273,182 @@ def show_dashboard():
     sub_type = user.get('subscription_type', 'tier1')
     if sub_type == 'tier3':
         badge_text = "⭐ Tier 3"
+        badge_color = "#0d9488"
     elif sub_type == 'tier2':
         badge_text = "📈 Tier 2"
+        badge_color = "#0d9488"
     else:
         badge_text = "🔹 Tier 1"
+        badge_color = "#475569"
 
     st.markdown(f'''
-    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.5rem; 
-         background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(20, 184, 166, 0.15); border-radius: 12px; margin-bottom: 1.5rem;">
-        <div style="display: flex; align-items: center; gap: 1rem;">
-            <img src="data:image/png;base64,{logo_b64}" style="height: 40px; border-radius: 8px;" alt="DataVision Pro">
-            <span style="color: #e2e8f0; font-weight: 600; font-size: 1.1rem;">DataVision Pro</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 1rem;">
-            <span style="color: #94a3b8;">👤 {user.get('full_name') or user.get('username')}</span>
-            <span style="background: linear-gradient(135deg, #0d9488, #059669); color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem;">{badge_text}</span>
+    <div style="
+        background: rgba(15, 23, 42, 0.9); 
+        border: 1px solid rgba(20, 184, 166, 0.2); 
+        border-radius: 16px; 
+        padding: 1rem 2rem; 
+        margin-bottom: 1.5rem;
+        backdrop-filter: blur(10px);
+    ">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.8rem;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <img src="data:image/png;base64,{logo_b64}" style="height: 45px; border-radius: 10px;" alt="DataVision Pro">
+                <div>
+                    <div style="color: #e2e8f0; font-weight: 700; font-size: 1.2rem; letter-spacing: 0.5px;">DataVision Pro</div>
+                    <div style="color: #64748b; font-size: 0.75rem;">Intelligent Analytics Platform</div>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.8rem;">
+                <div style="text-align: right;">
+                    <div style="color: #e2e8f0; font-weight: 500; font-size: 0.95rem;">👤 {user.get('full_name') or user.get('username')}</div>
+                    <span style="background: {badge_color}; color: white; padding: 0.15rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">{badge_text}</span>
+                </div>
+            </div>
         </div>
     </div>
     ''', unsafe_allow_html=True)
 
-    nav_cols = st.columns([1, 1, 1, 1, 4] if not user.get('is_admin') else [1, 1, 1, 1, 1, 3])
-    col_idx = 0
-    with nav_cols[col_idx]:
+    if user.get('is_admin'):
+        c1, c2, c3, c4 = st.columns(4)
+    else:
+        c1, c2, c3 = st.columns(3)
+    with c1:
         if st.button("🏠 Home", use_container_width=True, key="home_dash"):
             st.session_state.page = 'home'
             st.session_state.df = None
             st.session_state.df_cleaned = None
             st.rerun()
-    col_idx += 1
-    with nav_cols[col_idx]:
+    with c2:
         if st.button("📊 View Tiers", use_container_width=True, key="tiers_dash"):
             st.session_state.page = 'pricing'
             st.rerun()
-    col_idx += 1
     if user.get('is_admin'):
-        with nav_cols[col_idx]:
+        with c3:
             if st.button("⚙️ Admin Panel", use_container_width=True, key="admin_dash"):
                 st.session_state.page = 'admin'
                 st.rerun()
-        col_idx += 1
-    with nav_cols[col_idx]:
-        if st.button("🚪 Sign Out", use_container_width=True, key="signout_dash"):
-            st.session_state.user = None
-            st.session_state.page = 'home'
-            st.session_state.df = None
-            st.session_state.df_cleaned = None
-            st.rerun()
+        with c4:
+            if st.button("🚪 Sign Out", use_container_width=True, key="signout_dash"):
+                st.session_state.user = None
+                st.session_state.page = 'home'
+                st.session_state.df = None
+                st.session_state.df_cleaned = None
+                st.rerun()
+    else:
+        with c3:
+            if st.button("🚪 Sign Out", use_container_width=True, key="signout_dash"):
+                st.session_state.user = None
+                st.session_state.page = 'home'
+                st.session_state.df = None
+                st.session_state.df_cleaned = None
+                st.rerun()
 
-    st.markdown("---")
+    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+
+    def run_analysis(file_obj, ds_name, p_month, p_year, lmts):
+        with st.spinner("Loading and analyzing data..."):
+            df = load_file(file_obj)
+            if df is not None:
+                if len(df) > lmts['max_rows']:
+                    st.error(f"Row count ({len(df):,}) exceeds the limit ({lmts['max_rows']:,})")
+                else:
+                    st.session_state.df = df
+                    df_cleaned, cleaning_report = clean_data(df)
+                    st.session_state.df_cleaned = df_cleaned
+                    st.session_state.cleaning_report = cleaning_report
+                    analysis_results = generate_summary_report(df_cleaned)
+                    st.session_state.analysis_results = analysis_results
+                    data_hash = calculate_data_hash(df)
+                    columns_info = {col: str(df[col].dtype) for col in df.columns}
+                    db = get_db()
+                    try:
+                        record = save_dataset_record(
+                            db, filename=file_obj.name, dataset_name=ds_name,
+                            period_month=p_month, period_year=p_year,
+                            row_count=len(df), column_count=len(df.columns),
+                            columns_info=columns_info, data_hash=data_hash,
+                            summary_stats=sanitize_for_json(analysis_results.get('numeric_summary', {}))
+                        )
+                        st.session_state.current_dataset_id = record.id
+                        similar = find_similar_datasets(db, columns_info)
+                        similar = [s for s in similar if s['record'].id != record.id]
+                        st.session_state.similar_datasets = similar
+                        if st.session_state.user:
+                            increment_analysis_count(db, st.session_state.user.get('id'))
+                    finally:
+                        db.close()
+                    st.success("Analysis completed!")
+                    st.rerun()
 
     if st.session_state.df is None:
-        st.markdown('<h1 class="glow-text" style="text-align:center;">🔮 DataVision Pro</h1>', unsafe_allow_html=True)
-        st.markdown('<p class="sub-title" style="text-align:center;">Intelligent Data Analytics Platform — Powered by AI</p>', unsafe_allow_html=True)
-        
+        st.markdown(f'''
+        <div style="text-align: center; margin: 2rem 0 1rem 0;">
+            <img src="data:image/png;base64,{logo_b64}" style="max-width: 280px; border-radius: 12px; margin-bottom: 1rem;" alt="DataVision Pro">
+            <p style="color: #94a3b8; font-size: 1.15rem; max-width: 500px; margin: 0 auto;">
+                Intelligent Data Analytics Platform — Powered by AI
+            </p>
+        </div>
+        ''', unsafe_allow_html=True)
+
         st.markdown("<br>", unsafe_allow_html=True)
-        
+
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.markdown("""<div class="metric-card"><div class="metric-value">🧹</div><div class="metric-label">Smart Cleaning</div></div>""", unsafe_allow_html=True)
+        with col2:
+            st.markdown("""<div class="metric-card"><div class="metric-value">📊</div><div class="metric-label">Deep Analytics</div></div>""", unsafe_allow_html=True)
+        with col3:
+            st.markdown("""<div class="metric-card"><div class="metric-value">🤖</div><div class="metric-label">AI Powered</div></div>""", unsafe_allow_html=True)
+        with col4:
+            st.markdown("""<div class="metric-card"><div class="metric-value">🔮</div><div class="metric-label">Predictions</div></div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
         upload_col1, upload_col2, upload_col3 = st.columns([1, 2, 1])
         with upload_col2:
             st.markdown("""
-            <div class="neon-card" style="text-align: center; padding: 2rem;">
-                <h3 style="color: #14b8a6; margin-bottom: 1rem;">📤 Upload Your Data</h3>
+            <div style="text-align: center; background: rgba(13, 148, 136, 0.08); border: 1px solid rgba(20, 184, 166, 0.2); 
+                 border-radius: 16px; padding: 2rem; margin-bottom: 1rem;">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📤</div>
+                <h3 style="color: #14b8a6; margin: 0;">Upload Your Data</h3>
+                <p style="color: #64748b; font-size: 0.9rem; margin-top: 0.5rem;">CSV, Excel (XLS, XLSX)</p>
             </div>
             """, unsafe_allow_html=True)
-            
+
             file_limit_mb = limits['max_file_size_mb']
             uploaded_file = st.file_uploader(
                 "Choose CSV or Excel file",
                 type=['csv', 'xlsx', 'xls'],
-                help=f"Drag and drop file here. Limit {file_limit_mb}MB per file (CSV, Excel)"
+                help=f"Drag and drop file here. Limit {file_limit_mb}MB per file",
+                label_visibility="collapsed"
             )
-            
+
             if uploaded_file:
                 file_size_mb = uploaded_file.size / (1024 * 1024)
-                
                 if file_size_mb > limits['max_file_size_mb']:
                     st.error(f"File size ({file_size_mb:.1f} MB) exceeds the limit ({limits['max_file_size_mb']} MB)")
                 else:
                     st.success(f"Uploaded: {uploaded_file.name}")
-                    
-                    st.subheader("📅 Time Period")
                     col1, col2 = st.columns(2)
                     with col1:
                         period_month = st.selectbox("Month", range(1, 13), index=datetime.now().month - 1)
                     with col2:
                         period_year = st.selectbox("Year", range(2020, 2030), index=datetime.now().year - 2020)
-                    
                     dataset_name = st.text_input("Dataset Name", value=uploaded_file.name.split('.')[0])
-                    
                     if st.button("🚀 Start Analysis", type="primary", use_container_width=True):
-                        with st.spinner("Loading and analyzing data..."):
-                            df = load_file(uploaded_file)
-                            
-                            if df is not None:
-                                if len(df) > limits['max_rows']:
-                                    st.error(f"Row count ({len(df):,}) exceeds the limit ({limits['max_rows']:,})")
-                                else:
-                                    st.session_state.df = df
-                                    
-                                    df_cleaned, cleaning_report = clean_data(df)
-                                    st.session_state.df_cleaned = df_cleaned
-                                    st.session_state.cleaning_report = cleaning_report
-                                    
-                                    analysis_results = generate_summary_report(df_cleaned)
-                                    st.session_state.analysis_results = analysis_results
-                                    
-                                    data_hash = calculate_data_hash(df)
-                                    columns_info = {col: str(df[col].dtype) for col in df.columns}
-                                    
-                                    db = get_db()
-                                    try:
-                                        record = save_dataset_record(
-                                            db,
-                                            filename=uploaded_file.name,
-                                            dataset_name=dataset_name,
-                                            period_month=period_month,
-                                            period_year=period_year,
-                                            row_count=len(df),
-                                            column_count=len(df.columns),
-                                            columns_info=columns_info,
-                                            data_hash=data_hash,
-                                            summary_stats=sanitize_for_json(analysis_results.get('numeric_summary', {}))
-                                        )
-                                        st.session_state.current_dataset_id = record.id
-                                        
-                                        similar = find_similar_datasets(db, columns_info)
-                                        similar = [s for s in similar if s['record'].id != record.id]
-                                        st.session_state.similar_datasets = similar
-                                        
-                                        if st.session_state.user:
-                                            increment_analysis_count(db, st.session_state.user.get('id'))
-                                    finally:
-                                        db.close()
-                                    
-                                    st.success("Analysis completed!")
-                                    st.rerun()
+                        run_analysis(uploaded_file, dataset_name, period_month, period_year, limits)
+
     if st.session_state.df is not None:
         with st.expander("📤 Upload New Data", expanded=False):
             file_limit_mb = limits['max_file_size_mb']
             new_file = st.file_uploader(
-                "Choose CSV or Excel file",
-                type=['csv', 'xlsx', 'xls'],
-                help=f"Limit {file_limit_mb}MB per file",
-                key="new_upload"
+                "Choose CSV or Excel file", type=['csv', 'xlsx', 'xls'],
+                help=f"Limit {file_limit_mb}MB per file", key="new_upload", label_visibility="collapsed"
             )
             if new_file:
                 file_size_mb = new_file.size / (1024 * 1024)
                 if file_size_mb > limits['max_file_size_mb']:
-                    st.error(f"File size ({file_size_mb:.1f} MB) exceeds limit ({limits['max_file_size_mb']} MB)")
+                    st.error(f"File size exceeds limit ({limits['max_file_size_mb']} MB)")
                 else:
                     st.success(f"Uploaded: {new_file.name}")
                     col1, col2 = st.columns(2)
@@ -1429,33 +1458,7 @@ def show_dashboard():
                         period_year = st.selectbox("Year", range(2020, 2030), index=datetime.now().year - 2020, key="new_year")
                     dataset_name = st.text_input("Dataset Name", value=new_file.name.split('.')[0], key="new_name")
                     if st.button("🚀 Start Analysis", type="primary", use_container_width=True, key="new_analyze"):
-                        with st.spinner("Loading and analyzing data..."):
-                            df = load_file(new_file)
-                            if df is not None:
-                                if len(df) > limits['max_rows']:
-                                    st.error(f"Row count ({len(df):,}) exceeds limit ({limits['max_rows']:,})")
-                                else:
-                                    st.session_state.df = df
-                                    df_cleaned, cleaning_report = clean_data(df)
-                                    st.session_state.df_cleaned = df_cleaned
-                                    st.session_state.cleaning_report = cleaning_report
-                                    analysis_results = generate_summary_report(df_cleaned)
-                                    st.session_state.analysis_results = analysis_results
-                                    data_hash = calculate_data_hash(df)
-                                    columns_info = {col: str(df[col].dtype) for col in df.columns}
-                                    db = get_db()
-                                    try:
-                                        record = save_dataset_record(db, filename=new_file.name, dataset_name=dataset_name, period_month=period_month, period_year=period_year, row_count=len(df), column_count=len(df.columns), columns_info=columns_info, data_hash=data_hash, summary_stats=sanitize_for_json(analysis_results.get('numeric_summary', {})))
-                                        st.session_state.current_dataset_id = record.id
-                                        similar = find_similar_datasets(db, columns_info)
-                                        similar = [s for s in similar if s['record'].id != record.id]
-                                        st.session_state.similar_datasets = similar
-                                        if st.session_state.user:
-                                            increment_analysis_count(db, st.session_state.user.get('id'))
-                                    finally:
-                                        db.close()
-                                    st.success("Analysis completed!")
-                                    st.rerun()
+                        run_analysis(new_file, dataset_name, period_month, period_year, limits)
 
         tabs = st.tabs([
             "📋 Overview",
