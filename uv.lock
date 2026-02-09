@@ -1461,6 +1461,7 @@ dependencies = [
     { name = "pandas" },
     { name = "plotly" },
     { name = "psycopg2-binary" },
+    { name = "resend" },
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "seaborn" },
@@ -1478,6 +1479,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "plotly", specifier = ">=6.5.2" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
+    { name = "resend", specifier = ">=2.21.0" },
     { name = "scikit-learn", specifier = ">=1.8.0" },
     { name = "scipy", specifier = ">=1.17.0" },
     { name = "seaborn", specifier = ">=0.13.2" },
@@ -1498,6 +1500,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c9/74/b3ff8e6c8446842c3f5c837e9c3dfcfe2018ea6ecef224c710c85ef728f4/requests-2.32.5.tar.gz", hash = "sha256:dbba0bac56e100853db0ea71b82b4dfd5fe2bf6d3754a8893c3af500cec7d7cf", size = 134517, upload-time = "2025-08-18T20:46:02.573Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/db/4254e3eabe8020b458f1a747140d32277ec7a271daf1d235b70dc0b4e6e3/requests-2.32.5-py3-none-any.whl", hash = "sha256:2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6", size = 64738, upload-time = "2025-08-18T20:46:00.542Z" },
+]
+
+[[package]]
+name = "resend"
+version = "2.21.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/89/5e/b38788ca9b69233b247ddcf3678a25e761ce0b69d04a743e2e355e43c176/resend-2.21.0.tar.gz", hash = "sha256:765288c2015c2c4dd0fb3c8596af4007709b790336eda2966593194377546d11", size = 30751, upload-time = "2026-01-22T23:49:35.993Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/be/f9/0d93391ec2c1b3b984571d5c1de3078721c34619d96a6c658a4bf2cf2e24/resend-2.21.0-py2.py3-none-any.whl", hash = "sha256:906d1916298e7b6b9a0f2a8e81a123f12cda5fd07683ecbfa53b54e8ec58f5f4", size = 51156, upload-time = "2026-01-22T23:49:34.457Z" },
 ]
 
 [[package]]

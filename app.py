@@ -37,6 +37,7 @@ from ai_assistant import (
     generate_comparison_insights, generate_prediction_insights
 )
 import math
+from email_service import send_welcome_email, send_support_notification
 
 def get_logo_base64():
     """Load logo as base64 for HTML embedding"""
@@ -977,13 +978,17 @@ def show_register_page():
                         if user:
                             st.session_state.user = user_to_dict(user)
                             st.session_state.page = 'dashboard'
+                            try:
+                                send_welcome_email(email, full_name, user.trial_end)
+                            except Exception as e:
+                                print(f"Email sending failed: {e}")
                         else:
                             st.error("Email or username already exists")
                     finally:
                         db.close()
         
         if st.session_state.user and st.session_state.page == 'dashboard':
-            st.success("Account created successfully! Your 60-day free trial has started.")
+            st.success("Account created successfully! Your 60-day free trial has started. Check your email for details.")
             st.rerun()
         
         st.markdown("---")
@@ -2077,6 +2082,10 @@ def show_support_section():
                     db = get_db()
                     try:
                         save_support_message(db, support_email, support_name, support_message)
+                        try:
+                            send_support_notification(support_email, support_name, support_message)
+                        except Exception as e:
+                            print(f"Support email notification failed: {e}")
                         st.success("Message sent successfully! We'll get back to you soon.")
                     finally:
                         db.close()
