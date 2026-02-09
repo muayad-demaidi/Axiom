@@ -11,7 +11,7 @@ from models import (
     get_datasets_by_name, save_chat_message, get_chat_history,
     create_user, authenticate_user, get_user_by_id, get_all_users,
     get_all_datasets, get_admin_stats, increment_analysis_count, User,
-    update_user_subscription
+    update_user_subscription, save_support_message, check_trial_active
 )
 from data_cleaner import clean_data, detect_column_types, get_data_quality_score
 from data_analyzer import (
@@ -682,19 +682,42 @@ def user_to_dict(user):
         'is_admin': user.is_admin,
         'analysis_count': user.analysis_count,
         'created_at': user.created_at,
-        'last_login': user.last_login
+        'last_login': user.last_login,
+        'phone': user.phone,
+        'country': user.country,
+        'gender': user.gender,
+        'specialty': user.specialty,
+        'specialty_other': user.specialty_other,
+        'trial_start': user.trial_start,
+        'trial_end': user.trial_end
     }
 
 
 def get_user_limits():
     if st.session_state.user:
+        user_id = st.session_state.user.get('id')
+        db = get_db()
+        try:
+            user_obj = get_user_by_id(db, user_id)
+            if user_obj and not check_trial_active(user_obj):
+                return {
+                    'max_rows': 0,
+                    'max_analyses_per_day': 0,
+                    'max_file_size_mb': 0,
+                    'ai_chat_enabled': False,
+                    'predictions_enabled': False,
+                    'export_enabled': False,
+                    'ml_enabled': False
+                }
+        finally:
+            db.close()
         sub_type = st.session_state.user.get('subscription_type', 'tier1')
         if sub_type == 'tier3':
             return TIER3_LIMITS
         elif sub_type == 'tier2':
             return TIER2_LIMITS
         return TIER1_LIMITS
-    return TIER3_LIMITS
+    return None
 
 
 def update_user_tier(new_tier):
@@ -781,6 +804,15 @@ def show_login_page():
         st.rerun()
         return
     
+    logo_b64 = get_logo_base64()
+    st.markdown(f'''
+    <div style="text-align: center; margin-bottom: 1rem;">
+        <a href="/" target="_self" class="logo-link" style="display: inline-block;">
+            <img src="data:image/png;base64,{logo_b64}" style="max-width: 250px; border-radius: 12px;" alt="DataVision Pro">
+        </a>
+    </div>
+    ''', unsafe_allow_html=True)
+    
     st.markdown('<h2 class="glow-text" style="font-size: 2.5rem;">Welcome Back</h2>', unsafe_allow_html=True)
     st.markdown('<p class="sub-title">Sign in to access your dashboard</p>', unsafe_allow_html=True)
     
@@ -824,28 +856,111 @@ def show_login_page():
 
 
 def show_register_page():
-    # Redirect if already logged in
     if st.session_state.user:
         st.session_state.page = 'dashboard'
         st.rerun()
         return
     
-    st.markdown('<h2 class="glow-text" style="font-size: 2.5rem;">Create Account</h2>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Start your data analytics journey today</p>', unsafe_allow_html=True)
+    logo_b64 = get_logo_base64()
+    st.markdown(f'''
+    <div style="text-align: center; margin-bottom: 1rem;">
+        <a href="/" target="_self" class="logo-link" style="display: inline-block;">
+            <img src="data:image/png;base64,{logo_b64}" style="max-width: 250px; border-radius: 12px;" alt="DataVision Pro">
+        </a>
+    </div>
+    ''', unsafe_allow_html=True)
+    
+    st.markdown('<h2 class="glow-text" style="font-size: 2.5rem;">Create Your Account</h2>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Start your 60-day free trial with full access to all features</p>', unsafe_allow_html=True)
+    
+    COUNTRIES = [
+        "Select Country", "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria",
+        "Bahrain", "Bangladesh", "Belgium", "Brazil", "Canada", "Chile", "China", "Colombia",
+        "Croatia", "Czech Republic", "Denmark", "Egypt", "Estonia", "Ethiopia", "Finland",
+        "France", "Germany", "Ghana", "Greece", "Hungary", "Iceland", "India", "Indonesia",
+        "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan",
+        "Kenya", "Kuwait", "Latvia", "Lebanon", "Libya", "Lithuania", "Luxembourg", "Malaysia",
+        "Mexico", "Morocco", "Netherlands", "New Zealand", "Nigeria", "Norway", "Oman",
+        "Pakistan", "Palestine", "Panama", "Peru", "Philippines", "Poland", "Portugal", "Qatar",
+        "Romania", "Russia", "Saudi Arabia", "Serbia", "Singapore", "Slovakia", "Slovenia",
+        "South Africa", "South Korea", "Spain", "Sri Lanka", "Sudan", "Sweden", "Switzerland",
+        "Syria", "Taiwan", "Thailand", "Tunisia", "Turkey", "UAE", "Uganda", "Ukraine",
+        "United Kingdom", "United States", "Uruguay", "Venezuela", "Vietnam", "Yemen", "Other"
+    ]
+    
+    SPECIALTIES = [
+        "Select Specialty",
+        "Data Science & Analytics",
+        "Business & Management",
+        "Marketing & Advertising",
+        "Engineering & Technical",
+        "Finance & Accounting",
+        "Healthcare & Medicine",
+        "Education & Academia",
+        "IT & Software Development",
+        "Research & Scientific",
+        "Government & Public Sector",
+        "Legal & Compliance",
+        "Media & Communications",
+        "Human Resources",
+        "Supply Chain & Logistics",
+        "Real Estate",
+        "Retail & E-Commerce",
+        "Consulting",
+        "Non-Profit & NGO",
+        "Student",
+        "Other"
+    ]
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         with st.form("register_form"):
-            full_name = st.text_input("Full Name", placeholder="Enter your full name")
-            username = st.text_input("Username", placeholder="Choose a username")
-            email = st.text_input("Email Address", placeholder="Enter your email")
-            password = st.text_input("Password", type="password", placeholder="Choose a strong password")
-            confirm_password = st.text_input("Confirm Password", type="password", placeholder="Re-enter your password")
-            submit = st.form_submit_button("Create Account", use_container_width=True)
+            st.markdown("##### Personal Information")
+            full_name = st.text_input("Full Name *", placeholder="Enter your full name")
+            
+            r1c1, r1c2 = st.columns(2)
+            with r1c1:
+                email = st.text_input("Email Address *", placeholder="your@email.com")
+            with r1c2:
+                phone = st.text_input("Phone Number *", placeholder="+1234567890")
+            
+            r2c1, r2c2 = st.columns(2)
+            with r2c1:
+                username = st.text_input("Username *", placeholder="Choose a username")
+            with r2c2:
+                gender = st.selectbox("Gender *", ["Select Gender", "Male", "Female"])
+            
+            r3c1, r3c2 = st.columns(2)
+            with r3c1:
+                country = st.selectbox("Country *", COUNTRIES)
+            with r3c2:
+                specialty = st.selectbox("Specialty *", SPECIALTIES)
+            
+            specialty_other_val = ""
+            if specialty == "Other":
+                specialty_other_val = st.text_input("Please specify your specialty", placeholder="Enter your specialty")
+            
+            st.markdown("##### Security")
+            p1, p2 = st.columns(2)
+            with p1:
+                password = st.text_input("Password *", type="password", placeholder="Min 6 characters")
+            with p2:
+                confirm_password = st.text_input("Confirm Password *", type="password", placeholder="Re-enter password")
+            
+            st.markdown("")
+            submit = st.form_submit_button("🚀 Create Account & Start Free Trial", use_container_width=True)
             
             if submit:
-                if not all([full_name, username, email, password, confirm_password]):
-                    st.warning("Please fill in all fields")
+                if not all([full_name, username, email, password, confirm_password, phone]):
+                    st.warning("Please fill in all required fields")
+                elif country == "Select Country":
+                    st.warning("Please select your country")
+                elif gender == "Select Gender":
+                    st.warning("Please select your gender")
+                elif specialty == "Select Specialty":
+                    st.warning("Please select your specialty")
+                elif specialty == "Other" and not specialty_other_val:
+                    st.warning("Please specify your specialty")
                 elif password != confirm_password:
                     st.error("Passwords do not match")
                 elif len(password) < 6:
@@ -853,7 +968,12 @@ def show_register_page():
                 else:
                     db = get_db()
                     try:
-                        user = create_user(db, email, username, password, full_name)
+                        user = create_user(
+                            db, email, username, password, full_name,
+                            phone=phone, country=country, gender=gender,
+                            specialty=specialty,
+                            specialty_other=specialty_other_val if specialty == "Other" else None
+                        )
                         if user:
                             st.session_state.user = user_to_dict(user)
                             st.session_state.page = 'dashboard'
@@ -862,9 +982,8 @@ def show_register_page():
                     finally:
                         db.close()
         
-        # Check if registration was successful and rerun outside form
         if st.session_state.user and st.session_state.page == 'dashboard':
-            st.success("Account created successfully!")
+            st.success("Account created successfully! Your 60-day free trial has started.")
             st.rerun()
         
         st.markdown("---")
@@ -874,7 +993,7 @@ def show_register_page():
                 st.session_state.page = 'home'
                 st.rerun()
         with col_b:
-            if st.button("Sign In →", use_container_width=True):
+            if st.button("Already have an account? Sign In →", use_container_width=True):
                 st.session_state.page = 'login'
                 st.rerun()
 
@@ -1116,6 +1235,34 @@ def render_clickable_logo(key_suffix=""):
 def show_dashboard():
     limits = get_user_limits()
     logo_b64 = get_logo_base64()
+    
+    if st.session_state.user:
+        user_id = st.session_state.user.get('id')
+        db = get_db()
+        try:
+            user_obj = get_user_by_id(db, user_id)
+            if user_obj and not check_trial_active(user_obj):
+                st.markdown('''
+                <div style="text-align: center; padding: 3rem;">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">⏰</div>
+                    <h2 style="color: #e2e8f0;">Your Free Trial Has Ended</h2>
+                    <p style="color: #94a3b8; font-size: 1.1rem; max-width: 500px; margin: 1rem auto;">
+                        Your 60-day free trial period has expired. To continue using DataVision Pro, 
+                        please contact our team for activation.
+                    </p>
+                    <p style="color: #14b8a6; font-size: 1rem;">
+                        📧 Contact us at: muayad.demaidi.work@gmail.com
+                    </p>
+                </div>
+                ''', unsafe_allow_html=True)
+                show_support_section()
+                return
+        finally:
+            db.close()
+    else:
+        st.session_state.page = 'login'
+        st.rerun()
+        return
     
     with st.sidebar:
         st.markdown(f'''
@@ -1902,67 +2049,91 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
                 </p>
             </div>
             """, unsafe_allow_html=True)
+    
+    show_support_section()
 
 
-def show_home_page():
-    st.markdown('<div style="text-align: center;"><span class="hero-badge">NEXT-GEN DATA PLATFORM</span></div>', unsafe_allow_html=True)
-    st.markdown('<h1 class="glow-text">DataVision Pro</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Transform your data into actionable insights with the power of AI</p>', unsafe_allow_html=True)
+def show_support_section():
+    st.markdown("---")
+    st.markdown('''
+    <div style="text-align: center; margin-bottom: 1rem;">
+        <h3 style="color: #e2e8f0; font-size: 1.5rem;">📧 Contact Support</h3>
+        <p style="color: #94a3b8;">Have a question or need help? We're here for you.</p>
+    </div>
+    ''', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        bcol1, bcol2 = st.columns(2)
-        with bcol1:
+        with st.form("support_form", clear_on_submit=True):
+            support_email = st.text_input("Your Email", placeholder="your@email.com")
+            support_name = st.text_input("Your Name", placeholder="Your full name")
+            support_message = st.text_area("Your Message", placeholder="Describe your question, request, or issue...", height=150)
+            support_submit = st.form_submit_button("📨 Send Message", use_container_width=True)
+            
+            if support_submit:
+                if not support_email or not support_message:
+                    st.warning("Please provide your email and message")
+                else:
+                    db = get_db()
+                    try:
+                        save_support_message(db, support_email, support_name, support_message)
+                        st.success("Message sent successfully! We'll get back to you soon.")
+                    finally:
+                        db.close()
+
+
+def show_home_page():
+    logo_b64 = get_logo_base64()
+    
+    st.markdown(f'''
+    <div style="text-align: center; margin-top: 2rem; margin-bottom: 1rem;">
+        <a href="/" target="_self" style="display: inline-block;">
+            <img src="data:image/png;base64,{logo_b64}" style="max-width: 350px; border-radius: 12px;" alt="DataVision Pro">
+        </a>
+    </div>
+    ''', unsafe_allow_html=True)
+    
+    st.markdown('''
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <p style="font-size: 1.3rem; color: #94a3b8; font-weight: 400; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+            The Fastest, Easiest & Most Powerful<br>Analytics Tool Available
+        </p>
+    </div>
+    ''', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("🚀 Start Analysis Now", use_container_width=True, type="primary"):
+            st.session_state.page = 'login'
+            st.rerun()
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        c1, c2 = st.columns(2)
+        with c1:
             if st.button("🔐 Sign In", use_container_width=True):
                 st.session_state.page = 'login'
                 st.rerun()
-        with bcol2:
+        with c2:
             if st.button("📝 Create Account", use_container_width=True):
                 st.session_state.page = 'register'
                 st.rerun()
-        
-        if st.button("🚀 Try Without Account", use_container_width=True, type="primary"):
-            st.session_state.page = 'dashboard'
-            st.rerun()
     
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
     
     col1, col2, col3, col4 = st.columns(4)
-    
     with col1:
-        st.markdown("""
-        <div class="metric-card">
-            <div class="metric-value">🧹</div>
-            <div class="metric-label">Auto Cleaning</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
+        st.markdown("""<div class="metric-card"><div class="metric-value">🧹</div><div class="metric-label">Auto Cleaning</div></div>""", unsafe_allow_html=True)
     with col2:
-        st.markdown("""
-        <div class="metric-card">
-            <div class="metric-value">📊</div>
-            <div class="metric-label">Deep Analytics</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
+        st.markdown("""<div class="metric-card"><div class="metric-value">📊</div><div class="metric-label">Deep Analytics</div></div>""", unsafe_allow_html=True)
     with col3:
-        st.markdown("""
-        <div class="metric-card">
-            <div class="metric-value">🤖</div>
-            <div class="metric-label">AI Powered</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
+        st.markdown("""<div class="metric-card"><div class="metric-value">🤖</div><div class="metric-label">AI Powered</div></div>""", unsafe_allow_html=True)
     with col4:
-        st.markdown("""
-        <div class="metric-card">
-            <div class="metric-value">🔮</div>
-            <div class="metric-label">Predictions</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("""<div class="metric-card"><div class="metric-value">🔮</div><div class="metric-label">Predictions</div></div>""", unsafe_allow_html=True)
     
-    st.markdown("---")
-    show_pricing_page()
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    show_support_section()
 
 
 logo_b64_main = get_logo_base64()
@@ -1971,27 +2142,7 @@ with st.sidebar:
     if st.session_state.page not in ['home', 'login', 'register', 'pricing']:
         pass
     else:
-        st.markdown(f'''
-        <a href="/" target="_self" class="logo-link">
-            <img src="data:image/png;base64,{logo_b64_main}" class="sidebar-logo" alt="DataVision Pro">
-        </a>
-        ''', unsafe_allow_html=True)
-        
-        if st.button("🏠 Home", use_container_width=True):
-            st.session_state.page = 'home'
-            st.rerun()
-        
-        if st.button("🔐 Sign In", use_container_width=True):
-            st.session_state.page = 'login'
-            st.rerun()
-        
-        if st.button("📝 Register", use_container_width=True):
-            st.session_state.page = 'register'
-            st.rerun()
-        
-        if st.button("💎 Pricing", use_container_width=True):
-            st.session_state.page = 'pricing'
-            st.rerun()
+        st.markdown('<p style="text-align: center; color: #64748b; font-size: 0.85rem; padding: 1rem;">Use the main page to navigate</p>', unsafe_allow_html=True)
 
 if st.session_state.page == 'home':
     show_home_page()
