@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "6p4SnNwQ7rXe2Xw9o6Z4g"
+uri = "file://DataVision_Pro_Execution_Plan.pdf"
+type = "pdf"
+title = "خطة DataVision Pro التنفيذية الشاملة"
