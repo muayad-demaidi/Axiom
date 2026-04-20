@@ -1380,6 +1380,16 @@ def _c_outlier_viz(_df, dataset_id, column, info_tuple):
     info = dict(info_tuple)
     return create_outlier_visualization(_df, column, info)
 
+def _section_head(title, subtitle=None, eyebrow="Section"):
+    sub_html = f'<div class="dn-section-sub">{subtitle}</div>' if subtitle else ''
+    st.markdown(
+        f'<div class="dn-section-head">'
+        f'<div class="dn-section-eyebrow">{eyebrow}</div>'
+        f'<h2 class="dn-section-title">{title}</h2>{sub_html}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
 if 'similar_datasets' not in st.session_state:
     st.session_state.similar_datasets = []
 if 'comparison_data' not in st.session_state:
@@ -2501,7 +2511,7 @@ def show_dashboard():
                         please contact our team for activation.
                     </p>
                     <p style="color: #14b8a6; font-size: 1rem;">
-                        📧 Contact us at: muayad.demaidi.work@gmail.com
+                        Contact us at: muayad.demaidi.work@gmail.com
                     </p>
                 </div>
                 ''', unsafe_allow_html=True)
@@ -2548,10 +2558,10 @@ def show_dashboard():
 ''', unsafe_allow_html=True)
             st.markdown('<div class="dn-pop-marker"></div>', unsafe_allow_html=True)
             if user.get('is_admin'):
-                if st.button("⚙   Admin Panel", use_container_width=True, key="pop_admin"):
+                if st.button("  Admin Panel", use_container_width=True, key="pop_admin"):
                     st.session_state.page = 'admin'
                     st.rerun()
-            if st.button("✉   Contact Support", use_container_width=True, key="pop_contact"):
+            if st.button("  Contact Support", use_container_width=True, key="pop_contact"):
                 st.session_state.show_contact_panel = not st.session_state.show_contact_panel
                 st.rerun()
             if st.button("→   Sign Out", use_container_width=True, key="pop_signout"):
@@ -2660,7 +2670,7 @@ def show_dashboard():
                 st.markdown("""
                 <div style="text-align: center; background: rgba(13, 148, 136, 0.08); border: 1px solid rgba(20, 184, 166, 0.2); 
                      border-radius: 16px; padding: 2rem; margin-bottom: 1rem;">
-                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📤</div>
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;"></div>
                     <h3 style="color: #14b8a6; margin: 0;">Upload Your Data</h3>
                     <p style="color: #64748b; font-size: 0.9rem; margin-top: 0.5rem;">CSV, Excel (XLS, XLSX)</p>
                 </div>
@@ -2686,11 +2696,11 @@ def show_dashboard():
                         with col2:
                             period_year = st.selectbox("Year", range(2020, 2030), index=datetime.now().year - 2020)
                         dataset_name = st.text_input("Dataset Name", value=uploaded_file.name.split('.')[0])
-                        if st.button("🚀 Start Analysis", type="primary", use_container_width=True):
+                        if st.button("Start Analysis", type="primary", use_container_width=True):
                             run_analysis(uploaded_file, dataset_name, period_month, period_year, limits)
     
         if st.session_state.df is not None:
-            with st.expander("📤 Upload New Data", expanded=False):
+            with st.expander("Upload New Data", expanded=False):
                 file_limit_mb = limits['max_file_size_mb']
                 new_file = st.file_uploader(
                     "Choose CSV or Excel file", type=['csv', 'xlsx', 'xls'],
@@ -2708,18 +2718,18 @@ def show_dashboard():
                         with col2:
                             period_year = st.selectbox("Year", range(2020, 2030), index=datetime.now().year - 2020, key="new_year")
                         dataset_name = st.text_input("Dataset Name", value=new_file.name.split('.')[0], key="new_name")
-                        if st.button("🚀 Start Analysis", type="primary", use_container_width=True, key="new_analyze"):
+                        if st.button("Start Analysis", type="primary", use_container_width=True, key="new_analyze"):
                             run_analysis(new_file, dataset_name, period_month, period_year, limits)
     
             _TAB_LABELS = [
-                "📋 Overview",
-                "🧹 Cleaning",
-                "📈 Statistics",
-                "📊 Visualizations",
-                "🔄 Predictions",
-                "🤖 ML & Clusters",
-                "💬 AI Chat",
-                "📝 Report",
+                "Overview",
+                "Cleaning",
+                "Statistics",
+                "Visualizations",
+                "Predictions",
+                "ML & Clusters",
+                "AI Chat",
+                "Report",
             ]
             st.markdown('''<style>
 .dn-side-nav .stRadio > div { gap: 0.45rem !important; flex-direction: column !important; }
@@ -2752,24 +2762,105 @@ def show_dashboard():
 }
 .dn-side-card {
   position: sticky; top: 1rem;
-  background: linear-gradient(180deg, rgba(12,24,41,0.78), rgba(7,16,31,0.78));
-  border: 1px solid rgba(45,212,191,0.14); border-radius: 18px;
-  padding: 1.25rem 0.9rem; backdrop-filter: blur(14px);
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(45,212,191,0.10), transparent 55%),
+    linear-gradient(180deg, rgba(12,24,41,0.92), rgba(7,16,31,0.92));
+  border: 1px solid rgba(45,212,191,0.18); border-radius: 22px;
+  padding: 1.4rem 1.05rem 1.1rem 1.05rem;
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.04) inset,
+    0 24px 60px -28px rgba(0,0,0,0.65),
+    0 0 0 1px rgba(45,212,191,0.04);
+  position: sticky; top: 1rem;
+  overflow: hidden;
+}
+.dn-side-card::before {
+  content: ""; position: absolute; left: 0; top: 18%; bottom: 18%; width: 2px;
+  background: linear-gradient(180deg, transparent, rgba(45,212,191,0.55), transparent);
+  border-radius: 2px;
+}
+.dn-side-brand {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0 0.25rem 0.6rem 0.25rem; margin-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(45,212,191,0.10);
+}
+.dn-side-brand-mark {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg, rgba(45,212,191,0.85), rgba(20,184,166,0.45));
+  display: grid; place-items: center; color: #07101f;
+  font-family: "Syne", sans-serif; font-weight: 800; font-size: 0.85rem;
+  box-shadow: 0 6px 16px -6px rgba(45,212,191,0.55);
+}
+.dn-side-brand-text {
+  font-family: "Syne", sans-serif; font-weight: 700; font-size: 0.95rem;
+  color: #e2e8f0; letter-spacing: 0.01em;
+}
+.dn-side-foot {
+  margin-top: 1rem; padding-top: 0.85rem;
+  border-top: 1px solid rgba(45,212,191,0.10);
+  font-family: "JetBrains Mono", monospace; font-size: 0.68rem;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(148,163,184,0.55); text-align: center;
+}
+.dn-section-head {
+  margin: 0.25rem 0 1.1rem 0; padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(45,212,191,0.10);
+}
+.dn-section-eyebrow {
+  font-family: "JetBrains Mono", monospace; font-size: 0.68rem;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--teal); opacity: 0.85; margin-bottom: 0.4rem;
+}
+.dn-section-title {
+  font-family: "Syne", sans-serif; font-weight: 800; font-size: 1.65rem;
+  color: #e2e8f0; line-height: 1.15; margin: 0;
+}
+.dn-section-sub {
+  font-family: "DM Sans", sans-serif; font-size: 0.92rem;
+  color: #94a3b8; margin-top: 0.45rem; max-width: 60ch;
+}
+.dn-meta {
+  font-family: "DM Sans", sans-serif; font-size: 0.88rem;
+  color: #94a3b8; margin: 0.4rem 0 0.85rem 0;
+}
+.dn-meta b { color: #e2e8f0; font-weight: 600; }
+[data-testid="stMetric"] {
+  background: linear-gradient(180deg, rgba(17,31,53,0.55), rgba(12,24,41,0.45));
+  border: 1px solid rgba(45,212,191,0.12); border-radius: 14px;
+  padding: 1rem 1.1rem; transition: border-color 0.18s ease;
+}
+[data-testid="stMetric"]:hover { border-color: rgba(45,212,191,0.30); }
+[data-testid="stMetricLabel"] {
+  font-family: "JetBrains Mono", monospace !important; font-size: 0.66rem !important;
+  letter-spacing: 0.18em !important; text-transform: uppercase !important;
+  color: rgba(148,163,184,0.85) !important;
+}
+[data-testid="stMetricValue"] {
+  font-family: "Syne", sans-serif !important; font-weight: 700 !important;
+  font-size: 1.55rem !important; color: #e2e8f0 !important;
 }
 </style>''', unsafe_allow_html=True)
 
             nav_col, content_col = st.columns([1, 4], gap="large")
             with nav_col:
-                st.markdown('<div class="dn-side-card dn-side-nav"><div class="dn-side-title">Workspace</div>', unsafe_allow_html=True)
+                st.markdown('''
+<div class="dn-side-card dn-side-nav">
+  <div class="dn-side-brand">
+    <div class="dn-side-brand-mark">DV</div>
+    <div class="dn-side-brand-text">DataVision</div>
+  </div>
+  <div class="dn-side-title">Workspace</div>
+''', unsafe_allow_html=True)
                 active_tab = st.radio(
                     "Section", _TAB_LABELS,
                     label_visibility="collapsed", key="dashboard_section"
                 )
-                st.markdown('</div>', unsafe_allow_html=True)
+                st.markdown('<div class="dn-side-foot">v · Data Noir</div></div>', unsafe_allow_html=True)
 
             with content_col:
                 if active_tab == _TAB_LABELS[0]:
-                    st.header("📋 Data Overview")
+                    _section_head("Data Overview", "A snapshot of the dataset — size, integrity, and field types.", "01 — Overview")
                 
                     col1, col2, col3, col4 = st.columns(4)
                     with col1:
@@ -2797,7 +2888,7 @@ def show_dashboard():
                     st.dataframe(col_types_df, use_container_width=True)
             
                 elif active_tab == _TAB_LABELS[1]:
-                    st.header("🧹 Data Cleaning")
+                    _section_head("Data Cleaning", "What was changed, why, and how it improved the data.", "02 — Cleaning")
                 
                     if st.session_state.cleaning_report:
                         report = st.session_state.cleaning_report
@@ -2813,7 +2904,7 @@ def show_dashboard():
                         if report['changes']:
                             st.subheader("Changes Applied")
                             for change in report['changes']:
-                                st.markdown(f'<div class="success-box">✓ {change}</div>', unsafe_allow_html=True)
+                                st.markdown(f'<div class="success-box">{change}</div>', unsafe_allow_html=True)
                         else:
                             st.success("Data is clean! No modifications needed.")
                     
@@ -2834,7 +2925,7 @@ def show_dashboard():
                             st.plotly_chart(missing_chart, use_container_width=True)
             
                 elif active_tab == _TAB_LABELS[2]:
-                    st.header("📈 Statistical Analysis")
+                    _section_head("Statistical Analysis", "Descriptive statistics, correlations, and outlier signals.", "03 — Statistics")
                 
                     df_analysis = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
                 
@@ -2850,7 +2941,7 @@ def show_dashboard():
                     cat_stats = _c_categorical_stats(df_analysis, _ds_id)
                     if cat_stats:
                         for col, stats in cat_stats.items():
-                            with st.expander(f"📁 {col}"):
+                            with st.expander(f"{col}"):
                                 col1, col2 = st.columns(2)
                                 with col1:
                                     st.write(f"**Unique Values:** {stats['unique_count']}")
@@ -2863,7 +2954,7 @@ def show_dashboard():
                     correlations = _c_strong_correlations(df_analysis, _ds_id)
                     if correlations:
                         for corr in correlations[:5]:
-                            emoji = "🟢" if corr['correlation'] > 0 else "🔴"
+                            emoji = "" if corr['correlation'] > 0 else ""
                             st.markdown(f"{emoji} **{corr['column1']}** & **{corr['column2']}**: {corr['correlation']:.3f}")
                     else:
                         st.info("No strong correlations found")
@@ -2872,12 +2963,12 @@ def show_dashboard():
                     outliers = _c_outliers(df_analysis, _ds_id)
                     if outliers:
                         for col, info in outliers.items():
-                            st.markdown(f'<div class="warning-box">⚠️ **{col}**: {info["count"]} outliers detected ({info["percentage"]}%)</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="warning-box">️ **{col}**: {info["count"]} outliers detected ({info["percentage"]}%)</div>', unsafe_allow_html=True)
                     else:
                         st.success("No outliers detected")
             
                 elif active_tab == _TAB_LABELS[3]:
-                    st.header("📊 Visualizations")
+                    _section_head("Visualizations", "Distributions, relationships, and custom charts.", "04 — Visualizations")
                 
                     df_viz = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
                     numeric_cols = df_viz.select_dtypes(include=[np.number]).columns.tolist()
@@ -2953,18 +3044,18 @@ def show_dashboard():
                             st.plotly_chart(fig, use_container_width=True)
             
                 elif active_tab == _TAB_LABELS[4]:
-                    st.header("🔄 Predictions & Comparisons")
+                    _section_head("Predictions & Comparisons", "Forecast a target column and compare against historical periods.", "05 — Predictions")
                 
                     if not limits['predictions_enabled']:
                         st.markdown("""
                         <div class="neon-card">
-                            <h3 style="text-align: center;">📈 Tier 2 Feature</h3>
+                            <h3 style="text-align: center;">Tier 2 Feature</h3>
                             <p style="text-align: center; color: #94a3b8;">
                                 Advanced predictions and time-series comparisons are available in Tier 2 and above.
                             </p>
                         </div>
                         """, unsafe_allow_html=True)
-                        if st.button("📊 View Tiers", use_container_width=True, key="upgrade_pred"):
+                        if st.button("View Tiers", use_container_width=True, key="upgrade_pred"):
                             st.session_state.page = 'pricing'
                             st.rerun()
                     else:
@@ -2972,18 +3063,18 @@ def show_dashboard():
                         numeric_cols = df_pred.select_dtypes(include=[np.number]).columns.tolist()
                     
                         if st.session_state.similar_datasets:
-                            st.subheader("📊 Historical Data Comparison")
+                            st.subheader("Historical Data Comparison")
                             st.info(f"Found {len(st.session_state.similar_datasets)} similar dataset(s)")
                         
                             for similar in st.session_state.similar_datasets[:3]:
                                 record = similar['record']
-                                with st.expander(f"📁 {record['dataset_name']} ({record['period_month']}/{record['period_year']})"):
+                                with st.expander(f"{record['dataset_name']} ({record['period_month']}/{record['period_year']})"):
                                     st.write(f"**Similarity:** {similar['similarity']*100:.1f}%")
                                     st.write(f"**Rows:** {record['row_count']:,}")
                                     if record.get('summary_stats'):
                                         st.json(record['summary_stats'])
                     
-                        st.subheader("📈 Forecasting")
+                        st.subheader("Forecasting")
                         if numeric_cols:
                             col1, col2 = st.columns(2)
                             with col1:
@@ -2991,7 +3082,7 @@ def show_dashboard():
                             with col2:
                                 periods = st.slider("Forecast Periods", 1, 12, 6)
                         
-                            if st.button("🔮 Generate Forecast", use_container_width=True):
+                            if st.button("Generate Forecast", use_container_width=True):
                                 with st.spinner("Generating predictions..."):
                                     values = df_pred[target_col].dropna().tolist()
                                     forecast_result = simple_forecast(values, periods)
@@ -3006,20 +3097,20 @@ def show_dashboard():
                                             trend_info = forecast_result.get('trend', '')
                                             confidence = forecast_result.get('confidence', '')
                                             if trend_info:
-                                                st.markdown(f'<div class="insight-box">📈 **Trend:** {trend_info} | **Confidence:** {confidence}</div>', unsafe_allow_html=True)
+                                                st.markdown(f'<div class="insight-box">**Trend:** {trend_info} | **Confidence:** {confidence}</div>', unsafe_allow_html=True)
                                     
                                         trend_analysis = analyze_trend(df_pred, target_col)
                                         if trend_analysis:
-                                            st.markdown(f'<div class="insight-box">📊 **Analysis:** {trend_analysis}</div>', unsafe_allow_html=True)
+                                            st.markdown(f'<div class="insight-box">**Analysis:** {trend_analysis}</div>', unsafe_allow_html=True)
             
                 elif active_tab == _TAB_LABELS[5]:
-                    st.header("🤖 ML & Clustering Analytics")
+                    _section_head("ML & Clustering", "Categorical analysis, ML models, clusters, and outliers.", "06 — Machine Learning")
                 
                     df_ml = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
                     numeric_cols_ml = df_ml.select_dtypes(include=[np.number]).columns.tolist()
                     cat_cols_ml = df_ml.select_dtypes(include=['object', 'category']).columns.tolist()
                 
-                    _ML_SUBTABS = ["📊 Categorical Analysis", "🎯 ML Prediction", "🔮 Risk Clustering", "⚠️ Outlier Detection"]
+                    _ML_SUBTABS = ["Categorical Analysis", "ML Prediction", "Risk Clustering", "Outlier Detection"]
                     ml_active = st.radio(
                         "ML Section", _ML_SUBTABS, horizontal=True,
                         label_visibility="collapsed", key="ml_subsection"
@@ -3027,39 +3118,33 @@ def show_dashboard():
                     _ds_id_ml = st.session_state.current_dataset_id
                 
                     if ml_active == _ML_SUBTABS[0]:
-                        st.subheader("📊 Categorical Data Analysis")
+                        _section_head("Categorical Data Analysis", "Distribution and balance of every non-numeric field. Pick a column to explore.")
                         if cat_cols_ml:
                             cat_insights = _c_categorical_insights(df_ml, _ds_id_ml)
-                        
-                            for col in cat_cols_ml[:5]:
-                                with st.expander(f"📌 {col}", expanded=False):
-                                    if col in cat_insights:
-                                        insight = cat_insights[col]
-                                        col1, col2, col3 = st.columns(3)
-                                        with col1:
-                                            st.metric("Unique Values", insight['unique_values'])
-                                        with col2:
-                                            st.metric("Missing", f"{insight['missing_pct']}%")
-                                        with col3:
-                                            st.metric("Balance Ratio", f"{insight['balance_ratio']:.2f}")
-                                    
-                                        chart_type = st.radio(f"Chart type for {col}", ["Pie Chart", "Bar Chart"], key=f"cat_chart_{col}", horizontal=True)
-                                        if chart_type == "Pie Chart":
-                                            fig = _c_categorical_pie(df_ml, _ds_id_ml, col)
-                                        else:
-                                            fig = _c_categorical_bar(df_ml, _ds_id_ml, col)
-                                        st.plotly_chart(fig, use_container_width=True)
+                            sel_col1, sel_col2 = st.columns([3, 2])
+                            with sel_col1:
+                                cat_pick = st.selectbox("Column", cat_cols_ml, key="cat_pick")
+                            with sel_col2:
+                                chart_type = st.radio("View as", ["Pie", "Bar"], key="cat_chart_type", horizontal=True)
+                            if cat_pick in cat_insights:
+                                insight = cat_insights[cat_pick]
+                                m1, m2, m3 = st.columns(3)
+                                with m1: st.metric("Unique Values", insight['unique_values'])
+                                with m2: st.metric("Missing", f"{insight['missing_pct']}%")
+                                with m3: st.metric("Balance Ratio", f"{insight['balance_ratio']:.2f}")
+                            fig = _c_categorical_pie(df_ml, _ds_id_ml, cat_pick) if chart_type == "Pie" else _c_categorical_bar(df_ml, _ds_id_ml, cat_pick)
+                            st.plotly_chart(fig, use_container_width=True)
                         else:
                             st.info("No categorical columns found in the dataset.")
                 
                     elif ml_active == _ML_SUBTABS[1]:
-                        st.subheader("🎯 ML Prediction Model")
+                        st.subheader("ML Prediction Model")
                         st.markdown("Build a machine learning model to predict any target variable in your data.")
                     
                         if len(numeric_cols_ml) >= 3:
                             target_col_ml = st.selectbox("Select Target Variable to Predict", numeric_cols_ml, key="ml_target")
                         
-                            if st.button("🚀 Build Prediction Model", use_container_width=True):
+                            if st.button("Build Prediction Model", use_container_width=True):
                                 with st.spinner("Training ML model..."):
                                     result = build_ml_prediction_model(df_ml, target_col_ml)
                                 
@@ -3080,23 +3165,23 @@ def show_dashboard():
                                             st.metric("Training Size", f"{result['train_size']:,}")
                                     
                                         if 'feature_importance' in result:
-                                            st.subheader("📊 Feature Importance")
+                                            st.subheader("Feature Importance")
                                             fig = create_feature_importance_chart(result['feature_importance'])
                                             st.plotly_chart(fig, use_container_width=True)
                                     
-                                        st.subheader("📋 Model Details")
+                                        st.subheader("Model Details")
                                         st.json(result)
                         else:
                             st.warning("Need at least 3 numeric columns for ML prediction.")
                 
                     elif ml_active == _ML_SUBTABS[2]:
-                        st.subheader("🔮 Customer/Data Clustering")
+                        st.subheader("Customer/Data Clustering")
                         st.markdown("Segment your data into risk-based clusters using K-Means algorithm.")
                     
                         if len(numeric_cols_ml) >= 2:
                             n_clusters = st.slider("Number of Clusters", 2, 6, 4, key="n_clusters")
                         
-                            if st.button("🎯 Create Clusters", use_container_width=True):
+                            if st.button("Create Clusters", use_container_width=True):
                                 with st.spinner("Creating clusters..."):
                                     result = create_risk_clusters(df_ml, n_clusters)
                                 
@@ -3105,14 +3190,14 @@ def show_dashboard():
                                     else:
                                         st.success(f"Created {n_clusters} clusters successfully!")
                                     
-                                        st.subheader("📊 Cluster Distribution")
+                                        st.subheader("Cluster Distribution")
                                         for cluster_name, stats in result['cluster_stats'].items():
                                             with st.expander(f"{cluster_name} ({stats['size']:,} records - {stats['percentage']}%)"):
                                                 st.write("**Characteristics:**")
                                                 for col, char in stats['characteristics'].items():
                                                     st.write(f"- {col}: Mean = {char['mean']}, Std = {char['std']}")
                                     
-                                        st.subheader("📈 Cluster Visualization")
+                                        st.subheader("Cluster Visualization")
                                         if len(numeric_cols_ml) >= 2:
                                             col1, col2 = st.columns(2)
                                             with col1:
@@ -3128,34 +3213,27 @@ def show_dashboard():
                             st.warning("Need at least 2 numeric columns for clustering.")
                 
                     elif ml_active == _ML_SUBTABS[3]:
-                        st.subheader("⚠️ Outlier Detection")
-                    
+                        _section_head("Outlier Detection", "Values outside the inter-quartile range. Pick a column to inspect.")
                         outliers = _c_outliers(df_ml, _ds_id_ml)
-                    
                         if outliers:
-                            st.write(f"Found outliers in **{len(outliers)}** columns:")
-                        
-                            for col, info in outliers.items():
-                                with st.expander(f"⚠️ {col} - {info['count']} outliers ({info['percentage']}%)"):
-                                    col1, col2, col3 = st.columns(3)
-                                    with col1:
-                                        st.metric("Outlier Count", info['count'])
-                                    with col2:
-                                        st.metric("Lower Bound", f"{info['lower_bound']:.2f}")
-                                    with col3:
-                                        st.metric("Upper Bound", f"{info['upper_bound']:.2f}")
-                                
-                                    if info.get('min_outlier') and info.get('max_outlier'):
-                                        st.write(f"**Range of outliers:** {info['min_outlier']:.2f} to {info['max_outlier']:.2f}")
-                                
-                                    info_tuple = tuple(sorted((k, v) for k, v in info.items() if isinstance(v, (int, float, str, bool))))
-                                    fig = _c_outlier_viz(df_ml, _ds_id_ml, col, info_tuple)
-                                    st.plotly_chart(fig, use_container_width=True)
+                            st.markdown(f'<div class="dn-meta">Outliers found in <b>{len(outliers)}</b> column(s).</div>', unsafe_allow_html=True)
+                            out_cols = list(outliers.keys())
+                            out_pick = st.selectbox("Column", out_cols, key="outlier_pick")
+                            info = outliers[out_pick]
+                            m1, m2, m3 = st.columns(3)
+                            with m1: st.metric("Outlier Count", info['count'])
+                            with m2: st.metric("Lower Bound", f"{info['lower_bound']:.2f}")
+                            with m3: st.metric("Upper Bound", f"{info['upper_bound']:.2f}")
+                            if info.get('min_outlier') and info.get('max_outlier'):
+                                st.markdown(f'<div class="dn-meta">Range of outliers: <b>{info["min_outlier"]:.2f}</b> → <b>{info["max_outlier"]:.2f}</b></div>', unsafe_allow_html=True)
+                            info_tuple = tuple(sorted((k, v) for k, v in info.items() if isinstance(v, (int, float, str, bool))))
+                            fig = _c_outlier_viz(df_ml, _ds_id_ml, out_pick, info_tuple)
+                            st.plotly_chart(fig, use_container_width=True)
                         else:
                             st.success("No significant outliers detected in the numeric columns.")
             
                 elif active_tab == _TAB_LABELS[6]:
-                    st.header("💬 AI Chat Assistant")
+                    _section_head("AI Assistant", "Ask questions about your data in natural language.", "07 — AI Chat")
                 
                     if not limits['ai_chat_enabled']:
                         st.markdown("""
@@ -3166,7 +3244,7 @@ def show_dashboard():
                             </p>
                         </div>
                         """, unsafe_allow_html=True)
-                        if st.button("📊 View Tiers", use_container_width=True, key="upgrade_chat"):
+                        if st.button("View Tiers", use_container_width=True, key="upgrade_chat"):
                             st.session_state.page = 'pricing'
                             st.rerun()
                     else:
@@ -3232,14 +3310,14 @@ def show_dashboard():
                             if not st.session_state.chat_messages:
                                 st.markdown("""
                                 <div style="text-align: center; padding: 3rem; color: #64748b;">
-                                    <div style="font-size: 3rem; margin-bottom: 1rem;">💬</div>
+                                    <div style="font-size: 3rem; margin-bottom: 1rem;"></div>
                                     <p>Start a conversation about your data!</p>
                                     <p style="font-size: 0.85rem;">Try asking: "What patterns do you see?" or "Summarize the key insights"</p>
                                 </div>
                                 """, unsafe_allow_html=True)
                             else:
                                 for msg in st.session_state.chat_messages:
-                                    role_icon = "👤" if msg["role"] == "user" else "🤖"
+                                    role_icon = "" if msg["role"] == "user" else ""
                                     role_label = "You" if msg["role"] == "user" else "AI Assistant"
                                     bubble_class = msg["role"]
                                     st.markdown(f"""
@@ -3254,7 +3332,7 @@ def show_dashboard():
                         if prompt:
                             st.session_state.chat_messages.append({"role": "user", "content": prompt})
                         
-                            with st.spinner("🤖 Analyzing your data..."):
+                            with st.spinner("Analyzing your data..."):
                                 df_chat = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
                                 df_info = {
                                     'row_count': len(df_chat),
@@ -3275,7 +3353,7 @@ def show_dashboard():
                             st.rerun()
             
                 elif active_tab == _TAB_LABELS[7]:
-                    st.header("📝 Comprehensive Report")
+                    _section_head("Comprehensive Report", "Executive summary, AI insights, and downloadable artefacts.", "08 — Report")
                 
                     df_report = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
                 
@@ -3300,7 +3378,7 @@ def show_dashboard():
                             st.json(results['numeric_summary'])
                 
                     if limits['ai_chat_enabled']:
-                        st.subheader("🤖 AI Insights & Recommendations")
+                        st.subheader("AI Insights & Recommendations")
                         if st.button("Generate AI Insights", use_container_width=True):
                             with st.spinner("Analyzing data with AI..."):
                                 df_summary = {
@@ -3317,7 +3395,7 @@ def show_dashboard():
                             st.markdown(f'<div class="insight-box">{st.session_state.ai_insights}</div>', unsafe_allow_html=True)
                 
                     st.markdown("---")
-                    st.subheader("📥 Download Report")
+                    st.subheader("Download Report")
                 
                     col_dl1, col_dl2 = st.columns(2)
                 
