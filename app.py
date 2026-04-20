@@ -11,8 +11,10 @@ from models import (
     get_datasets_by_name, save_chat_message, get_chat_history,
     create_user, authenticate_user, get_user_by_id, get_all_users,
     get_all_datasets, get_admin_stats, increment_analysis_count, User,
-    update_user_subscription, save_support_message, check_trial_active
+    update_user_subscription, save_support_message, check_trial_active,
+    issue_session_token, get_user_by_session_token, clear_session_token
 )
+import extra_streamlit_components as stx
 from data_cleaner import clean_data, detect_column_types, get_data_quality_score
 from data_analyzer import (
     get_basic_stats, get_numeric_stats, get_categorical_stats, 
@@ -1315,10 +1317,20 @@ TIER3_LIMITS = {
 
 init_db()
 
+@st.cache_resource
+def _get_cookie_manager():
+    return stx.CookieManager(key="dvp_cookie_mgr")
+
+cookie_manager = _get_cookie_manager()
+SESSION_COOKIE_NAME = "dvp_session"
+
 if 'user' not in st.session_state:
     st.session_state.user = None
 if 'page' not in st.session_state:
     st.session_state.page = 'home'
+
+if 'session_hydrated' not in st.session_state:
+    st.session_state.session_hydrated = False
 
 try:
     if st.query_params.get('signin') == '1':
@@ -1371,6 +1383,27 @@ def user_to_dict(user):
         'trial_start': user.trial_start,
         'trial_end': user.trial_end
     }
+
+
+# ── Hydrate session from persistent cookie (run once per browser session) ──
+if not st.session_state.session_hydrated and st.session_state.user is None:
+    try:
+        _saved_token = cookie_manager.get(cookie=SESSION_COOKIE_NAME)
+    except Exception:
+        _saved_token = None
+    if _saved_token:
+        _db = get_db()
+        try:
+            _db_user = get_user_by_session_token(_db, _saved_token)
+            if _db_user:
+                st.session_state.user = user_to_dict(_db_user)
+                if st.session_state.page in ('home', 'login', 'register'):
+                    st.session_state.page = 'dashboard'
+                st.session_state.session_hydrated = True
+                st.rerun()
+        finally:
+            _db.close()
+    st.session_state.session_hydrated = True
 
 
 def get_user_limits():
@@ -1797,8 +1830,15 @@ def show_login_page():
                     try:
                         user = authenticate_user(db, email, password)
                         if user:
+                            _tok = issue_session_token(db, user, days=30)
                             st.session_state.user = user_to_dict(user)
                             st.session_state.page = 'dashboard'
+                            try:
+                                cookie_manager.set(SESSION_COOKIE_NAME, _tok,
+                                                   expires_at=datetime.utcnow() + pd.Timedelta(days=30),
+                                                   key="set_cookie_login")
+                            except Exception as _e:
+                                print(f"Cookie set failed: {_e}")
                         else:
                             st.error("Invalid email or password")
                     finally:
@@ -2125,8 +2165,15 @@ def show_register_page():
                             specialty_other=specialty_other_val if specialty == "Other" else None
                         )
                         if user:
+                            _tok = issue_session_token(db, user, days=30)
                             st.session_state.user = user_to_dict(user)
                             st.session_state.page = 'dashboard'
+                            try:
+                                cookie_manager.set(SESSION_COOKIE_NAME, _tok,
+                                                   expires_at=datetime.utcnow() + pd.Timedelta(days=30),
+                                                   key="set_cookie_register")
+                            except Exception as _e:
+                                print(f"Cookie set failed: {_e}")
                             try:
                                 send_welcome_email(email, full_name, user.trial_end)
                             except Exception as e:
@@ -2492,10 +2539,23 @@ def show_dashboard():
                 st.session_state.show_contact_panel = not st.session_state.show_contact_panel
                 st.rerun()
             if st.button("→   Sign Out", use_container_width=True, key="pop_signout"):
+                _uid = st.session_state.user.get('id') if st.session_state.user else None
+                if _uid:
+                    _db = get_db()
+                    try:
+                        _u = get_user_by_id(_db, _uid)
+                        clear_session_token(_db, _u)
+                    finally:
+                        _db.close()
+                try:
+                    cookie_manager.delete(SESSION_COOKIE_NAME, key="del_cookie_signout")
+                except Exception as _e:
+                    print(f"Cookie delete failed: {_e}")
                 st.session_state.user = None
                 st.session_state.page = 'home'
                 st.session_state.df = None
                 st.session_state.df_cleaned = None
+                st.session_state.session_hydrated = True
                 st.rerun()
 
     st.markdown('<div style="height:0.75rem;"></div>', unsafe_allow_html=True)

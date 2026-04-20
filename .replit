@@ -1,4 +1,4 @@
-modules = ["python-3.11", "postgresql-16", "system", "nix", "nodejs-20"]
+modules = ["python-3.11", "system", "nix", "nodejs-20", "postgresql-16"]
 [deployment]
 deploymentTarget = "autoscale"
 run = ["streamlit", "run", "app.py", "--server.port", "5000"]

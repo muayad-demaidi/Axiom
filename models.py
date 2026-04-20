@@ -41,6 +41,8 @@ class User(Base):
     specialty_other = Column(String(255), nullable=True)
     trial_start = Column(DateTime, default=datetime.utcnow)
     trial_end = Column(DateTime, nullable=True)
+    session_token = Column(String(128), nullable=True, index=True)
+    session_expires = Column(DateTime, nullable=True)
 
 
 class SupportMessage(Base):
@@ -260,6 +262,36 @@ def authenticate_user(db, email_or_username, password):
 def get_user_by_id(db, user_id):
     """Get user by ID"""
     return db.query(User).filter(User.id == user_id).first()
+
+
+def issue_session_token(db, user, days=30):
+    """Generate + persist a long-lived session token for the user."""
+    token = secrets.token_urlsafe(48)
+    user.session_token = token
+    user.session_expires = datetime.utcnow() + timedelta(days=days)
+    db.commit()
+    return token
+
+
+def get_user_by_session_token(db, token):
+    """Look up a user by an active (unexpired) session token."""
+    if not token:
+        return None
+    user = db.query(User).filter(User.session_token == token).first()
+    if not user:
+        return None
+    if user.session_expires and user.session_expires < datetime.utcnow():
+        return None
+    return user
+
+
+def clear_session_token(db, user):
+    """Invalidate the user's persistent session token."""
+    if user is None:
+        return
+    user.session_token = None
+    user.session_expires = None
+    db.commit()
 
 
 def get_user_by_email(db, email):
