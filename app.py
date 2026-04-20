@@ -1846,6 +1846,7 @@ def show_login_page():
                             try:
                                 cookie_manager.set(SESSION_COOKIE_NAME, _tok,
                                                    expires_at=datetime.utcnow() + pd.Timedelta(days=30),
+                                                   secure=True, same_site="none",
                                                    key="set_cookie_login")
                             except Exception as _e:
                                 print(f"Cookie set failed: {_e}")
@@ -2181,6 +2182,7 @@ def show_register_page():
                             try:
                                 cookie_manager.set(SESSION_COOKIE_NAME, _tok,
                                                    expires_at=datetime.utcnow() + pd.Timedelta(days=30),
+                                                   secure=True, same_site="none",
                                                    key="set_cookie_register")
                             except Exception as _e:
                                 print(f"Cookie set failed: {_e}")
