@@ -1689,7 +1689,7 @@ def show_register_page():
     letter-spacing: 0.1em !important; text-transform: uppercase !important;
     color: var(--text-secondary) !important;
 }
-/* Selectbox container — match text input dimensions exactly */
+/* ── Selectbox: white outer pill matching text inputs ───── */
 [data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div {
     background: #ffffff !important;
     border: 1px solid rgba(255,255,255,0.12) !important;
@@ -1697,8 +1697,8 @@ def show_register_page():
     min-height: 49.5px !important;
     height: 49.5px !important;
     padding: 0 0.5rem 0 1rem !important;
-    color: #07101f !important;
     box-shadow: none !important;
+    cursor: pointer !important;
     transition: border-color 0.18s, box-shadow 0.18s !important;
 }
 [data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div:hover {
@@ -1708,67 +1708,49 @@ def show_register_page():
     border-color: rgba(45,212,191,0.65) !important;
     box-shadow: 0 0 0 3px rgba(45,212,191,0.18) !important;
 }
-/* Force all inner descendants transparent + borderless so only the outer white shows */
+/* Strip every inner descendant — bg, borders, shadows, decorations */
 [data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div *,
-[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div > div,
-[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div > div > div {
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div *::before,
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div *::after {
     background: transparent !important;
     background-color: transparent !important;
-    border: none !important;
-    border-bottom: none !important;
-    border-top: none !important;
+    border: 0 !important;
+    border-bottom: 0 !important;
+    border-top: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
     box-shadow: none !important;
     outline: none !important;
     text-decoration: none !important;
-    text-decoration-line: none !important;
     border-image: none !important;
+    cursor: pointer !important;
 }
-[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div *::before,
-[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div *::after {
-    display: none !important;
-    border: none !important;
-    background: transparent !important;
-}
-[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div > div {
-    padding: 0 !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 0.95rem !important;
-    color: #07101f !important;
-    line-height: 1.4 !important;
-}
+/* Force solid dark text on the chosen value AND placeholder */
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div *,
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] [data-baseweb="select-input-container"],
 [data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] span,
 [data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] input {
     color: #07101f !important;
     -webkit-text-fill-color: #07101f !important;
     font-family: 'DM Sans', sans-serif !important;
     font-size: 0.95rem !important;
-    text-decoration: none !important;
-    border: none !important;
-    border-bottom: none !important;
-    box-shadow: none !important;
-    outline: none !important;
-    background: transparent !important;
-    height: auto !important;
+    line-height: 1.4 !important;
+    caret-color: transparent !important;
+    -webkit-caret-color: transparent !important;
+}
+/* The hidden search input baseweb adds — neutralize its visual + text caret */
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] input {
     padding: 0 !important;
     margin: 0 !important;
 }
-/* Nuke any placeholder div / value-container inner borders */
-[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] [data-baseweb="input"],
-[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] [data-baseweb="input"] > div,
-[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] [data-baseweb="select-input-container"] {
-    border: none !important;
-    border-bottom: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
+/* Container divs reset to zero padding so text aligns with text inputs */
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div > div {
     padding: 0 !important;
-    height: auto !important;
 }
-/* Chevron + clear icons */
+/* Chevron icon */
 [data-testid="stForm"] [data-testid="stSelectbox"] svg {
-    fill: #64748b !important; color: #64748b !important;
-}
-[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] [role="button"] {
-    background: transparent !important;
+    fill: #64748b !important; color: #64748b !important; cursor: pointer !important;
 }
 
 /* ── Selectbox dropdown menu (popover, rendered at body level) ── */
