@@ -1073,6 +1073,9 @@ try:
     if st.query_params.get('signin') == '1':
         st.session_state.page = 'login'
         st.query_params.clear()
+    elif st.query_params.get('register') == '1':
+        st.session_state.page = 'register'
+        st.query_params.clear()
 except Exception:
     pass
 if 'df' not in st.session_state:
@@ -1223,15 +1226,8 @@ def load_file(uploaded_file):
         return None
 
 
-def show_login_page():
-    if st.session_state.user:
-        st.session_state.page = 'dashboard'
-        st.rerun()
-        return
-
-    logo_b64 = get_logo_base64()
-
-    # ── NAVBAR (same as landing) ────────────────────────────────────────────
+def _render_auth_chrome(logo_b64, action_label="Home", action_href="/"):
+    """Render the shared navbar + atmospheric background + auth CSS for auth pages."""
     st.markdown(f'''
 <div class="lp-nav"><div class="lp-nav-inner">
 <a class="lp-nav-logo" href="/" target="_self"><img src="data:image/png;base64,{logo_b64}" alt="DataVision Pro"></a>
@@ -1242,7 +1238,7 @@ def show_login_page():
 <a class="lp-nav-link" href="/#contact" target="_self">Contact</a>
 </div>
 <div class="lp-nav-actions">
-<a class="lp-nav-signin-link" href="/" target="_self">Home</a>
+<a class="lp-nav-signin-link" href="{action_href}" target="_self">{action_label}</a>
 </div>
 </div></div>
 <div class="lp-nav-spacer"></div>
@@ -1493,6 +1489,16 @@ def show_login_page():
 <div class="auth-bg-glow"></div>
 ''', unsafe_allow_html=True)
 
+
+def show_login_page():
+    if st.session_state.user:
+        st.session_state.page = 'dashboard'
+        st.rerun()
+        return
+
+    logo_b64 = get_logo_base64()
+    _render_auth_chrome(logo_b64, action_label="Home", action_href="/")
+
     # ── 2-COLUMN DESKTOP LAYOUT ─────────────────────────────────────────────
     col_left, col_right = st.columns([1.05, 1], gap="large")
 
@@ -1605,96 +1611,160 @@ def show_register_page():
         st.session_state.page = 'dashboard'
         st.rerun()
         return
-    
+
     logo_b64 = get_logo_base64()
-    st.markdown(f'''
-    <div style="text-align: center; margin-bottom: 1rem;">
-        <a href="/" target="_self" class="logo-link" style="display: inline-block;">
-            <img src="data:image/png;base64,{logo_b64}" style="max-width: 250px; border-radius: 12px;" alt="DataVision Pro">
-        </a>
+    _render_auth_chrome(logo_b64, action_label="Sign In", action_href="?signin=1")
+
+    # ── REGISTER-SPECIFIC STYLES (white selectboxes + tighter form) ─────────
+    st.markdown('''
+<style>
+[data-testid="stForm"] [data-testid="stSelectbox"] label,
+[data-testid="stForm"] [data-testid="stSelectbox"] label p {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.7rem !important; font-weight: 500 !important;
+    letter-spacing: 0.1em !important; text-transform: uppercase !important;
+    color: var(--text-secondary) !important;
+}
+[data-testid="stForm"] [data-testid="stSelectbox"] > div > div,
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div {
+    background: #ffffff !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    border-radius: 10px !important;
+    min-height: 48px !important;
+    color: #07101f !important;
+}
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div:hover {
+    border-color: rgba(45,212,191,0.4) !important;
+}
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div > div,
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] span {
+    color: #07101f !important;
+}
+[data-testid="stForm"] [data-testid="stSelectbox"] svg { fill: #64748b !important; }
+
+.auth-form-section {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.68rem;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--teal); margin: 1.1rem 0 0.85rem 0;
+    display: flex; align-items: center; gap: 0.85rem;
+}
+.auth-form-section::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, rgba(45,212,191,0.25), transparent);
+}
+.auth-form-section:first-of-type { margin-top: 0; }
+
+/* Tighter form for register (more fields) */
+[data-testid="stForm"] [data-testid="stTextInput"] { margin-bottom: 0.35rem !important; }
+[data-testid="stForm"] [data-testid="stSelectbox"] { margin-bottom: 0.35rem !important; }
+</style>
+''', unsafe_allow_html=True)
+
+    # ── 2-COLUMN LAYOUT ─────────────────────────────────────────────────────
+    col_left, col_right = st.columns([0.95, 1.15], gap="large")
+
+    with col_left:
+        st.markdown('''
+<div class="auth-brand-pane">
+  <div class="auth-brand-eyebrow">START FREE · 60-DAY TRIAL</div>
+  <h1 class="auth-brand-headline">Create your account.<br>Start in 60&nbsp;seconds.</h1>
+  <p class="auth-brand-sub">No credit card. No commitment. Just data analytics that thinks alongside you — built for analysts, founders, and operators who want answers, not dashboards.</p>
+  <div class="auth-brand-features">
+    <div class="auth-brand-feat">
+      <div class="auth-brand-feat-icon">01</div>
+      <div class="auth-brand-feat-body">
+        <strong>60-Day Free Trial</strong>
+        <span>Full Tier 3 access from day one — every feature unlocked.</span>
+      </div>
     </div>
-    ''', unsafe_allow_html=True)
-    
-    st.markdown('<h2 class="glow-text" style="font-size: 2.5rem;">Create Your Account</h2>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Start your 60-day free trial with full access to all features</p>', unsafe_allow_html=True)
-    
-    COUNTRIES = [
-        "Select Country", "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria",
-        "Bahrain", "Bangladesh", "Belgium", "Brazil", "Canada", "Chile", "China", "Colombia",
-        "Croatia", "Czech Republic", "Denmark", "Egypt", "Estonia", "Ethiopia", "Finland",
-        "France", "Germany", "Ghana", "Greece", "Hungary", "Iceland", "India", "Indonesia",
-        "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan",
-        "Kenya", "Kuwait", "Latvia", "Lebanon", "Libya", "Lithuania", "Luxembourg", "Malaysia",
-        "Mexico", "Morocco", "Netherlands", "New Zealand", "Nigeria", "Norway", "Oman",
-        "Pakistan", "Palestine", "Panama", "Peru", "Philippines", "Poland", "Portugal", "Qatar",
-        "Romania", "Russia", "Saudi Arabia", "Serbia", "Singapore", "Slovakia", "Slovenia",
-        "South Africa", "South Korea", "Spain", "Sri Lanka", "Sudan", "Sweden", "Switzerland",
-        "Syria", "Taiwan", "Thailand", "Tunisia", "Turkey", "UAE", "Uganda", "Ukraine",
-        "United Kingdom", "United States", "Uruguay", "Venezuela", "Vietnam", "Yemen", "Other"
-    ]
-    
-    SPECIALTIES = [
-        "Select Specialty",
-        "Data Science & Analytics",
-        "Business & Management",
-        "Marketing & Advertising",
-        "Engineering & Technical",
-        "Finance & Accounting",
-        "Healthcare & Medicine",
-        "Education & Academia",
-        "IT & Software Development",
-        "Research & Scientific",
-        "Government & Public Sector",
-        "Legal & Compliance",
-        "Media & Communications",
-        "Human Resources",
-        "Supply Chain & Logistics",
-        "Real Estate",
-        "Retail & E-Commerce",
-        "Consulting",
-        "Non-Profit & NGO",
-        "Student",
-        "Other"
-    ]
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
+    <div class="auth-brand-feat">
+      <div class="auth-brand-feat-icon">02</div>
+      <div class="auth-brand-feat-body">
+        <strong>Up to 1M Rows per File</strong>
+        <span>Upload CSV or Excel up to 200&nbsp;MB. Auto-cleaned on arrival.</span>
+      </div>
+    </div>
+    <div class="auth-brand-feat">
+      <div class="auth-brand-feat-icon">03</div>
+      <div class="auth-brand-feat-body">
+        <strong>AI Chat &amp; ML Insights</strong>
+        <span>GPT-driven analysis, predictions, clustering — included.</span>
+      </div>
+    </div>
+  </div>
+</div>
+''', unsafe_allow_html=True)
+
+    with col_right:
+        st.markdown('''
+<div class="auth-eyebrow"><span>CREATE ACCOUNT</span></div>
+<div class="auth-headline">
+  <h1>Start your 60-day trial</h1>
+  <p>It takes less than a minute. We'll never share your details.</p>
+</div>
+''', unsafe_allow_html=True)
+
+        COUNTRIES = [
+            "Select Country", "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria",
+            "Bahrain", "Bangladesh", "Belgium", "Brazil", "Canada", "Chile", "China", "Colombia",
+            "Croatia", "Czech Republic", "Denmark", "Egypt", "Estonia", "Ethiopia", "Finland",
+            "France", "Germany", "Ghana", "Greece", "Hungary", "Iceland", "India", "Indonesia",
+            "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan",
+            "Kenya", "Kuwait", "Latvia", "Lebanon", "Libya", "Lithuania", "Luxembourg", "Malaysia",
+            "Mexico", "Morocco", "Netherlands", "New Zealand", "Nigeria", "Norway", "Oman",
+            "Pakistan", "Palestine", "Panama", "Peru", "Philippines", "Poland", "Portugal", "Qatar",
+            "Romania", "Russia", "Saudi Arabia", "Serbia", "Singapore", "Slovakia", "Slovenia",
+            "South Africa", "South Korea", "Spain", "Sri Lanka", "Sudan", "Sweden", "Switzerland",
+            "Syria", "Taiwan", "Thailand", "Tunisia", "Turkey", "UAE", "Uganda", "Ukraine",
+            "United Kingdom", "United States", "Uruguay", "Venezuela", "Vietnam", "Yemen", "Other"
+        ]
+
+        SPECIALTIES = [
+            "Select Specialty",
+            "Data Science & Analytics", "Business & Management", "Marketing & Advertising",
+            "Engineering & Technical", "Finance & Accounting", "Healthcare & Medicine",
+            "Education & Academia", "IT & Software Development", "Research & Scientific",
+            "Government & Public Sector", "Legal & Compliance", "Media & Communications",
+            "Human Resources", "Supply Chain & Logistics", "Real Estate",
+            "Retail & E-Commerce", "Consulting", "Non-Profit & NGO", "Student", "Other"
+        ]
+
         with st.form("register_form"):
-            st.markdown("##### Personal Information")
-            full_name = st.text_input("Full Name *", placeholder="Enter your full name")
-            
+            st.markdown('<div class="auth-form-section">PERSONAL · 01</div>', unsafe_allow_html=True)
+            full_name = st.text_input("Full Name", placeholder="Enter your full name")
+
             r1c1, r1c2 = st.columns(2)
             with r1c1:
-                email = st.text_input("Email Address *", placeholder="your@email.com")
+                email = st.text_input("Email Address", placeholder="you@company.com")
             with r1c2:
-                phone = st.text_input("Phone Number *", placeholder="+1234567890")
-            
+                phone = st.text_input("Phone Number", placeholder="+1 234 567 8900")
+
             r2c1, r2c2 = st.columns(2)
             with r2c1:
-                username = st.text_input("Username *", placeholder="Choose a username")
+                username = st.text_input("Username", placeholder="Choose a username")
             with r2c2:
-                gender = st.selectbox("Gender *", ["Select Gender", "Male", "Female"])
-            
+                gender = st.selectbox("Gender", ["Select Gender", "Male", "Female"])
+
+            st.markdown('<div class="auth-form-section">PROFILE · 02</div>', unsafe_allow_html=True)
             r3c1, r3c2 = st.columns(2)
             with r3c1:
-                country = st.selectbox("Country *", COUNTRIES)
+                country = st.selectbox("Country", COUNTRIES)
             with r3c2:
-                specialty = st.selectbox("Specialty *", SPECIALTIES)
-            
+                specialty = st.selectbox("Specialty", SPECIALTIES)
+
             specialty_other_val = ""
             if specialty == "Other":
-                specialty_other_val = st.text_input("Please specify your specialty", placeholder="Enter your specialty")
-            
-            st.markdown("##### Security")
+                specialty_other_val = st.text_input("Please Specify", placeholder="Enter your specialty")
+
+            st.markdown('<div class="auth-form-section">SECURITY · 03</div>', unsafe_allow_html=True)
             p1, p2 = st.columns(2)
             with p1:
-                password = st.text_input("Password *", type="password", placeholder="Min 6 characters")
+                password = st.text_input("Password", type="password", placeholder="Min 6 characters")
             with p2:
-                confirm_password = st.text_input("Confirm Password *", type="password", placeholder="Re-enter password")
-            
-            st.markdown("")
-            submit = st.form_submit_button("🚀 Create Account & Start Free Trial", use_container_width=True)
-            
+                confirm_password = st.text_input("Confirm Password", type="password", placeholder="Re-enter password")
+
+            submit = st.form_submit_button("Create Account & Start 60-Day Trial  →", use_container_width=True)
+
             if submit:
                 if not all([full_name, username, email, password, confirm_password, phone]):
                     st.warning("Please fill in all required fields")
@@ -1730,21 +1800,54 @@ def show_register_page():
                             st.error("Email or username already exists")
                     finally:
                         db.close()
-        
+
         if st.session_state.user and st.session_state.page == 'dashboard':
             st.success("Account created successfully! Your 60-day free trial has started. Check your email for details.")
             st.rerun()
-        
-        st.markdown("---")
-        col_a, col_b = st.columns(2)
-        with col_a:
-            if st.button("← Back to Home", use_container_width=True):
-                st.session_state.page = 'home'
-                st.rerun()
-        with col_b:
-            if st.button("Already have an account? Sign In →", use_container_width=True):
-                st.session_state.page = 'login'
-                st.rerun()
+
+        st.markdown('<div class="auth-divider"><span>ALREADY A MEMBER</span></div>', unsafe_allow_html=True)
+        st.markdown('<p class="auth-foot-text">Sign in to access your saved datasets and analyses.</p>', unsafe_allow_html=True)
+        if st.button("Sign In to Existing Account  →", use_container_width=True, key="reg_to_login"):
+            st.session_state.page = 'login'
+            st.rerun()
+
+        st.markdown('''
+<div class="auth-trust">
+  <span>● 60-DAY TRIAL</span><span class="dot">·</span>
+  <span>NO CREDIT CARD</span><span class="dot">·</span>
+  <span>BCRYPT SECURED</span><span class="dot">·</span>
+  <span>GDPR READY</span>
+</div>
+''', unsafe_allow_html=True)
+
+    # ── FOOTER (same as landing) ────────────────────────────────────────────
+    st.markdown(f'''
+<div class="lp-footer"><div class="lp-footer-inner">
+<div class="lp-footer-grid">
+<div class="lp-footer-brand">
+<a class="lp-footer-logo" href="/" target="_self"><img src="data:image/png;base64,{logo_b64}" alt="DataVision Pro"></a>
+<p class="lp-footer-desc">Intelligent data analytics for teams who want answers, not dashboards. AI-powered insights from upload to action.</p>
+</div>
+<div class="lp-footer-col">
+<div class="lp-footer-col-title">PLATFORM</div>
+<a class="lp-footer-link" href="/#features" target="_self">Features</a>
+<a class="lp-footer-link" href="/#how" target="_self">How It Works</a>
+<a class="lp-footer-link" href="/#pricing" target="_self">Pricing</a>
+<a class="lp-footer-link" href="?signin=1" target="_self">Sign In</a>
+</div>
+<div class="lp-footer-col">
+<div class="lp-footer-col-title">SUPPORT</div>
+<a class="lp-footer-link" href="/#contact" target="_self">Contact Us</a>
+<a class="lp-footer-link" href="mailto:muayad.demaidi.work@gmail.com">Email Support</a>
+<a class="lp-footer-link" href="/#contact" target="_self">Help Center</a>
+</div>
+</div>
+<div class="lp-footer-bottom">
+<div class="lp-footer-copy">© 2026 DataVision Pro · All systems operational</div>
+<div class="lp-footer-pulse"><span class="lp-pulse-dot"></span>STATUS · LIVE</div>
+</div>
+</div></div>
+''', unsafe_allow_html=True)
 
 
 def show_pricing_page():
