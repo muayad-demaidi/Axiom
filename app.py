@@ -1231,6 +1231,23 @@ def show_login_page():
 
     logo_b64 = get_logo_base64()
 
+    # ── NAVBAR (same as landing) ────────────────────────────────────────────
+    st.markdown(f'''
+<div class="lp-nav"><div class="lp-nav-inner">
+<a class="lp-nav-logo" href="/" target="_self"><img src="data:image/png;base64,{logo_b64}" alt="DataVision Pro"></a>
+<div class="lp-nav-links">
+<a class="lp-nav-link" href="/" target="_self">Home</a>
+<a class="lp-nav-link" href="/#features" target="_self">Features</a>
+<a class="lp-nav-link" href="/#pricing" target="_self">Pricing</a>
+<a class="lp-nav-link" href="/#contact" target="_self">Contact</a>
+</div>
+<div class="lp-nav-actions">
+<a class="lp-nav-signin-link" href="/" target="_self">Home</a>
+</div>
+</div></div>
+<div class="lp-nav-spacer"></div>
+''', unsafe_allow_html=True)
+
     st.markdown(f'''
 <style>
 /* ── Auth page background atmosphere ──────────────────────── */
@@ -1258,23 +1275,48 @@ def show_login_page():
 .auth-corner-tl {{ top: 1.4rem; left: 1.5rem; }}
 .auth-corner-br {{ bottom: 1.4rem; right: 1.5rem; }}
 
-/* ── Top bar (back link + logo) ───────────────────────────── */
-.block-container {{ padding-top: 1.5rem !important; max-width: 520px !important; position: relative; z-index: 5; }}
-.auth-topbar {{
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 2.25rem; padding: 0 0.25rem;
+/* ── Desktop layout container ─────────────────────────────── */
+.block-container {{ padding-top: 1.5rem !important; padding-bottom: 0 !important; max-width: 1320px !important; position: relative; z-index: 5; }}
+
+/* ── Two-column hero/form layout ──────────────────────────── */
+.auth-twocol {{ display: grid; grid-template-columns: 1.05fr 1fr; gap: 4rem; align-items: center; min-height: 70vh; padding: 1rem 0 4rem 0; }}
+@media (max-width: 900px) {{ .auth-twocol {{ grid-template-columns: 1fr; gap: 2rem; }} }}
+
+/* ── LEFT brand pane ──────────────────────────────────────── */
+.auth-brand-pane {{ padding-right: 1rem; }}
+.auth-brand-eyebrow {{
+    display: inline-flex; align-items: center; gap: 0.6rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--teal); margin-bottom: 1.4rem;
+    padding: 0.4rem 0.85rem; border: 1px solid rgba(45,212,191,0.2);
+    border-radius: 100px; background: rgba(45,212,191,0.04);
 }}
-.auth-back-link {{
-    font-family: 'JetBrains Mono', monospace; font-size: 0.74rem;
-    color: var(--text-muted) !important; text-decoration: none !important;
-    letter-spacing: 0.06em; text-transform: uppercase;
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    transition: color 0.15s;
+.auth-brand-eyebrow::before {{
+    content: ''; display: inline-block; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--teal); box-shadow: 0 0 8px var(--teal);
 }}
-.auth-back-link:hover {{ color: var(--teal) !important; }}
-.auth-back-link .arr {{ display: inline-block; transition: transform 0.2s; }}
-.auth-back-link:hover .arr {{ transform: translateX(-3px); }}
-.auth-topbar-logo img {{ height: 36px; width: auto; opacity: 0.92; }}
+.auth-brand-headline {{
+    font-family: 'Syne', sans-serif; font-size: 3.25rem; font-weight: 800;
+    letter-spacing: -0.035em; line-height: 1.05; margin: 0 0 1.25rem 0;
+    background: linear-gradient(135deg, #ffffff 0%, #2dd4bf 75%, #94a3b8 130%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+}}
+.auth-brand-sub {{
+    font-size: 1.05rem; color: var(--text-secondary); line-height: 1.65;
+    max-width: 460px; margin: 0 0 2.25rem 0;
+}}
+.auth-brand-features {{ display: flex; flex-direction: column; gap: 1rem; max-width: 440px; }}
+.auth-brand-feat {{ display: flex; align-items: flex-start; gap: 0.95rem; }}
+.auth-brand-feat-icon {{
+    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+    background: rgba(45,212,191,0.08); border: 1px solid rgba(45,212,191,0.2);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--teal); font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+}}
+.auth-brand-feat-body strong {{ font-family: 'Syne', sans-serif; font-weight: 700; color: var(--text-primary); font-size: 0.98rem; display: block; margin-bottom: 0.15rem; }}
+.auth-brand-feat-body span {{ font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }}
 
 /* ── Eyebrow above form ───────────────────────────────────── */
 .auth-eyebrow {{
@@ -1326,23 +1368,39 @@ def show_login_page():
     color: var(--text-secondary) !important;
 }}
 [data-testid="stForm"] [data-testid="stTextInput"] input {{
-    background: rgba(7,16,31,0.65) !important;
-    border: 1px solid rgba(45,212,191,0.14) !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
     border-radius: 10px !important;
-    padding: 0.85rem 1rem !important;
+    padding: 0.9rem 1rem !important;
     font-family: 'DM Sans', sans-serif !important;
     font-size: 0.95rem !important;
-    color: var(--text-primary) !important;
-    transition: border-color 0.18s, background 0.18s, box-shadow 0.18s !important;
+    color: #07101f !important;
+    transition: border-color 0.18s, box-shadow 0.18s !important;
+    -webkit-text-fill-color: #07101f !important;
 }}
 [data-testid="stForm"] [data-testid="stTextInput"] input:focus {{
-    border-color: rgba(45,212,191,0.55) !important;
-    background: rgba(7,16,31,0.9) !important;
-    box-shadow: 0 0 0 3px rgba(45,212,191,0.12) !important;
+    border-color: rgba(45,212,191,0.65) !important;
+    box-shadow: 0 0 0 3px rgba(45,212,191,0.18) !important;
     outline: none !important;
 }}
 [data-testid="stForm"] [data-testid="stTextInput"] input::placeholder {{
-    color: rgba(148,163,184,0.4) !important;
+    color: rgba(7,16,31,0.38) !important;
+    opacity: 1 !important;
+}}
+[data-testid="stForm"] [data-testid="stTextInput"] [data-testid="stTextInputContainer"],
+[data-testid="stForm"] [data-testid="stTextInput"] > div > div {{
+    background: #ffffff !important;
+    border-radius: 10px !important;
+}}
+/* Password reveal button styling */
+[data-testid="stForm"] [data-testid="stTextInput"] button {{
+    background: #ffffff !important;
+    color: #64748b !important;
+    border-left: 1px solid rgba(0,0,0,0.06) !important;
+}}
+[data-testid="stForm"] [data-testid="stTextInput"] button:hover {{
+    color: #07101f !important;
+    background: #f1f5f9 !important;
 }}
 
 /* ── Primary submit button ────────────────────────────────── */
@@ -1433,56 +1491,111 @@ def show_login_page():
 </style>
 <div class="auth-bg-grid"></div>
 <div class="auth-bg-glow"></div>
-<div class="auth-corner-mono auth-corner-tl">// SESSION_AUTH_v2</div>
-<div class="auth-corner-mono auth-corner-br">[ ENCRYPTED // 256-BIT ]</div>
 ''', unsafe_allow_html=True)
 
-    st.markdown(f'''
-<div class="auth-topbar">
-<a class="auth-back-link" href="/" target="_self"><span class="arr">\u2190</span> Back to home</a>
-<a class="auth-topbar-logo" href="/" target="_self"><img src="data:image/png;base64,{logo_b64}" alt="DataVision Pro"></a>
+    # ── 2-COLUMN DESKTOP LAYOUT ─────────────────────────────────────────────
+    col_left, col_right = st.columns([1.05, 1], gap="large")
+
+    with col_left:
+        st.markdown('''
+<div class="auth-brand-pane">
+<div class="auth-brand-eyebrow">Welcome Back</div>
+<h1 class="auth-brand-headline">Sign in. See your data come alive.</h1>
+<p class="auth-brand-sub">Pick up exactly where you left off &mdash; your datasets, AI conversations, and saved analyses are one click away.</p>
+<div class="auth-brand-features">
+<div class="auth-brand-feat">
+<div class="auth-brand-feat-icon">01</div>
+<div class="auth-brand-feat-body"><strong>Persistent Workspaces</strong><span>Every dataset, chart, and chat thread is saved to your account.</span></div>
 </div>
-<div class="auth-eyebrow"><span>Secure Access</span></div>
+<div class="auth-brand-feat">
+<div class="auth-brand-feat-icon">02</div>
+<div class="auth-brand-feat-body"><strong>Bank-Grade Security</strong><span>Bcrypt-hashed credentials. End-to-end encrypted sessions.</span></div>
+</div>
+<div class="auth-brand-feat">
+<div class="auth-brand-feat-icon">03</div>
+<div class="auth-brand-feat-body"><strong>Instant Access</strong><span>Your full Tier 3 trial unlocks the moment you sign in.</span></div>
+</div>
+</div>
+</div>
+''', unsafe_allow_html=True)
+
+    with col_right:
+        st.markdown('''
+<div class="auth-eyebrow"><span>Secure Sign In</span></div>
 <div class="auth-headline">
-<h1>Welcome Back</h1>
-<p>Sign in to continue your data analysis workflow.</p>
+<h1>Sign In to Your Account</h1>
+<p>Enter your credentials to continue.</p>
 </div>
 ''', unsafe_allow_html=True)
 
-    with st.form("login_form", clear_on_submit=False):
-        email = st.text_input("Email Address", placeholder="you@company.com", key="login_email")
-        password = st.text_input("Password", type="password", placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", key="login_password")
-        st.markdown('<div class="auth-aux-row"><a class="auth-aux-link" href="mailto:muayad.demaidi.work@gmail.com?subject=Password%20Reset%20Request">Forgot password?</a></div>', unsafe_allow_html=True)
-        submit = st.form_submit_button("Sign In \u2192", use_container_width=True)
+        with st.form("login_form", clear_on_submit=False):
+            email = st.text_input("Email Address", placeholder="you@company.com", key="login_email")
+            password = st.text_input("Password", type="password", placeholder="Enter your password", key="login_password")
+            st.markdown('<div class="auth-aux-row"><a class="auth-aux-link" href="mailto:muayad.demaidi.work@gmail.com?subject=Password%20Reset%20Request">Forgot password?</a></div>', unsafe_allow_html=True)
+            submit = st.form_submit_button("Sign In \u2192", use_container_width=True)
 
-        if submit:
-            if email and password:
-                db = get_db()
-                try:
-                    user = authenticate_user(db, email, password)
-                    if user:
-                        st.session_state.user = user_to_dict(user)
-                        st.session_state.page = 'dashboard'
-                    else:
-                        st.error("Invalid email or password")
-                finally:
-                    db.close()
-            else:
-                st.warning("Please enter both email and password")
+            if submit:
+                if email and password:
+                    db = get_db()
+                    try:
+                        user = authenticate_user(db, email, password)
+                        if user:
+                            st.session_state.user = user_to_dict(user)
+                            st.session_state.page = 'dashboard'
+                        else:
+                            st.error("Invalid email or password")
+                    finally:
+                        db.close()
+                else:
+                    st.warning("Please enter both email and password")
 
-    if st.session_state.user and st.session_state.page == 'dashboard':
-        st.rerun()
+        if st.session_state.user and st.session_state.page == 'dashboard':
+            st.rerun()
 
-    st.markdown('<div class="auth-divider">NEW HERE</div>', unsafe_allow_html=True)
-    st.markdown('<p class="auth-foot-text">Don&#39;t have an account yet? Start your 60-day free trial.</p>', unsafe_allow_html=True)
+        st.markdown('<div class="auth-divider">NEW HERE</div>', unsafe_allow_html=True)
+        st.markdown('<p class="auth-foot-text">Don&#39;t have an account yet? Start your 60-day free trial.</p>', unsafe_allow_html=True)
 
-    if st.button("Create Account \u2192", use_container_width=True, key="login_to_register"):
-        st.session_state.page = 'register'
-        st.rerun()
+        if st.button("Create Account \u2192", use_container_width=True, key="login_to_register"):
+            st.session_state.page = 'register'
+            st.rerun()
 
-    st.markdown('''
+        st.markdown('''
 <div class="auth-trust">
 <span>ENCRYPTED</span><span class="dot">\u00b7</span><span>BCRYPT HASHING</span><span class="dot">\u00b7</span><span>GDPR-ALIGNED</span>
+</div>
+''', unsafe_allow_html=True)
+
+    # ── FOOTER (same as landing) ────────────────────────────────────────────
+    st.markdown(f'''
+<div class="lp-footer">
+<div class="lp-footer-inner">
+<div>
+<img src="data:image/png;base64,{logo_b64}" style="height:60px;width:auto;border-radius:6px;" alt="DataVision Pro">
+<p class="lp-footer-brand-desc">An intelligent data analytics platform that turns raw datasets into clear, actionable insights &mdash; in seconds, no code required.</p>
+</div>
+<div>
+<div class="lp-footer-col-title">Platform</div>
+<ul class="lp-footer-links-list">
+<li><a href="/" target="_self">Home</a></li>
+<li><a href="/#features" target="_self">Features</a></li>
+<li><a href="/#pricing" target="_self">Pricing &amp; Plans</a></li>
+<li><a href="/#how" target="_self">How It Works</a></li>
+</ul>
+</div>
+<div>
+<div class="lp-footer-col-title">Support</div>
+<ul class="lp-footer-links-list">
+<li><a href="/#contact" target="_self">Contact Us</a></li>
+<li><a href="mailto:muayad.demaidi.work@gmail.com">Account Help</a></li>
+<li><a href="mailto:muayad.demaidi.work@gmail.com">Report an Issue</a></li>
+<li><a href="/" target="_self">60-Day Free Trial</a></li>
+</ul>
+</div>
+</div>
+<div class="lp-footer-bottom">
+<span class="lp-footer-copy">&copy; 2026 DataVision Pro. All rights reserved.</span>
+<span class="lp-footer-status">All systems operational</span>
+</div>
 </div>
 ''', unsafe_allow_html=True)
 
