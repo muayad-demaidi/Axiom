@@ -582,23 +582,25 @@ p, span, div {
     cursor: pointer;
 }
 
-/* ===== LANDING PAGE — ENTRANCE ANIMATIONS ===== */
-@keyframes fadeSlideUp {
-    from { opacity: 0; transform: translateY(28px); }
-    to   { opacity: 1; transform: translateY(0); }
+/* ===== LANDING PAGE — ENTRANCE ANIMATIONS (viewport-triggered) ===== */
+.lp-hero, .lp-trust, .lp-features, .lp-hiw, .lp-tiers {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.38s ease-out, transform 0.38s ease-out;
 }
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+.lp-hero.lp-visible,
+.lp-trust.lp-visible,
+.lp-features.lp-visible,
+.lp-hiw.lp-visible,
+.lp-tiers.lp-visible {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
 }
-.lp-hero     { animation: fadeSlideUp 0.35s ease-out both; animation-delay: 0.05s; }
-.lp-trust    { animation: fadeSlideUp 0.35s ease-out both; animation-delay: 0.15s; }
-.lp-features { animation: fadeSlideUp 0.35s ease-out both; animation-delay: 0.25s; }
-.lp-hiw      { animation: fadeSlideUp 0.35s ease-out both; animation-delay: 0.35s; }
-.lp-tiers    { animation: fadeSlideUp 0.35s ease-out both; animation-delay: 0.45s; }
 @media (prefers-reduced-motion: reduce) {
     .lp-hero, .lp-trust, .lp-features, .lp-hiw, .lp-tiers {
-        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
     }
 }
 
@@ -2401,10 +2403,17 @@ def show_home_page():
                  style="max-width:460px;width:88%;border-radius:12px;"
                  alt="DataVision Pro">
         </a>
-        <p style="font-size:1.2rem;color:#94a3b8;font-weight:400;
-                  max-width:560px;margin:0.75rem auto 0 auto;line-height:1.65;">
-            Turn raw data into clear decisions — automatically.<br>
-            <span style="color:#14b8a6;font-weight:600;">No code. No expertise required.</span>
+        <h1 style="font-size:2rem;font-weight:800;letter-spacing:-0.02em;
+                   background:linear-gradient(135deg,#14b8a6,#0d9488,#94a3b8);
+                   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+                   background-clip:text;margin:1rem 0 0.4rem 0;line-height:1.2;">
+            Intelligent Data Analytics,<br>Done in Seconds
+        </h1>
+        <p style="font-size:1.1rem;color:#94a3b8;font-weight:400;
+                  max-width:540px;margin:0 auto;line-height:1.65;">
+            Upload any dataset and get instant cleaning, statistics, charts,
+            and AI-powered insights —
+            <span style="color:#14b8a6;font-weight:600;">no code required.</span>
         </p>
     </div>
     ''', unsafe_allow_html=True)
@@ -2683,6 +2692,47 @@ def show_home_page():
             st.session_state.page = 'pricing'
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
+
+    # ── VIEWPORT-TRIGGERED ANIMATIONS (IntersectionObserver) ─────────────────
+    st.components.v1.html("""
+    <script>
+    (function() {
+        var CLASSES = ['lp-hero','lp-trust','lp-features','lp-hiw','lp-tiers'];
+        function observe(doc) {
+            var prefersReduced = doc.defaultView &&
+                doc.defaultView.matchMedia &&
+                doc.defaultView.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (prefersReduced) return;
+            var io = new doc.defaultView.IntersectionObserver(function(entries) {
+                entries.forEach(function(e) {
+                    if (e.isIntersecting) {
+                        e.target.classList.add('lp-visible');
+                        io.unobserve(e.target);
+                    }
+                });
+            }, { threshold: 0.12 });
+            CLASSES.forEach(function(cls) {
+                doc.querySelectorAll('.' + cls).forEach(function(el) {
+                    io.observe(el);
+                });
+            });
+        }
+        function init() {
+            try {
+                var doc = window.parent.document;
+                observe(doc);
+                // Re-run after a short delay to catch late-rendered Streamlit elements
+                setTimeout(function() { observe(doc); }, 600);
+            } catch(e) {}
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+    """, height=0)
 
     # ── SUPPORT FORM ──────────────────────────────────────────────────────────
     show_support_section()
