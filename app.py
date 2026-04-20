@@ -2501,33 +2501,15 @@ def show_home_page():
 
     # ── HOW IT WORKS ──────────────────────────────────────────────────────────
     st.markdown('''
-    <div class="lp-hiw">
-        <div class="lp-hiw-section">
-            <h2>How It Works</h2>
-            <div class="lp-steps-grid">
-
-                <div class="lp-step-card">
-                    <div class="lp-step-num">1</div>
-                    <div class="lp-step-title">Upload Your File</div>
-                    <div class="lp-step-desc">Drop any CSV or Excel file — up to 1 million rows, 200 MB.</div>
-                </div>
-
-                <div class="lp-step-card">
-                    <div class="lp-step-num">2</div>
-                    <div class="lp-step-title">Clean &amp; Analyse</div>
-                    <div class="lp-step-desc">One click auto-cleans your data and runs a full statistical report.</div>
-                </div>
-
-                <div class="lp-step-card">
-                    <div class="lp-step-num">3</div>
-                    <div class="lp-step-title">Get Insights</div>
-                    <div class="lp-step-desc">Explore interactive charts, AI recommendations, and exportable PDF reports.</div>
-                </div>
-
-            </div>
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
+<div class="lp-hiw"><div class="lp-hiw-section">
+<h2>How It Works</h2>
+<div class="lp-steps-grid">
+<div class="lp-step-card"><div class="lp-step-num">1</div><div class="lp-step-title">Upload Your File</div><div class="lp-step-desc">Drop any CSV or Excel file up to 1 million rows and 200 MB.</div></div>
+<div class="lp-step-card"><div class="lp-step-num">2</div><div class="lp-step-title">Clean and Analyse</div><div class="lp-step-desc">One click auto-cleans your data and runs a full statistical report.</div></div>
+<div class="lp-step-card"><div class="lp-step-num">3</div><div class="lp-step-title">Get Insights</div><div class="lp-step-desc">Explore interactive charts, AI recommendations, and exportable PDF reports.</div></div>
+</div>
+</div></div>
+''', unsafe_allow_html=True)
 
     # ── TIERS TEASER ──────────────────────────────────────────────────────────
     st.markdown('''
