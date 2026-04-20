@@ -583,24 +583,24 @@ p, span, div {
 }
 
 /* ===== LANDING PAGE — ENTRANCE ANIMATIONS (viewport-triggered) ===== */
+@keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(28px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
 .lp-hero, .lp-trust, .lp-features, .lp-hiw, .lp-tiers {
     opacity: 0;
     transform: translateY(28px);
-    transition: opacity 0.38s ease-out, transform 0.38s ease-out;
 }
-.lp-hero.lp-visible,
-.lp-trust.lp-visible,
-.lp-features.lp-visible,
-.lp-hiw.lp-visible,
-.lp-tiers.lp-visible {
-    opacity: 1 !important;
-    transform: translateY(0) !important;
-}
+.lp-hero.lp-visible     { animation: fadeSlideUp 0.3s ease-out both; animation-delay: 0ms; }
+.lp-trust.lp-visible    { animation: fadeSlideUp 0.3s ease-out both; animation-delay: 60ms; }
+.lp-features.lp-visible { animation: fadeSlideUp 0.3s ease-out both; animation-delay: 120ms; }
+.lp-hiw.lp-visible      { animation: fadeSlideUp 0.3s ease-out both; animation-delay: 180ms; }
+.lp-tiers.lp-visible    { animation: fadeSlideUp 0.3s ease-out both; animation-delay: 240ms; }
 @media (prefers-reduced-motion: reduce) {
     .lp-hero, .lp-trust, .lp-features, .lp-hiw, .lp-tiers {
         opacity: 1 !important;
         transform: none !important;
-        transition: none !important;
+        animation: none !important;
     }
 }
 
@@ -848,6 +848,15 @@ p, span, div {
     padding: 0.8rem 2rem !important;
     border-radius: 14px !important;
     box-shadow: 0 6px 24px rgba(13, 148, 136, 0.30) !important;
+    cursor: pointer !important;
+}
+.lp-btn-primary > div > button:hover {
+    box-shadow: 0 8px 28px rgba(13, 148, 136, 0.45) !important;
+    transform: translateY(-2px) !important;
+}
+.lp-btn-primary > div > button:active {
+    transform: translateY(0) scale(0.98) !important;
+    box-shadow: 0 3px 12px rgba(13, 148, 136, 0.25) !important;
 }
 .lp-btn-secondary > div > button {
     background: rgba(15, 23, 42, 0.8) !important;
@@ -855,12 +864,17 @@ p, span, div {
     color: #14b8a6 !important;
     font-size: 0.9rem !important;
     box-shadow: none !important;
+    cursor: pointer !important;
 }
 .lp-btn-secondary > div > button:hover {
     background: rgba(13, 148, 136, 0.12) !important;
     border-color: rgba(20, 184, 166, 0.50) !important;
     box-shadow: none !important;
     transform: translateY(-1px) !important;
+}
+.lp-btn-secondary > div > button:active {
+    transform: translateY(0) scale(0.97) !important;
+    background: rgba(13, 148, 136, 0.20) !important;
 }
 .lp-btn-outline > div > button {
     background: transparent !important;
@@ -869,12 +883,17 @@ p, span, div {
     font-size: 0.85rem !important;
     box-shadow: none !important;
     font-weight: 500 !important;
+    cursor: pointer !important;
 }
 .lp-btn-outline > div > button:hover {
     border-color: rgba(20, 184, 166, 0.55) !important;
     color: #14b8a6 !important;
     box-shadow: none !important;
     transform: none !important;
+}
+.lp-btn-outline > div > button:active {
+    background: rgba(13, 148, 136, 0.08) !important;
+    transform: scale(0.98) !important;
 }
 </style>
 
@@ -2474,14 +2493,6 @@ def show_home_page():
                     <path d="M12 8v4l3 3"/>
                 </svg>
                 AI-Powered Insights
-            </span>
-            <span class="lp-trust-pill">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                     fill="none" stroke="currentColor" stroke-width="2.5"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
-                No Card Required
             </span>
         </div>
     </div>
