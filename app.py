@@ -1317,11 +1317,7 @@ TIER3_LIMITS = {
 
 init_db()
 
-@st.cache_resource
-def _get_cookie_manager():
-    return stx.CookieManager(key="dvp_cookie_mgr")
-
-cookie_manager = _get_cookie_manager()
+cookie_manager = stx.CookieManager(key="dvp_cookie_mgr")
 SESSION_COOKIE_NAME = "dvp_session"
 
 if 'user' not in st.session_state:
