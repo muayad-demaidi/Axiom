@@ -68,9 +68,23 @@ st.set_page_config(
 
 NEON_CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
+    --teal:         #2dd4bf;
+    --teal-mid:     #14b8a6;
+    --teal-dark:    #0d9488;
+    --indigo:       #818cf8;
+    --bg:           #07101f;
+    --surface:      #0c1829;
+    --surface-2:    #111f35;
+    --text-primary: #f0f4f8;
+    --text-secondary: #94a3b8;
+    --text-muted:   #475569;
+    --border:       rgba(45,212,191,0.14);
+    --border-hover: rgba(45,212,191,0.38);
+    --shadow-teal:  0 0 32px rgba(13,148,136,0.18);
+    /* legacy aliases kept for dashboard compatibility */
     --matrix-teal: #0d9488;
     --matrix-teal-dark: #0f766e;
     --matrix-teal-light: #14b8a6;
@@ -82,12 +96,23 @@ NEON_CSS = """
     --glass-border: rgba(20, 184, 166, 0.15);
 }
 
-* {
-    font-family: 'Inter', sans-serif;
+* { font-family: 'DM Sans', sans-serif; }
+
+/* ── Desktop-first layout override ───────────────────────────────────────── */
+.block-container,
+[data-testid="stMainBlockContainer"] {
+    max-width: 1320px !important;
+    padding: 1rem 3rem 3rem 3rem !important;
+    margin: 0 auto !important;
+}
+@media (max-width: 1100px) {
+    .block-container, [data-testid="stMainBlockContainer"] {
+        padding: 1rem 1.5rem 3rem 1.5rem !important;
+    }
 }
 
 .stApp {
-    background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%);
+    background: radial-gradient(ellipse 120% 80% at 50% -20%, #0d2240 0%, #07101f 55%, #020b18 100%);
 }
 
 .matrix-bg {
@@ -145,16 +170,16 @@ NEON_CSS = """
 }
 
 .glow-text {
-    font-size: 3rem;
-    font-weight: 700;
+    font-size: 2.75rem;
+    font-weight: 800;
     text-align: center;
-    font-family: 'Inter', sans-serif;
-    background: linear-gradient(135deg, #14b8a6, #0d9488, #94a3b8);
+    font-family: 'Syne', sans-serif;
+    background: linear-gradient(135deg, #2dd4bf, #14b8a6, #94a3b8);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     margin-bottom: 0.5rem;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.04em;
 }
 
 .sub-title {
@@ -582,363 +607,311 @@ p, span, div {
     cursor: pointer;
 }
 
-/* ===== LANDING PAGE — ENTRANCE ANIMATIONS ===== */
+/* ═══════════════════════════════════════════════════════════════
+   LANDING PAGE — DESIGN SYSTEM
+   Aesthetic: "Data Noir" — dark precision, editorial, desktop-first
+   Fonts: Syne (headings) + DM Sans (body) + JetBrains Mono (data)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Entrance animations ─────────────────────────────────────── */
 @keyframes fadeSlideUp {
-    from { opacity: 0; transform: translateY(24px); }
+    from { opacity: 0; transform: translateY(20px); }
     to   { opacity: 1; transform: translateY(0); }
 }
-.lp-hero     { animation: fadeSlideUp 0.30s ease-out both; animation-delay: 0.05s; }
-.lp-trust    { animation: fadeSlideUp 0.30s ease-out both; animation-delay: 0.15s; }
-.lp-features { animation: fadeSlideUp 0.30s ease-out both; animation-delay: 0.25s; }
-.lp-hiw      { animation: fadeSlideUp 0.30s ease-out both; animation-delay: 0.35s; }
-.lp-tiers    { animation: fadeSlideUp 0.30s ease-out both; animation-delay: 0.45s; }
+.lp-hero     { animation: fadeSlideUp 0.28s ease-out both; animation-delay: 0.04s; }
+.lp-trust    { animation: fadeSlideUp 0.28s ease-out both; animation-delay: 0.12s; }
+.lp-features { animation: fadeSlideUp 0.28s ease-out both; animation-delay: 0.20s; }
+.lp-hiw      { animation: fadeSlideUp 0.28s ease-out both; animation-delay: 0.28s; }
+.lp-tiers    { animation: fadeSlideUp 0.28s ease-out both; animation-delay: 0.36s; }
 @media (prefers-reduced-motion: reduce) {
-    .lp-hero, .lp-trust, .lp-features, .lp-hiw, .lp-tiers {
-        animation: none !important;
-    }
+    .lp-hero,.lp-trust,.lp-features,.lp-hiw,.lp-tiers { animation: none !important; }
 }
 
-/* ===== LANDING PAGE — TRUST BAR ===== */
+/* ── Section shared container ────────────────────────────────── */
+.lp-section-inner { max-width: 1200px; margin: 0 auto; padding: 0; }
+.lp-section-block { padding: 4rem 0 3rem 0; }
+.lp-section-header { text-align: center; margin-bottom: 2.5rem; }
+.lp-section-header h2 {
+    font-family: 'Syne', sans-serif !important;
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    color: var(--text-primary) !important;
+    letter-spacing: -0.03em !important;
+    margin-bottom: 0.5rem !important;
+    line-height: 1.1 !important;
+}
+.lp-section-header p {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    max-width: 560px;
+    margin: 0 auto;
+}
+/* Subtle teal rule under section headings */
+.lp-section-header h2::after {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--teal-mid), transparent);
+    border-radius: 2px;
+    margin: 0.6rem auto 0 auto;
+}
+
+/* ── Trust bar ───────────────────────────────────────────────── */
 .lp-trust-bar {
     display: flex;
     justify-content: center;
-    gap: 1rem;
+    gap: 1.25rem;
     flex-wrap: wrap;
-    margin: 1.5rem 0 2rem 0;
+    padding: 1.25rem 0 0.5rem 0;
 }
 .lp-trust-pill {
     display: inline-flex;
     align-items: center;
     gap: 0.55rem;
-    background: rgba(13, 148, 136, 0.08);
-    border: 1px solid rgba(20, 184, 166, 0.22);
-    border-radius: 30px;
-    padding: 0.5rem 1.25rem;
-    font-size: 0.875rem;
-    color: #14b8a6;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    backdrop-filter: blur(8px);
+    background: rgba(45, 212, 191, 0.06);
+    border: 1px solid rgba(45, 212, 191, 0.18);
+    border-radius: 100px;
+    padding: 0.5rem 1.4rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--teal);
+    letter-spacing: 0.01em;
+    font-family: 'JetBrains Mono', monospace;
 }
 .lp-trust-pill::before {
     content: '';
     display: inline-block;
-    width: 7px;
-    height: 7px;
-    background: #14b8a6;
+    width: 6px; height: 6px;
+    background: var(--teal);
     border-radius: 50%;
+    box-shadow: 0 0 6px var(--teal);
     flex-shrink: 0;
 }
 
-/* ===== LANDING PAGE — SHARED SECTION CONTAINER ===== */
-.lp-section-inner {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 0 1.5rem;
-}
-.lp-section-header {
-    text-align: center;
-    margin-bottom: 2rem;
-}
-.lp-section-header h2 {
-    font-size: 1.6rem !important;
-    font-weight: 700 !important;
-    color: #e2e8f0 !important;
-    margin-bottom: 0.45rem !important;
-    letter-spacing: -0.01em;
-}
-.lp-section-header p {
-    font-size: 0.9rem;
-    color: #64748b;
-    line-height: 1.6;
-    max-width: 520px;
-    margin: 0 auto;
-}
-
-/* ===== LANDING PAGE — FEATURE CARDS ===== */
+/* ── Feature cards ───────────────────────────────────────────── */
 .lp-feature-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    margin: 0 0 2rem 0;
+    gap: 1.25rem;
+    margin: 0 0 0.5rem 0;
 }
-@media (max-width: 900px) {
-    .lp-feature-grid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 500px) {
-    .lp-feature-grid { grid-template-columns: 1fr; }
-}
-/* Per-card stagger (skill: stagger-sequence 30-50ms) */
-.lp-feature-grid .lp-feat-card:nth-child(1) { animation-delay: inherit; }
-.lp-feature-grid .lp-feat-card:nth-child(2) { transition-delay: 40ms; }
-.lp-feature-grid .lp-feat-card:nth-child(3) { transition-delay: 80ms; }
-.lp-feature-grid .lp-feat-card:nth-child(4) { transition-delay: 120ms; }
+@media (max-width: 960px)  { .lp-feature-grid { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 560px)  { .lp-feature-grid { grid-template-columns: 1fr; } }
 .lp-feat-card {
-    background: rgba(15, 23, 42, 0.80);
-    border: 1px solid rgba(20, 184, 166, 0.12);
-    border-radius: 18px;
-    padding: 1.75rem 1.25rem 1.5rem 1.25rem;
-    text-align: center;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2rem 1.5rem 1.75rem 1.5rem;
+    text-align: left;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     transition: border-color 0.22s ease-out, transform 0.22s ease-out, box-shadow 0.22s ease-out;
     cursor: default;
+    position: relative;
+    overflow: hidden;
 }
-.lp-feat-card:hover {
-    border-color: rgba(20, 184, 166, 0.38);
-    transform: translateY(-5px);
-    box-shadow: 0 14px 40px rgba(0,0,0,0.38);
+.lp-feat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--teal-mid), var(--indigo));
+    opacity: 0;
+    transition: opacity 0.22s ease-out;
 }
+.lp-feat-card:hover { border-color: var(--border-hover); transform: translateY(-6px); box-shadow: 0 20px 48px rgba(0,0,0,0.45); }
+.lp-feat-card:hover::before { opacity: 1; }
+
+/* nth-child stagger on enter hover (30-50ms per skill) */
+.lp-feature-grid .lp-feat-card:nth-child(2) { transition-delay: 35ms; }
+.lp-feature-grid .lp-feat-card:nth-child(3) { transition-delay: 70ms; }
+.lp-feature-grid .lp-feat-card:nth-child(4) { transition-delay: 105ms; }
+
 .lp-feat-icon {
-    width: 52px;
-    height: 52px;
-    margin: 0 auto 1rem auto;
-    background: rgba(13, 148, 136, 0.13);
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.4rem;
-    line-height: 1;
+    width: 44px; height: 44px;
+    margin: 0 0 1.25rem 0;
+    background: rgba(45, 212, 191, 0.10);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; line-height: 1;
 }
-/* CSS-only feature icons (Streamlit Markdown parser strips inline SVG) */
-.lp-feat-icon { color: #14b8a6; }
-.lp-icon-1::after { content: '\2726'; font-size: 1.3rem; color: #14b8a6; }
-.lp-icon-2::after { content: '\25A0\25A0\25A0'; font-size: 0.65rem; letter-spacing: 3px; color: #14b8a6; }
-.lp-icon-3::after { content: '\25C6'; font-size: 1.3rem; color: #14b8a6; }
-.lp-icon-4::after { content: '\25B2'; font-size: 1.1rem; color: #14b8a6; }
+.lp-feat-icon { color: var(--teal-mid); }
+/* CSS-only icons — SVG stripped by Markdown parser */
+.lp-icon-1::after { content: '\2726'; font-size: 1.2rem; color: var(--teal); }
+.lp-icon-2::after { content: '\25A0\25A0\25A0'; font-size: 0.6rem; letter-spacing: 3px; color: var(--teal); }
+.lp-icon-3::after { content: '\25C6'; font-size: 1.2rem; color: var(--teal); }
+.lp-icon-4::after { content: '\25B2'; font-size: 1rem; color: var(--teal); }
 
-.lp-feat-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #e2e8f0;
-    margin-bottom: 0.45rem;
-    letter-spacing: -0.01em;
-}
-.lp-feat-desc {
-    font-size: 0.82rem;
-    color: #64748b;
-    line-height: 1.55;
-}
+.lp-feat-title { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+.lp-feat-desc  { font-size: 0.875rem; color: var(--text-muted); line-height: 1.6; }
 
-/* ===== LANDING PAGE — HOW IT WORKS ===== */
-.lp-hiw-section {
-    text-align: center;
-    margin: 0 0 3rem 0;
-}
+/* ── How It Works ────────────────────────────────────────────── */
+.lp-hiw-section { text-align: center; padding: 0 0 1rem 0; }
 .lp-hiw-section h2 {
-    font-size: 1.6rem !important;
-    font-weight: 700 !important;
-    color: #e2e8f0 !important;
-    margin-bottom: 2rem !important;
+    font-family: 'Syne', sans-serif !important;
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    color: var(--text-primary) !important;
+    letter-spacing: -0.03em !important;
+    margin-bottom: 0.5rem !important;
+    line-height: 1.1 !important;
+}
+.lp-hiw-section h2::after {
+    content: '';
+    display: block;
+    width: 36px; height: 3px;
+    background: linear-gradient(90deg, var(--teal-mid), transparent);
+    border-radius: 2px;
+    margin: 0.6rem auto 2rem auto;
 }
 .lp-steps-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 1.25rem;
+    gap: 1.5rem;
+    margin-top: 0.5rem;
 }
-@media (max-width: 700px) {
-    .lp-steps-grid { grid-template-columns: 1fr; }
-}
+@media (max-width: 720px) { .lp-steps-grid { grid-template-columns: 1fr; } }
 .lp-step-card {
-    background: rgba(15, 23, 42, 0.75);
-    border: 1px solid rgba(20, 184, 166, 0.10);
-    border-radius: 18px;
-    padding: 2rem 1.5rem;
-    backdrop-filter: blur(12px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2.25rem 2rem;
+    backdrop-filter: blur(16px);
+    text-align: left;
+    transition: border-color 0.22s ease-out, transform 0.22s ease-out;
     position: relative;
-    text-align: center;
 }
+.lp-step-card:hover { border-color: var(--border-hover); transform: translateY(-4px); }
 .lp-step-num {
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(135deg, #14b8a6, #0d9488);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    font-weight: 800;
-    color: #fff;
-    margin: 0 auto 1rem auto;
     font-family: 'JetBrains Mono', monospace;
+    font-size: 2.5rem; font-weight: 700;
+    color: rgba(45, 212, 191, 0.18);
+    line-height: 1;
+    margin-bottom: 1rem;
+    letter-spacing: -0.04em;
 }
-.lp-step-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #e2e8f0;
-    margin-bottom: 0.5rem;
-}
-.lp-step-desc {
-    font-size: 0.825rem;
-    color: #64748b;
-    line-height: 1.55;
-}
+.lp-step-title { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+.lp-step-desc  { font-size: 0.875rem; color: var(--text-muted); line-height: 1.65; }
 
-/* ===== LANDING PAGE — TIERS TEASER ===== */
-.lp-tiers-section {
-    margin: 0 0 3rem 0;
-    text-align: center;
-}
+/* ── Tiers teaser ────────────────────────────────────────────── */
+.lp-tiers-section { text-align: center; padding: 0 0 1rem 0; }
 .lp-tiers-section h2 {
-    font-size: 1.6rem !important;
-    font-weight: 700 !important;
-    color: #e2e8f0 !important;
+    font-family: 'Syne', sans-serif !important;
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    color: var(--text-primary) !important;
+    letter-spacing: -0.03em !important;
     margin-bottom: 0.5rem !important;
+    line-height: 1.1 !important;
 }
-.lp-tiers-sub {
-    font-size: 0.9rem;
-    color: #64748b;
-    margin-bottom: 1.75rem;
+.lp-tiers-section h2::after {
+    content: '';
+    display: block;
+    width: 36px; height: 3px;
+    background: linear-gradient(90deg, var(--teal-mid), transparent);
+    border-radius: 2px;
+    margin: 0.6rem auto 0 auto;
 }
+.lp-tiers-sub { font-size: 1rem; color: var(--text-secondary); margin-bottom: 2rem; line-height: 1.6; }
 .lp-tiers-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+    align-items: start;
 }
-@media (max-width: 700px) {
-    .lp-tiers-grid { grid-template-columns: 1fr; }
-}
+@media (max-width: 720px) { .lp-tiers-grid { grid-template-columns: 1fr; } }
 .lp-tier-card {
-    background: rgba(15, 23, 42, 0.80);
-    border: 1px solid rgba(20, 184, 166, 0.12);
-    border-radius: 18px;
-    padding: 1.75rem 1.25rem;
-    text-align: center;
-    backdrop-filter: blur(12px);
-    transition: border-color 0.25s ease, transform 0.25s ease;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2rem 1.75rem;
+    text-align: left;
+    backdrop-filter: blur(16px);
+    transition: border-color 0.22s ease-out, transform 0.22s ease-out, box-shadow 0.22s ease-out;
 }
+.lp-tier-card:hover { border-color: var(--border-hover); transform: translateY(-4px); }
 .lp-tier-card.featured {
-    border-color: rgba(20, 184, 166, 0.40);
-    box-shadow: 0 0 32px rgba(13, 148, 136, 0.12);
-    transform: translateY(-4px);
+    border-color: rgba(45, 212, 191, 0.35);
+    box-shadow: 0 0 48px rgba(13, 148, 136, 0.14), inset 0 0 32px rgba(13,148,136,0.04);
+    transform: translateY(-6px);
 }
+.lp-tier-card.featured:hover { transform: translateY(-10px); }
 .lp-tier-badge {
     display: inline-block;
-    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    background: linear-gradient(135deg, var(--teal-mid), var(--teal-dark));
     color: #fff;
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    padding: 3px 10px;
-    border-radius: 20px;
-    margin-bottom: 0.75rem;
-    text-transform: uppercase;
+    font-size: 0.65rem; font-weight: 700;
+    letter-spacing: 0.1em; padding: 4px 12px;
+    border-radius: 100px; margin-bottom: 1rem;
+    text-transform: uppercase; font-family: 'JetBrains Mono', monospace;
 }
-.lp-tier-name {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #e2e8f0;
-    margin-bottom: 0.4rem;
-}
-.lp-tier-tagline {
-    font-size: 0.78rem;
-    color: #64748b;
-    margin-bottom: 1rem;
-    line-height: 1.4;
-}
-.lp-tier-features {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    text-align: left;
-}
+.lp-tier-name    { font-size: 1.3rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.3rem; letter-spacing: -0.02em; font-family: 'Syne', sans-serif; }
+.lp-tier-tagline { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.5; }
+.lp-tier-divider { height: 1px; background: var(--border); margin-bottom: 1.25rem; }
+.lp-tier-features { list-style: none; padding: 0; margin: 0; }
 .lp-tier-features li {
-    font-size: 0.8rem;
-    color: #94a3b8;
-    padding: 0.3rem 0;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
+    font-size: 0.875rem; color: var(--text-secondary);
+    padding: 0.4rem 0;
+    display: flex; align-items: flex-start; gap: 0.6rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
 }
-.lp-check {
-    color: #14b8a6;
-    font-weight: 700;
-    font-size: 0.9rem;
-    flex-shrink: 0;
-    line-height: 1.3;
-}
+.lp-tier-features li:last-child { border-bottom: none; }
+.lp-check { color: var(--teal); font-weight: 700; font-size: 0.9rem; flex-shrink: 0; line-height: 1.4; }
 
-/* ===== LANDING PAGE — SUPPORT FORM ===== */
-.lp-support-section {
-    margin: 2rem 0 1rem 0;
-}
-.lp-support-header {
-    text-align: center;
-    margin-bottom: 1.5rem;
-}
-.lp-support-header h2 {
-    font-size: 1.5rem !important;
-    font-weight: 700 !important;
-    color: #e2e8f0 !important;
-    margin-bottom: 0.4rem !important;
-}
-.lp-support-header p {
-    font-size: 0.9rem;
-    color: #64748b;
-}
-.lp-support-card {
-    background: rgba(15, 23, 42, 0.80);
-    border: 1px solid rgba(20, 184, 166, 0.12);
-    border-radius: 20px;
-    padding: 2rem;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-}
+/* ── Support form ────────────────────────────────────────────── */
+.lp-support-section { margin: 1rem 0 0.5rem 0; }
+.lp-support-header { text-align: center; margin-bottom: 1.75rem; }
+.lp-support-header h2 { font-family: 'Syne', sans-serif !important; font-size: 1.75rem !important; font-weight: 800 !important; color: var(--text-primary) !important; margin-bottom: 0.4rem !important; letter-spacing: -0.02em !important; }
+.lp-support-header p { font-size: 0.95rem; color: var(--text-secondary); }
+.lp-support-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 2rem; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
 
-/* ===== LANDING PAGE — CTA BUTTON VARIANTS ===== */
+/* ── CTA button variants (desktop scale) ─────────────────────── */
 .lp-btn-primary > div > button,
 .lp-btn-secondary > div > button,
 .lp-btn-outline > div > button {
     touch-action: manipulation !important;
-    min-height: 48px !important;
+    min-height: 52px !important;
+    font-family: 'DM Sans', sans-serif !important;
 }
 .lp-btn-primary > div > button {
-    background: linear-gradient(135deg, #14b8a6, #0d9488) !important;
-    font-size: 1rem !important;
+    background: linear-gradient(135deg, var(--teal-mid), var(--teal-dark)) !important;
+    font-size: 1.05rem !important;
     font-weight: 600 !important;
-    padding: 0.8rem 2rem !important;
+    padding: 0.9rem 2.5rem !important;
     border-radius: 14px !important;
-    box-shadow: 0 6px 24px rgba(13, 148, 136, 0.30) !important;
+    box-shadow: 0 6px 28px rgba(13,148,136,0.35) !important;
     cursor: pointer !important;
     letter-spacing: 0.01em !important;
 }
-.lp-btn-primary > div > button:hover {
-    box-shadow: 0 8px 28px rgba(13, 148, 136, 0.45) !important;
-    transform: translateY(-2px) !important;
-}
-.lp-btn-primary > div > button:active {
-    transform: translateY(0) scale(0.98) !important;
-    box-shadow: 0 3px 12px rgba(13, 148, 136, 0.25) !important;
-}
+.lp-btn-primary > div > button:hover { box-shadow: 0 10px 36px rgba(13,148,136,0.50) !important; transform: translateY(-2px) !important; }
+.lp-btn-primary > div > button:active { transform: translateY(0) scale(0.98) !important; box-shadow: 0 4px 14px rgba(13,148,136,0.28) !important; }
+
 .lp-btn-secondary > div > button {
-    background: rgba(15, 23, 42, 0.8) !important;
-    border: 1px solid rgba(20, 184, 166, 0.25) !important;
-    color: #14b8a6 !important;
-    font-size: 0.9rem !important;
+    background: rgba(12, 24, 41, 0.9) !important;
+    border: 1px solid rgba(45,212,191,0.28) !important;
+    color: var(--teal) !important;
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
     box-shadow: none !important;
     cursor: pointer !important;
 }
-.lp-btn-secondary > div > button:hover {
-    background: rgba(13, 148, 136, 0.12) !important;
-    border-color: rgba(20, 184, 166, 0.50) !important;
-    box-shadow: none !important;
-    transform: translateY(-1px) !important;
-}
-.lp-btn-secondary > div > button:active {
-    transform: translateY(0) scale(0.97) !important;
-    background: rgba(13, 148, 136, 0.20) !important;
-}
+.lp-btn-secondary > div > button:hover { background: rgba(45,212,191,0.10) !important; border-color: rgba(45,212,191,0.50) !important; transform: translateY(-1px) !important; }
+.lp-btn-secondary > div > button:active { transform: scale(0.97) !important; background: rgba(45,212,191,0.18) !important; }
+
 .lp-btn-outline > div > button {
     background: transparent !important;
-    border: 1px solid rgba(20, 184, 166, 0.30) !important;
-    color: #94a3b8 !important;
-    font-size: 0.85rem !important;
-    box-shadow: none !important;
+    border: 1px solid rgba(45,212,191,0.22) !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.9rem !important;
     font-weight: 500 !important;
+    box-shadow: none !important;
     cursor: pointer !important;
 }
+.lp-btn-outline > div > button:hover { border-color: rgba(45,212,191,0.48) !important; color: var(--teal) !important; }
+.lp-btn-outline > div > button:active { background: rgba(45,212,191,0.08) !important; transform: scale(0.98) !important; }
 .lp-btn-outline > div > button:hover {
     border-color: rgba(20, 184, 166, 0.55) !important;
     color: #14b8a6 !important;
@@ -2470,15 +2443,16 @@ def show_home_page():
 
     # ── HERO ──────────────────────────────────────────────────────────────────
     st.markdown(f'''
-<div class="lp-hero" style="text-align:center;margin-top:0.5rem;margin-bottom:0.5rem;">
-<a href="/" target="_self" style="display:inline-block;" class="logo-link"><img src="data:image/png;base64,{logo_b64}" style="max-width:380px;width:80%;border-radius:12px;" alt="DataVision Pro logo — Intelligent Data Analytics"></a>
-<h1 style="font-size:2.5rem;font-weight:800;letter-spacing:-0.03em;background:linear-gradient(135deg,#14b8a6,#0d9488,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0.75rem 0 0.4rem 0;line-height:1.15;">Intelligent Data Analytics,<br>Done in Seconds</h1>
-<p style="font-size:1.1rem;color:#94a3b8;font-weight:400;max-width:520px;margin:0 auto;line-height:1.65;">Upload any dataset and get instant cleaning, statistics, charts, and AI-powered insights &mdash; <span style="color:#14b8a6;font-weight:600;">no code required.</span></p>
+<div class="lp-hero" style="text-align:center;padding:2.5rem 0 1.5rem 0;">
+<a href="/" target="_self" style="display:inline-block;" class="logo-link"><img src="data:image/png;base64,{logo_b64}" style="max-width:420px;width:75%;border-radius:14px;" alt="DataVision Pro logo — Intelligent Data Analytics"></a>
+<div style="display:inline-block;background:rgba(45,212,191,0.08);border:1px solid rgba(45,212,191,0.22);border-radius:100px;padding:0.35rem 1.2rem;font-size:0.8rem;font-weight:600;color:#2dd4bf;letter-spacing:0.08em;text-transform:uppercase;font-family:&#39;JetBrains Mono&#39;,monospace;margin:1.25rem 0 1rem 0;">Intelligent Data Analytics Platform</div>
+<h1 style="font-family:&#39;Syne&#39;,sans-serif;font-size:3.75rem;font-weight:800;letter-spacing:-0.04em;background:linear-gradient(135deg,#2dd4bf 0%,#14b8a6 40%,#94a3b8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0 0 1rem 0;line-height:1.05;">Intelligent Data Analytics,<br>Done in Seconds</h1>
+<p style="font-size:1.15rem;color:#94a3b8;font-weight:400;max-width:560px;margin:0 auto 0.5rem auto;line-height:1.7;">Upload any dataset and get instant cleaning, statistics, charts, and AI-powered insights &mdash; <span style="color:#2dd4bf;font-weight:600;">no code required.</span></p>
 </div>
 ''', unsafe_allow_html=True)
 
     # ── CTA BUTTONS ───────────────────────────────────────────────────────────
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, col3 = st.columns([0.75, 2.5, 0.75])
     with col2:
         st.markdown('<div class="lp-btn-primary">', unsafe_allow_html=True)
         if st.button("Start Your Free Analysis", use_container_width=True, type="primary"):
@@ -2486,7 +2460,7 @@ def show_home_page():
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown('<div style="height:0.6rem;"></div>', unsafe_allow_html=True)
+        st.markdown('<div style="height:0.65rem;"></div>', unsafe_allow_html=True)
 
         c1, c2 = st.columns(2)
         with c1:
@@ -2531,52 +2505,58 @@ def show_home_page():
 <div class="lp-hiw"><div class="lp-section-inner"><div class="lp-hiw-section">
 <h2>How It Works</h2>
 <div class="lp-steps-grid">
-<div class="lp-step-card"><div class="lp-step-num">1</div><div class="lp-step-title">Upload Your File</div><div class="lp-step-desc">Drop any CSV or Excel file up to 1 million rows and 200 MB.</div></div>
-<div class="lp-step-card"><div class="lp-step-num">2</div><div class="lp-step-title">Clean and Analyse</div><div class="lp-step-desc">One click auto-cleans your data and runs a full statistical report.</div></div>
-<div class="lp-step-card"><div class="lp-step-num">3</div><div class="lp-step-title">Get Insights</div><div class="lp-step-desc">Explore interactive charts, AI recommendations, and exportable PDF reports.</div></div>
+<div class="lp-step-card"><div class="lp-step-num">01</div><div class="lp-step-title">Upload Your File</div><div class="lp-step-desc">Drop any CSV or Excel file &#8212; up to 1 million rows and 200 MB. No formatting required.</div></div>
+<div class="lp-step-card"><div class="lp-step-num">02</div><div class="lp-step-title">Clean and Analyse</div><div class="lp-step-desc">One click auto-cleans your data and runs a comprehensive statistical report instantly.</div></div>
+<div class="lp-step-card"><div class="lp-step-num">03</div><div class="lp-step-title">Explore and Export</div><div class="lp-step-desc">Dive into interactive charts, ask the AI assistant, and export professional PDF reports.</div></div>
 </div>
 </div></div></div>
 ''', unsafe_allow_html=True)
 
     # ── TIERS TEASER ──────────────────────────────────────────────────────────
     st.markdown('''
-<div class="lp-tiers"><div class="lp-tiers-section">
+<div class="lp-tiers"><div class="lp-section-inner"><div class="lp-tiers-section">
 <h2>Choose Your Plan</h2>
-<p class="lp-tiers-sub">All tiers are free during the testing period. Full Tier 3 access for 60 days on sign-up.</p>
+<p class="lp-tiers-sub">All tiers are free during the testing period &mdash; full Tier 3 access for 60 days on sign-up.</p>
 <div class="lp-tiers-grid">
 <div class="lp-tier-card">
 <div class="lp-tier-name">Tier 1</div>
-<div class="lp-tier-tagline">Perfect for getting started</div>
+<div class="lp-tier-tagline">Perfect for getting started with your first datasets</div>
+<div class="lp-tier-divider"></div>
 <ul class="lp-tier-features">
 <li><span class="lp-check">&#10003;</span>Up to 10,000 rows</li>
-<li><span class="lp-check">&#10003;</span>Auto Cleaning &amp; Analytics</li>
+<li><span class="lp-check">&#10003;</span>Auto Cleaning &amp; Statistics</li>
+<li><span class="lp-check">&#10003;</span>Interactive Charts</li>
 <li><span class="lp-check">&#10003;</span>Files up to 50 MB</li>
 </ul>
 </div>
 <div class="lp-tier-card featured">
 <div class="lp-tier-badge">Most Popular</div>
 <div class="lp-tier-name">Tier 2</div>
-<div class="lp-tier-tagline">For growing teams &amp; businesses</div>
+<div class="lp-tier-tagline">For growing teams and business analysts</div>
+<div class="lp-tier-divider"></div>
 <ul class="lp-tier-features">
 <li><span class="lp-check">&#10003;</span>Up to 500,000 rows</li>
-<li><span class="lp-check">&#10003;</span>ML &amp; Predictions</li>
+<li><span class="lp-check">&#10003;</span>ML Models &amp; Predictions</li>
+<li><span class="lp-check">&#10003;</span>K-Means Clustering</li>
 <li><span class="lp-check">&#10003;</span>Files up to 200 MB</li>
 </ul>
 </div>
 <div class="lp-tier-card">
 <div class="lp-tier-name">Tier 3</div>
-<div class="lp-tier-tagline">Full power, unlimited potential</div>
+<div class="lp-tier-tagline">Full power, unlimited analytical potential</div>
+<div class="lp-tier-divider"></div>
 <ul class="lp-tier-features">
 <li><span class="lp-check">&#10003;</span>Up to 1 Million rows</li>
-<li><span class="lp-check">&#10003;</span>AI Chat &amp; Export Reports</li>
+<li><span class="lp-check">&#10003;</span>AI Chat Assistant</li>
+<li><span class="lp-check">&#10003;</span>Export PDF Reports</li>
 <li><span class="lp-check">&#10003;</span>Everything in Tier 2</li>
 </ul>
 </div>
 </div>
-</div></div>
+</div></div></div>
 ''', unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         st.markdown('<div class="lp-btn-outline">', unsafe_allow_html=True)
         if st.button("View All Plans & Features", use_container_width=True):
