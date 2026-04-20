@@ -936,9 +936,11 @@ p, span, div {
     display: flex; align-items: center; justify-content: space-between;
 }
 .lp-nav-logo { display: flex; align-items: center; text-decoration: none; }
-.lp-nav-logo img { height: 32px; width: auto; }
+.lp-nav-logo img { height: 44px; width: auto; }
+.lp-features, .lp-hiw, .lp-tiers, .lp-support-section { scroll-margin-top: 90px; }
+html { scroll-behavior: smooth; }
 .lp-nav-links { display: flex; align-items: center; gap: 2.25rem; }
-.lp-nav-link { font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); text-decoration: none; letter-spacing: 0.01em; transition: color 0.15s; cursor: pointer; }
+.lp-nav-link { font-size: 0.875rem; font-weight: 500; color: var(--text-secondary) !important; text-decoration: none !important; letter-spacing: 0.01em; transition: color 0.15s; cursor: pointer; }
 .lp-nav-link:hover { color: var(--teal); }
 .lp-nav-actions { display: flex; align-items: center; }
 .lp-nav-signin-link {
@@ -949,6 +951,7 @@ p, span, div {
     letter-spacing: 0.01em; white-space: nowrap;
 }
 .lp-nav-signin-link:hover { background: rgba(45,212,191,0.08); border-color: rgba(45,212,191,0.55); }
+.lp-nav-signin-link, .lp-nav-signin-link:visited { text-decoration: none !important; color: var(--teal) !important; }
 
 /* ── CTA tagline below hero button ───────────────────────────── */
 .lp-cta-tag { font-size: 0.79rem; color: var(--text-muted); text-align: center; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.02em; margin-top: 0.6rem; }
@@ -1065,6 +1068,13 @@ if 'user' not in st.session_state:
     st.session_state.user = None
 if 'page' not in st.session_state:
     st.session_state.page = 'home'
+
+try:
+    if st.query_params.get('signin') == '1':
+        st.session_state.page = 'login'
+        st.query_params.clear()
+except Exception:
+    pass
 if 'df' not in st.session_state:
     st.session_state.df = None
 if 'df_cleaned' not in st.session_state:
@@ -2478,7 +2488,7 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 def show_support_section():
     st.markdown('''
 <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(45,212,191,0.20),transparent);margin:2rem 0 2.5rem 0;"></div>
-<div class="lp-support-section"><div class="lp-section-inner">
+<div class="lp-support-section" id="contact"><div class="lp-section-inner">
 <div class="lp-section-header"><h2>Get in Touch</h2><p>Have a question about your data, your plan, or how the platform works? Our team responds within 24 hours.</p></div>
 <div class="lp-support-pro-wrap">
 ''', unsafe_allow_html=True)
@@ -2531,13 +2541,13 @@ def show_home_page():
 <div class="lp-nav"><div class="lp-nav-inner">
 <a class="lp-nav-logo" href="/" target="_self"><img src="data:image/png;base64,{logo_b64}" alt="DataVision Pro"></a>
 <div class="lp-nav-links">
-<span class="lp-nav-link">Features</span>
-<span class="lp-nav-link">How It Works</span>
-<span class="lp-nav-link">Pricing</span>
-<span class="lp-nav-link">Contact</span>
+<a class="lp-nav-link" href="#features">Features</a>
+<a class="lp-nav-link" href="#how">How It Works</a>
+<a class="lp-nav-link" href="#pricing">Pricing</a>
+<a class="lp-nav-link" href="#contact">Contact</a>
 </div>
 <div class="lp-nav-actions">
-<span class="lp-nav-signin-link" onclick="var btns=document.querySelectorAll('.stButton button');for(var i=0;i&lt;btns.length;i++){{if(btns[i].textContent.trim().startsWith('Get Started')){{btns[i].click();break;}}}}">Sign In</span>
+<a class="lp-nav-signin-link" href="?signin=1" target="_self">Sign In</a>
 </div>
 </div></div>
 <div class="lp-nav-spacer"></div>
@@ -2575,7 +2585,7 @@ def show_home_page():
 
     # ── FEATURE CARDS ─────────────────────────────────────────────────────────
     st.markdown('''
-<div class="lp-features"><div class="lp-section-inner">
+<div class="lp-features" id="features"><div class="lp-section-inner">
 <div class="lp-section-header"><h2>Everything You Need</h2><p>From raw data to actionable insights in seconds. No code, no setup, no complexity.</p></div>
 <div class="lp-feature-grid">
 <div class="lp-feat-card"><div class="lp-feat-icon lp-icon-1"></div><div class="lp-feat-title">Auto Cleaning</div><div class="lp-feat-desc">Removes duplicates, fixes missing values, and eliminates outliers in one click.</div></div>
@@ -2588,7 +2598,7 @@ def show_home_page():
 
     # ── HOW IT WORKS ──────────────────────────────────────────────────────────
     st.markdown('''
-<div class="lp-hiw"><div class="lp-section-inner"><div class="lp-hiw-section">
+<div class="lp-hiw" id="how"><div class="lp-section-inner"><div class="lp-hiw-section">
 <h2>How It Works</h2>
 <div class="lp-steps-grid">
 <div class="lp-step-card"><div class="lp-step-num">01</div><div class="lp-step-title">Upload Your File</div><div class="lp-step-desc">Drop any CSV or Excel file &#8212; up to 1 million rows and 200 MB. No formatting required.</div></div>
@@ -2600,7 +2610,7 @@ def show_home_page():
 
     # ── TIERS TEASER ──────────────────────────────────────────────────────────
     st.markdown('''
-<div class="lp-tiers"><div class="lp-section-inner"><div class="lp-tiers-section">
+<div class="lp-tiers" id="pricing"><div class="lp-section-inner"><div class="lp-tiers-section">
 <h2>Choose Your Plan</h2>
 <p class="lp-tiers-sub">All tiers are free during the testing period &mdash; full Tier 3 access for 60 days on sign-up.</p>
 <div class="lp-tiers-grid">
@@ -2658,7 +2668,7 @@ def show_home_page():
 <div class="lp-footer">
 <div class="lp-footer-inner">
 <div>
-<img src="data:image/png;base64,{logo_b64}" style="height:30px;width:auto;border-radius:6px;" alt="DataVision Pro">
+<img src="data:image/png;base64,{logo_b64}" style="height:42px;width:auto;border-radius:6px;" alt="DataVision Pro">
 <p class="lp-footer-brand-desc">An intelligent data analytics platform that turns raw datasets into clear, actionable insights &mdash; in seconds, no code required.</p>
 </div>
 <div>
