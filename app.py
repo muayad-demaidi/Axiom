@@ -581,6 +581,299 @@ p, span, div {
     border-radius: 12px;
     cursor: pointer;
 }
+
+/* ===== LANDING PAGE — ENTRANCE ANIMATIONS ===== */
+@keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(28px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+.lp-hero     { animation: fadeSlideUp 0.35s ease-out both; animation-delay: 0.05s; }
+.lp-trust    { animation: fadeSlideUp 0.35s ease-out both; animation-delay: 0.15s; }
+.lp-features { animation: fadeSlideUp 0.35s ease-out both; animation-delay: 0.25s; }
+.lp-hiw      { animation: fadeSlideUp 0.35s ease-out both; animation-delay: 0.35s; }
+.lp-tiers    { animation: fadeSlideUp 0.35s ease-out both; animation-delay: 0.45s; }
+@media (prefers-reduced-motion: reduce) {
+    .lp-hero, .lp-trust, .lp-features, .lp-hiw, .lp-tiers {
+        animation: none !important;
+    }
+}
+
+/* ===== LANDING PAGE — TRUST BAR ===== */
+.lp-trust-bar {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 1.5rem 0 2rem 0;
+}
+.lp-trust-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(13, 148, 136, 0.08);
+    border: 1px solid rgba(20, 184, 166, 0.22);
+    border-radius: 30px;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.875rem;
+    color: #14b8a6;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    backdrop-filter: blur(8px);
+}
+.lp-trust-pill svg { flex-shrink: 0; }
+
+/* ===== LANDING PAGE — FEATURE CARDS ===== */
+.lp-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin: 0 0 2.5rem 0;
+}
+@media (max-width: 900px) {
+    .lp-feature-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 500px) {
+    .lp-feature-grid { grid-template-columns: 1fr; }
+}
+.lp-feat-card {
+    background: rgba(15, 23, 42, 0.80);
+    border: 1px solid rgba(20, 184, 166, 0.12);
+    border-radius: 18px;
+    padding: 1.75rem 1.25rem 1.5rem 1.25rem;
+    text-align: center;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+    cursor: default;
+}
+.lp-feat-card:hover {
+    border-color: rgba(20, 184, 166, 0.35);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 36px rgba(0,0,0,0.35);
+}
+.lp-feat-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 1rem auto;
+    background: rgba(13, 148, 136, 0.12);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.lp-feat-icon svg { color: #14b8a6; }
+.lp-feat-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #e2e8f0;
+    margin-bottom: 0.4rem;
+    letter-spacing: 0.01em;
+}
+.lp-feat-desc {
+    font-size: 0.8rem;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+/* ===== LANDING PAGE — HOW IT WORKS ===== */
+.lp-hiw-section {
+    text-align: center;
+    margin: 0 0 3rem 0;
+}
+.lp-hiw-section h2 {
+    font-size: 1.6rem !important;
+    font-weight: 700 !important;
+    color: #e2e8f0 !important;
+    margin-bottom: 2rem !important;
+}
+.lp-steps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+}
+@media (max-width: 700px) {
+    .lp-steps-grid { grid-template-columns: 1fr; }
+}
+.lp-step-card {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(20, 184, 166, 0.10);
+    border-radius: 18px;
+    padding: 2rem 1.5rem;
+    backdrop-filter: blur(12px);
+    position: relative;
+    text-align: center;
+}
+.lp-step-num {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #fff;
+    margin: 0 auto 1rem auto;
+    font-family: 'JetBrains Mono', monospace;
+}
+.lp-step-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #e2e8f0;
+    margin-bottom: 0.5rem;
+}
+.lp-step-desc {
+    font-size: 0.825rem;
+    color: #64748b;
+    line-height: 1.55;
+}
+
+/* ===== LANDING PAGE — TIERS TEASER ===== */
+.lp-tiers-section {
+    margin: 0 0 3rem 0;
+    text-align: center;
+}
+.lp-tiers-section h2 {
+    font-size: 1.6rem !important;
+    font-weight: 700 !important;
+    color: #e2e8f0 !important;
+    margin-bottom: 0.5rem !important;
+}
+.lp-tiers-sub {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin-bottom: 1.75rem;
+}
+.lp-tiers-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+@media (max-width: 700px) {
+    .lp-tiers-grid { grid-template-columns: 1fr; }
+}
+.lp-tier-card {
+    background: rgba(15, 23, 42, 0.80);
+    border: 1px solid rgba(20, 184, 166, 0.12);
+    border-radius: 18px;
+    padding: 1.75rem 1.25rem;
+    text-align: center;
+    backdrop-filter: blur(12px);
+    transition: border-color 0.25s ease, transform 0.25s ease;
+}
+.lp-tier-card.featured {
+    border-color: rgba(20, 184, 166, 0.40);
+    box-shadow: 0 0 32px rgba(13, 148, 136, 0.12);
+    transform: translateY(-4px);
+}
+.lp-tier-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+}
+.lp-tier-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #e2e8f0;
+    margin-bottom: 0.4rem;
+}
+.lp-tier-tagline {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+}
+.lp-tier-features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+}
+.lp-tier-features li {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    padding: 0.3rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.lp-tier-features li svg { flex-shrink: 0; color: #14b8a6; }
+
+/* ===== LANDING PAGE — SUPPORT FORM ===== */
+.lp-support-section {
+    margin: 2rem 0 1rem 0;
+}
+.lp-support-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+.lp-support-header h2 {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    color: #e2e8f0 !important;
+    margin-bottom: 0.4rem !important;
+}
+.lp-support-header p {
+    font-size: 0.9rem;
+    color: #64748b;
+}
+.lp-support-card {
+    background: rgba(15, 23, 42, 0.80);
+    border: 1px solid rgba(20, 184, 166, 0.12);
+    border-radius: 20px;
+    padding: 2rem;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+/* ===== LANDING PAGE — CTA BUTTON VARIANTS ===== */
+.lp-btn-primary > div > button {
+    background: linear-gradient(135deg, #14b8a6, #0d9488) !important;
+    font-size: 1rem !important;
+    padding: 0.8rem 2rem !important;
+    border-radius: 14px !important;
+    box-shadow: 0 6px 24px rgba(13, 148, 136, 0.30) !important;
+}
+.lp-btn-secondary > div > button {
+    background: rgba(15, 23, 42, 0.8) !important;
+    border: 1px solid rgba(20, 184, 166, 0.25) !important;
+    color: #14b8a6 !important;
+    font-size: 0.9rem !important;
+    box-shadow: none !important;
+}
+.lp-btn-secondary > div > button:hover {
+    background: rgba(13, 148, 136, 0.12) !important;
+    border-color: rgba(20, 184, 166, 0.50) !important;
+    box-shadow: none !important;
+    transform: translateY(-1px) !important;
+}
+.lp-btn-outline > div > button {
+    background: transparent !important;
+    border: 1px solid rgba(20, 184, 166, 0.30) !important;
+    color: #94a3b8 !important;
+    font-size: 0.85rem !important;
+    box-shadow: none !important;
+    font-weight: 500 !important;
+}
+.lp-btn-outline > div > button:hover {
+    border-color: rgba(20, 184, 166, 0.55) !important;
+    color: #14b8a6 !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
 </style>
 
 <div class="matrix-bg">
@@ -2061,25 +2354,28 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 
 
 def show_support_section():
-    st.markdown("---")
     st.markdown('''
-    <div style="text-align: center; margin-bottom: 1rem;">
-        <h3 style="color: #e2e8f0; font-size: 1.5rem;">📧 Contact Support</h3>
-        <p style="color: #94a3b8;">Have a question or need help? We're here for you.</p>
+    <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(20,184,166,0.25),transparent);margin:2rem 0 2.5rem 0;"></div>
+    <div class="lp-support-section">
+        <div class="lp-support-header">
+            <h2>Contact Support</h2>
+            <p>Have a question or need help? We&rsquo;re here for you.</p>
+        </div>
     </div>
     ''', unsafe_allow_html=True)
-    
+
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
+        st.markdown('<div class="lp-support-card">', unsafe_allow_html=True)
         with st.form("support_form", clear_on_submit=True):
-            support_email = st.text_input("Your Email", placeholder="your@email.com")
-            support_name = st.text_input("Your Name", placeholder="Your full name")
-            support_message = st.text_area("Your Message", placeholder="Describe your question, request, or issue...", height=150)
-            support_submit = st.form_submit_button("📨 Send Message", use_container_width=True)
-            
+            support_email = st.text_input("Email Address", placeholder="your@email.com")
+            support_name = st.text_input("Full Name", placeholder="Your full name")
+            support_message = st.text_area("Message", placeholder="Describe your question, request, or issue…", height=140)
+            support_submit = st.form_submit_button("Send Message", use_container_width=True)
+
             if support_submit:
                 if not support_email or not support_message:
-                    st.warning("Please provide your email and message")
+                    st.warning("Please provide your email address and message.")
                 else:
                     db = get_db()
                     try:
@@ -2088,62 +2384,307 @@ def show_support_section():
                             send_support_notification(support_email, support_name, support_message)
                         except Exception as e:
                             print(f"Support email notification failed: {e}")
-                        st.success("Message sent successfully! We'll get back to you soon.")
+                        st.success("Message sent — we'll get back to you soon.")
                     finally:
                         db.close()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 def show_home_page():
     logo_b64 = get_logo_base64()
-    
+
+    # ── HERO ──────────────────────────────────────────────────────────────────
     st.markdown(f'''
-    <div style="text-align: center; margin-top: 2rem; margin-bottom: 1rem;">
-        <a href="/" target="_self" style="display: inline-block;">
-            <img src="data:image/png;base64,{logo_b64}" style="max-width: 500px; width: 90%; border-radius: 12px;" alt="DataVision Pro">
+    <div class="lp-hero" style="text-align:center;margin-top:2rem;margin-bottom:0.75rem;">
+        <a href="/" target="_self" style="display:inline-block;" class="logo-link">
+            <img src="data:image/png;base64,{logo_b64}"
+                 style="max-width:460px;width:88%;border-radius:12px;"
+                 alt="DataVision Pro">
         </a>
-    </div>
-    ''', unsafe_allow_html=True)
-    
-    st.markdown('''
-    <div style="text-align: center; margin-bottom: 2rem;">
-        <p style="font-size: 1.3rem; color: #94a3b8; font-weight: 400; max-width: 600px; margin: 0 auto; line-height: 1.6;">
-            The Fastest, Easiest & Most Powerful<br>Analytics Tool Available
+        <p style="font-size:1.2rem;color:#94a3b8;font-weight:400;
+                  max-width:560px;margin:0.75rem auto 0 auto;line-height:1.65;">
+            Turn raw data into clear decisions — automatically.<br>
+            <span style="color:#14b8a6;font-weight:600;">No code. No expertise required.</span>
         </p>
     </div>
     ''', unsafe_allow_html=True)
-    
+
+    # ── CTA BUTTONS ───────────────────────────────────────────────────────────
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("🚀 Start Analysis Now", use_container_width=True, type="primary"):
+        st.markdown('<div class="lp-btn-primary">', unsafe_allow_html=True)
+        if st.button("Start Your Free Analysis", use_container_width=True, type="primary"):
             st.session_state.page = 'login'
             st.rerun()
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div style="height:0.6rem;"></div>', unsafe_allow_html=True)
+
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("🔐 Sign In", use_container_width=True):
+            st.markdown('<div class="lp-btn-secondary">', unsafe_allow_html=True)
+            if st.button("Sign In", use_container_width=True):
                 st.session_state.page = 'login'
                 st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
         with c2:
-            if st.button("📝 Create Account", use_container_width=True):
+            st.markdown('<div class="lp-btn-secondary">', unsafe_allow_html=True)
+            if st.button("Create Account", use_container_width=True):
                 st.session_state.page = 'register'
                 st.rerun()
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown("""<div class="metric-card"><div class="metric-value">🧹</div><div class="metric-label">Auto Cleaning</div></div>""", unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    # ── TRUST BAR ─────────────────────────────────────────────────────────────
+    st.markdown('''
+    <div class="lp-trust">
+        <div class="lp-trust-bar">
+            <span class="lp-trust-pill">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+                1 Million+ Rows Supported
+            </span>
+            <span class="lp-trust-pill">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                60-Day Free Trial
+            </span>
+            <span class="lp-trust-pill">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 8v4l3 3"/>
+                </svg>
+                AI-Powered Insights
+            </span>
+            <span class="lp-trust-pill">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                No Card Required
+            </span>
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+    # ── FEATURE CARDS ─────────────────────────────────────────────────────────
+    st.markdown('''
+    <div class="lp-features">
+        <div class="lp-feature-grid">
+
+            <div class="lp-feat-card">
+                <div class="lp-feat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                         fill="none" stroke="#14b8a6" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 11 12 2 2 11"/><path d="M12 2v20"/>
+                        <path d="M5 12H2"/><path d="M22 12h-3"/>
+                        <circle cx="12" cy="18" r="1"/>
+                    </svg>
+                </div>
+                <div class="lp-feat-title">Auto Cleaning</div>
+                <div class="lp-feat-desc">Removes duplicates, fixes missing values, and eliminates outliers in one click.</div>
+            </div>
+
+            <div class="lp-feat-card">
+                <div class="lp-feat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                         fill="none" stroke="#14b8a6" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="20" x2="18" y2="10"/>
+                        <line x1="12" y1="20" x2="12" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                </div>
+                <div class="lp-feat-title">Deep Analytics</div>
+                <div class="lp-feat-desc">Comprehensive statistics, correlations, distributions, and interactive charts.</div>
+            </div>
+
+            <div class="lp-feat-card">
+                <div class="lp-feat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                         fill="none" stroke="#14b8a6" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    </svg>
+                </div>
+                <div class="lp-feat-title">AI Powered</div>
+                <div class="lp-feat-desc">GPT-driven chat assistant and smart recommendations tailored to your data.</div>
+            </div>
+
+            <div class="lp-feat-card">
+                <div class="lp-feat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                         fill="none" stroke="#14b8a6" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                </div>
+                <div class="lp-feat-title">Predictions</div>
+                <div class="lp-feat-desc">ML models and trend analysis that forecast what your data will look like next.</div>
+            </div>
+
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+    # ── HOW IT WORKS ──────────────────────────────────────────────────────────
+    st.markdown('''
+    <div class="lp-hiw">
+        <div class="lp-hiw-section">
+            <h2>How It Works</h2>
+            <div class="lp-steps-grid">
+
+                <div class="lp-step-card">
+                    <div class="lp-step-num">1</div>
+                    <div class="lp-step-title">Upload Your File</div>
+                    <div class="lp-step-desc">Drop any CSV or Excel file — up to 1 million rows, 200 MB.</div>
+                </div>
+
+                <div class="lp-step-card">
+                    <div class="lp-step-num">2</div>
+                    <div class="lp-step-title">Clean &amp; Analyse</div>
+                    <div class="lp-step-desc">One click auto-cleans your data and runs a full statistical report.</div>
+                </div>
+
+                <div class="lp-step-card">
+                    <div class="lp-step-num">3</div>
+                    <div class="lp-step-title">Get Insights</div>
+                    <div class="lp-step-desc">Explore interactive charts, AI recommendations, and exportable PDF reports.</div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+    # ── TIERS TEASER ──────────────────────────────────────────────────────────
+    st.markdown('''
+    <div class="lp-tiers">
+        <div class="lp-tiers-section">
+            <h2>Choose Your Plan</h2>
+            <p class="lp-tiers-sub">All tiers are free during the testing period — full Tier 3 access for 60 days on sign-up.</p>
+            <div class="lp-tiers-grid">
+
+                <div class="lp-tier-card">
+                    <div class="lp-tier-name">Tier 1</div>
+                    <div class="lp-tier-tagline">Perfect for getting started</div>
+                    <ul class="lp-tier-features">
+                        <li>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2.5"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Up to 10,000 rows
+                        </li>
+                        <li>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2.5"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Auto Cleaning &amp; Analytics
+                        </li>
+                        <li>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2.5"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Files up to 50 MB
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="lp-tier-card featured">
+                    <div class="lp-tier-badge">Most Popular</div>
+                    <div class="lp-tier-name">Tier 2</div>
+                    <div class="lp-tier-tagline">For growing teams &amp; businesses</div>
+                    <ul class="lp-tier-features">
+                        <li>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2.5"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Up to 500,000 rows
+                        </li>
+                        <li>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2.5"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            ML &amp; Predictions
+                        </li>
+                        <li>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2.5"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Files up to 200 MB
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="lp-tier-card">
+                    <div class="lp-tier-name">Tier 3</div>
+                    <div class="lp-tier-tagline">Full power, unlimited potential</div>
+                    <ul class="lp-tier-features">
+                        <li>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2.5"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Up to 1 Million rows
+                        </li>
+                        <li>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2.5"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            AI Chat &amp; Export Reports
+                        </li>
+                        <li>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2.5"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Everything in Tier 2
+                        </li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("""<div class="metric-card"><div class="metric-value">📊</div><div class="metric-label">Deep Analytics</div></div>""", unsafe_allow_html=True)
-    with col3:
-        st.markdown("""<div class="metric-card"><div class="metric-value">🤖</div><div class="metric-label">AI Powered</div></div>""", unsafe_allow_html=True)
-    with col4:
-        st.markdown("""<div class="metric-card"><div class="metric-value">🔮</div><div class="metric-label">Predictions</div></div>""", unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
+        st.markdown('<div class="lp-btn-outline">', unsafe_allow_html=True)
+        if st.button("View All Plans & Features", use_container_width=True):
+            st.session_state.page = 'pricing'
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # ── SUPPORT FORM ──────────────────────────────────────────────────────────
     show_support_section()
 
 
