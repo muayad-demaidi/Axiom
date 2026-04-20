@@ -1224,61 +1224,267 @@ def load_file(uploaded_file):
 
 
 def show_login_page():
-    # Redirect if already logged in
     if st.session_state.user:
         st.session_state.page = 'dashboard'
         st.rerun()
         return
-    
+
     logo_b64 = get_logo_base64()
+
     st.markdown(f'''
-    <div style="text-align: center; margin-bottom: 1rem;">
-        <a href="/" target="_self" class="logo-link" style="display: inline-block;">
-            <img src="data:image/png;base64,{logo_b64}" style="max-width: 250px; border-radius: 12px;" alt="DataVision Pro">
-        </a>
-    </div>
-    ''', unsafe_allow_html=True)
-    
-    st.markdown('<h2 class="glow-text" style="font-size: 2.5rem;">Welcome Back</h2>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Sign in to access your dashboard</p>', unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        with st.form("login_form"):
-            email = st.text_input("Email or Username", placeholder="Enter your email")
-            password = st.text_input("Password", type="password", placeholder="Enter your password")
-            submit = st.form_submit_button("Sign In", use_container_width=True)
-            
-            if submit:
-                if email and password:
-                    db = get_db()
-                    try:
-                        user = authenticate_user(db, email, password)
-                        if user:
-                            st.session_state.user = user_to_dict(user)
-                            st.session_state.page = 'dashboard'
-                        else:
-                            st.error("Invalid email or password")
-                    finally:
-                        db.close()
-                else:
-                    st.warning("Please fill in all fields")
-        
-        # Check if login was successful and rerun outside form
-        if st.session_state.user and st.session_state.page == 'dashboard':
-            st.success("Successfully signed in!")
-            st.rerun()
-        
-        st.markdown("---")
-        col_a, col_b = st.columns(2)
-        with col_a:
-            if st.button("← Back to Home", use_container_width=True):
-                st.session_state.page = 'home'
-                st.rerun()
-        with col_b:
-            if st.button("Create Account →", use_container_width=True):
-                st.session_state.page = 'register'
-                st.rerun()
+<style>
+/* ── Auth page background atmosphere ──────────────────────── */
+[data-testid="stAppViewContainer"] > .main {{ position: relative; }}
+.auth-bg-grid {{
+    position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.55;
+    background-image:
+        linear-gradient(rgba(45,212,191,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(45,212,191,0.05) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 55% 45% at 50% 35%, black 25%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 55% 45% at 50% 35%, black 25%, transparent 75%);
+}}
+.auth-bg-glow {{
+    position: fixed; top: -8%; left: 50%; transform: translateX(-50%);
+    width: 720px; height: 520px; z-index: 0; pointer-events: none;
+    background: radial-gradient(circle, rgba(45,212,191,0.13) 0%, transparent 60%);
+    filter: blur(50px);
+}}
+.auth-corner-mono {{
+    position: fixed; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem; color: rgba(148,163,184,0.18); letter-spacing: 0.18em;
+    z-index: 1; pointer-events: none;
+}}
+.auth-corner-tl {{ top: 1.4rem; left: 1.5rem; }}
+.auth-corner-br {{ bottom: 1.4rem; right: 1.5rem; }}
+
+/* ── Top bar (back link + logo) ───────────────────────────── */
+.block-container {{ padding-top: 1.5rem !important; max-width: 520px !important; position: relative; z-index: 5; }}
+.auth-topbar {{
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 2.25rem; padding: 0 0.25rem;
+}}
+.auth-back-link {{
+    font-family: 'JetBrains Mono', monospace; font-size: 0.74rem;
+    color: var(--text-muted) !important; text-decoration: none !important;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    transition: color 0.15s;
+}}
+.auth-back-link:hover {{ color: var(--teal) !important; }}
+.auth-back-link .arr {{ display: inline-block; transition: transform 0.2s; }}
+.auth-back-link:hover .arr {{ transform: translateX(-3px); }}
+.auth-topbar-logo img {{ height: 36px; width: auto; opacity: 0.92; }}
+
+/* ── Eyebrow above form ───────────────────────────────────── */
+.auth-eyebrow {{
+    text-align: center; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--teal); margin: 0 0 0.85rem 0; opacity: 0.85;
+}}
+.auth-eyebrow span::before, .auth-eyebrow span::after {{
+    content: ''; display: inline-block; width: 22px; height: 1px;
+    background: rgba(45,212,191,0.4); vertical-align: middle; margin: 0 0.7rem;
+}}
+.auth-headline {{
+    text-align: center; margin-bottom: 1.85rem;
+}}
+.auth-headline h1 {{
+    font-family: 'Syne', sans-serif;
+    font-size: 2.25rem; font-weight: 800;
+    letter-spacing: -0.025em; line-height: 1.05;
+    background: linear-gradient(135deg, #ffffff 0%, #2dd4bf 115%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin: 0 0 0.55rem 0;
+}}
+.auth-headline p {{
+    font-size: 0.92rem; color: var(--text-secondary);
+    margin: 0; line-height: 1.55;
+}}
+
+/* ── Card via stForm styling ──────────────────────────────── */
+[data-testid="stForm"] {{
+    background: linear-gradient(160deg, rgba(17,31,53,0.88) 0%, rgba(12,24,41,0.92) 100%) !important;
+    border: 1px solid rgba(45,212,191,0.14) !important;
+    border-radius: 20px !important;
+    padding: 2.25rem 2rem 2rem 2rem !important;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 30px 80px rgba(0,0,0,0.4), 0 1px 0 rgba(45,212,191,0.08) inset !important;
+    position: relative; overflow: hidden;
+}}
+[data-testid="stForm"]::before {{
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(45,212,191,0.55), transparent);
+}}
+
+/* ── Form input refinement ────────────────────────────────── */
+[data-testid="stForm"] [data-testid="stTextInput"] label p,
+[data-testid="stForm"] [data-testid="stTextInput"] label {{
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.7rem !important; font-weight: 500 !important;
+    letter-spacing: 0.1em !important; text-transform: uppercase !important;
+    color: var(--text-secondary) !important;
+}}
+[data-testid="stForm"] [data-testid="stTextInput"] input {{
+    background: rgba(7,16,31,0.65) !important;
+    border: 1px solid rgba(45,212,191,0.14) !important;
+    border-radius: 10px !important;
+    padding: 0.85rem 1rem !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.95rem !important;
+    color: var(--text-primary) !important;
+    transition: border-color 0.18s, background 0.18s, box-shadow 0.18s !important;
+}}
+[data-testid="stForm"] [data-testid="stTextInput"] input:focus {{
+    border-color: rgba(45,212,191,0.55) !important;
+    background: rgba(7,16,31,0.9) !important;
+    box-shadow: 0 0 0 3px rgba(45,212,191,0.12) !important;
+    outline: none !important;
+}}
+[data-testid="stForm"] [data-testid="stTextInput"] input::placeholder {{
+    color: rgba(148,163,184,0.4) !important;
+}}
+
+/* ── Primary submit button ────────────────────────────────── */
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button {{
+    background: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%) !important;
+    color: #07101f !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 0.85rem 1rem !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.95rem !important; font-weight: 700 !important;
+    letter-spacing: 0.01em !important;
+    box-shadow: 0 8px 24px rgba(45,212,191,0.28) !important;
+    transition: transform 0.15s, box-shadow 0.15s, filter 0.15s !important;
+    margin-top: 0.6rem !important;
+}}
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button:hover {{
+    transform: translateY(-1px) !important;
+    box-shadow: 0 12px 32px rgba(45,212,191,0.4) !important;
+    filter: brightness(1.05) !important;
+}}
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button p {{
+    font-weight: 700 !important; color: #07101f !important; font-size: 0.95rem !important;
+}}
+
+/* ── Forgot password row inside form ──────────────────────── */
+.auth-aux-row {{
+    display: flex; justify-content: flex-end;
+    margin: -0.5rem 0 0.4rem 0;
+}}
+.auth-aux-link {{
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+    color: var(--text-muted) !important; text-decoration: none !important;
+    letter-spacing: 0.05em;
+}}
+.auth-aux-link:hover {{ color: var(--teal) !important; }}
+
+/* ── Divider + secondary action OUTSIDE form ──────────────── */
+.auth-divider {{
+    display: flex; align-items: center; gap: 0.85rem;
+    margin: 1.75rem auto 1.1rem auto;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.68rem;
+    color: var(--text-muted); letter-spacing: 0.22em;
+}}
+.auth-divider::before, .auth-divider::after {{
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+}}
+.auth-foot-text {{
+    text-align: center; font-size: 0.88rem; color: var(--text-secondary);
+    margin: 0 0 0.85rem 0;
+}}
+
+/* ── Secondary "Create Account" button (outside form) ────── */
+.stButton > button[kind="secondary"], .stButton > button {{
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    border: 1px solid rgba(45,212,191,0.28) !important;
+    border-radius: 10px !important;
+    padding: 0.78rem 1rem !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.9rem !important; font-weight: 500 !important;
+    transition: background 0.15s, border-color 0.15s, color 0.15s !important;
+    box-shadow: none !important;
+}}
+.stButton > button:hover {{
+    background: rgba(45,212,191,0.07) !important;
+    border-color: rgba(45,212,191,0.55) !important;
+    color: var(--teal) !important;
+}}
+.stButton > button p {{ color: inherit !important; font-weight: 500 !important; }}
+
+/* ── Trust strip ──────────────────────────────────────────── */
+.auth-trust {{
+    text-align: center; margin: 2rem 0 1rem 0;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.68rem;
+    color: var(--text-muted); letter-spacing: 0.14em;
+}}
+.auth-trust span {{ display: inline-block; margin: 0 0.4rem; }}
+.auth-trust .dot {{ color: var(--teal); opacity: 0.55; }}
+
+/* Hide error/warning default Streamlit chrome inside form */
+[data-testid="stForm"] [data-testid="stAlert"] {{
+    background: rgba(239,68,68,0.08) !important;
+    border: 1px solid rgba(239,68,68,0.25) !important;
+    border-radius: 8px !important;
+}}
+</style>
+<div class="auth-bg-grid"></div>
+<div class="auth-bg-glow"></div>
+<div class="auth-corner-mono auth-corner-tl">// SESSION_AUTH_v2</div>
+<div class="auth-corner-mono auth-corner-br">[ ENCRYPTED // 256-BIT ]</div>
+''', unsafe_allow_html=True)
+
+    st.markdown(f'''
+<div class="auth-topbar">
+<a class="auth-back-link" href="/" target="_self"><span class="arr">\u2190</span> Back to home</a>
+<a class="auth-topbar-logo" href="/" target="_self"><img src="data:image/png;base64,{logo_b64}" alt="DataVision Pro"></a>
+</div>
+<div class="auth-eyebrow"><span>Secure Access</span></div>
+<div class="auth-headline">
+<h1>Welcome Back</h1>
+<p>Sign in to continue your data analysis workflow.</p>
+</div>
+''', unsafe_allow_html=True)
+
+    with st.form("login_form", clear_on_submit=False):
+        email = st.text_input("Email Address", placeholder="you@company.com", key="login_email")
+        password = st.text_input("Password", type="password", placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", key="login_password")
+        st.markdown('<div class="auth-aux-row"><a class="auth-aux-link" href="mailto:muayad.demaidi.work@gmail.com?subject=Password%20Reset%20Request">Forgot password?</a></div>', unsafe_allow_html=True)
+        submit = st.form_submit_button("Sign In \u2192", use_container_width=True)
+
+        if submit:
+            if email and password:
+                db = get_db()
+                try:
+                    user = authenticate_user(db, email, password)
+                    if user:
+                        st.session_state.user = user_to_dict(user)
+                        st.session_state.page = 'dashboard'
+                    else:
+                        st.error("Invalid email or password")
+                finally:
+                    db.close()
+            else:
+                st.warning("Please enter both email and password")
+
+    if st.session_state.user and st.session_state.page == 'dashboard':
+        st.rerun()
+
+    st.markdown('<div class="auth-divider">NEW HERE</div>', unsafe_allow_html=True)
+    st.markdown('<p class="auth-foot-text">Don&#39;t have an account yet? Start your 60-day free trial.</p>', unsafe_allow_html=True)
+
+    if st.button("Create Account \u2192", use_container_width=True, key="login_to_register"):
+        st.session_state.page = 'register'
+        st.rerun()
+
+    st.markdown('''
+<div class="auth-trust">
+<span>ENCRYPTED</span><span class="dot">\u00b7</span><span>BCRYPT HASHING</span><span class="dot">\u00b7</span><span>GDPR-ALIGNED</span>
+</div>
+''', unsafe_allow_html=True)
 
 
 def show_register_page():
