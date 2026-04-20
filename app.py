@@ -2537,7 +2537,7 @@ def show_home_page():
 <span class="lp-nav-link">Contact</span>
 </div>
 <div class="lp-nav-actions">
-<span class="lp-nav-signin-link" onclick="var btns=document.querySelectorAll('.stButton button');for(var i=0;i&lt;btns.length;i++){if(btns[i].textContent.trim().startsWith('Get Started')){btns[i].click();break;}}">Sign In</span>
+<span class="lp-nav-signin-link" onclick="var btns=document.querySelectorAll('.stButton button');for(var i=0;i&lt;btns.length;i++){{if(btns[i].textContent.trim().startsWith('Get Started')){{btns[i].click();break;}}}}">Sign In</span>
 </div>
 </div></div>
 <div class="lp-nav-spacer"></div>
