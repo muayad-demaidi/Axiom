@@ -630,12 +630,37 @@ p, span, div {
     flex-shrink: 0;
 }
 
+/* ===== LANDING PAGE — SHARED SECTION CONTAINER ===== */
+.lp-section-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+.lp-section-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+.lp-section-header h2 {
+    font-size: 1.6rem !important;
+    font-weight: 700 !important;
+    color: #e2e8f0 !important;
+    margin-bottom: 0.45rem !important;
+    letter-spacing: -0.01em;
+}
+.lp-section-header p {
+    font-size: 0.9rem;
+    color: #64748b;
+    line-height: 1.6;
+    max-width: 520px;
+    margin: 0 auto;
+}
+
 /* ===== LANDING PAGE — FEATURE CARDS ===== */
 .lp-feature-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 1rem;
-    margin: 0 0 2.5rem 0;
+    margin: 0 0 2rem 0;
 }
 @media (max-width: 900px) {
     .lp-feature-grid { grid-template-columns: repeat(2, 1fr); }
@@ -643,6 +668,11 @@ p, span, div {
 @media (max-width: 500px) {
     .lp-feature-grid { grid-template-columns: 1fr; }
 }
+/* Per-card stagger (skill: stagger-sequence 30-50ms) */
+.lp-feature-grid .lp-feat-card:nth-child(1) { animation-delay: inherit; }
+.lp-feature-grid .lp-feat-card:nth-child(2) { transition-delay: 40ms; }
+.lp-feature-grid .lp-feat-card:nth-child(3) { transition-delay: 80ms; }
+.lp-feature-grid .lp-feat-card:nth-child(4) { transition-delay: 120ms; }
 .lp-feat-card {
     background: rgba(15, 23, 42, 0.80);
     border: 1px solid rgba(20, 184, 166, 0.12);
@@ -651,19 +681,19 @@ p, span, div {
     text-align: center;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+    transition: border-color 0.22s ease-out, transform 0.22s ease-out, box-shadow 0.22s ease-out;
     cursor: default;
 }
 .lp-feat-card:hover {
-    border-color: rgba(20, 184, 166, 0.35);
-    transform: translateY(-4px);
-    box-shadow: 0 12px 36px rgba(0,0,0,0.35);
+    border-color: rgba(20, 184, 166, 0.38);
+    transform: translateY(-5px);
+    box-shadow: 0 14px 40px rgba(0,0,0,0.38);
 }
 .lp-feat-icon {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
     margin: 0 auto 1rem auto;
-    background: rgba(13, 148, 136, 0.12);
+    background: rgba(13, 148, 136, 0.13);
     border-radius: 14px;
     display: flex;
     align-items: center;
@@ -671,24 +701,24 @@ p, span, div {
     font-size: 1.4rem;
     line-height: 1;
 }
-/* CSS-only feature icons — no inline SVG needed */
-.lp-feat-icon { color: #14b8a6; font-style: normal; }
+/* CSS-only feature icons (Streamlit Markdown parser strips inline SVG) */
+.lp-feat-icon { color: #14b8a6; }
 .lp-icon-1::after { content: '\2726'; font-size: 1.3rem; color: #14b8a6; }
-.lp-icon-2::after { content: '\25AA\25AA\25AA'; font-size: 0.75rem; letter-spacing: 2px; color: #14b8a6; display:block; line-height:1; }
+.lp-icon-2::after { content: '\25A0\25A0\25A0'; font-size: 0.65rem; letter-spacing: 3px; color: #14b8a6; }
 .lp-icon-3::after { content: '\25C6'; font-size: 1.3rem; color: #14b8a6; }
-.lp-icon-4::after { content: '\25B2'; font-size: 1.2rem; color: #14b8a6; }
+.lp-icon-4::after { content: '\25B2'; font-size: 1.1rem; color: #14b8a6; }
 
 .lp-feat-title {
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #e2e8f0;
-    margin-bottom: 0.4rem;
-    letter-spacing: 0.01em;
+    margin-bottom: 0.45rem;
+    letter-spacing: -0.01em;
 }
 .lp-feat-desc {
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     color: #64748b;
-    line-height: 1.5;
+    line-height: 1.55;
 }
 
 /* ===== LANDING PAGE — HOW IT WORKS ===== */
@@ -858,13 +888,21 @@ p, span, div {
 }
 
 /* ===== LANDING PAGE — CTA BUTTON VARIANTS ===== */
+.lp-btn-primary > div > button,
+.lp-btn-secondary > div > button,
+.lp-btn-outline > div > button {
+    touch-action: manipulation !important;
+    min-height: 48px !important;
+}
 .lp-btn-primary > div > button {
     background: linear-gradient(135deg, #14b8a6, #0d9488) !important;
     font-size: 1rem !important;
+    font-weight: 600 !important;
     padding: 0.8rem 2rem !important;
     border-radius: 14px !important;
     box-shadow: 0 6px 24px rgba(13, 148, 136, 0.30) !important;
     cursor: pointer !important;
+    letter-spacing: 0.01em !important;
 }
 .lp-btn-primary > div > button:hover {
     box-shadow: 0 8px 28px rgba(13, 148, 136, 0.45) !important;
@@ -2432,26 +2470,12 @@ def show_home_page():
 
     # ── HERO ──────────────────────────────────────────────────────────────────
     st.markdown(f'''
-    <div class="lp-hero" style="text-align:center;margin-top:2rem;margin-bottom:0.75rem;">
-        <a href="/" target="_self" style="display:inline-block;" class="logo-link">
-            <img src="data:image/png;base64,{logo_b64}"
-                 style="max-width:460px;width:88%;border-radius:12px;"
-                 alt="DataVision Pro">
-        </a>
-        <h1 style="font-size:2rem;font-weight:800;letter-spacing:-0.02em;
-                   background:linear-gradient(135deg,#14b8a6,#0d9488,#94a3b8);
-                   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-                   background-clip:text;margin:1rem 0 0.4rem 0;line-height:1.2;">
-            Intelligent Data Analytics,<br>Done in Seconds
-        </h1>
-        <p style="font-size:1.1rem;color:#94a3b8;font-weight:400;
-                  max-width:540px;margin:0 auto;line-height:1.65;">
-            Upload any dataset and get instant cleaning, statistics, charts,
-            and AI-powered insights —
-            <span style="color:#14b8a6;font-weight:600;">no code required.</span>
-        </p>
-    </div>
-    ''', unsafe_allow_html=True)
+<div class="lp-hero" style="text-align:center;margin-top:0.5rem;margin-bottom:0.5rem;">
+<a href="/" target="_self" style="display:inline-block;" class="logo-link"><img src="data:image/png;base64,{logo_b64}" style="max-width:380px;width:80%;border-radius:12px;" alt="DataVision Pro logo — Intelligent Data Analytics"></a>
+<h1 style="font-size:2.5rem;font-weight:800;letter-spacing:-0.03em;background:linear-gradient(135deg,#14b8a6,#0d9488,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0.75rem 0 0.4rem 0;line-height:1.15;">Intelligent Data Analytics,<br>Done in Seconds</h1>
+<p style="font-size:1.1rem;color:#94a3b8;font-weight:400;max-width:520px;margin:0 auto;line-height:1.65;">Upload any dataset and get instant cleaning, statistics, charts, and AI-powered insights &mdash; <span style="color:#14b8a6;font-weight:600;">no code required.</span></p>
+</div>
+''', unsafe_allow_html=True)
 
     # ── CTA BUTTONS ───────────────────────────────────────────────────────────
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -2491,24 +2515,27 @@ def show_home_page():
 
     # ── FEATURE CARDS ─────────────────────────────────────────────────────────
     st.markdown('''
-<div class="lp-features"><div class="lp-feature-grid">
+<div class="lp-features"><div class="lp-section-inner">
+<div class="lp-section-header"><h2>Everything You Need</h2><p>From raw data to actionable insights in seconds. No code, no setup, no complexity.</p></div>
+<div class="lp-feature-grid">
 <div class="lp-feat-card"><div class="lp-feat-icon lp-icon-1"></div><div class="lp-feat-title">Auto Cleaning</div><div class="lp-feat-desc">Removes duplicates, fixes missing values, and eliminates outliers in one click.</div></div>
 <div class="lp-feat-card"><div class="lp-feat-icon lp-icon-2"></div><div class="lp-feat-title">Deep Analytics</div><div class="lp-feat-desc">Comprehensive statistics, correlations, distributions, and interactive charts.</div></div>
 <div class="lp-feat-card"><div class="lp-feat-icon lp-icon-3"></div><div class="lp-feat-title">AI Powered</div><div class="lp-feat-desc">GPT-driven chat assistant and smart recommendations tailored to your data.</div></div>
 <div class="lp-feat-card"><div class="lp-feat-icon lp-icon-4"></div><div class="lp-feat-title">Predictions</div><div class="lp-feat-desc">ML models and trend analysis that forecast what your data will look like next.</div></div>
+</div>
 </div></div>
 ''', unsafe_allow_html=True)
 
     # ── HOW IT WORKS ──────────────────────────────────────────────────────────
     st.markdown('''
-<div class="lp-hiw"><div class="lp-hiw-section">
+<div class="lp-hiw"><div class="lp-section-inner"><div class="lp-hiw-section">
 <h2>How It Works</h2>
 <div class="lp-steps-grid">
 <div class="lp-step-card"><div class="lp-step-num">1</div><div class="lp-step-title">Upload Your File</div><div class="lp-step-desc">Drop any CSV or Excel file up to 1 million rows and 200 MB.</div></div>
 <div class="lp-step-card"><div class="lp-step-num">2</div><div class="lp-step-title">Clean and Analyse</div><div class="lp-step-desc">One click auto-cleans your data and runs a full statistical report.</div></div>
 <div class="lp-step-card"><div class="lp-step-num">3</div><div class="lp-step-title">Get Insights</div><div class="lp-step-desc">Explore interactive charts, AI recommendations, and exportable PDF reports.</div></div>
 </div>
-</div></div>
+</div></div></div>
 ''', unsafe_allow_html=True)
 
     # ── TIERS TEASER ──────────────────────────────────────────────────────────
