@@ -1845,13 +1845,7 @@ def show_login_page():
                             _tok = issue_session_token(db, user, days=30)
                             st.session_state.user = user_to_dict(user)
                             st.session_state.page = 'dashboard'
-                            try:
-                                cookie_manager.set(SESSION_COOKIE_NAME, _tok,
-                                                   expires_at=datetime.utcnow() + pd.Timedelta(days=30),
-                                                   secure=True, same_site="none",
-                                                   key="set_cookie_login")
-                            except Exception as _e:
-                                print(f"Cookie set failed: {_e}")
+                            st.session_state.pending_cookie_token = _tok
                         else:
                             st.error("Invalid email or password")
                     finally:
@@ -2181,13 +2175,7 @@ def show_register_page():
                             _tok = issue_session_token(db, user, days=30)
                             st.session_state.user = user_to_dict(user)
                             st.session_state.page = 'dashboard'
-                            try:
-                                cookie_manager.set(SESSION_COOKIE_NAME, _tok,
-                                                   expires_at=datetime.utcnow() + pd.Timedelta(days=30),
-                                                   secure=True, same_site="none",
-                                                   key="set_cookie_register")
-                            except Exception as _e:
-                                print(f"Cookie set failed: {_e}")
+                            st.session_state.pending_cookie_token = _tok
                             try:
                                 send_welcome_email(email, full_name, user.trial_end)
                             except Exception as e:
@@ -2481,6 +2469,18 @@ def render_clickable_logo(key_suffix=""):
     return logo_clicked
 
 def show_dashboard():
+    # Flush any pending session cookie now that we're past the post-login rerun race.
+    _pending = st.session_state.get('pending_cookie_token')
+    if _pending:
+        try:
+            cookie_manager.set(SESSION_COOKIE_NAME, _pending,
+                               expires_at=datetime.utcnow() + pd.Timedelta(days=30),
+                               secure=True, same_site="none",
+                               key="set_cookie_dashboard")
+            st.session_state.pending_cookie_token = None
+        except Exception as _e:
+            print(f"[COOKIE SET] failed: {_e}")
+
     limits = get_user_limits()
     logo_b64 = get_logo_base64()
     
