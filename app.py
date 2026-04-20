@@ -2711,18 +2711,23 @@ def show_dashboard():
                         if st.button("🚀 Start Analysis", type="primary", use_container_width=True, key="new_analyze"):
                             run_analysis(new_file, dataset_name, period_month, period_year, limits)
     
-            tabs = st.tabs([
+            _TAB_LABELS = [
                 "📋 Overview",
-                "🧹 Cleaning", 
+                "🧹 Cleaning",
                 "📈 Statistics",
                 "📊 Visualizations",
                 "🔄 Predictions",
                 "🤖 ML & Clusters",
                 "💬 AI Chat",
-                "📝 Report"
-            ])
-            
-            with tabs[0]:
+                "📝 Report",
+            ]
+            active_tab = st.radio(
+                "Section", _TAB_LABELS, horizontal=True,
+                label_visibility="collapsed", key="dashboard_section"
+            )
+            st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+
+            if active_tab == _TAB_LABELS[0]:
                 st.header("📋 Data Overview")
                 
                 col1, col2, col3, col4 = st.columns(4)
@@ -2750,7 +2755,7 @@ def show_dashboard():
                 })
                 st.dataframe(col_types_df, use_container_width=True)
             
-            with tabs[1]:
+            elif active_tab == _TAB_LABELS[1]:
                 st.header("🧹 Data Cleaning")
                 
                 if st.session_state.cleaning_report:
@@ -2787,7 +2792,7 @@ def show_dashboard():
                     if missing_chart:
                         st.plotly_chart(missing_chart, use_container_width=True)
             
-            with tabs[2]:
+            elif active_tab == _TAB_LABELS[2]:
                 st.header("📈 Statistical Analysis")
                 
                 df_analysis = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
@@ -2830,7 +2835,7 @@ def show_dashboard():
                 else:
                     st.success("No outliers detected")
             
-            with tabs[3]:
+            elif active_tab == _TAB_LABELS[3]:
                 st.header("📊 Visualizations")
                 
                 df_viz = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
@@ -2906,7 +2911,7 @@ def show_dashboard():
                     if fig:
                         st.plotly_chart(fig, use_container_width=True)
             
-            with tabs[4]:
+            elif active_tab == _TAB_LABELS[4]:
                 st.header("🔄 Predictions & Comparisons")
                 
                 if not limits['predictions_enabled']:
@@ -2966,7 +2971,7 @@ def show_dashboard():
                                     if trend_analysis:
                                         st.markdown(f'<div class="insight-box">📊 **Analysis:** {trend_analysis}</div>', unsafe_allow_html=True)
             
-            with tabs[5]:
+            elif active_tab == _TAB_LABELS[5]:
                 st.header("🤖 ML & Clustering Analytics")
                 
                 df_ml = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
@@ -3104,7 +3109,7 @@ def show_dashboard():
                     else:
                         st.success("No significant outliers detected in the numeric columns.")
             
-            with tabs[6]:
+            elif active_tab == _TAB_LABELS[6]:
                 st.header("💬 AI Chat Assistant")
                 
                 if not limits['ai_chat_enabled']:
@@ -3224,7 +3229,7 @@ def show_dashboard():
                         
                         st.rerun()
             
-            with tabs[7]:
+            elif active_tab == _TAB_LABELS[7]:
                 st.header("📝 Comprehensive Report")
                 
                 df_report = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
