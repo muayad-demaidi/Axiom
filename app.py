@@ -1708,12 +1708,26 @@ def show_register_page():
     border-color: rgba(45,212,191,0.65) !important;
     box-shadow: 0 0 0 3px rgba(45,212,191,0.18) !important;
 }
-/* Force all inner descendants transparent so only the outer white shows */
+/* Force all inner descendants transparent + borderless so only the outer white shows */
 [data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div *,
 [data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div > div,
 [data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div > div > div {
     background: transparent !important;
     background-color: transparent !important;
+    border: none !important;
+    border-bottom: none !important;
+    border-top: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    text-decoration: none !important;
+    text-decoration-line: none !important;
+    border-image: none !important;
+}
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div *::before,
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div *::after {
+    display: none !important;
+    border: none !important;
+    background: transparent !important;
 }
 [data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div > div {
     padding: 0 !important;
@@ -1728,6 +1742,26 @@ def show_register_page():
     -webkit-text-fill-color: #07101f !important;
     font-family: 'DM Sans', sans-serif !important;
     font-size: 0.95rem !important;
+    text-decoration: none !important;
+    border: none !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    background: transparent !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+/* Nuke any placeholder div / value-container inner borders */
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] [data-baseweb="input"],
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] [data-baseweb="input"] > div,
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] [data-baseweb="select-input-container"] {
+    border: none !important;
+    border-bottom: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    height: auto !important;
 }
 /* Chevron + clear icons */
 [data-testid="stForm"] [data-testid="stSelectbox"] svg {
@@ -1735,6 +1769,43 @@ def show_register_page():
 }
 [data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] [role="button"] {
     background: transparent !important;
+}
+
+/* ── Selectbox dropdown menu (popover, rendered at body level) ── */
+[data-baseweb="popover"] [data-baseweb="menu"],
+[data-baseweb="popover"] ul[role="listbox"] {
+    background: #ffffff !important;
+    border: 1px solid rgba(45,212,191,0.25) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.35) !important;
+    padding: 4px !important;
+}
+[data-baseweb="popover"] [role="option"],
+[data-baseweb="popover"] li[role="option"] {
+    background: transparent !important;
+    color: #07101f !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.92rem !important;
+    padding: 0.55rem 0.75rem !important;
+    border-radius: 6px !important;
+}
+[data-baseweb="popover"] [role="option"] *,
+[data-baseweb="popover"] li[role="option"] * {
+    color: #07101f !important;
+    -webkit-text-fill-color: #07101f !important;
+    background: transparent !important;
+}
+[data-baseweb="popover"] [role="option"]:hover,
+[data-baseweb="popover"] li[role="option"]:hover,
+[data-baseweb="popover"] [role="option"][aria-selected="true"],
+[data-baseweb="popover"] li[role="option"][aria-selected="true"] {
+    background: rgba(45,212,191,0.12) !important;
+    color: #0f766e !important;
+}
+[data-baseweb="popover"] [role="option"]:hover *,
+[data-baseweb="popover"] li[role="option"]:hover * {
+    color: #0f766e !important;
+    -webkit-text-fill-color: #0f766e !important;
 }
 
 .auth-form-section {
