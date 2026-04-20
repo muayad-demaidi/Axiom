@@ -917,14 +917,14 @@ p, span, div {
 [data-testid="stHeader"] { display: none !important; }
 
 /* ── Top spacer for fixed nav (injected per-page) ────────────── */
-.lp-nav-spacer { height: 72px; }
+.lp-nav-spacer { height: 88px; }
 
 /* ── Navbar ──────────────────────────────────────────────────── */
 .lp-nav {
     position: fixed;
     top: 0; left: 0; right: 0;
     z-index: 9999;
-    height: 62px;
+    height: 78px;
     background: rgba(7,16,31,0.93);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
@@ -936,7 +936,7 @@ p, span, div {
     display: flex; align-items: center; justify-content: space-between;
 }
 .lp-nav-logo { display: flex; align-items: center; text-decoration: none; }
-.lp-nav-logo img { height: 44px; width: auto; }
+.lp-nav-logo img { height: 60px; width: auto; }
 .lp-features, .lp-hiw, .lp-tiers, .lp-support-section { scroll-margin-top: 90px; }
 html { scroll-behavior: smooth; }
 .lp-nav-links { display: flex; align-items: center; gap: 2.25rem; }
@@ -2556,7 +2556,7 @@ def show_home_page():
     # ── HERO ──────────────────────────────────────────────────────────────────
     st.markdown(f'''
 <div class="lp-hero" style="text-align:center;padding:3rem 0 1.5rem 0;">
-<a href="/" target="_self" style="display:inline-block;" class="logo-link"><img src="data:image/png;base64,{logo_b64}" style="max-width:420px;width:70%;border-radius:14px;" alt="DataVision Pro logo"></a>
+<a href="/" target="_self" style="display:inline-block;" class="logo-link"><img src="data:image/png;base64,{logo_b64}" style="max-width:640px;width:100%;border-radius:14px;" alt="DataVision Pro logo"></a>
 <h1 style="font-family:&#39;Syne&#39;,sans-serif;font-size:3.75rem;font-weight:800;letter-spacing:-0.04em;background:linear-gradient(135deg,#2dd4bf 0%,#14b8a6 40%,#94a3b8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:1.75rem 0 1rem 0;line-height:1.05;">Intelligent Data Analytics,<br>Done in Seconds</h1>
 <p style="font-size:1.15rem;color:#94a3b8;font-weight:400;max-width:560px;margin:0 auto 0.5rem auto;line-height:1.7;">Upload any dataset and get instant cleaning, statistics, charts, and AI-powered insights &mdash; <span style="color:#2dd4bf;font-weight:600;">no code required.</span></p>
 </div>
@@ -2668,7 +2668,7 @@ def show_home_page():
 <div class="lp-footer">
 <div class="lp-footer-inner">
 <div>
-<img src="data:image/png;base64,{logo_b64}" style="height:42px;width:auto;border-radius:6px;" alt="DataVision Pro">
+<img src="data:image/png;base64,{logo_b64}" style="height:60px;width:auto;border-radius:6px;" alt="DataVision Pro">
 <p class="lp-footer-brand-desc">An intelligent data analytics platform that turns raw datasets into clear, actionable insights &mdash; in seconds, no code required.</p>
 </div>
 <div>
