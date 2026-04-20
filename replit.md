@@ -111,12 +111,17 @@ Admins can access:
 - **ChatHistory**: AI conversation logs
 
 ## Design
-- Theme: Matrix-inspired with deep teal/emerald color palette
-- Glassmorphism effects
-- Animated floating data background
-- Professional, modern UI
-- Transparent logo (DataVision Pro)
-- Home page: No sidebar, centered logo, tagline, CTA buttons
+- Theme: "Data Noir" — dark precision aesthetic, deep navy + teal
+- Fonts: Syne (headings/display, 800w), DM Sans (body), JetBrains Mono (data/mono)
+- CSS variables: --teal #2dd4bf, --bg #07101f, --surface #0c1829, --surface-2 #111f35
+- Desktop-first layout: block-container overridden to 1320px max-width
+- Glassmorphism cards with border: var(--border) = rgba(45,212,191,0.14)
+- Matrix rain background animation (subtle, fixed)
+- Landing page: Fixed top navbar (logo + nav links + Sign In), centered hero, single CTA
+- Hero H1: 3.75rem Syne 800, gradient teal-to-slate, full desktop width
+- Sections: Feature cards (4-col grid), How It Works (3-col), Tiers (3-col with dividers)
+- Professional support section: 2-column (info left, form right) inside rounded card
+- Footer: 3-column grid (brand desc / Platform links / Support links) + copyright bar
 - Dashboard: Sidebar with logo, navigation, user badge
 
 ## User Preferences

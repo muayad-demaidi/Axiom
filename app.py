@@ -912,16 +912,90 @@ p, span, div {
 }
 .lp-btn-outline > div > button:hover { border-color: rgba(45,212,191,0.48) !important; color: var(--teal) !important; }
 .lp-btn-outline > div > button:active { background: rgba(45,212,191,0.08) !important; transform: scale(0.98) !important; }
-.lp-btn-outline > div > button:hover {
-    border-color: rgba(20, 184, 166, 0.55) !important;
-    color: #14b8a6 !important;
-    box-shadow: none !important;
-    transform: none !important;
+
+/* ── Streamlit header hide (custom nav replaces it) ─────────── */
+[data-testid="stHeader"] { display: none !important; }
+
+/* ── Top spacer for fixed nav (injected per-page) ────────────── */
+.lp-nav-spacer { height: 72px; }
+
+/* ── Navbar ──────────────────────────────────────────────────── */
+.lp-nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 9999;
+    height: 62px;
+    background: rgba(7,16,31,0.93);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-bottom: 1px solid rgba(45,212,191,0.10);
 }
-.lp-btn-outline > div > button:active {
-    background: rgba(13, 148, 136, 0.08) !important;
-    transform: scale(0.98) !important;
+.lp-nav-inner {
+    max-width: 1320px; height: 100%;
+    margin: 0 auto; padding: 0 3rem;
+    display: flex; align-items: center; justify-content: space-between;
 }
+.lp-nav-logo { display: flex; align-items: center; text-decoration: none; }
+.lp-nav-logo img { height: 32px; width: auto; }
+.lp-nav-links { display: flex; align-items: center; gap: 2.25rem; }
+.lp-nav-link { font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); text-decoration: none; letter-spacing: 0.01em; transition: color 0.15s; cursor: pointer; }
+.lp-nav-link:hover { color: var(--teal); }
+.lp-nav-actions { display: flex; align-items: center; }
+.lp-nav-signin-link {
+    font-size: 0.875rem; font-weight: 500; cursor: pointer;
+    color: var(--teal); border: 1px solid rgba(45,212,191,0.28);
+    border-radius: 10px; padding: 0.4rem 1.25rem;
+    transition: background 0.15s, border-color 0.15s;
+    letter-spacing: 0.01em; white-space: nowrap;
+}
+.lp-nav-signin-link:hover { background: rgba(45,212,191,0.08); border-color: rgba(45,212,191,0.55); }
+
+/* ── CTA tagline below hero button ───────────────────────────── */
+.lp-cta-tag { font-size: 0.79rem; color: var(--text-muted); text-align: center; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.02em; margin-top: 0.6rem; }
+.lp-cta-tag b { color: var(--teal); font-weight: 500; }
+
+/* ── Professional support section ────────────────────────────── */
+.lp-support-pro-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; overflow: hidden; }
+.lp-support-left {
+    padding: 2.75rem 2.5rem;
+    background: linear-gradient(160deg, var(--surface-2) 0%, var(--surface) 100%);
+    border-right: 1px solid var(--border); min-height: 380px;
+}
+.lp-support-left h3 {
+    font-family: 'Syne', sans-serif !important;
+    font-size: 1.65rem !important; font-weight: 800 !important;
+    color: var(--text-primary) !important;
+    letter-spacing: -0.02em !important; margin-bottom: 0.5rem !important; line-height: 1.15 !important;
+}
+.lp-support-tagline { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.65; margin-bottom: 2.25rem; max-width: 320px; }
+.lp-support-contact-item { display: flex; align-items: flex-start; gap: 0.9rem; margin-bottom: 1.4rem; }
+.lp-support-icon {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: rgba(45,212,191,0.08); border: 1px solid rgba(45,212,191,0.14);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 0.95rem; line-height: 1;
+}
+.lp-support-icon-email::after { content: '\2709'; color: var(--teal); }
+.lp-support-icon-clock::after { content: '\23F1'; color: var(--teal); }
+.lp-support-icon-check::after { content: '\2713'; color: var(--teal); font-weight: 900; font-size: 1.05rem; }
+.lp-support-contact-label { font-size: 0.72rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.2rem; }
+.lp-support-contact-value { font-size: 0.9rem; color: var(--text-primary); font-weight: 500; }
+.lp-support-right { padding: 2.75rem 2.5rem; }
+.lp-support-right h4 { font-family: 'Syne', sans-serif !important; font-size: 1.2rem !important; font-weight: 700 !important; color: var(--text-primary) !important; margin-bottom: 1.35rem !important; letter-spacing: -0.01em !important; }
+
+/* ── Footer ──────────────────────────────────────────────────── */
+.lp-footer { border-top: 1px solid rgba(255,255,255,0.06); padding: 3.5rem 0 2rem 0; margin-top: 4rem; }
+.lp-footer-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 4rem; margin-bottom: 3rem; }
+.lp-footer-brand-desc { font-size: 0.875rem; color: var(--text-muted); line-height: 1.7; margin-top: 0.85rem; max-width: 280px; }
+.lp-footer-col-title { font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.08em; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; margin-bottom: 1.25rem; }
+.lp-footer-links-list { list-style: none; padding: 0; margin: 0; }
+.lp-footer-links-list li { margin-bottom: 0.75rem; }
+.lp-footer-links-list a { font-size: 0.875rem; color: var(--text-muted); text-decoration: none; transition: color 0.15s; }
+.lp-footer-links-list a:hover { color: var(--teal); }
+.lp-footer-bottom { border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.75rem; display: flex; align-items: center; justify-content: space-between; max-width: 1200px; margin: 0 auto; }
+.lp-footer-copy { font-size: 0.78rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+.lp-footer-status { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+.lp-footer-status::before { content: ''; display: inline-block; width: 6px; height: 6px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 6px var(--teal); }
 </style>
 
 <div class="matrix-bg">
@@ -2403,23 +2477,32 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 
 def show_support_section():
     st.markdown('''
-    <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(20,184,166,0.25),transparent);margin:2rem 0 2.5rem 0;"></div>
-    <div class="lp-support-section">
-        <div class="lp-support-header">
-            <h2>Contact Support</h2>
-            <p>Have a question or need help? We&rsquo;re here for you.</p>
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
+<div style="height:1px;background:linear-gradient(90deg,transparent,rgba(45,212,191,0.20),transparent);margin:2rem 0 2.5rem 0;"></div>
+<div class="lp-support-section"><div class="lp-section-inner">
+<div class="lp-section-header"><h2>Get in Touch</h2><p>Have a question about your data, your plan, or how the platform works? Our team responds within 24 hours.</p></div>
+<div class="lp-support-pro-wrap">
+''', unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown('<div class="lp-support-card">', unsafe_allow_html=True)
+    sup_left, sup_right = st.columns([1, 1.35])
+
+    with sup_left:
+        st.markdown('''
+<div class="lp-support-left">
+<h3>We&rsquo;re Here to Help</h3>
+<p class="lp-support-tagline">Whether you&rsquo;re troubleshooting an analysis, exploring plan options, or just getting started &mdash; reach out and we&rsquo;ll guide you through it.</p>
+<div class="lp-support-contact-item"><div class="lp-support-icon lp-support-icon-email"></div><div><div class="lp-support-contact-label">Response via</div><div class="lp-support-contact-value">Email &mdash; usually within 24h</div></div></div>
+<div class="lp-support-contact-item"><div class="lp-support-icon lp-support-icon-clock"></div><div><div class="lp-support-contact-label">Support Hours</div><div class="lp-support-contact-value">Sunday &ndash; Thursday, 9 AM &ndash; 6 PM</div></div></div>
+<div class="lp-support-contact-item"><div class="lp-support-icon lp-support-icon-check"></div><div><div class="lp-support-contact-label">We can help with</div><div class="lp-support-contact-value">Platform usage, data questions &amp; account issues</div></div></div>
+</div>
+''', unsafe_allow_html=True)
+
+    with sup_right:
+        st.markdown('<div class="lp-support-right"><h4>Send a Message</h4>', unsafe_allow_html=True)
         with st.form("support_form", clear_on_submit=True):
             support_email = st.text_input("Email Address", placeholder="your@email.com")
             support_name = st.text_input("Full Name", placeholder="Your full name")
-            support_message = st.text_area("Message", placeholder="Describe your question, request, or issue…", height=140)
-            support_submit = st.form_submit_button("Send Message", use_container_width=True)
+            support_message = st.text_area("Message", placeholder="Describe your question, request, or issue…", height=130)
+            support_submit = st.form_submit_button("Send Message \u2192", use_container_width=True)
 
             if support_submit:
                 if not support_email or not support_message:
@@ -2432,49 +2515,52 @@ def show_support_section():
                             send_support_notification(support_email, support_name, support_message)
                         except Exception as e:
                             print(f"Support email notification failed: {e}")
-                        st.success("Message sent — we'll get back to you soon.")
+                        st.success("Message sent — we'll get back to you shortly.")
                     finally:
                         db.close()
         st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('</div></div></div>', unsafe_allow_html=True)
 
 
 def show_home_page():
     logo_b64 = get_logo_base64()
 
+    # ── NAVBAR ────────────────────────────────────────────────────────────────
+    st.markdown(f'''
+<div class="lp-nav"><div class="lp-nav-inner">
+<a class="lp-nav-logo" href="/" target="_self"><img src="data:image/png;base64,{logo_b64}" alt="DataVision Pro"></a>
+<div class="lp-nav-links">
+<span class="lp-nav-link">Features</span>
+<span class="lp-nav-link">How It Works</span>
+<span class="lp-nav-link">Pricing</span>
+<span class="lp-nav-link">Contact</span>
+</div>
+<div class="lp-nav-actions">
+<span class="lp-nav-signin-link" onclick="var btns=document.querySelectorAll('.stButton button');for(var i=0;i&lt;btns.length;i++){if(btns[i].textContent.trim().startsWith('Get Started')){btns[i].click();break;}}">Sign In</span>
+</div>
+</div></div>
+<div class="lp-nav-spacer"></div>
+''', unsafe_allow_html=True)
+
     # ── HERO ──────────────────────────────────────────────────────────────────
     st.markdown(f'''
-<div class="lp-hero" style="text-align:center;padding:2.5rem 0 1.5rem 0;">
-<a href="/" target="_self" style="display:inline-block;" class="logo-link"><img src="data:image/png;base64,{logo_b64}" style="max-width:420px;width:75%;border-radius:14px;" alt="DataVision Pro logo — Intelligent Data Analytics"></a>
-<div style="display:inline-block;background:rgba(45,212,191,0.08);border:1px solid rgba(45,212,191,0.22);border-radius:100px;padding:0.35rem 1.2rem;font-size:0.8rem;font-weight:600;color:#2dd4bf;letter-spacing:0.08em;text-transform:uppercase;font-family:&#39;JetBrains Mono&#39;,monospace;margin:1.25rem 0 1rem 0;">Intelligent Data Analytics Platform</div>
-<h1 style="font-family:&#39;Syne&#39;,sans-serif;font-size:3.75rem;font-weight:800;letter-spacing:-0.04em;background:linear-gradient(135deg,#2dd4bf 0%,#14b8a6 40%,#94a3b8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0 0 1rem 0;line-height:1.05;">Intelligent Data Analytics,<br>Done in Seconds</h1>
+<div class="lp-hero" style="text-align:center;padding:3rem 0 1.5rem 0;">
+<a href="/" target="_self" style="display:inline-block;" class="logo-link"><img src="data:image/png;base64,{logo_b64}" style="max-width:420px;width:70%;border-radius:14px;" alt="DataVision Pro logo"></a>
+<h1 style="font-family:&#39;Syne&#39;,sans-serif;font-size:3.75rem;font-weight:800;letter-spacing:-0.04em;background:linear-gradient(135deg,#2dd4bf 0%,#14b8a6 40%,#94a3b8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:1.75rem 0 1rem 0;line-height:1.05;">Intelligent Data Analytics,<br>Done in Seconds</h1>
 <p style="font-size:1.15rem;color:#94a3b8;font-weight:400;max-width:560px;margin:0 auto 0.5rem auto;line-height:1.7;">Upload any dataset and get instant cleaning, statistics, charts, and AI-powered insights &mdash; <span style="color:#2dd4bf;font-weight:600;">no code required.</span></p>
 </div>
 ''', unsafe_allow_html=True)
 
-    # ── CTA BUTTONS ───────────────────────────────────────────────────────────
+    # ── SINGLE CTA BUTTON ─────────────────────────────────────────────────────
     col1, col2, col3 = st.columns([0.75, 2.5, 0.75])
     with col2:
         st.markdown('<div class="lp-btn-primary">', unsafe_allow_html=True)
-        if st.button("Start Your Free Analysis", use_container_width=True, type="primary"):
+        if st.button("Get Started Free \u2192", use_container_width=True, type="primary"):
             st.session_state.page = 'login'
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div style="height:0.65rem;"></div>', unsafe_allow_html=True)
-
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown('<div class="lp-btn-secondary">', unsafe_allow_html=True)
-            if st.button("Sign In", use_container_width=True):
-                st.session_state.page = 'login'
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-        with c2:
-            st.markdown('<div class="lp-btn-secondary">', unsafe_allow_html=True)
-            if st.button("Create Account", use_container_width=True):
-                st.session_state.page = 'register'
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="lp-cta-tag">60-day free trial &nbsp;<b>\u00b7</b>&nbsp; No credit card &nbsp;<b>\u00b7</b>&nbsp; Instant access</div>', unsafe_allow_html=True)
 
     # ── TRUST BAR ─────────────────────────────────────────────────────────────
     st.markdown('''
@@ -2566,6 +2652,40 @@ def show_home_page():
 
         # ── SUPPORT FORM ──────────────────────────────────────────────────────────
     show_support_section()
+
+    # ── FOOTER ────────────────────────────────────────────────────────────────
+    st.markdown(f'''
+<div class="lp-footer">
+<div class="lp-footer-inner">
+<div>
+<img src="data:image/png;base64,{logo_b64}" style="height:30px;width:auto;border-radius:6px;" alt="DataVision Pro">
+<p class="lp-footer-brand-desc">An intelligent data analytics platform that turns raw datasets into clear, actionable insights &mdash; in seconds, no code required.</p>
+</div>
+<div>
+<div class="lp-footer-col-title">Platform</div>
+<ul class="lp-footer-links-list">
+<li><a href="#">Features</a></li>
+<li><a href="#">How It Works</a></li>
+<li><a href="#">Pricing &amp; Plans</a></li>
+<li><a href="#">60-Day Free Trial</a></li>
+</ul>
+</div>
+<div>
+<div class="lp-footer-col-title">Support</div>
+<ul class="lp-footer-links-list">
+<li><a href="#">Contact Us</a></li>
+<li><a href="#">Documentation</a></li>
+<li><a href="#">Account Help</a></li>
+<li><a href="#">Report an Issue</a></li>
+</ul>
+</div>
+</div>
+<div class="lp-footer-bottom">
+<span class="lp-footer-copy">&copy; 2026 DataVision Pro. All rights reserved.</span>
+<span class="lp-footer-status">All systems operational</span>
+</div>
+</div>
+''', unsafe_allow_html=True)
 
 
 logo_b64_main = get_logo_base64()
