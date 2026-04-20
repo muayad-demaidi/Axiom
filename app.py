@@ -986,6 +986,70 @@ html { scroll-behavior: smooth; }
 .lp-support-right { padding: 2.75rem 2.5rem; }
 .lp-support-right h4 { font-family: 'Syne', sans-serif !important; font-size: 1.2rem !important; font-weight: 700 !important; color: var(--text-primary) !important; margin-bottom: 1.35rem !important; letter-spacing: -0.01em !important; }
 
+/* ── Support form inputs — match sign-in page style ───────── */
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stTextInput"] label,
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stTextInput"] label p,
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stTextArea"] label,
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stTextArea"] label p {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.7rem !important; font-weight: 500 !important;
+    letter-spacing: 0.1em !important; text-transform: uppercase !important;
+    color: var(--text-secondary) !important;
+}
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stTextInput"] input,
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stTextArea"] textarea {
+    background: #ffffff !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    border-radius: 10px !important;
+    padding: 0.9rem 1rem !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.95rem !important;
+    color: #07101f !important;
+    -webkit-text-fill-color: #07101f !important;
+    transition: border-color 0.18s, box-shadow 0.18s !important;
+}
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stTextInput"] > div > div,
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stTextArea"] > div > div {
+    background: #ffffff !important;
+    border-radius: 10px !important;
+}
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stTextInput"] input:focus,
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stTextArea"] textarea:focus {
+    border-color: rgba(45,212,191,0.65) !important;
+    box-shadow: 0 0 0 3px rgba(45,212,191,0.18) !important;
+    outline: none !important;
+}
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stTextInput"] input::placeholder,
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stTextArea"] textarea::placeholder {
+    color: rgba(7,16,31,0.38) !important; opacity: 1 !important;
+}
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stForm"] {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+}
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stFormSubmitButton"] button {
+    background: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%) !important;
+    color: #07101f !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 0.85rem 1rem !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.95rem !important; font-weight: 700 !important;
+    box-shadow: 0 8px 24px rgba(45,212,191,0.28) !important;
+    transition: transform 0.15s, box-shadow 0.15s, filter 0.15s !important;
+    margin-top: 0.6rem !important;
+}
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stFormSubmitButton"] button:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 12px 32px rgba(45,212,191,0.4) !important;
+    filter: brightness(1.05) !important;
+}
+[data-testid="stColumn"]:has(.lp-support-right) [data-testid="stFormSubmitButton"] button p {
+    color: #07101f !important; font-weight: 700 !important; font-size: 0.95rem !important;
+}
+
 /* ── Footer ──────────────────────────────────────────────────── */
 .lp-footer { border-top: 1px solid rgba(255,255,255,0.06); padding: 3.5rem 0 2rem 0; margin-top: 4rem; }
 .lp-footer-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 4rem; margin-bottom: 3rem; }
@@ -1625,22 +1689,53 @@ def show_register_page():
     letter-spacing: 0.1em !important; text-transform: uppercase !important;
     color: var(--text-secondary) !important;
 }
-[data-testid="stForm"] [data-testid="stSelectbox"] > div > div,
+/* Selectbox container — match text input dimensions exactly */
 [data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div {
     background: #ffffff !important;
     border: 1px solid rgba(255,255,255,0.12) !important;
     border-radius: 10px !important;
-    min-height: 48px !important;
+    min-height: 49.5px !important;
+    height: 49.5px !important;
+    padding: 0 0.5rem 0 1rem !important;
     color: #07101f !important;
+    box-shadow: none !important;
+    transition: border-color 0.18s, box-shadow 0.18s !important;
 }
 [data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div:hover {
     border-color: rgba(45,212,191,0.4) !important;
 }
-[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div > div,
-[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] span {
-    color: #07101f !important;
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within {
+    border-color: rgba(45,212,191,0.65) !important;
+    box-shadow: 0 0 0 3px rgba(45,212,191,0.18) !important;
 }
-[data-testid="stForm"] [data-testid="stSelectbox"] svg { fill: #64748b !important; }
+/* Force all inner descendants transparent so only the outer white shows */
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div *,
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div > div,
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div > div > div {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] > div > div {
+    padding: 0 !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.95rem !important;
+    color: #07101f !important;
+    line-height: 1.4 !important;
+}
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] span,
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] input {
+    color: #07101f !important;
+    -webkit-text-fill-color: #07101f !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.95rem !important;
+}
+/* Chevron + clear icons */
+[data-testid="stForm"] [data-testid="stSelectbox"] svg {
+    fill: #64748b !important; color: #64748b !important;
+}
+[data-testid="stForm"] [data-testid="stSelectbox"] [data-baseweb="select"] [role="button"] {
+    background: transparent !important;
+}
 
 .auth-form-section {
     font-family: 'JetBrains Mono', monospace; font-size: 0.68rem;
