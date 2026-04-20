@@ -1322,6 +1322,47 @@ if 'chat_messages' not in st.session_state:
     st.session_state.chat_messages = []
 if 'current_dataset_id' not in st.session_state:
     st.session_state.current_dataset_id = None
+# ── Cached wrappers (keyed by dataset id, df hashing skipped via _ prefix) ──
+@st.cache_data(ttl=3600, show_spinner=False)
+def _c_quality_score(_df, dataset_id):
+    return get_data_quality_score(_df)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _c_column_types(_df, dataset_id):
+    return detect_column_types(_df)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _c_missing_pct(_df, dataset_id):
+    return float((_df.isnull().sum().sum() / _df.size) * 100)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _c_numeric_stats(_df, dataset_id):
+    return get_numeric_stats(_df)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _c_categorical_stats(_df, dataset_id):
+    return get_categorical_stats(_df)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _c_strong_correlations(_df, dataset_id):
+    return find_strong_correlations(_df)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _c_outliers(_df, dataset_id):
+    return detect_outliers(_df)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _c_distribution_overview(_df, dataset_id):
+    return create_distribution_overview(_df)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _c_correlation_heatmap(_df, dataset_id):
+    return create_correlation_heatmap(_df)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _c_missing_values_chart(_df, dataset_id):
+    return create_missing_values_chart(_df)
+
 if 'similar_datasets' not in st.session_state:
     st.session_state.similar_datasets = []
 if 'comparison_data' not in st.session_state:
@@ -2672,19 +2713,20 @@ def show_dashboard():
                     st.metric("Total Rows", f"{len(st.session_state.df):,}")
                 with col2:
                     st.metric("Total Columns", len(st.session_state.df.columns))
+                _ds_id = st.session_state.current_dataset_id
                 with col3:
                     if st.session_state.df_cleaned is not None:
-                        quality = get_data_quality_score(st.session_state.df_cleaned)
+                        quality = _c_quality_score(st.session_state.df_cleaned, _ds_id)
                         st.metric("Data Quality", f"{quality['overall_score']}%")
                 with col4:
-                    missing_pct = (st.session_state.df.isnull().sum().sum() / st.session_state.df.size) * 100
+                    missing_pct = _c_missing_pct(st.session_state.df, _ds_id)
                     st.metric("Missing Values", f"{missing_pct:.1f}%")
                 
                 st.subheader("Data Preview")
                 st.dataframe(st.session_state.df.head(10), use_container_width=True)
                 
                 st.subheader("Column Types")
-                col_types = detect_column_types(st.session_state.df)
+                col_types = _c_column_types(st.session_state.df, _ds_id)
                 col_types_df = pd.DataFrame({
                     'Column': list(col_types.keys()),
                     'Type': list(col_types.values())
@@ -2714,7 +2756,7 @@ def show_dashboard():
                     
                     st.subheader("Data Quality Score")
                     if st.session_state.df_cleaned is not None:
-                        quality = get_data_quality_score(st.session_state.df_cleaned)
+                        quality = _c_quality_score(st.session_state.df_cleaned, st.session_state.current_dataset_id)
                         
                         col1, col2, col3 = st.columns(3)
                         with col1:
@@ -2724,7 +2766,7 @@ def show_dashboard():
                         with col3:
                             st.metric("Overall Score", f"{quality['overall_score']}%")
                     
-                    missing_chart = create_missing_values_chart(st.session_state.df)
+                    missing_chart = _c_missing_values_chart(st.session_state.df, st.session_state.current_dataset_id)
                     if missing_chart:
                         st.plotly_chart(missing_chart, use_container_width=True)
             
@@ -2733,15 +2775,16 @@ def show_dashboard():
                 
                 df_analysis = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
                 
+                _ds_id = st.session_state.current_dataset_id
                 st.subheader("Descriptive Statistics")
-                numeric_stats = get_numeric_stats(df_analysis)
+                numeric_stats = _c_numeric_stats(df_analysis, _ds_id)
                 if not numeric_stats.empty:
                     st.dataframe(numeric_stats, use_container_width=True)
                 else:
                     st.info("No numeric columns found")
                 
                 st.subheader("Categorical Statistics")
-                cat_stats = get_categorical_stats(df_analysis)
+                cat_stats = _c_categorical_stats(df_analysis, _ds_id)
                 if cat_stats:
                     for col, stats in cat_stats.items():
                         with st.expander(f"📁 {col}"):
@@ -2754,7 +2797,7 @@ def show_dashboard():
                                 st.write(f"**Missing Values:** {stats['missing']}")
                 
                 st.subheader("Strong Correlations")
-                correlations = find_strong_correlations(df_analysis)
+                correlations = _c_strong_correlations(df_analysis, _ds_id)
                 if correlations:
                     for corr in correlations[:5]:
                         emoji = "🟢" if corr['correlation'] > 0 else "🔴"
@@ -2763,7 +2806,7 @@ def show_dashboard():
                     st.info("No strong correlations found")
                 
                 st.subheader("Outlier Detection")
-                outliers = detect_outliers(df_analysis)
+                outliers = _c_outliers(df_analysis, _ds_id)
                 if outliers:
                     for col, info in outliers.items():
                         st.markdown(f'<div class="warning-box">⚠️ **{col}**: {info["count"]} outliers detected ({info["percentage"]}%)</div>', unsafe_allow_html=True)
@@ -2777,12 +2820,13 @@ def show_dashboard():
                 numeric_cols = df_viz.select_dtypes(include=[np.number]).columns.tolist()
                 categorical_cols = df_viz.select_dtypes(include=['object']).columns.tolist()
                 
+                _ds_id = st.session_state.current_dataset_id
                 st.subheader("Distribution Overview")
-                dist_overview = create_distribution_overview(df_viz)
+                dist_overview = _c_distribution_overview(df_viz, _ds_id)
                 if dist_overview:
                     st.plotly_chart(dist_overview, use_container_width=True)
                 
-                corr_heatmap = create_correlation_heatmap(df_viz)
+                corr_heatmap = _c_correlation_heatmap(df_viz, _ds_id)
                 if corr_heatmap:
                     st.plotly_chart(corr_heatmap, use_container_width=True)
                 
@@ -3302,6 +3346,24 @@ def show_support_section():
 
 def show_home_page():
     logo_b64 = get_logo_base64()
+
+    # ── Matrix-rain background (landing page only — too heavy for dashboard) ──
+    st.markdown('''
+<div class="matrix-bg">
+    <div class="matrix-column" style="left: 2%; animation-duration: 12s; animation-delay: 0s;"><span>0</span><span>1</span><span>1</span><span>0</span><span>1</span><span>∑</span><span>0</span><span>1</span></div>
+    <div class="matrix-column" style="left: 10%; animation-duration: 15s; animation-delay: 2s;"><span>A</span><span>I</span><span>∫</span><span>7</span><span>3</span><span>9</span><span>π</span></div>
+    <div class="matrix-column" style="left: 18%; animation-duration: 10s; animation-delay: 4s;"><span>1</span><span>0</span><span>0</span><span>1</span><span>√</span><span>∞</span><span>0</span></div>
+    <div class="matrix-column" style="left: 26%; animation-duration: 18s; animation-delay: 1s;"><span>データ</span><span>5</span><span>8</span><span>2</span><span>∑</span></div>
+    <div class="matrix-column" style="left: 34%; animation-duration: 14s; animation-delay: 6s;"><span>0</span><span>1</span><span>1</span><span>0</span><span>1</span><span>0</span><span>1</span></div>
+    <div class="matrix-column" style="left: 42%; animation-duration: 11s; animation-delay: 3s;"><span>π</span><span>4</span><span>2</span><span>0</span><span>∫</span><span>1</span><span>9</span></div>
+    <div class="matrix-column" style="left: 50%; animation-duration: 16s; animation-delay: 8s;"><span>分</span><span>析</span><span>3</span><span>1</span><span>4</span><span>∑</span></div>
+    <div class="matrix-column" style="left: 58%; animation-duration: 13s; animation-delay: 5s;"><span>1</span><span>0</span><span>1</span><span>1</span><span>0</span><span>0</span><span>1</span></div>
+    <div class="matrix-column" style="left: 66%; animation-duration: 17s; animation-delay: 0s;"><span>∞</span><span>6</span><span>2</span><span>8</span><span>3</span><span>√</span><span>1</span></div>
+    <div class="matrix-column" style="left: 74%; animation-duration: 12s; animation-delay: 7s;"><span>0</span><span>1</span><span>0</span><span>1</span><span>π</span><span>2</span><span>9</span></div>
+    <div class="matrix-column" style="left: 82%; animation-duration: 15s; animation-delay: 4s;"><span>5</span><span>3</span><span>∑</span><span>1</span><span>0</span><span>∫</span></div>
+    <div class="matrix-column" style="left: 90%; animation-duration: 13s; animation-delay: 6s;"><span>1</span><span>1</span><span>0</span><span>0</span><span>1</span><span>0</span><span>1</span></div>
+</div>
+''', unsafe_allow_html=True)
 
     # ── NAVBAR ────────────────────────────────────────────────────────────────
     st.markdown(f'''
