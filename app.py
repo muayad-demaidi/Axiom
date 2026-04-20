@@ -1392,10 +1392,12 @@ if not st.session_state.session_hydrated and st.session_state.user is None:
     except Exception:
         _all_cookies = {}
 
+    print(f"[SESSION HYDRATE] attempt={st.session_state.cookie_hydrate_attempts} cookies_seen={list(_all_cookies.keys()) if _all_cookies else 'EMPTY'} token_present={bool(_saved_token)}")
     if _saved_token:
         _db = get_db()
         try:
             _db_user = get_user_by_session_token(_db, _saved_token)
+            print(f"[SESSION HYDRATE] db lookup -> user_found={bool(_db_user)}")
             if _db_user:
                 st.session_state.user = user_to_dict(_db_user)
                 if st.session_state.page in ('home', 'login', 'register'):
