@@ -1253,33 +1253,6 @@ html { scroll-behavior: smooth; }
 
 </style>
 
-<div class="matrix-bg">
-    <div class="matrix-column" style="left: 2%; animation-duration: 12s; animation-delay: 0s;"><span>0</span><span>1</span><span>1</span><span>0</span><span>1</span><span>∑</span><span>0</span><span>1</span></div>
-    <div class="matrix-column" style="left: 6%; animation-duration: 15s; animation-delay: 2s;"><span>A</span><span>I</span><span>∫</span><span>7</span><span>3</span><span>9</span><span>π</span></div>
-    <div class="matrix-column" style="left: 10%; animation-duration: 10s; animation-delay: 4s;"><span>1</span><span>0</span><span>0</span><span>1</span><span>√</span><span>∞</span><span>0</span><span>1</span><span>1</span></div>
-    <div class="matrix-column" style="left: 14%; animation-duration: 18s; animation-delay: 1s;"><span>データ</span><span>5</span><span>8</span><span>2</span><span>∑</span></div>
-    <div class="matrix-column" style="left: 18%; animation-duration: 14s; animation-delay: 6s;"><span>0</span><span>1</span><span>1</span><span>0</span><span>1</span><span>0</span><span>1</span></div>
-    <div class="matrix-column" style="left: 22%; animation-duration: 11s; animation-delay: 3s;"><span>π</span><span>4</span><span>2</span><span>0</span><span>∫</span><span>1</span><span>9</span><span>7</span></div>
-    <div class="matrix-column" style="left: 26%; animation-duration: 16s; animation-delay: 8s;"><span>分</span><span>析</span><span>3</span><span>1</span><span>4</span><span>∑</span></div>
-    <div class="matrix-column" style="left: 30%; animation-duration: 13s; animation-delay: 5s;"><span>1</span><span>0</span><span>1</span><span>1</span><span>0</span><span>0</span><span>1</span><span>0</span></div>
-    <div class="matrix-column" style="left: 34%; animation-duration: 17s; animation-delay: 0s;"><span>∞</span><span>6</span><span>2</span><span>8</span><span>3</span><span>√</span><span>1</span></div>
-    <div class="matrix-column" style="left: 38%; animation-duration: 12s; animation-delay: 7s;"><span>0</span><span>0</span><span>1</span><span>1</span><span>0</span><span>1</span><span>0</span><span>1</span></div>
-    <div class="matrix-column" style="left: 42%; animation-duration: 19s; animation-delay: 2s;"><span>A</span><span>I</span><span>π</span><span>∑</span><span>5</span><span>9</span></div>
-    <div class="matrix-column" style="left: 46%; animation-duration: 11s; animation-delay: 9s;"><span>1</span><span>1</span><span>0</span><span>1</span><span>0</span><span>0</span><span>1</span></div>
-    <div class="matrix-column" style="left: 50%; animation-duration: 14s; animation-delay: 4s;"><span>√</span><span>3</span><span>7</span><span>∫</span><span>2</span><span>1</span><span>8</span><span>4</span></div>
-    <div class="matrix-column" style="left: 54%; animation-duration: 16s; animation-delay: 1s;"><span>0</span><span>1</span><span>0</span><span>1</span><span>1</span><span>0</span><span>1</span></div>
-    <div class="matrix-column" style="left: 58%; animation-duration: 13s; animation-delay: 6s;"><span>∞</span><span>π</span><span>9</span><span>4</span><span>6</span><span>∑</span><span>2</span></div>
-    <div class="matrix-column" style="left: 62%; animation-duration: 18s; animation-delay: 3s;"><span>1</span><span>0</span><span>1</span><span>0</span><span>0</span><span>1</span><span>1</span><span>0</span></div>
-    <div class="matrix-column" style="left: 66%; animation-duration: 10s; animation-delay: 8s;"><span>デ</span><span>ー</span><span>タ</span><span>5</span><span>∫</span><span>7</span></div>
-    <div class="matrix-column" style="left: 70%; animation-duration: 15s; animation-delay: 0s;"><span>0</span><span>1</span><span>1</span><span>1</span><span>0</span><span>0</span><span>1</span></div>
-    <div class="matrix-column" style="left: 74%; animation-duration: 12s; animation-delay: 5s;"><span>√</span><span>8</span><span>3</span><span>1</span><span>∞</span><span>6</span><span>2</span><span>π</span></div>
-    <div class="matrix-column" style="left: 78%; animation-duration: 17s; animation-delay: 2s;"><span>1</span><span>0</span><span>0</span><span>1</span><span>1</span><span>0</span><span>1</span></div>
-    <div class="matrix-column" style="left: 82%; animation-duration: 14s; animation-delay: 7s;"><span>A</span><span>I</span><span>∑</span><span>4</span><span>9</span><span>∫</span><span>3</span></div>
-    <div class="matrix-column" style="left: 86%; animation-duration: 11s; animation-delay: 4s;"><span>0</span><span>1</span><span>0</span><span>1</span><span>0</span><span>1</span><span>1</span><span>0</span></div>
-    <div class="matrix-column" style="left: 90%; animation-duration: 16s; animation-delay: 1s;"><span>∞</span><span>7</span><span>2</span><span>5</span><span>√</span><span>π</span><span>8</span></div>
-    <div class="matrix-column" style="left: 94%; animation-duration: 13s; animation-delay: 6s;"><span>1</span><span>1</span><span>0</span><span>0</span><span>1</span><span>0</span><span>1</span></div>
-    <div class="matrix-column" style="left: 98%; animation-duration: 15s; animation-delay: 9s;"><span>∑</span><span>6</span><span>1</span><span>4</span><span>∫</span><span>9</span></div>
-</div>
 """
 
 st.markdown(NEON_CSS, unsafe_allow_html=True)
