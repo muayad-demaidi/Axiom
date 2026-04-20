@@ -582,24 +582,18 @@ p, span, div {
     cursor: pointer;
 }
 
-/* ===== LANDING PAGE — ENTRANCE ANIMATIONS (viewport-triggered) ===== */
+/* ===== LANDING PAGE — ENTRANCE ANIMATIONS ===== */
 @keyframes fadeSlideUp {
-    from { opacity: 0; transform: translateY(28px); }
+    from { opacity: 0; transform: translateY(24px); }
     to   { opacity: 1; transform: translateY(0); }
 }
-.lp-hero, .lp-trust, .lp-features, .lp-hiw, .lp-tiers {
-    opacity: 0;
-    transform: translateY(28px);
-}
-.lp-hero.lp-visible     { animation: fadeSlideUp 0.3s ease-out both; animation-delay: 0ms; }
-.lp-trust.lp-visible    { animation: fadeSlideUp 0.3s ease-out both; animation-delay: 60ms; }
-.lp-features.lp-visible { animation: fadeSlideUp 0.3s ease-out both; animation-delay: 120ms; }
-.lp-hiw.lp-visible      { animation: fadeSlideUp 0.3s ease-out both; animation-delay: 180ms; }
-.lp-tiers.lp-visible    { animation: fadeSlideUp 0.3s ease-out both; animation-delay: 240ms; }
+.lp-hero     { animation: fadeSlideUp 0.30s ease-out both; animation-delay: 0.05s; }
+.lp-trust    { animation: fadeSlideUp 0.30s ease-out both; animation-delay: 0.15s; }
+.lp-features { animation: fadeSlideUp 0.30s ease-out both; animation-delay: 0.25s; }
+.lp-hiw      { animation: fadeSlideUp 0.30s ease-out both; animation-delay: 0.35s; }
+.lp-tiers    { animation: fadeSlideUp 0.30s ease-out both; animation-delay: 0.45s; }
 @media (prefers-reduced-motion: reduce) {
     .lp-hero, .lp-trust, .lp-features, .lp-hiw, .lp-tiers {
-        opacity: 1 !important;
-        transform: none !important;
         animation: none !important;
     }
 }
@@ -615,7 +609,7 @@ p, span, div {
 .lp-trust-pill {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.55rem;
     background: rgba(13, 148, 136, 0.08);
     border: 1px solid rgba(20, 184, 166, 0.22);
     border-radius: 30px;
@@ -626,7 +620,15 @@ p, span, div {
     letter-spacing: 0.02em;
     backdrop-filter: blur(8px);
 }
-.lp-trust-pill svg { flex-shrink: 0; }
+.lp-trust-pill::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    background: #14b8a6;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
 
 /* ===== LANDING PAGE — FEATURE CARDS ===== */
 .lp-feature-grid {
@@ -666,8 +668,16 @@ p, span, div {
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 1.4rem;
+    line-height: 1;
 }
-.lp-feat-icon svg { color: #14b8a6; }
+/* CSS-only feature icons — no inline SVG needed */
+.lp-feat-icon { color: #14b8a6; font-style: normal; }
+.lp-icon-1::after { content: '\2726'; font-size: 1.3rem; color: #14b8a6; }
+.lp-icon-2::after { content: '\25AA\25AA\25AA'; font-size: 0.75rem; letter-spacing: 2px; color: #14b8a6; display:block; line-height:1; }
+.lp-icon-3::after { content: '\25C6'; font-size: 1.3rem; color: #14b8a6; }
+.lp-icon-4::after { content: '\25B2'; font-size: 1.2rem; color: #14b8a6; }
+
 .lp-feat-title {
     font-size: 0.95rem;
     font-weight: 700;
@@ -809,10 +819,16 @@ p, span, div {
     color: #94a3b8;
     padding: 0.3rem 0;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.5rem;
 }
-.lp-tier-features li svg { flex-shrink: 0; color: #14b8a6; }
+.lp-check {
+    color: #14b8a6;
+    font-weight: 700;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    line-height: 1.3;
+}
 
 /* ===== LANDING PAGE — SUPPORT FORM ===== */
 .lp-support-section {
@@ -2464,100 +2480,24 @@ def show_home_page():
 
     # ── TRUST BAR ─────────────────────────────────────────────────────────────
     st.markdown('''
-    <div class="lp-trust">
-        <div class="lp-trust-bar">
-            <span class="lp-trust-pill">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                     fill="none" stroke="currentColor" stroke-width="2.5"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                </svg>
-                1 Million+ Rows Supported
-            </span>
-            <span class="lp-trust-pill">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                     fill="none" stroke="currentColor" stroke-width="2.5"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6"/>
-                    <line x1="8" y1="2" x2="8" y2="6"/>
-                    <line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                60-Day Free Trial
-            </span>
-            <span class="lp-trust-pill">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                     fill="none" stroke="currentColor" stroke-width="2.5"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M12 8v4l3 3"/>
-                </svg>
-                AI-Powered Insights
-            </span>
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
+<div class="lp-trust">
+<div class="lp-trust-bar">
+<span class="lp-trust-pill">1 Million+ Rows Supported</span>
+<span class="lp-trust-pill">60-Day Free Trial</span>
+<span class="lp-trust-pill">AI-Powered Insights</span>
+</div>
+</div>
+''', unsafe_allow_html=True)
 
     # ── FEATURE CARDS ─────────────────────────────────────────────────────────
     st.markdown('''
-    <div class="lp-features">
-        <div class="lp-feature-grid">
-
-            <div class="lp-feat-card">
-                <div class="lp-feat-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                         fill="none" stroke="#14b8a6" stroke-width="2"
-                         stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="22 11 12 2 2 11"/><path d="M12 2v20"/>
-                        <path d="M5 12H2"/><path d="M22 12h-3"/>
-                        <circle cx="12" cy="18" r="1"/>
-                    </svg>
-                </div>
-                <div class="lp-feat-title">Auto Cleaning</div>
-                <div class="lp-feat-desc">Removes duplicates, fixes missing values, and eliminates outliers in one click.</div>
-            </div>
-
-            <div class="lp-feat-card">
-                <div class="lp-feat-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                         fill="none" stroke="#14b8a6" stroke-width="2"
-                         stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="20" x2="18" y2="10"/>
-                        <line x1="12" y1="20" x2="12" y2="4"/>
-                        <line x1="6" y1="20" x2="6" y2="14"/>
-                    </svg>
-                </div>
-                <div class="lp-feat-title">Deep Analytics</div>
-                <div class="lp-feat-desc">Comprehensive statistics, correlations, distributions, and interactive charts.</div>
-            </div>
-
-            <div class="lp-feat-card">
-                <div class="lp-feat-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                         fill="none" stroke="#14b8a6" stroke-width="2"
-                         stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                    </svg>
-                </div>
-                <div class="lp-feat-title">AI Powered</div>
-                <div class="lp-feat-desc">GPT-driven chat assistant and smart recommendations tailored to your data.</div>
-            </div>
-
-            <div class="lp-feat-card">
-                <div class="lp-feat-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                         fill="none" stroke="#14b8a6" stroke-width="2"
-                         stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                    </svg>
-                </div>
-                <div class="lp-feat-title">Predictions</div>
-                <div class="lp-feat-desc">ML models and trend analysis that forecast what your data will look like next.</div>
-            </div>
-
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
+<div class="lp-features"><div class="lp-feature-grid">
+<div class="lp-feat-card"><div class="lp-feat-icon lp-icon-1"></div><div class="lp-feat-title">Auto Cleaning</div><div class="lp-feat-desc">Removes duplicates, fixes missing values, and eliminates outliers in one click.</div></div>
+<div class="lp-feat-card"><div class="lp-feat-icon lp-icon-2"></div><div class="lp-feat-title">Deep Analytics</div><div class="lp-feat-desc">Comprehensive statistics, correlations, distributions, and interactive charts.</div></div>
+<div class="lp-feat-card"><div class="lp-feat-icon lp-icon-3"></div><div class="lp-feat-title">AI Powered</div><div class="lp-feat-desc">GPT-driven chat assistant and smart recommendations tailored to your data.</div></div>
+<div class="lp-feat-card"><div class="lp-feat-icon lp-icon-4"></div><div class="lp-feat-title">Predictions</div><div class="lp-feat-desc">ML models and trend analysis that forecast what your data will look like next.</div></div>
+</div></div>
+''', unsafe_allow_html=True)
 
     # ── HOW IT WORKS ──────────────────────────────────────────────────────────
     st.markdown('''
@@ -2591,110 +2531,41 @@ def show_home_page():
 
     # ── TIERS TEASER ──────────────────────────────────────────────────────────
     st.markdown('''
-    <div class="lp-tiers">
-        <div class="lp-tiers-section">
-            <h2>Choose Your Plan</h2>
-            <p class="lp-tiers-sub">All tiers are free during the testing period — full Tier 3 access for 60 days on sign-up.</p>
-            <div class="lp-tiers-grid">
-
-                <div class="lp-tier-card">
-                    <div class="lp-tier-name">Tier 1</div>
-                    <div class="lp-tier-tagline">Perfect for getting started</div>
-                    <ul class="lp-tier-features">
-                        <li>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
-                                 fill="none" stroke="currentColor" stroke-width="2.5"
-                                 stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            Up to 10,000 rows
-                        </li>
-                        <li>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
-                                 fill="none" stroke="currentColor" stroke-width="2.5"
-                                 stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            Auto Cleaning &amp; Analytics
-                        </li>
-                        <li>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
-                                 fill="none" stroke="currentColor" stroke-width="2.5"
-                                 stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            Files up to 50 MB
-                        </li>
-                    </ul>
-                </div>
-
-                <div class="lp-tier-card featured">
-                    <div class="lp-tier-badge">Most Popular</div>
-                    <div class="lp-tier-name">Tier 2</div>
-                    <div class="lp-tier-tagline">For growing teams &amp; businesses</div>
-                    <ul class="lp-tier-features">
-                        <li>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
-                                 fill="none" stroke="currentColor" stroke-width="2.5"
-                                 stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            Up to 500,000 rows
-                        </li>
-                        <li>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
-                                 fill="none" stroke="currentColor" stroke-width="2.5"
-                                 stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            ML &amp; Predictions
-                        </li>
-                        <li>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
-                                 fill="none" stroke="currentColor" stroke-width="2.5"
-                                 stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            Files up to 200 MB
-                        </li>
-                    </ul>
-                </div>
-
-                <div class="lp-tier-card">
-                    <div class="lp-tier-name">Tier 3</div>
-                    <div class="lp-tier-tagline">Full power, unlimited potential</div>
-                    <ul class="lp-tier-features">
-                        <li>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
-                                 fill="none" stroke="currentColor" stroke-width="2.5"
-                                 stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            Up to 1 Million rows
-                        </li>
-                        <li>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
-                                 fill="none" stroke="currentColor" stroke-width="2.5"
-                                 stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            AI Chat &amp; Export Reports
-                        </li>
-                        <li>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
-                                 fill="none" stroke="currentColor" stroke-width="2.5"
-                                 stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            Everything in Tier 2
-                        </li>
-                    </ul>
-                </div>
-
-            </div>
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
+<div class="lp-tiers"><div class="lp-tiers-section">
+<h2>Choose Your Plan</h2>
+<p class="lp-tiers-sub">All tiers are free during the testing period. Full Tier 3 access for 60 days on sign-up.</p>
+<div class="lp-tiers-grid">
+<div class="lp-tier-card">
+<div class="lp-tier-name">Tier 1</div>
+<div class="lp-tier-tagline">Perfect for getting started</div>
+<ul class="lp-tier-features">
+<li><span class="lp-check">&#10003;</span>Up to 10,000 rows</li>
+<li><span class="lp-check">&#10003;</span>Auto Cleaning &amp; Analytics</li>
+<li><span class="lp-check">&#10003;</span>Files up to 50 MB</li>
+</ul>
+</div>
+<div class="lp-tier-card featured">
+<div class="lp-tier-badge">Most Popular</div>
+<div class="lp-tier-name">Tier 2</div>
+<div class="lp-tier-tagline">For growing teams &amp; businesses</div>
+<ul class="lp-tier-features">
+<li><span class="lp-check">&#10003;</span>Up to 500,000 rows</li>
+<li><span class="lp-check">&#10003;</span>ML &amp; Predictions</li>
+<li><span class="lp-check">&#10003;</span>Files up to 200 MB</li>
+</ul>
+</div>
+<div class="lp-tier-card">
+<div class="lp-tier-name">Tier 3</div>
+<div class="lp-tier-tagline">Full power, unlimited potential</div>
+<ul class="lp-tier-features">
+<li><span class="lp-check">&#10003;</span>Up to 1 Million rows</li>
+<li><span class="lp-check">&#10003;</span>AI Chat &amp; Export Reports</li>
+<li><span class="lp-check">&#10003;</span>Everything in Tier 2</li>
+</ul>
+</div>
+</div>
+</div></div>
+''', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -2704,48 +2575,7 @@ def show_home_page():
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # ── VIEWPORT-TRIGGERED ANIMATIONS (IntersectionObserver) ─────────────────
-    st.components.v1.html("""
-    <script>
-    (function() {
-        var CLASSES = ['lp-hero','lp-trust','lp-features','lp-hiw','lp-tiers'];
-        function observe(doc) {
-            var prefersReduced = doc.defaultView &&
-                doc.defaultView.matchMedia &&
-                doc.defaultView.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            if (prefersReduced) return;
-            var io = new doc.defaultView.IntersectionObserver(function(entries) {
-                entries.forEach(function(e) {
-                    if (e.isIntersecting) {
-                        e.target.classList.add('lp-visible');
-                        io.unobserve(e.target);
-                    }
-                });
-            }, { threshold: 0.12 });
-            CLASSES.forEach(function(cls) {
-                doc.querySelectorAll('.' + cls).forEach(function(el) {
-                    io.observe(el);
-                });
-            });
-        }
-        function init() {
-            try {
-                var doc = window.parent.document;
-                observe(doc);
-                // Re-run after a short delay to catch late-rendered Streamlit elements
-                setTimeout(function() { observe(doc); }, 600);
-            } catch(e) {}
-        }
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
-        }
-    })();
-    </script>
-    """, height=0)
-
-    # ── SUPPORT FORM ──────────────────────────────────────────────────────────
+        # ── SUPPORT FORM ──────────────────────────────────────────────────────────
     show_support_section()
 
 
