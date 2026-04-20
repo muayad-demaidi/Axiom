@@ -1327,6 +1327,8 @@ if 'page' not in st.session_state:
 
 if 'session_hydrated' not in st.session_state:
     st.session_state.session_hydrated = False
+if 'cookie_hydrate_attempts' not in st.session_state:
+    st.session_state.cookie_hydrate_attempts = 0
 
 try:
     if st.query_params.get('signin') == '1':
@@ -1381,12 +1383,15 @@ def user_to_dict(user):
     }
 
 
-# ── Hydrate session from persistent cookie (run once per browser session) ──
+# ── Hydrate session from persistent cookie (cookies arrive async from JS) ──
 if not st.session_state.session_hydrated and st.session_state.user is None:
+    _saved_token = None
     try:
-        _saved_token = cookie_manager.get(cookie=SESSION_COOKIE_NAME)
+        _all_cookies = cookie_manager.get_all() or {}
+        _saved_token = _all_cookies.get(SESSION_COOKIE_NAME)
     except Exception:
-        _saved_token = None
+        _all_cookies = {}
+
     if _saved_token:
         _db = get_db()
         try:
@@ -1399,7 +1404,16 @@ if not st.session_state.session_hydrated and st.session_state.user is None:
                 st.rerun()
         finally:
             _db.close()
-    st.session_state.session_hydrated = True
+        st.session_state.session_hydrated = True
+    else:
+        # Cookies may still be loading from the browser. Retry a few times.
+        if st.session_state.cookie_hydrate_attempts < 3 and not _all_cookies:
+            st.session_state.cookie_hydrate_attempts += 1
+            import time as _t
+            _t.sleep(0.25)
+            st.rerun()
+        else:
+            st.session_state.session_hydrated = True
 
 
 def get_user_limits():
