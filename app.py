@@ -1172,6 +1172,84 @@ html { scroll-behavior: smooth; }
 .dn-contact-slim-head h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.15rem; color: #e2e8f0; margin: 0; letter-spacing: -0.01em; }
 .dn-contact-slim-head .dn-contact-meta { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: rgba(148,163,184,0.7); letter-spacing: 0.1em; text-transform: uppercase; }
 
+/* Flat top bar — no logo, just wordmark + eyebrow */
+.dn-topbar {
+    display: flex; align-items: center; gap: 1.25rem;
+    padding: 0.45rem 0.25rem;
+}
+.dn-topbar-brand {
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.35rem;
+    color: #f1f5f9; letter-spacing: -0.025em;
+}
+.dn-topbar-eyebrow {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--teal);
+    padding: 0.32rem 0.75rem; border: 1px solid rgba(45,212,191,0.22); border-radius: 100px;
+    background: rgba(45,212,191,0.05);
+}
+.dn-topbar-eyebrow::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 6px var(--teal); }
+
+/* Popover trigger button — styled as avatar pill */
+[data-testid="stColumn"]:has(.dn-pop-trigger-marker) [data-testid="stPopover"] > div > button {
+    background: linear-gradient(135deg, rgba(45,212,191,0.12), rgba(13,148,136,0.06)) !important;
+    border: 1px solid rgba(45,212,191,0.22) !important;
+    color: #e2e8f0 !important;
+    font-family: 'DM Sans', sans-serif !important; font-weight: 600 !important;
+    font-size: 0.88rem !important; letter-spacing: 0.01em !important;
+    padding: 0.55rem 1rem !important; height: auto !important;
+    border-radius: 100px !important; box-shadow: none !important;
+    transition: all 0.18s ease !important;
+}
+[data-testid="stColumn"]:has(.dn-pop-trigger-marker) [data-testid="stPopover"] > div > button:hover {
+    border-color: rgba(45,212,191,0.45) !important;
+    background: linear-gradient(135deg, rgba(45,212,191,0.2), rgba(13,148,136,0.1)) !important;
+    box-shadow: 0 0 0 3px rgba(45,212,191,0.10) !important;
+}
+[data-testid="stColumn"]:has(.dn-pop-trigger-marker) [data-testid="stPopover"] > div > button p {
+    color: inherit !important; font-size: inherit !important; font-weight: inherit !important; margin: 0 !important;
+}
+
+/* Popover dropdown content (rendered at body level) */
+[data-baseweb="popover"] [data-testid="stPopoverBody"] {
+    background: linear-gradient(180deg, #0c1829 0%, #07101f 100%) !important;
+    border: 1px solid rgba(45,212,191,0.22) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(45,212,191,0.05) !important;
+    padding: 1rem 0.85rem !important;
+    min-width: 240px !important;
+}
+.dn-pop-head { display: flex; align-items: center; gap: 0.85rem; padding: 0.25rem 0.4rem 0.6rem 0.4rem; }
+.dn-pop-avatar {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--teal-mid), var(--teal-dark));
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.1rem; color: #07101f;
+    border: 1px solid rgba(45,212,191,0.4);
+    flex-shrink: 0;
+}
+.dn-pop-name { font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 600; color: #f1f5f9; line-height: 1.2; }
+.dn-pop-tier { font-family: 'JetBrains Mono', monospace; font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--teal); margin-top: 3px; }
+.dn-pop-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(45,212,191,0.25), transparent); margin: 0.4rem 0 0.6rem 0; }
+
+/* Popover menu buttons (Admin / Contact / Sign Out) */
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-testid="stButton"] > button {
+    background: transparent !important; border: 1px solid transparent !important;
+    color: #cbd5e1 !important; font-family: 'DM Sans', sans-serif !important;
+    font-weight: 500 !important; font-size: 0.92rem !important;
+    text-align: left !important; justify-content: flex-start !important;
+    padding: 0.6rem 0.85rem !important; height: auto !important; min-height: 0 !important;
+    border-radius: 9px !important; box-shadow: none !important;
+    transition: all 0.16s ease !important; margin-bottom: 0.2rem !important;
+}
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-testid="stButton"] > button:hover {
+    background: rgba(45,212,191,0.10) !important; color: var(--teal) !important;
+    border-color: rgba(45,212,191,0.22) !important;
+}
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-testid="stButton"] > button p {
+    color: inherit !important; font-weight: inherit !important; font-size: inherit !important; margin: 0 !important;
+}
+
 </style>
 
 <div class="matrix-bg">
@@ -2380,65 +2458,48 @@ def show_dashboard():
     avatar_letter = (display_name[:1] or 'A').upper()
     first_name = display_name.split()[0] if display_name else 'Analyst'
 
-    # ── TOP NAVBAR ───────────────────────────────────────────────────────────
-    st.markdown(f'''
-<div class="dn-topnav"><div class="dn-topnav-inner">
-  <a class="dn-topnav-brand" href="/" target="_self">
-    <img src="data:image/png;base64,{logo_b64}" alt="DataVision Pro">
-    <span class="dn-topnav-brand-text">DataVision <span style="color:var(--teal);">Pro</span></span>
-  </a>
-  <span class="dn-topnav-eyebrow">Workspace · Live</span>
-  <div class="dn-topnav-user">
-    <div class="dn-topnav-meta" style="text-align:right;">
-      <span class="dn-topnav-name">{display_name}</span>
-      <span class="dn-topnav-tier">{tier_label}</span>
-    </div>
-    <span class="dn-topnav-avatar">{avatar_letter}</span>
-  </div>
-</div></div>
-''', unsafe_allow_html=True)
-
-    # ── SIDE MENU + MAIN COLUMN LAYOUT ───────────────────────────────────────
+    # ── TOP NAVBAR — flat, wordmark only + account popover on right ─────────
     if 'show_contact_panel' not in st.session_state:
         st.session_state.show_contact_panel = False
 
-    side_col, main_col = st.columns([0.24, 0.76], gap="large")
-
-    with side_col:
-        st.markdown('<div class="dn-side-marker"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="dn-side">', unsafe_allow_html=True)
-
-        st.markdown('<div class="dn-side-section-label">Workspace · 01</div>', unsafe_allow_html=True)
-        if st.button("◇  Dashboard", use_container_width=True, key="nav_dash"):
-            st.session_state.show_contact_panel = False
-            st.rerun()
-        if st.button("◆  Pricing & Tiers", use_container_width=True, key="nav_tiers"):
-            st.session_state.page = 'pricing'
-            st.rerun()
-        if st.button("○  Home Page", use_container_width=True, key="nav_home"):
-            st.session_state.page = 'home'
-            st.session_state.df = None
-            st.session_state.df_cleaned = None
-            st.rerun()
-
-        st.markdown('<div class="dn-side-divider"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="dn-side-section-label">Account · 02</div>', unsafe_allow_html=True)
-
-        if user.get('is_admin'):
-            if st.button("⚙  Admin Panel", use_container_width=True, key="nav_admin"):
-                st.session_state.page = 'admin'
+    nav_brand_col, _, nav_user_col = st.columns([5, 0.3, 1.6], gap="small")
+    with nav_brand_col:
+        st.markdown(f'''
+<div class="dn-topbar">
+  <span class="dn-topbar-brand">DataVision <span style="color:var(--teal);">Pro</span></span>
+  <span class="dn-topbar-eyebrow">Workspace · Live</span>
+</div>
+''', unsafe_allow_html=True)
+    with nav_user_col:
+        st.markdown('<div class="dn-pop-trigger-marker"></div>', unsafe_allow_html=True)
+        with st.popover(f"{avatar_letter}   {first_name}   ▾", use_container_width=True):
+            st.markdown(f'''
+<div class="dn-pop-head">
+  <div class="dn-pop-avatar">{avatar_letter}</div>
+  <div>
+    <div class="dn-pop-name">{display_name}</div>
+    <div class="dn-pop-tier">{tier_label}</div>
+  </div>
+</div>
+<div class="dn-pop-divider"></div>
+''', unsafe_allow_html=True)
+            st.markdown('<div class="dn-pop-marker"></div>', unsafe_allow_html=True)
+            if user.get('is_admin'):
+                if st.button("⚙   Admin Panel", use_container_width=True, key="pop_admin"):
+                    st.session_state.page = 'admin'
+                    st.rerun()
+            if st.button("✉   Contact Support", use_container_width=True, key="pop_contact"):
+                st.session_state.show_contact_panel = not st.session_state.show_contact_panel
                 st.rerun()
-        if st.button("✉  Contact Support", use_container_width=True, key="nav_contact"):
-            st.session_state.show_contact_panel = not st.session_state.show_contact_panel
-            st.rerun()
-        if st.button("→  Sign Out", use_container_width=True, key="nav_signout"):
-            st.session_state.user = None
-            st.session_state.page = 'home'
-            st.session_state.df = None
-            st.session_state.df_cleaned = None
-            st.rerun()
+            if st.button("→   Sign Out", use_container_width=True, key="pop_signout"):
+                st.session_state.user = None
+                st.session_state.page = 'home'
+                st.session_state.df = None
+                st.session_state.df_cleaned = None
+                st.rerun()
 
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:0.75rem;"></div>', unsafe_allow_html=True)
+    main_col = st.container()
 
     with main_col:
         # Greeting hero
@@ -2517,29 +2578,6 @@ def show_dashboard():
                         st.rerun()
     
         if st.session_state.df is None:
-            st.markdown(f'''
-            <div style="text-align: center; margin: 2rem 0 1rem 0;">
-                <img src="data:image/png;base64,{logo_b64}" style="max-width: 280px; border-radius: 12px; margin-bottom: 1rem;" alt="DataVision Pro">
-                <p style="color: #94a3b8; font-size: 1.15rem; max-width: 500px; margin: 0 auto;">
-                    Intelligent Data Analytics Platform — Powered by AI
-                </p>
-            </div>
-            ''', unsafe_allow_html=True)
-    
-            st.markdown("<br>", unsafe_allow_html=True)
-    
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.markdown("""<div class="metric-card"><div class="metric-value">🧹</div><div class="metric-label">Smart Cleaning</div></div>""", unsafe_allow_html=True)
-            with col2:
-                st.markdown("""<div class="metric-card"><div class="metric-value">📊</div><div class="metric-label">Deep Analytics</div></div>""", unsafe_allow_html=True)
-            with col3:
-                st.markdown("""<div class="metric-card"><div class="metric-value">🤖</div><div class="metric-label">AI Powered</div></div>""", unsafe_allow_html=True)
-            with col4:
-                st.markdown("""<div class="metric-card"><div class="metric-value">🔮</div><div class="metric-label">Predictions</div></div>""", unsafe_allow_html=True)
-    
-            st.markdown("<br>", unsafe_allow_html=True)
-    
             upload_col1, upload_col2, upload_col3 = st.columns([1, 2, 1])
             with upload_col2:
                 st.markdown("""
