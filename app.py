@@ -1363,6 +1363,23 @@ def _c_correlation_heatmap(_df, dataset_id):
 def _c_missing_values_chart(_df, dataset_id):
     return create_missing_values_chart(_df)
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def _c_categorical_insights(_df, dataset_id):
+    return analyze_categorical_insights(_df)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _c_categorical_pie(_df, dataset_id, column):
+    return create_categorical_distribution(_df, column)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _c_categorical_bar(_df, dataset_id, column):
+    return create_categorical_bar_chart(_df, column)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _c_outlier_viz(_df, dataset_id, column, info_tuple):
+    info = dict(info_tuple)
+    return create_outlier_visualization(_df, column, info)
+
 if 'similar_datasets' not in st.session_state:
     st.session_state.similar_datasets = []
 if 'comparison_data' not in st.session_state:
@@ -2957,14 +2974,15 @@ def show_dashboard():
                 cat_cols_ml = df_ml.select_dtypes(include=['object', 'category']).columns.tolist()
                 
                 ml_subtabs = st.tabs(["📊 Categorical Analysis", "🎯 ML Prediction", "🔮 Risk Clustering", "⚠️ Outlier Detection"])
+                _ds_id_ml = st.session_state.current_dataset_id
                 
                 with ml_subtabs[0]:
                     st.subheader("📊 Categorical Data Analysis")
                     if cat_cols_ml:
-                        cat_insights = analyze_categorical_insights(df_ml)
+                        cat_insights = _c_categorical_insights(df_ml, _ds_id_ml)
                         
                         for col in cat_cols_ml[:5]:
-                            with st.expander(f"📌 {col}", expanded=True):
+                            with st.expander(f"📌 {col}", expanded=False):
                                 if col in cat_insights:
                                     insight = cat_insights[col]
                                     col1, col2, col3 = st.columns(3)
@@ -2977,9 +2995,9 @@ def show_dashboard():
                                     
                                     chart_type = st.radio(f"Chart type for {col}", ["Pie Chart", "Bar Chart"], key=f"cat_chart_{col}", horizontal=True)
                                     if chart_type == "Pie Chart":
-                                        fig = create_categorical_distribution(df_ml, col)
+                                        fig = _c_categorical_pie(df_ml, _ds_id_ml, col)
                                     else:
-                                        fig = create_categorical_bar_chart(df_ml, col)
+                                        fig = _c_categorical_bar(df_ml, _ds_id_ml, col)
                                     st.plotly_chart(fig, use_container_width=True)
                     else:
                         st.info("No categorical columns found in the dataset.")
@@ -3062,7 +3080,7 @@ def show_dashboard():
                 with ml_subtabs[3]:
                     st.subheader("⚠️ Outlier Detection")
                     
-                    outliers = detect_outliers(df_ml)
+                    outliers = _c_outliers(df_ml, _ds_id_ml)
                     
                     if outliers:
                         st.write(f"Found outliers in **{len(outliers)}** columns:")
@@ -3080,7 +3098,8 @@ def show_dashboard():
                                 if info.get('min_outlier') and info.get('max_outlier'):
                                     st.write(f"**Range of outliers:** {info['min_outlier']:.2f} to {info['max_outlier']:.2f}")
                                 
-                                fig = create_outlier_visualization(df_ml, col, info)
+                                info_tuple = tuple(sorted((k, v) for k, v in info.items() if isinstance(v, (int, float, str, bool))))
+                                fig = _c_outlier_viz(df_ml, _ds_id_ml, col, info_tuple)
                                 st.plotly_chart(fig, use_container_width=True)
                     else:
                         st.success("No significant outliers detected in the numeric columns.")
