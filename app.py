@@ -3665,7 +3665,7 @@ def show_admin_panel():
         
         st.markdown("---")
         
-        admin_tabs = st.tabs(["👥 Users", "📊 Datasets", "💬 Conversations"])
+        admin_tabs = st.tabs(["👥 Users", "📊 Datasets", "💬 Conversations", "🔮 SEO/GEO Agent"])
         
         with admin_tabs[0]:
             st.subheader("User Management")
@@ -3728,6 +3728,9 @@ def show_admin_panel():
                         st.caption(f"Date: {chat.timestamp.strftime('%Y-%m-%d %H:%M') if chat.timestamp else '-'}")
             else:
                 st.info("No conversations yet")
+
+        with admin_tabs[3]:
+            show_seo_agent_admin()
     
     finally:
         db.close()
@@ -3736,6 +3739,247 @@ def show_admin_panel():
     if st.button("← Back to Dashboard", use_container_width=True):
         st.session_state.page = 'dashboard'
         st.rerun()
+
+
+def show_seo_agent_admin():
+    """Admin view for the weekly SEO/GEO automation agent."""
+    import json as _json
+    from seo_agent.config import load_config, save_config, AgentConfig
+    from seo_agent.db import init_agent_db, get_session, AgentRun, GeoCheckResult
+    from seo_agent.review import (
+        list_drafts, get_draft_payload, approve_draft, reject_draft,
+    )
+    from seo_agent.runner import run_weekly_cycle
+    from seo_agent.db import AgentDraft
+
+    init_agent_db()
+    cfg = load_config()
+    sess = get_session()
+    try:
+        last_run = sess.query(AgentRun).order_by(AgentRun.started_at.desc()).first()
+        recent_runs = sess.query(AgentRun).order_by(AgentRun.started_at.desc()).limit(8).all()
+        geo_runs = (sess.query(AgentRun)
+                    .filter(AgentRun.summary.isnot(None))
+                    .order_by(AgentRun.started_at.desc()).limit(12).all())
+    finally:
+        sess.close()
+
+    def _next_cron_run(expr: str):
+        """Best-effort computation of the next datetime that matches a 5-field cron.
+        Supports '*', '*/N', and integer fields. Falls back to None on weird input."""
+        from datetime import datetime as _dt, timedelta as _td
+        try:
+            mn, hr, dom, mo, dow = expr.split()
+        except Exception:
+            return None
+        def _match(field, value, lo, hi):
+            if field == "*":
+                return True
+            if field.startswith("*/"):
+                try:
+                    n = int(field[2:]); return value % n == 0
+                except Exception:
+                    return False
+            try:
+                return int(field) == value
+            except Exception:
+                return False
+        now = _dt.utcnow().replace(second=0, microsecond=0) + _td(minutes=1)
+        for _ in range(60 * 24 * 14):  # search up to 14 days out
+            cron_dow = (now.weekday() + 1) % 7  # Mon=1..Sun=0 like cron
+            if (_match(mn, now.minute, 0, 59) and _match(hr, now.hour, 0, 23)
+                    and _match(dom, now.day, 1, 31) and _match(mo, now.month, 1, 12)
+                    and _match(dow, cron_dow, 0, 6)):
+                return now
+            now += _td(minutes=1)
+        return None
+
+    st.subheader("Status")
+    c1, c2, c3, c4, c5 = st.columns(5)
+    with c1:
+        st.metric("Last run", last_run.started_at.strftime("%Y-%m-%d %H:%M") if last_run else "—")
+    with c2:
+        st.metric("Last status", (last_run.status if last_run else "never run"))
+    with c3:
+        pending = len(list_drafts("pending"))
+        st.metric("Drafts awaiting review", pending)
+    with c4:
+        nxt = _next_cron_run(cfg.schedule_cron)
+        st.metric("Next scheduled", nxt.strftime("%Y-%m-%d %H:%M") if nxt else cfg.schedule_cron)
+    with c5:
+        from datetime import datetime as _dt2, timedelta as _td2
+        sess2 = get_session()
+        try:
+            cutoff = _dt2.utcnow() - _td2(days=7)
+            published_week = (sess2.query(AgentDraft)
+                              .filter(AgentDraft.status == "approved")
+                              .filter(AgentDraft.reviewed_at >= cutoff)
+                              .count())
+        finally:
+            sess2.close()
+        st.metric("Published this week", published_week)
+
+    if last_run and last_run.summary:
+        s = last_run.summary
+        cc1, cc2, cc3, cc4 = st.columns(4)
+        cc1.metric("Drafts created", s.get("drafts_created", 0))
+        cc2.metric("Pages refreshed", s.get("drafts_refreshed", 0))
+        cc3.metric("Est. cost (USD)", f"${s.get('estimated_cost_usd', 0):.3f}")
+        rate = s.get("geo_mention_rate")
+        cc4.metric("GEO mention rate", f"{rate*100:.1f}%" if rate is not None else "—")
+
+    st.markdown("---")
+
+    sub_tabs = st.tabs(["📥 Review queue", "📈 GEO trend", "⚙️ Config", "📜 Run history"])
+
+    with sub_tabs[0]:
+        st.markdown("#### Drafts awaiting review")
+        drafts = list_drafts("pending")
+        if not drafts:
+            st.info("No drafts pending. Run the agent to generate some.")
+        for d in drafts:
+            with st.expander(f"[{d.kind}] {d.title} — {d.slug}"):
+                st.caption(f"Target query: {d.target_query} · "
+                           f"{'Refresh' if d.is_refresh else 'New'} · "
+                           f"created {d.created_at.strftime('%Y-%m-%d %H:%M')}")
+                if d.info_gain:
+                    st.markdown(f"**Information-gain note:** {d.info_gain}")
+                payload = get_draft_payload(d.id) or {}
+                inner = payload.get("payload", payload)
+                edit_mode = st.checkbox("✏️ Edit before approving", key=f"edit_{d.id}")
+                edited_text = None
+                if edit_mode:
+                    edited_text = st.text_area(
+                        "Draft JSON (edit then Approve to publish your version)",
+                        value=_json.dumps(inner, indent=2, ensure_ascii=False),
+                        height=400, key=f"edit_text_{d.id}",
+                    )
+                else:
+                    st.json(inner)
+                colA, colB, _ = st.columns([1, 1, 4])
+                if colA.button("✅ Approve", key=f"appr_{d.id}"):
+                    reviewer = (st.session_state.user or {}).get("email", "admin")
+                    edited_payload = None
+                    if edit_mode and edited_text:
+                        try:
+                            edited_payload = _json.loads(edited_text)
+                        except Exception as ex:
+                            st.error(f"Edit JSON invalid: {ex}")
+                            st.stop()
+                    res = approve_draft(d.id, reviewer=reviewer,
+                                         notes=("edited" if edited_payload else ""),
+                                         edited_payload=edited_payload)
+                    if res.get("ok"):
+                        st.success(f"Approved → injected into {res['file']}"
+                                   + (" · build triggered" if res.get("build_triggered") else ""))
+                        st.rerun()
+                    else:
+                        st.error(f"Approve failed: {res.get('error')}")
+                if colB.button("❌ Reject", key=f"rej_{d.id}"):
+                    reviewer = (st.session_state.user or {}).get("email", "admin")
+                    if reject_draft(d.id, reviewer=reviewer):
+                        st.warning("Rejected and archived.")
+                        st.rerun()
+
+        st.markdown("---")
+        if st.button("▶ Run now (manual trigger)", type="primary"):
+            with st.spinner("Running weekly cycle… this may take a few minutes."):
+                summary = run_weekly_cycle(cfg=cfg)
+            st.success(f"Done. Drafts: {summary.get('drafts_created', 0)} · "
+                       f"Refreshed: {summary.get('drafts_refreshed', 0)} · "
+                       f"Cost: ${summary.get('estimated_cost_usd', 0):.3f}")
+            st.json(summary)
+
+    with sub_tabs[1]:
+        st.markdown("#### GEO mention rate per run")
+        rows = []
+        for r in reversed(geo_runs):
+            if not r.summary:
+                continue
+            rate = r.summary.get("geo_mention_rate")
+            if rate is None:
+                continue
+            rows.append({"date": r.started_at.strftime("%Y-%m-%d"),
+                         "mention_rate_%": round(rate * 100, 1)})
+        if rows:
+            df = pd.DataFrame(rows)
+            st.line_chart(df.set_index("date"))
+            st.dataframe(df, use_container_width=True)
+        else:
+            st.info("No GEO check results yet. Run the agent first.")
+
+        st.markdown("#### Pages published per week")
+        from datetime import datetime as _dtw, timedelta as _tdw
+        sess3 = get_session()
+        try:
+            since = _dtw.utcnow() - _tdw(weeks=12)
+            approved = (sess3.query(AgentDraft)
+                        .filter(AgentDraft.status == "approved")
+                        .filter(AgentDraft.reviewed_at >= since)
+                        .all())
+        finally:
+            sess3.close()
+        if approved:
+            buckets = {}
+            for a in approved:
+                wk = (a.reviewed_at - _tdw(days=a.reviewed_at.weekday())).strftime("%Y-%m-%d")
+                buckets[wk] = buckets.get(wk, 0) + 1
+            df2 = pd.DataFrame(
+                sorted([{"week": k, "pages_published": v} for k, v in buckets.items()],
+                       key=lambda x: x["week"])
+            )
+            st.bar_chart(df2.set_index("week"))
+        else:
+            st.caption("No pages published in the last 12 weeks yet.")
+
+    with sub_tabs[2]:
+        st.markdown("#### Configuration")
+        with st.form("seo_agent_cfg"):
+            schedule = st.text_input("Cron schedule (UTC)", cfg.schedule_cron)
+            max_new = st.number_input("Max new pages per week", 0, 25, cfg.max_new_pages_per_week)
+            max_ref = st.number_input("Max refresh pages per week", 0, 25, cfg.max_refresh_pages_per_week)
+            model = st.text_input("OpenAI model", cfg.openai_model)
+            budget = st.number_input("Weekly budget cap (USD)", 0.0, 200.0, float(cfg.weekly_budget_usd), step=1.0)
+            auto_pub = st.checkbox("Auto-publish on generation (skip review)", cfg.auto_publish)
+            refresh_days = st.number_input("Refresh pages older than (days)", 7, 365, cfg.refresh_after_days)
+            email_to = st.text_input("Weekly report email", cfg.report_email_to)
+            st.markdown("**Sources enabled**")
+            sc1, sc2, sc3, sc4 = st.columns(4)
+            s_reddit = sc1.checkbox("Reddit", cfg.sources_enabled.get("reddit", True))
+            s_hn = sc2.checkbox("Hacker News", cfg.sources_enabled.get("hackernews", True))
+            s_so = sc3.checkbox("Stack Overflow", cfg.sources_enabled.get("stackoverflow", True))
+            s_gt = sc4.checkbox("Google Trends (pytrends)", cfg.sources_enabled.get("google_trends", False))
+            prompts_text = st.text_area("GEO check prompts (one per line)",
+                                        "\n".join(cfg.geo_prompts), height=220)
+            submitted = st.form_submit_button("💾 Save configuration")
+            if submitted:
+                cfg.schedule_cron = schedule
+                cfg.max_new_pages_per_week = int(max_new)
+                cfg.max_refresh_pages_per_week = int(max_ref)
+                cfg.openai_model = model
+                cfg.weekly_budget_usd = float(budget)
+                cfg.auto_publish = bool(auto_pub)
+                cfg.refresh_after_days = int(refresh_days)
+                cfg.report_email_to = email_to.strip()
+                cfg.sources_enabled = {
+                    "reddit": s_reddit, "hackernews": s_hn,
+                    "stackoverflow": s_so, "google_trends": s_gt,
+                }
+                cfg.geo_prompts = [p.strip() for p in prompts_text.splitlines() if p.strip()]
+                save_config(cfg)
+                st.success("Saved.")
+
+    with sub_tabs[3]:
+        st.markdown("#### Recent runs")
+        if not recent_runs:
+            st.info("No runs recorded yet.")
+        for r in recent_runs:
+            label = (f"{r.started_at.strftime('%Y-%m-%d %H:%M')} · {r.status} · "
+                     f"{r.drafts_created or 0} drafts · ${r.estimated_cost_usd or 0:.3f}")
+            with st.expander(label):
+                st.json(r.summary or {})
+                if r.errors:
+                    st.error(r.errors[:2000])
 
 
 def render_clickable_logo(key_suffix=""):

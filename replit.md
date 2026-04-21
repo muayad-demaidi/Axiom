@@ -26,6 +26,8 @@ A comprehensive intelligent data analytics system built with Streamlit that prov
 │   └── logo.png           # Transparent logo (DataVision Pro)
 ├── .streamlit/
 │   └── config.toml        # Streamlit configuration
+├── seo_agent/             # Weekly SEO/GEO automation agent (sources, generator, review queue, GEO check)
+├── scripts/run_seo_agent.py  # CLI entry for the scheduled weekly cycle
 ├── marketing-site/        # SEO/GEO marketing site (Astro, separate deployment)
 │   ├── src/
 │   │   ├── content/       # Glossary, Compare, Guides data (TypeScript)
@@ -45,6 +47,17 @@ A separate, fully crawlable Astro site at `marketing-site/` powers organic disco
 - Workflow: **Marketing site** runs `astro dev` on port 8000 (console output).
 - Build: `cd marketing-site && npm run build` produces a static `dist/` folder for separate deployment.
 - See `marketing-site/README.md` for full details, content rules, and the publishable page list (~22 pages: 5 core + 8 glossary + 3 compare + 3 guides + 3 hubs).
+
+## Weekly SEO/GEO Automation Agent
+A scheduled background agent (`seo_agent/` package + `scripts/run_seo_agent.py` CLI) runs once a week to keep the marketing site fresh and front-of-mind for both search engines and AI answer engines.
+
+What it does each cycle: pulls trending topics from Reddit / Hacker News / Stack Overflow (Google Trends optional), de-duplicates and scores them, fetches the current top-3 SERP per topic, drafts new GEO-optimised pages with the existing OpenAI integration (strict template: 40-60 word direct answer, ≥1 cited stat per section, FAQ block, JSON-LD, 1,200-2,000 words), refreshes existing pages older than 90 days, runs a brand-mention check across ~15 fixed prompts, persists everything to three new tables (`seo_agent_runs`, `seo_agent_drafts`, `seo_agent_geo_checks`) and emails a weekly summary via Resend.
+
+- **Human-approval by default.** Drafts land in `marketing-site/_review/drafts/` as JSON; the admin panel's new **🔮 SEO/GEO Agent** tab lets you preview, approve (injects the entry into the matching `src/content/*.ts` file), or reject. Auto-publish is a config toggle, off by default.
+- **Information-gain rule is hard.** Pages whose generator cannot produce a unique fact/stat are dropped, not softened. The generator returns the literal `DROP_NO_INFORMATION_GAIN` and the run records the drop.
+- **Cost guardrails.** Each call's tokens are tallied against a configurable weekly USD cap (default $7); when crossed the run stops cleanly and the cap event is reported.
+- **Schedule.** Configure as a Replit Scheduled Deployment with command `python scripts/run_seo_agent.py` and cron `0 8 * * 1`. A "Run now" button in the admin panel triggers it manually.
+- See `marketing-site/SEO_AGENT.md` for the full operator guide (config knobs, approval workflow, pausing, file map).
 
 ## Tech Stack
 - **Streamlit**: Interactive web interface
@@ -151,3 +164,4 @@ Admins can access:
 - **January 2026**: UI redesign with neon theme, user authentication, subscription system, admin panel, English interface
 - **February 2026**: Converted to 3-tier system without payment, Matrix theme with glassmorphism
 - **February 2026**: Major redesign - removed sidebar from home, professional registration form, 60-day trial system, email notifications, support contact form, require account for all access
+- **April 2026**: Added the weekly SEO/GEO automation agent (`seo_agent/` package + scheduled CLI), with file-based review queue, three new audit tables, admin panel tab, and `marketing-site/SEO_AGENT.md` operator guide.

@@ -11,6 +11,7 @@ export type Guide = {
   pitfalls: string[];
   faq: { q: string; a: string }[];
   updated: string;
+  jsonLd?: Record<string, unknown>[]; // optional JSON-LD blocks emitted by the SEO/GEO agent
 };
 
 export const GUIDES: Guide[] = [

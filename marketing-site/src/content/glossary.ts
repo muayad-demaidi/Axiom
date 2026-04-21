@@ -13,6 +13,7 @@ export type GlossaryEntry = {
   faq: FAQ[];
   related: string[]; // slugs
   updated: string;
+  jsonLd?: Record<string, unknown>[]; // optional JSON-LD blocks emitted by the SEO/GEO agent
 };
 
 export const GLOSSARY: GlossaryEntry[] = [
