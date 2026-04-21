@@ -1447,6 +1447,9 @@ try:
     elif st.query_params.get('register') == '1':
         st.session_state.page = 'register'
         st.query_params.clear()
+    elif st.query_params.get('help') == '1':
+        st.session_state.page = 'help'
+        st.query_params.clear()
     # Public, token-gated SEO review page (mobile-friendly, no login required).
     # Keep the token in the URL so refreshes stay authorised.
     elif st.query_params.get('review_token'):
@@ -3862,8 +3865,11 @@ def show_login_page():
 <div>
 <div class="lp-footer-col-title">Support</div>
 <ul class="lp-footer-links-list">
+<li><a href="?help=1" target="_self">Help Center</a></li>
+<li><a href="?help=1" target="_self">Documentation</a></li>
 <li><a href="/#contact" target="_self">Contact Us</a></li>
 <li><a href="mailto:muayad.demaidi.work@gmail.com">Email Support</a></li>
+<li><a href="?help=1#report-issue" target="_self">Report an Issue</a></li>
 </ul>
 </div>
 <div>
@@ -4201,8 +4207,11 @@ def show_register_page():
 </div>
 <div class="lp-footer-col">
 <div class="lp-footer-col-title">SUPPORT</div>
+<a class="lp-footer-link" href="?help=1" target="_self">Help Center</a>
+<a class="lp-footer-link" href="?help=1" target="_self">Documentation</a>
 <a class="lp-footer-link" href="/#contact" target="_self">Contact Us</a>
 <a class="lp-footer-link" href="mailto:muayad.demaidi.work@gmail.com">Email Support</a>
+<a class="lp-footer-link" href="?help=1#report-issue" target="_self">Report an Issue</a>
 </div>
 <div class="lp-footer-col">
 <div class="lp-footer-col-title">LEARN</div>
@@ -7369,6 +7378,228 @@ def show_support_section():
     st.markdown('</div></div></div>', unsafe_allow_html=True)
 
 
+def show_help_page():
+    logo_b64 = get_logo_base64()
+
+    _render_auth_chrome(
+        logo_b64,
+        action_label="Dashboard" if st.session_state.user else "Sign In",
+        action_href="/" if st.session_state.user else "?signin=1",
+    )
+
+    st.markdown(
+        '<h1 class="glow-text" style="font-size:2.75rem;margin-top:1rem;">Help Center</h1>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<p class="sub-title">Everything you need to get the most out of DataVision Pro &mdash; '
+        'from your first upload to advanced cleaning and AI insights.</p>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("### Jump to a topic")
+    topic_cols = st.columns(4)
+    topics = [
+        ("Getting Started", "#getting-started"),
+        ("Uploading Data", "#uploading-data"),
+        ("Cleaning Recipe", "#cleaning-recipe"),
+        ("Analytics Report", "#analytics-report"),
+        ("AI Assistant", "#ai-assistant"),
+        ("Account & Billing", "#account-billing"),
+        ("Report an Issue", "#report-issue"),
+        ("FAQ", "#faq"),
+    ]
+    for i, (label, anchor) in enumerate(topics):
+        with topic_cols[i % 4]:
+            st.markdown(f"- [{label}]({anchor})")
+
+    st.divider()
+
+    # ── Getting Started ─────────────────────────────────────────────────────
+    st.markdown('<a id="getting-started"></a>', unsafe_allow_html=True)
+    st.header("Getting Started")
+    st.markdown(
+        "DataVision Pro turns spreadsheets and CSVs into clean datasets, "
+        "descriptive statistics, charts, and AI-powered insights — without writing code."
+    )
+    st.markdown(
+        "**Five-minute walkthrough:**\n"
+        "1. **Create an account** from the Sign In page (free 60-day trial, no credit card required).\n"
+        "2. **Open the Dashboard** — this is your home base for uploading data and reviewing results.\n"
+        "3. **Upload a file** (CSV or Excel). The platform will auto-detect encoding, delimiter, and header row.\n"
+        "4. **Run the cleaning recipe** to remove duplicates, fix types, normalise text, and handle missing values.\n"
+        "5. **Read the analytics report** for descriptive statistics, distributions, correlations, and visualisations.\n"
+        "6. **Ask the AI assistant** any question about the dataset in plain English."
+    )
+
+    st.divider()
+
+    # ── Uploading Data ──────────────────────────────────────────────────────
+    st.markdown('<a id="uploading-data"></a>', unsafe_allow_html=True)
+    st.header("Uploading Data")
+    st.markdown(
+        "**Supported formats:** `.csv`, `.xlsx`, `.xls`.\n\n"
+        "**What happens on upload:**\n"
+        "- Encoding (UTF-8, Latin-1, Windows-1252, …) is auto-detected so accented characters render correctly.\n"
+        "- The CSV delimiter (comma, semicolon, tab, pipe) is sniffed from the first lines.\n"
+        "- Header detection decides whether the first row contains column names.\n"
+        "- If anything looks ambiguous, you can override the delimiter, header, and encoding before parsing.\n\n"
+        "**Tips for clean uploads:**\n"
+        "- Keep one table per sheet — extra summary rows or merged headers can confuse parsing.\n"
+        "- Remove totals/subtotals at the bottom of the file before uploading.\n"
+        "- For very wide spreadsheets, only upload the columns you actually need to analyse.\n"
+        "- Files are stored privately to your account; you can save snapshots and reload them later."
+    )
+
+    st.divider()
+
+    # ── Cleaning Recipe ─────────────────────────────────────────────────────
+    st.markdown('<a id="cleaning-recipe"></a>', unsafe_allow_html=True)
+    st.header("Cleaning Recipe")
+    st.markdown(
+        "The cleaning recipe is a sequence of steps the platform applies to your raw data. "
+        "Every step is transparent and reversible — you can review, reorder, or remove any of them."
+    )
+    st.markdown(
+        "**Steps you'll typically see:**\n"
+        "- **Remove duplicate rows** — exact duplicates are dropped.\n"
+        "- **Fix column types** — numbers, dates, booleans, and currencies are inferred from values.\n"
+        "- **Normalise text** — trim whitespace, collapse double spaces, standardise casing.\n"
+        "- **Handle missing values** — choose between leaving blanks, filling with a default, or dropping rows.\n"
+        "- **Detect currencies** — values like `$1,200.50` or `€ 12,30` are parsed into numeric amounts with a currency code.\n"
+        "- **Parse dates** — common formats are recognised; ambiguous ones are flagged for review.\n\n"
+        "**Reviewing the recipe:** every tab in the dashboard has a *Review* panel that shows what was applied "
+        "and lets you tweak settings before the report regenerates."
+    )
+
+    st.divider()
+
+    # ── Reading the Analytics Report ────────────────────────────────────────
+    st.markdown('<a id="analytics-report"></a>', unsafe_allow_html=True)
+    st.header("Reading the Analytics Report")
+    st.markdown(
+        "Once cleaning is done, the report is split into focused sections:"
+    )
+    st.markdown(
+        "- **Overview** — row/column counts, data types, missingness, and data quality flags.\n"
+        "- **Descriptive statistics** — for numeric columns: count, mean, median, standard deviation, min/max, "
+        "and quartiles. For text columns: unique values, top categories, and frequency.\n"
+        "- **Distributions** — histograms for numeric data and bar charts for categorical data.\n"
+        "- **Correlations** — a heatmap that shows which numeric columns move together.\n"
+        "- **Trends over time** — when a date column is detected, key metrics are charted by day, week, or month.\n"
+        "- **Insights** — short, plain-English notes calling out anomalies, outliers, and notable patterns.\n\n"
+        "Charts and tables can be exported, and you can download the cleaned dataset as CSV or Excel."
+    )
+
+    st.divider()
+
+    # ── AI Assistant ────────────────────────────────────────────────────────
+    st.markdown('<a id="ai-assistant"></a>', unsafe_allow_html=True)
+    st.header("AI Assistant")
+    st.markdown(
+        "The AI assistant lets you ask questions about your dataset in natural language. "
+        "It has full context of your cleaned data, column types, and summary statistics."
+    )
+    st.markdown(
+        "**Example questions:**\n"
+        "- *Which product category had the highest average revenue last quarter?*\n"
+        "- *Are there any unusual spikes in returns this month?*\n"
+        "- *Compare conversion rates between regions A and B.*\n"
+        "- *Suggest three follow-up analyses I should run.*\n\n"
+        "**Best practices:**\n"
+        "- Be specific about the column or metric you mean.\n"
+        "- Ask one question at a time for the clearest answer.\n"
+        "- The assistant will tell you when it's uncertain — treat those moments as a cue to clarify your question or check the data."
+    )
+
+    st.divider()
+
+    # ── Account & Billing ───────────────────────────────────────────────────
+    st.markdown('<a id="account-billing"></a>', unsafe_allow_html=True)
+    st.header("Account & Billing Basics")
+    st.markdown(
+        "**Your account:**\n"
+        "- Sign up with email and password — passwords are hashed with bcrypt and stored securely.\n"
+        "- Forgot your password? Use the *Forgot Password* link on the Sign In page to receive a reset email.\n"
+        "- You can update your email and password from the dashboard settings.\n\n"
+        "**Plans & trial:**\n"
+        "- New accounts start with a 60-day free trial — no credit card required.\n"
+        "- Plan tiers and limits are shown on the Pricing page (use the *View Pricing* button at the bottom of this page).\n"
+        "- Saved datasets, cleaning recipes, and reports remain available for the lifetime of your account.\n\n"
+        "**Privacy & data:**\n"
+        "- Your data is private to your account and is never used to train shared models.\n"
+        "- You can delete saved datasets at any time from the dashboard."
+    )
+
+    st.divider()
+
+    # ── Report an Issue ─────────────────────────────────────────────────────
+    st.markdown('<a id="report-issue"></a>', unsafe_allow_html=True)
+    st.header("Report an Issue")
+    st.markdown(
+        "Found a bug, hit an error, or have a feature request? Send us a note and we'll get back within 24 hours."
+    )
+    st.markdown(
+        "**When reporting an issue, please include:**\n"
+        "- What you were trying to do (e.g. *upload a CSV with semicolons as delimiters*).\n"
+        "- What happened instead (the error message, or what looked wrong).\n"
+        "- The size and format of the file if it's data-related (rows × columns, CSV vs Excel).\n"
+        "- Browser and device, if it's a display or layout issue."
+    )
+
+    show_support_section()
+
+    st.divider()
+
+    # ── FAQ ─────────────────────────────────────────────────────────────────
+    st.markdown('<a id="faq"></a>', unsafe_allow_html=True)
+    st.header("FAQ")
+    with st.expander("Is my data private?"):
+        st.write(
+            "Yes. Datasets you upload are stored privately to your account, never shared with other users, "
+            "and never used to train shared AI models."
+        )
+    with st.expander("What file size and format limits apply?"):
+        st.write(
+            "CSV and Excel files are supported. Very large files may take longer to clean and analyse — "
+            "if you hit a limit, the dashboard will let you know and suggest a smaller upload."
+        )
+    with st.expander("Can I save and reload datasets?"):
+        st.write(
+            "Yes. Cleaned datasets can be saved from the dashboard and reopened later from your saved datasets list."
+        )
+    with st.expander("How accurate are the AI insights?"):
+        st.write(
+            "The AI assistant uses your actual cleaned data, summary statistics, and column metadata to ground its "
+            "answers, but it can still make mistakes. Always double-check important conclusions against the underlying tables and charts."
+        )
+    with st.expander("How do I cancel or change my plan?"):
+        st.write(
+            "Plan changes can be requested through the support form above. Your data stays intact across plan changes."
+        )
+
+    st.divider()
+
+    nav_cols = st.columns([1, 1, 1])
+    with nav_cols[0]:
+        if st.button("← Back to Home", use_container_width=True, key="help_back_home"):
+            st.session_state.page = 'home'
+            st.rerun()
+    with nav_cols[1]:
+        if st.session_state.user:
+            if st.button("Open Dashboard", use_container_width=True, key="help_open_dashboard"):
+                st.session_state.page = 'dashboard'
+                st.rerun()
+        else:
+            if st.button("Sign In", use_container_width=True, key="help_sign_in"):
+                st.session_state.page = 'login'
+                st.rerun()
+    with nav_cols[2]:
+        if st.button("View Pricing", use_container_width=True, key="help_pricing"):
+            st.session_state.page = 'pricing'
+            st.rerun()
+
+
 def show_home_page():
     logo_b64 = get_logo_base64()
 
@@ -7537,8 +7768,11 @@ def show_home_page():
 <div>
 <div class="lp-footer-col-title">Support</div>
 <ul class="lp-footer-links-list">
+<li><a href="?help=1" target="_self">Help Center</a></li>
+<li><a href="?help=1" target="_self">Documentation</a></li>
 <li><a href="/#contact" target="_self">Contact Us</a></li>
 <li><a href="mailto:muayad.demaidi.work@gmail.com">Email Support</a></li>
+<li><a href="?help=1#report-issue" target="_self">Report an Issue</a></li>
 </ul>
 </div>
 <div>
@@ -7687,6 +7921,8 @@ elif st.session_state.page == 'pricing':
     show_pricing_page()
 elif st.session_state.page == 'review':
     show_public_review_page()
+elif st.session_state.page == 'help':
+    show_help_page()
 elif st.session_state.page == 'admin':
     if st.session_state.user and st.session_state.user.get('is_admin'):
         show_admin_panel()
