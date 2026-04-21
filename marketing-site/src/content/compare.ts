@@ -146,6 +146,96 @@ export const COMPARE: Compare[] = [
     ],
     updated: "2026-04-15",
   },
+  {
+    slug: "datavision-pro-vs-looker-studio",
+    competitor: "Looker Studio",
+    title: "DataVision Pro vs Looker Studio",
+    description:
+      "DataVision Pro vs Google Looker Studio — compare AI features, file-based analysis, dashboard governance, and pricing. Honest trade-offs, no fabricated metrics.",
+    intro:
+      "DataVision Pro is an AI-first analytics platform built around uploading a file and getting cleaned data, statistics, ML, and AI insights immediately. Looker Studio (formerly Google Data Studio) is a free dashboard tool tightly integrated with the Google ecosystem — Sheets, BigQuery, Google Ads, GA4. Pick DataVision Pro for fast file-based analysis with AI; pick Looker Studio for free shareable dashboards on Google data sources.",
+    bestFor: {
+      us: "Analysts who upload CSV/Excel files and want AI-explained cleaning, statistics, and ML in one tool.",
+      them: "Teams that live in Google Sheets, BigQuery, Google Ads, or GA4 and need free, shareable dashboards.",
+    },
+    rows: [
+      { feature: "Primary use case", us: "Ad-hoc analysis of files", them: "Dashboards over Google data sources" },
+      { feature: "Setup time", us: "Sign up → upload → insights in minutes", them: "Connect data source → model → build dashboard" },
+      { feature: "Auto data cleaning", us: "Built-in toggleable cleaning pipeline", them: "Limited — calculated fields and data blending only" },
+      { feature: "AI chat over your data", us: "Built-in (GPT-powered)", them: "Gemini in Looker Studio Pro [verify against current Google pricing]" },
+      { feature: "Built-in ML", us: "K-Means + RandomForest + linear models", them: "None natively; requires BigQuery ML or Vertex AI" },
+      { feature: "Best data sources", us: "CSV, Excel uploads", them: "Google Sheets, BigQuery, Google Ads, GA4 (150+ connectors)" },
+      { feature: "Pricing entry point", us: "60-day free Tier 3 trial; tiered free access", them: "Free; Looker Studio Pro adds enterprise features" },
+      { feature: "Dashboard sharing", us: "Web link, role-based access", them: "Native Google Drive sharing — links, viewers, editors" },
+      { feature: "Refresh schedule", us: "Re-upload or re-import on demand", them: "Live connections refresh automatically" },
+    ],
+    whenToChoose: {
+      us: [
+        "Your data lives in flat files (CSV/Excel), not Google warehouses.",
+        "You want AI summaries and recommendations baked into every chart.",
+        "You need cleaning, descriptive statistics, and ML in one tool with no extra licences.",
+        "You don't need always-live dashboard refresh — periodic uploads are fine.",
+      ],
+      them: [
+        "Your data already lives in Google Sheets, BigQuery, GA4, or Google Ads.",
+        "You need free, shareable, always-live dashboards more than AI cleaning or ML.",
+        "Your stakeholders are used to Google's editing UX (Docs, Sheets, Slides).",
+        "You're standing up marketing or product reporting on a Google stack.",
+      ],
+    },
+    faq: [
+      { q: "Is Looker Studio really free?", a: "Yes — the standard product is free for any Google account. Looker Studio Pro adds enterprise features (team workspaces, asset management, support) at a per-project monthly fee. [verify against current Google pricing]" },
+      { q: "Does DataVision Pro connect to BigQuery?", a: "Today it consumes CSV/Excel uploads. Direct warehouse connectors are on the roadmap. For now, export the relevant slice from BigQuery to CSV and upload it." },
+      { q: "Which is better for AI?", a: "DataVision Pro builds AI into every analysis page out of the box. Looker Studio's Gemini features sit behind the Pro tier and focus on chart-suggestion and natural-language querying." },
+      { q: "Can I use both?", a: "Yes — many teams use Looker Studio for live shareable dashboards over GA4/Google Ads, and DataVision Pro for deeper ad-hoc analysis on extracts." },
+    ],
+    updated: "2026-04-21",
+  },
+  {
+    slug: "datavision-pro-vs-metabase",
+    competitor: "Metabase",
+    title: "DataVision Pro vs Metabase",
+    description:
+      "DataVision Pro vs Metabase — compare AI features, file-based analysis, self-service BI, and hosting. An honest side-by-side, no fabricated lift numbers.",
+    intro:
+      "DataVision Pro is a hosted AI analytics platform focused on uploading a file and getting cleaned data, statistics, ML, and AI insights immediately. Metabase is an open-source self-service BI tool that points at your database and lets non-engineers build questions and dashboards in a friendly UI. Pick DataVision Pro for AI-first file analysis; pick Metabase for self-hosted dashboards over a SQL database.",
+    bestFor: {
+      us: "Analysts who upload files and want AI-explained cleaning, stats, and ML without hosting infrastructure.",
+      them: "Teams with a Postgres / MySQL / warehouse who want self-service exploration and dashboards on top of it.",
+    },
+    rows: [
+      { feature: "Primary use case", us: "Ad-hoc file analysis with AI", them: "Self-service BI on a SQL database" },
+      { feature: "Hosting", us: "Hosted SaaS", them: "Self-host (open-source) or Metabase Cloud" },
+      { feature: "Source data", us: "CSV / Excel uploads", them: "Direct connection to 20+ databases" },
+      { feature: "Auto data cleaning", us: "Built-in toggleable cleaning pipeline", them: "Not really — Metabase assumes the warehouse is already clean" },
+      { feature: "AI features", us: "GPT-powered chat + auto-generated reports", them: "Metabot AI for natural-language questions [verify against current Metabase tier]" },
+      { feature: "Built-in ML", us: "K-Means + RandomForest + linear models", them: "None — relies on SQL and your warehouse's ML if any" },
+      { feature: "Pricing", us: "60-day free Tier 3 trial; tiered free access", them: "Open-source free; Pro and Enterprise editions per Metabase pricing" },
+      { feature: "Best for", us: "Analysts working from extracts", them: "Engineering-adjacent teams with a database" },
+      { feature: "Learning curve", us: "No SQL required", them: "Question-builder is no-code; deeper analysis often requires SQL" },
+    ],
+    whenToChoose: {
+      us: [
+        "Your data lives in CSV/Excel exports, not a queryable database.",
+        "You want AI to explain and summarise every chart automatically.",
+        "You need cleaning + stats + ML in one place without hosting anything.",
+        "You don't have an engineer available to install or maintain a BI server.",
+      ],
+      them: [
+        "You already run Postgres, MySQL, Snowflake, BigQuery, or Redshift.",
+        "You want a free, self-hosted BI layer your team can extend.",
+        "Your stakeholders are happy writing SQL or click-built questions.",
+        "You need fine-grained permissions and audit logs that come with self-hosting.",
+      ],
+    },
+    faq: [
+      { q: "Is Metabase free?", a: "The open-source edition is free to self-host. Metabase Cloud and Pro/Enterprise editions add managed hosting, SSO, and advanced permissions at per-user pricing. [verify against current Metabase pricing]" },
+      { q: "Can DataVision Pro connect to my Postgres?", a: "Today it consumes CSV/Excel uploads. Direct database connectors are on the roadmap. For now, export the slice you need and upload it." },
+      { q: "Which is better for AI?", a: "DataVision Pro builds GPT-powered analysis into every page by default. Metabase's Metabot is focused on natural-language SQL question generation; both are useful in different ways." },
+      { q: "Can I use both?", a: "Yes — Metabase is excellent for always-on dashboards over your warehouse; DataVision Pro is excellent for AI-driven deep-dives on the extracts your team needs to investigate." },
+    ],
+    updated: "2026-04-21",
+  },
 ];
 
 export const getCompare = (slug: string) => COMPARE.find((c) => c.slug === slug);

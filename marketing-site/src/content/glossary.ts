@@ -438,6 +438,225 @@ export const GLOSSARY: GlossaryEntry[] = [
     related: ["data-cleaning", "outlier-detection", "descriptive-statistics", "predictive-analytics"],
     updated: "2026-04-15",
   },
+  {
+    slug: "normalization",
+    term: "Normalization",
+    question: "What is data normalization?",
+    shortDef:
+      "Rescaling numeric features onto a common scale (typically 0–1 or mean 0 / std 1) so they contribute comparably to a model.",
+    description:
+      "Data normalization rescales numeric columns so features measured in different units contribute comparably to a model. Learn min-max, z-score, and robust scaling — and when to use each.",
+    answer:
+      "Normalization is the process of rescaling numeric features so they share a common range or distribution — typically 0–1 (min-max), mean 0 / std 1 (z-score), or median 0 / IQR 1 (robust scaling). It is required for any model that uses Euclidean distance or gradient descent, including K-Means, KNN, SVMs, and neural networks.",
+    stats: [
+      {
+        value: "10×–100×",
+        label: "Typical convergence speedup for gradient-descent training when input features are normalized to comparable scales.",
+        source: { label: "LeCun et al., Efficient BackProp (1998)", url: "http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf" },
+      },
+      {
+        value: "Z-score = (x − μ) / σ",
+        label: "Standardisation formula — produces a feature with mean 0 and standard deviation 1, the default for scikit-learn's StandardScaler.",
+        source: { label: "scikit-learn — Preprocessing data", url: "https://scikit-learn.org/stable/modules/preprocessing.html" },
+      },
+    ],
+    sections: [
+      {
+        heading: "The three common scalers",
+        html: `<ul>
+          <li><strong>Min-max</strong> — maps to [0, 1]. Sensitive to outliers; great for image pixels and bounded inputs.</li>
+          <li><strong>Z-score (standardisation)</strong> — mean 0, std 1. The safe default for most tabular ML.</li>
+          <li><strong>Robust scaler</strong> — uses median and IQR instead of mean and std. Best when the column has outliers you cannot remove.</li>
+        </ul>`,
+      },
+      {
+        heading: "Normalization vs standardisation",
+        html: `<p>Strictly, "normalization" means rescaling to a fixed range (usually 0–1) and "standardisation" means rescaling to mean 0 / std 1. In practice the words are used interchangeably — what matters is that you fit the scaler on training data only and apply it (without refitting) to validation, test, and production data.</p>`,
+      },
+      {
+        heading: "When you do not need it",
+        html: `<p>Tree-based models — Random Forest, XGBoost, LightGBM — are scale-invariant and do not benefit from normalization. Skipping it for trees keeps feature interpretability intact. DataVision Pro applies z-score scaling automatically before K-Means clustering and skips it for tree models.</p>`,
+      },
+    ],
+    faq: [
+      { q: "Should I normalize the target variable?", a: "For regression, optionally yes — it can stabilise loss values. Always invert the transform before reporting predictions in business units." },
+      { q: "Min-max or z-score by default?", a: "Z-score for tabular ML; min-max for image pixels and any input that already has a meaningful bounded range." },
+      { q: "Do I refit the scaler on new data?", a: "No. Fit once on training data, then apply the saved scaler to all new data. Refitting leaks information across splits." },
+      { q: "What about categorical features?", a: "Don't normalize them. One-hot encode or target-encode first; numeric scaling applies only to true numeric columns." },
+      { q: "Does normalization fix skewed distributions?", a: "No — it only rescales. To reduce skew, log-transform or Box-Cox first, then normalize the result." },
+    ],
+    related: ["k-means-clustering", "data-cleaning", "predictive-analytics", "descriptive-statistics"],
+    updated: "2026-04-21",
+  },
+  {
+    slug: "time-series",
+    term: "Time Series Analysis",
+    question: "What is time series analysis?",
+    shortDef:
+      "Statistical methods for analysing data points indexed in time order to find trend, seasonality, and forecast future values.",
+    description:
+      "Time series analysis finds trend, seasonality, and autocorrelation in data ordered by time, then uses them to forecast. Learn decomposition, ARIMA, Prophet, and the holdout discipline that keeps forecasts honest.",
+    answer:
+      "Time series analysis is the study of data points collected sequentially over time — sales by day, temperature by hour, page views by minute. It decomposes the series into trend, seasonality, and residual components, models the dependency between consecutive observations, and uses the result to forecast future values with an explicit error band.",
+    stats: [
+      {
+        value: "2 full cycles",
+        label: "Minimum history required for a model to learn seasonality reliably — e.g. 24 months of monthly data for annual seasonality.",
+        source: { label: "Hyndman & Athanasopoulos, Forecasting: Principles and Practice (3rd ed.)", url: "https://otexts.com/fpp3/" },
+      },
+      {
+        value: "MAPE 5–10%",
+        label: "Industry benchmark for an excellent monthly demand forecast on established products; new products typically land at 15–25%.",
+        source: { label: "Institute of Business Forecasting & Planning — Forecast Accuracy Benchmarks", url: "https://ibf.org/knowledge/journal-of-business-forecasting/" },
+      },
+    ],
+    sections: [
+      {
+        heading: "The classic decomposition",
+        html: `<p>Every time series can be split into three pieces:</p>
+        <ul>
+          <li><strong>Trend</strong> — the long-run direction (growing, shrinking, flat).</li>
+          <li><strong>Seasonality</strong> — repeating patterns at a fixed period (weekly, monthly, annual).</li>
+          <li><strong>Residual</strong> — what's left after removing trend and seasonality; ideally pure noise.</li>
+        </ul>
+        <p>Looking at the decomposition before modelling tells you whether to use additive (constant seasonality) or multiplicative (seasonality grows with the level) models.</p>`,
+      },
+      {
+        heading: "Common model families",
+        html: `<ul>
+          <li><strong>Naive / seasonal naive</strong> — the baseline every other model must beat.</li>
+          <li><strong>Exponential smoothing (ETS)</strong> — fast, robust, great for short series with seasonality.</li>
+          <li><strong>ARIMA / SARIMA</strong> — captures autocorrelation; needs a stationary series.</li>
+          <li><strong>Prophet</strong> — Meta's open-source library; tolerates missing data and holiday effects.</li>
+          <li><strong>Tree-based regressors with lag features</strong> — Random Forest / XGBoost on lagged columns; the modern default for tabular forecasting.</li>
+        </ul>`,
+      },
+      {
+        heading: "The non-negotiable: time-aware holdouts",
+        html: `<p>Never shuffle a time series before splitting. Train on the past, test on the future. DataVision Pro's predictions tab enforces this by holding out the most recent N periods and reporting MAPE on that window — the only honest accuracy estimate for forecasting.</p>`,
+      },
+    ],
+    faq: [
+      { q: "Is time series the same as regression?", a: "No — regression assumes independent observations. Time series observations are correlated with their own past, which requires different validation and model families." },
+      { q: "Do I need to make the series stationary?", a: "ARIMA-family models need stationarity (differencing usually achieves it). Prophet and tree-based models do not." },
+      { q: "How do I handle missing dates?", a: "Fill explicit zeros for periods where the count was genuinely zero, and impute or interpolate periods where the data was simply not collected. The two are very different." },
+      { q: "Can I forecast a single number?", a: "You can, but you shouldn't. Always report a range — point estimate ± holdout error — so consumers know how much uncertainty to budget for." },
+      { q: "What about external regressors like marketing spend?", a: "Useful only if their future values are known at forecast time. Planned spend works; reactive spend that depends on sales does not." },
+    ],
+    related: ["predictive-analytics", "data-drift", "descriptive-statistics", "data-cleaning"],
+    updated: "2026-04-21",
+  },
+  {
+    slug: "ab-testing",
+    term: "A/B Testing",
+    question: "What is A/B testing?",
+    shortDef:
+      "A controlled experiment that randomly splits users between two versions and measures which produces a better outcome on a chosen metric.",
+    description:
+      "A/B testing randomly splits users between two variants and measures which produces a better outcome. Learn power analysis, sample-size calculation, p-values, and the pitfalls that invalidate most tests.",
+    answer:
+      "A/B testing is a controlled experiment that randomly assigns users to one of two variants (control A, treatment B) and measures which produces a better outcome on a pre-declared metric. Done right it provides causal evidence; done wrong — peeking, multiple comparisons, under-powering — it produces confident-looking conclusions that do not replicate.",
+    stats: [
+      {
+        value: "10–20%",
+        label: "Typical share of A/B tests at mature experimentation programs that show a statistically significant lift — most ideas don't beat control.",
+        source: { label: "Kohavi, Tang & Xu — Trustworthy Online Controlled Experiments (2020)", url: "https://experimentguide.com" },
+      },
+      {
+        value: "n ≈ 16 · σ² / δ²",
+        label: "Per-arm sample-size approximation for detecting effect δ with 80% power at α = 0.05 — the formula every PM should memorise.",
+        source: { label: "Lehr's rule of thumb, NIST/SEMATECH e-Handbook of Statistical Methods", url: "https://www.itl.nist.gov/div898/handbook/" },
+      },
+    ],
+    sections: [
+      {
+        heading: "How to run a trustworthy test",
+        html: `<ol>
+          <li><strong>Pre-register</strong> the hypothesis, primary metric, and minimum detectable effect.</li>
+          <li><strong>Power-analyse</strong> to compute the sample size you need before launching.</li>
+          <li><strong>Randomise</strong> at the right unit (user, session, or device — never request).</li>
+          <li><strong>Don't peek</strong> — checking results daily and stopping when you "see significance" inflates the false-positive rate well above 5%.</li>
+          <li><strong>Run for full business cycles</strong> — at least one full week to capture weekday vs weekend behaviour.</li>
+          <li><strong>Report effect size with a confidence interval</strong>, not just a p-value.</li>
+        </ol>`,
+      },
+      {
+        heading: "What invalidates most tests",
+        html: `<ul>
+          <li><strong>Sample-ratio mismatch</strong> — if your 50/50 split lands at 48/52, the randomisation is broken and the result is suspect.</li>
+          <li><strong>Novelty and primacy effects</strong> — short tests on UX changes capture reaction, not long-run behaviour.</li>
+          <li><strong>Multiple comparisons</strong> — testing 10 metrics at α = 0.05 yields one false positive on average per test.</li>
+          <li><strong>Interaction with concurrent tests</strong> — overlapping experiments need orthogonal randomisation or you measure their combination.</li>
+        </ul>`,
+      },
+    ],
+    faq: [
+      { q: "What sample size do I need?", a: "It depends on baseline rate, minimum detectable effect, and desired power. For a 5% baseline conversion and a 1-percentage-point lift at 80% power, you need roughly 30,000 users per arm." },
+      { q: "Is p < 0.05 enough?", a: "It's the convention, not the truth. Pair it with a confidence interval, a pre-registered hypothesis, and a sanity check that the lift is large enough to matter commercially." },
+      { q: "Can I stop early if I see a winner?", a: "Only with a sequential test design (e.g. group-sequential or always-valid p-values). Naive early stopping doubles your false-positive rate." },
+      { q: "Is A/B testing the same as multivariate testing?", a: "No. A/B compares two versions; multivariate tests several factors simultaneously to find the best combination — and needs much larger samples." },
+      { q: "Can I A/B test in DataVision Pro?", a: "DataVision Pro analyses the results of an A/B test you've already run — load both arms, compute lift, confidence interval, and statistical significance side-by-side using the time-period comparison view." },
+    ],
+    related: ["descriptive-statistics", "predictive-analytics", "data-drift", "outlier-detection"],
+    updated: "2026-04-21",
+  },
+  {
+    slug: "anomaly-detection",
+    term: "Anomaly Detection",
+    question: "What is anomaly detection?",
+    shortDef:
+      "Identifying observations or patterns that do not conform to expected behaviour, typically signalling fraud, faults, or genuinely new events.",
+    description:
+      "Anomaly detection identifies observations that violate an expected pattern, signalling fraud, faults, or new behaviour. Learn the difference vs outlier detection, the main algorithm families, and how to evaluate them.",
+    answer:
+      "Anomaly detection is the practice of identifying observations or patterns that violate expected behaviour — fraudulent transactions, failing equipment, sudden traffic spikes. Unlike outlier detection (which is purely statistical), anomaly detection is contextual: a $50 sale at 3 a.m. may be normal in one segment and an alarm in another.",
+    stats: [
+      {
+        value: "$485B",
+        label: "Estimated global cost of payments fraud in 2023 — the single largest commercial application of anomaly detection.",
+        source: { label: "Nilson Report — Card Fraud Worldwide (Issue 1232, 2023)", url: "https://nilsonreport.com/" },
+      },
+      {
+        value: "Precision@k",
+        label: "The most-used anomaly-detection metric in production, because alert fatigue (false positives) costs more than missed alerts in most ops teams.",
+        source: { label: "Aggarwal, Outlier Analysis (2nd ed., 2017)", url: "https://link.springer.com/book/10.1007/978-3-319-47578-3" },
+      },
+    ],
+    sections: [
+      {
+        heading: "Anomaly vs outlier",
+        html: `<p>Outliers are points that sit far from the statistical centre of a single distribution. Anomalies are points that violate an <em>expected pattern</em> — which may be a function of time, segment, or other features. All anomalies are usually outliers in some projection of the data; not all outliers are anomalies.</p>`,
+      },
+      {
+        heading: "Algorithm families",
+        html: `<ul>
+          <li><strong>Statistical</strong> — z-score, IQR, EWMA control charts. Fast, interpretable, ideal for univariate streams.</li>
+          <li><strong>Distance / density</strong> — k-NN, LOF, DBSCAN. Great for low-to-medium-dimensional unlabeled data.</li>
+          <li><strong>Tree-based</strong> — Isolation Forest. Strong default for tabular anomaly detection.</li>
+          <li><strong>Reconstruction-based</strong> — autoencoders trained on "normal" data flag inputs they reconstruct poorly.</li>
+          <li><strong>Forecast-residual</strong> — fit a time-series model and alert when actuals diverge from prediction.</li>
+        </ul>`,
+      },
+      {
+        heading: "How to evaluate without labels",
+        html: `<p>True anomaly labels are rare. Two practical substitutes:</p>
+        <ul>
+          <li><strong>Precision@k</strong> — have a human review the top-k flagged events and score how many were real.</li>
+          <li><strong>Injected anomalies</strong> — synthesise known anomalies into a holdout window and measure recall.</li>
+        </ul>
+        <p>DataVision Pro's K-Means risk clustering view doubles as a coarse anomaly detector — points that sit far from any cluster centroid are the operational candidates worth investigating first.</p>`,
+      },
+    ],
+    faq: [
+      { q: "Is anomaly detection supervised or unsupervised?", a: "Usually unsupervised because labelled anomalies are rare. Semi-supervised setups (train on known-good data, flag deviations) are common in fraud and IoT." },
+      { q: "How do I avoid alert fatigue?", a: "Threshold for precision, not recall. Tune the score cutoff so the top-k alerts a human can actually triage are mostly real." },
+      { q: "Does seasonality cause false alarms?", a: "Yes — a Monday-morning traffic spike is a routine pattern, not an anomaly. Use seasonal decomposition or forecast-residual methods to handle it." },
+      { q: "Can I use the same method for fraud and equipment failure?", a: "The math overlaps (Isolation Forest works for both), but the features and review workflows differ enormously. Treat them as distinct projects." },
+      { q: "How is this different from outlier detection?", a: "Outlier detection is statistical and unconditional. Anomaly detection is contextual and considers time, segment, and expected patterns." },
+    ],
+    related: ["outlier-detection", "k-means-clustering", "predictive-analytics", "data-drift"],
+    updated: "2026-04-21",
+  },
 ];
 
 export const getEntry = (slug: string) => GLOSSARY.find((e) => e.slug === slug);
