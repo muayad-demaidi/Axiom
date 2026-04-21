@@ -140,7 +140,167 @@ declare module 'astro:content' {
 	>;
 
 	type ContentEntryMap = {
-		
+		"compare": {
+"datavision-pro-vs-excel.md": {
+	id: "datavision-pro-vs-excel.md";
+  slug: "datavision-pro-vs-excel";
+  body: string;
+  collection: "compare";
+  data: InferEntrySchema<"compare">
+} & { render(): Render[".md"] };
+"datavision-pro-vs-looker-studio.md": {
+	id: "datavision-pro-vs-looker-studio.md";
+  slug: "datavision-pro-vs-looker-studio";
+  body: string;
+  collection: "compare";
+  data: InferEntrySchema<"compare">
+} & { render(): Render[".md"] };
+"datavision-pro-vs-metabase.md": {
+	id: "datavision-pro-vs-metabase.md";
+  slug: "datavision-pro-vs-metabase";
+  body: string;
+  collection: "compare";
+  data: InferEntrySchema<"compare">
+} & { render(): Render[".md"] };
+"datavision-pro-vs-power-bi.md": {
+	id: "datavision-pro-vs-power-bi.md";
+  slug: "datavision-pro-vs-power-bi";
+  body: string;
+  collection: "compare";
+  data: InferEntrySchema<"compare">
+} & { render(): Render[".md"] };
+"datavision-pro-vs-tableau.md": {
+	id: "datavision-pro-vs-tableau.md";
+  slug: "datavision-pro-vs-tableau";
+  body: string;
+  collection: "compare";
+  data: InferEntrySchema<"compare">
+} & { render(): Render[".md"] };
+};
+"glossary": {
+"ab-testing.md": {
+	id: "ab-testing.md";
+  slug: "ab-testing";
+  body: string;
+  collection: "glossary";
+  data: InferEntrySchema<"glossary">
+} & { render(): Render[".md"] };
+"anomaly-detection.md": {
+	id: "anomaly-detection.md";
+  slug: "anomaly-detection";
+  body: string;
+  collection: "glossary";
+  data: InferEntrySchema<"glossary">
+} & { render(): Render[".md"] };
+"data-cleaning.md": {
+	id: "data-cleaning.md";
+  slug: "data-cleaning";
+  body: string;
+  collection: "glossary";
+  data: InferEntrySchema<"glossary">
+} & { render(): Render[".md"] };
+"data-drift.md": {
+	id: "data-drift.md";
+  slug: "data-drift";
+  body: string;
+  collection: "glossary";
+  data: InferEntrySchema<"glossary">
+} & { render(): Render[".md"] };
+"descriptive-statistics.md": {
+	id: "descriptive-statistics.md";
+  slug: "descriptive-statistics";
+  body: string;
+  collection: "glossary";
+  data: InferEntrySchema<"glossary">
+} & { render(): Render[".md"] };
+"etl-vs-elt.md": {
+	id: "etl-vs-elt.md";
+  slug: "etl-vs-elt";
+  body: string;
+  collection: "glossary";
+  data: InferEntrySchema<"glossary">
+} & { render(): Render[".md"] };
+"k-means-clustering.md": {
+	id: "k-means-clustering.md";
+  slug: "k-means-clustering";
+  body: string;
+  collection: "glossary";
+  data: InferEntrySchema<"glossary">
+} & { render(): Render[".md"] };
+"missing-value-imputation.md": {
+	id: "missing-value-imputation.md";
+  slug: "missing-value-imputation";
+  body: string;
+  collection: "glossary";
+  data: InferEntrySchema<"glossary">
+} & { render(): Render[".md"] };
+"normalization.md": {
+	id: "normalization.md";
+  slug: "normalization";
+  body: string;
+  collection: "glossary";
+  data: InferEntrySchema<"glossary">
+} & { render(): Render[".md"] };
+"outlier-detection.md": {
+	id: "outlier-detection.md";
+  slug: "outlier-detection";
+  body: string;
+  collection: "glossary";
+  data: InferEntrySchema<"glossary">
+} & { render(): Render[".md"] };
+"predictive-analytics.md": {
+	id: "predictive-analytics.md";
+  slug: "predictive-analytics";
+  body: string;
+  collection: "glossary";
+  data: InferEntrySchema<"glossary">
+} & { render(): Render[".md"] };
+"time-series.md": {
+	id: "time-series.md";
+  slug: "time-series";
+  body: string;
+  collection: "glossary";
+  data: InferEntrySchema<"glossary">
+} & { render(): Render[".md"] };
+};
+"guides": {
+"how-to-ab-test-a-pricing-change.md": {
+	id: "how-to-ab-test-a-pricing-change.md";
+  slug: "how-to-ab-test-a-pricing-change";
+  body: string;
+  collection: "guides";
+  data: InferEntrySchema<"guides">
+} & { render(): Render[".md"] };
+"how-to-build-a-3-month-sales-forecast.md": {
+	id: "how-to-build-a-3-month-sales-forecast.md";
+  slug: "how-to-build-a-3-month-sales-forecast";
+  body: string;
+  collection: "guides";
+  data: InferEntrySchema<"guides">
+} & { render(): Render[".md"] };
+"how-to-clean-a-messy-csv-in-60-seconds.md": {
+	id: "how-to-clean-a-messy-csv-in-60-seconds.md";
+  slug: "how-to-clean-a-messy-csv-in-60-seconds";
+  body: string;
+  collection: "guides";
+  data: InferEntrySchema<"guides">
+} & { render(): Render[".md"] };
+"how-to-compare-this-quarter-vs-last-quarter.md": {
+	id: "how-to-compare-this-quarter-vs-last-quarter.md";
+  slug: "how-to-compare-this-quarter-vs-last-quarter";
+  body: string;
+  collection: "guides";
+  data: InferEntrySchema<"guides">
+} & { render(): Render[".md"] };
+"how-to-detect-outliers-in-sales-data.md": {
+	id: "how-to-detect-outliers-in-sales-data.md";
+  slug: "how-to-detect-outliers-in-sales-data";
+  body: string;
+  collection: "guides";
+  data: InferEntrySchema<"guides">
+} & { render(): Render[".md"] };
+};
+
 	};
 
 	type DataEntryMap = {
@@ -149,5 +309,5 @@ declare module 'astro:content' {
 
 	type AnyEntryMap = ContentEntryMap & DataEntryMap;
 
-	export type ContentConfig = never;
+	export type ContentConfig = typeof import("../../src/content/config.js");
 }

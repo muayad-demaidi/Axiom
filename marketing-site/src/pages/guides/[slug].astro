@@ -1,17 +1,20 @@
 ---
+import { getCollection } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import FAQ from "../../components/FAQ.astro";
-import { GUIDES, getGuide } from "../../content/guides";
 import { SITE } from "../../utils/site";
 
-export function getStaticPaths() {
-  return GUIDES.map((g) => ({ params: { slug: g.slug } }));
+export async function getStaticPaths() {
+  const entries = await getCollection("guides");
+  return entries.map((e) => ({ params: { slug: e.slug }, props: { entry: e } }));
 }
 
-const { slug } = Astro.params;
-const g = getGuide(slug as string)!;
-const url = SITE.url + "/guides/" + g.slug;
+const { entry } = Astro.props;
+const g = entry.data;
+const { Content, headings } = await entry.render();
+const stepNames = headings.filter((h) => h.depth === 2).map((h) => h.text);
+const url = SITE.url + "/guides/" + entry.slug;
 
 const howToLd = {
   "@context": "https://schema.org",
@@ -19,11 +22,10 @@ const howToLd = {
   name: g.title,
   description: g.description,
   totalTime: "PT" + (g.estTime.match(/\d+/)?.[0] ?? "5") + "M",
-  step: g.steps.map((s, i) => ({
+  step: stepNames.map((name, i) => ({
     "@type": "HowToStep",
     position: i + 1,
-    name: s.name,
-    text: s.html.replace(/<[^>]+>/g, "").trim(),
+    name,
   })),
   supply: g.prerequisites.map((p) => ({ "@type": "HowToSupply", name: p })),
 };
@@ -83,14 +85,7 @@ const breadcrumbsLd = {
       </ul>
 
       <h2>Steps</h2>
-      <ol>
-        {g.steps.map((s) => (
-          <li style="margin-bottom: 1.25rem;">
-            <strong>{s.name}</strong>
-            <div set:html={s.html}></div>
-          </li>
-        ))}
-      </ol>
+      <Content />
 
       <h2>Common pitfalls</h2>
       <ul>

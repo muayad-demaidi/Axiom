@@ -1,8 +1,12 @@
 ---
+import { getCollection } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
-import { COMPARE } from "../../content/compare";
 import { SITE } from "../../utils/site";
+
+const entries = (await getCollection("compare")).sort((a, b) =>
+  a.data.competitor.localeCompare(b.data.competitor)
+);
 
 const description =
   "DataVision Pro vs the alternatives — honest, side-by-side comparisons against Tableau, Power BI, and Excel. No fabricated stats, no fake testimonials, every uncertain claim flagged.";
@@ -29,10 +33,10 @@ const breadcrumbsLd = {
   <section class="section">
     <div class="container">
       <div class="grid grid-3">
-        {COMPARE.map((c) => (
+        {entries.map((c) => (
           <a class="term-card" href={`/compare/${c.slug}`}>
-            <h3>vs {c.competitor}</h3>
-            <p>{c.bestFor.us}</p>
+            <h3>vs {c.data.competitor}</h3>
+            <p>{c.data.bestFor.us}</p>
           </a>
         ))}
       </div>

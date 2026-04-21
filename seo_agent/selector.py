@@ -3,10 +3,9 @@
 from __future__ import annotations
 import re
 from collections import defaultdict
-from pathlib import Path
 from typing import Dict, List, Set
 
-from .config import CONTENT_DIR
+from .content_io import KIND_DIRS, list_slugs, read_entry
 
 STOPWORDS = {
     "the", "a", "an", "and", "or", "of", "for", "to", "in", "on", "with",
@@ -29,18 +28,22 @@ def _signature(s: str) -> str:
 
 
 def existing_slugs() -> Dict[str, List[str]]:
-    """Read marketing-site content files and extract slugs/titles per kind."""
-    out = {"glossary": [], "compare": [], "guides": []}
-    for kind, fname in (("glossary", "glossary.ts"),
-                        ("compare", "compare.ts"),
-                        ("guides", "guides.ts")):
-        path = CONTENT_DIR / fname
-        if not path.exists():
-            continue
-        text = path.read_text()
-        slugs = re.findall(r'slug:\s*"([^"]+)"', text)
-        titles = re.findall(r'(?:term|title|competitor):\s*"([^"]+)"', text)
-        out[kind] = list({*slugs, *(t.lower() for t in titles)})
+    """Read marketing-site content and extract slugs/titles per kind.
+
+    Each entry is now its own ``.md`` file under
+    ``marketing-site/src/content/<kind>/<slug>.md``; the filename is the
+    slug and the title/term/competitor lives in the YAML frontmatter.
+    """
+    out: Dict[str, List[str]] = {k: [] for k in KIND_DIRS}
+    for kind in KIND_DIRS:
+        slugs = list_slugs(kind)
+        titles: List[str] = []
+        for s in slugs:
+            entry = read_entry(kind, s) or {}
+            title = entry.get("term") or entry.get("title") or entry.get("competitor")
+            if title:
+                titles.append(str(title).lower())
+        out[kind] = list({*slugs, *titles})
     return out
 
 

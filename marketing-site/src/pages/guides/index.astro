@@ -1,8 +1,12 @@
 ---
+import { getCollection } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
-import { GUIDES } from "../../content/guides";
 import { SITE } from "../../utils/site";
+
+const entries = (await getCollection("guides")).sort((a, b) =>
+  a.data.title.localeCompare(b.data.title)
+);
 
 const description =
   "DataVision Pro guides — practical, step-by-step walkthroughs for cleaning data, detecting outliers, building forecasts, and getting answers from your spreadsheets without writing code.";
@@ -22,17 +26,17 @@ const breadcrumbsLd = {
       <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Guides" }]} />
       <span class="eyebrow">Guides</span>
       <h1>Step-by-step, no fluff.</h1>
-      <p class="lead">{GUIDES.length} hands-on walkthroughs you can run on your own data in under 10 minutes each.</p>
+      <p class="lead">{entries.length} hands-on walkthroughs you can run on your own data in under 10 minutes each.</p>
     </div>
   </section>
 
   <section class="section">
     <div class="container">
       <div class="grid grid-3">
-        {GUIDES.map((g) => (
+        {entries.map((g) => (
           <a class="term-card" href={`/guides/${g.slug}`}>
-            <h3>{g.title}</h3>
-            <p>{g.estTime} · {g.difficulty}</p>
+            <h3>{g.data.title}</h3>
+            <p>{g.data.estTime} · {g.data.difficulty}</p>
           </a>
         ))}
       </div>

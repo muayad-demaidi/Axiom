@@ -1,8 +1,6 @@
 import type { APIRoute } from "astro";
+import { getCollection } from "astro:content";
 import { SITE } from "../utils/site";
-import { GLOSSARY } from "../content/glossary";
-import { COMPARE } from "../content/compare";
-import { GUIDES } from "../content/guides";
 
 const STATIC = [
   { path: "/", priority: 1.0 },
@@ -15,21 +13,24 @@ const STATIC = [
   { path: "/guides", priority: 0.8 },
 ];
 
-export const GET: APIRoute = () => {
+export const GET: APIRoute = async () => {
   const today = new Date().toISOString().slice(0, 10);
   const urls: { loc: string; lastmod: string; priority: number }[] = [];
 
   for (const s of STATIC) {
     urls.push({ loc: SITE.url + s.path, lastmod: today, priority: s.priority });
   }
-  for (const g of GLOSSARY) {
-    urls.push({ loc: `${SITE.url}/glossary/${g.slug}`, lastmod: g.updated, priority: 0.7 });
+  const glossary = await getCollection("glossary");
+  for (const g of glossary) {
+    urls.push({ loc: `${SITE.url}/glossary/${g.slug}`, lastmod: g.data.updated, priority: 0.7 });
   }
-  for (const c of COMPARE) {
-    urls.push({ loc: `${SITE.url}/compare/${c.slug}`, lastmod: c.updated, priority: 0.7 });
+  const compare = await getCollection("compare");
+  for (const c of compare) {
+    urls.push({ loc: `${SITE.url}/compare/${c.slug}`, lastmod: c.data.updated, priority: 0.7 });
   }
-  for (const g of GUIDES) {
-    urls.push({ loc: `${SITE.url}/guides/${g.slug}`, lastmod: g.updated, priority: 0.7 });
+  const guides = await getCollection("guides");
+  for (const g of guides) {
+    urls.push({ loc: `${SITE.url}/guides/${g.slug}`, lastmod: g.data.updated, priority: 0.7 });
   }
 
   const body =

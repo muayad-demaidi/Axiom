@@ -38,9 +38,10 @@ Every week (Mondays 08:00 UTC by default) the agent:
 1. Open the Streamlit admin panel → **SEO/GEO Agent** tab → **Review queue**.
 2. For each draft, expand it to preview the JSON payload and the information-
    gain note.
-3. Click **Approve** to inject the entry into the matching content file
-   (`marketing-site/src/content/glossary.ts`, `guides.ts`, or `compare.ts`)
-   and trigger the next sitemap regeneration on rebuild.
+3. Click **Approve** to write the entry as a Markdown file at
+   `marketing-site/src/content/<kind>/<slug>.md` (where `<kind>` is
+   `glossary`, `guides`, or `compare`) and trigger the next sitemap
+   regeneration on rebuild.
 4. Click **Reject** to drop the draft. The JSON is moved to
    `marketing-site/_review/rejected/` for audit; nothing is published.
 

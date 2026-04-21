@@ -1,34 +1,24 @@
 """File-based review queue + approval / publish pipeline.
 
-Drafts are JSON files under marketing-site/_review/drafts/. On approval,
-we inject the entry into the appropriate marketing-site/src/content/*.ts
-file as a JS object literal, then trigger a sitemap regeneration on the
-next Astro build.
+Drafts are JSON files under ``marketing-site/_review/drafts/``. On approval,
+we write the entry as a Markdown file with YAML frontmatter under
+``marketing-site/src/content/<kind>/<slug>.md`` (the canonical CMS-friendly
+format), then trigger an Astro rebuild so the new page reaches production.
 """
 
 from __future__ import annotations
 import json
 import re
 import subprocess
-from datetime import datetime, date
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from .config import REVIEW_DIR, CONTENT_DIR
+from .config import REVIEW_DIR
+from .content_io import KIND_DIRS, entry_path, write_entry
 from .db import get_session, AgentDraft
 
 REVIEW_DIR.mkdir(parents=True, exist_ok=True)
-
-KIND_TO_FILE = {
-    "glossary": "glossary.ts",
-    "guides": "guides.ts",
-    "compare": "compare.ts",
-}
-KIND_TO_CONST = {
-    "glossary": "GLOSSARY",
-    "guides": "GUIDES",
-    "compare": "COMPARE",
-}
 
 
 def _slugify(s: str) -> str:
@@ -104,7 +94,6 @@ def reject_draft(draft_id: int, reviewer: str, notes: str = "") -> bool:
         d.reviewed_by = reviewer
         d.review_notes = notes
         sess.commit()
-        # Move file to rejected/ subfolder for audit
         rej_dir = REVIEW_DIR.parent / "rejected"
         rej_dir.mkdir(parents=True, exist_ok=True)
         try:
@@ -118,9 +107,9 @@ def reject_draft(draft_id: int, reviewer: str, notes: str = "") -> bool:
 
 import bleach
 
-# Strict allowlist for content that will be rendered with `set:html` on the
-# marketing site. Anything outside this list (script, iframe, on* handlers,
-# javascript: URIs, style attributes, etc.) is stripped by bleach.
+# Strict allowlist for HTML embedded inside markdown body sections. Anything
+# outside this list (script, iframe, on* handlers, javascript: URIs, style
+# attributes, etc.) is stripped by bleach before the file is written.
 _ALLOWED_TAGS = {
     "p", "br", "strong", "em", "b", "i", "u", "code", "pre", "blockquote",
     "ul", "ol", "li", "a", "h2", "h3", "h4", "table", "thead", "tbody",
@@ -147,59 +136,22 @@ def _sanitize_html(s: str) -> str:
     )
 
 
-def _to_js_literal(v) -> str:
-    """Render a Python value as a JS literal (compatible with the TS files).
-    HTML strings are sanitized to drop scripts / event handlers."""
-    if isinstance(v, bool):
-        return "true" if v else "false"
-    if v is None:
-        return "null"
-    if isinstance(v, (int, float)):
-        return str(v)
-    if isinstance(v, str):
-        s = _sanitize_html(v) if "<" in v else v
-        return json.dumps(s, ensure_ascii=False)
-    if isinstance(v, list):
-        items = [_to_js_literal(x) for x in v]
-        return "[" + ", ".join(items) + "]"
-    if isinstance(v, dict):
-        parts = []
-        for k, val in v.items():
-            # bare identifier keys if safe, else quoted
-            key = k if re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", k) else json.dumps(k)
-            parts.append(f"{key}: {_to_js_literal(val)}")
-        return "{ " + ", ".join(parts) + " }"
-    return json.dumps(str(v))
-
-
-def _inject_into_array(file_text: str, const_name: str, js_literal: str) -> str:
-    """Insert a new JS object literal as the last element of `export const NAME: T[] = [...]`."""
-    pattern = re.compile(
-        r"(export\s+const\s+" + re.escape(const_name) + r"[^=]*=\s*\[)([\s\S]*?)(\];)",
-    )
-    m = pattern.search(file_text)
-    if not m:
-        raise RuntimeError(f"Could not locate `export const {const_name}` array")
-    head, body, tail = m.group(1), m.group(2), m.group(3)
-    body_stripped = body.rstrip()
-    sep = "," if body_stripped and not body_stripped.endswith(",") else ""
-    new_body = body_stripped + sep + "\n  " + js_literal + ",\n"
-    return file_text[:m.start()] + head + new_body + tail + file_text[m.end():]
-
-
-def _replace_in_array(file_text: str, slug: str, js_literal: str) -> Optional[str]:
-    """Find an entry with the given slug and replace its block with js_literal."""
-    # Reuse the entry parser from refresh
-    from .refresh import _parse_entries
-    for start, end, s in _parse_entries(file_text):
-        if s == slug:
-            return file_text[:start] + js_literal + file_text[end:]
-    return None
+def _sanitize_payload(payload: Dict) -> Dict:
+    """Recursively sanitize any string value that contains HTML markup."""
+    def walk(v):
+        if isinstance(v, str):
+            return _sanitize_html(v) if "<" in v else v
+        if isinstance(v, list):
+            return [walk(x) for x in v]
+        if isinstance(v, dict):
+            return {k: walk(x) for k, x in v.items()}
+        return v
+    return walk(payload)
 
 
 def approve_draft(draft_id: int, reviewer: str, notes: str = "",
                   edited_payload: Optional[Dict] = None) -> Dict:
-    """Move the draft into the live content TS file. Returns a result dict."""
+    """Write the draft to its Markdown file, then trigger a rebuild."""
     sess = get_session()
     try:
         d = sess.query(AgentDraft).filter(AgentDraft.id == draft_id).first()
@@ -210,30 +162,17 @@ def approve_draft(draft_id: int, reviewer: str, notes: str = "",
             return {"ok": False, "error": "draft file missing"}
         payload = edited_payload or body["payload"]
         kind = d.kind
-        fname = KIND_TO_FILE.get(kind)
-        const = KIND_TO_CONST.get(kind)
-        if not fname or not const:
+        if kind not in KIND_DIRS:
             return {"ok": False, "error": f"unknown kind {kind}"}
-        target = CONTENT_DIR / fname
-        if not target.exists():
-            return {"ok": False, "error": f"content file missing: {target}"}
-        text = target.read_text()
-        js = _to_js_literal(payload)
 
-        if d.is_refresh:
-            new_text = _replace_in_array(text, d.slug, js)
-            if new_text is None:
-                return {"ok": False, "error": f"slug {d.slug} not found for refresh"}
-        else:
-            # Avoid duplicate slug
-            if re.search(r'slug:\s*"' + re.escape(d.slug) + r'"', text):
-                return {"ok": False, "error": f"slug {d.slug} already exists in {fname}"}
-            new_text = _inject_into_array(text, const, js)
+        target = entry_path(kind, d.slug)
+        if not d.is_refresh and target.exists():
+            return {"ok": False, "error": f"slug {d.slug} already exists in {kind}"}
 
-        # Write atomically
-        tmp = target.with_suffix(target.suffix + ".tmp")
-        tmp.write_text(new_text)
-        tmp.replace(target)
+        payload = dict(payload)
+        payload["slug"] = d.slug  # filename is the canonical slug
+        payload = _sanitize_payload(payload)
+        written = write_entry(kind, payload)
 
         d.status = "approved"
         d.reviewed_at = datetime.utcnow()
@@ -241,7 +180,6 @@ def approve_draft(draft_id: int, reviewer: str, notes: str = "",
         d.review_notes = notes
         sess.commit()
 
-        # Move JSON to approved/ for audit
         appr_dir = REVIEW_DIR.parent / "approved"
         appr_dir.mkdir(parents=True, exist_ok=True)
         try:
@@ -249,11 +187,9 @@ def approve_draft(draft_id: int, reviewer: str, notes: str = "",
         except Exception:
             pass
 
-        # Kick the static-site rebuild so the new page reaches production.
-        # Sitemap regeneration happens as part of the Astro build.
         build_ok = trigger_sitemap_regen()
 
-        return {"ok": True, "kind": kind, "slug": d.slug, "file": str(target),
+        return {"ok": True, "kind": kind, "slug": d.slug, "file": str(written),
                 "build_triggered": build_ok}
     finally:
         sess.close()
@@ -267,6 +203,7 @@ def trigger_sitemap_regen() -> bool:
     ``SEO_AGENT_BUILD_CMD`` env var (set to an empty string to skip).
     """
     import os as _os
+    from .config import CONTENT_DIR
     cmd = _os.environ.get("SEO_AGENT_BUILD_CMD", "npm run build")
     if not cmd.strip():
         return True

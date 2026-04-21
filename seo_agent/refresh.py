@@ -4,13 +4,12 @@ from __future__ import annotations
 import json
 import re
 from datetime import date, datetime, timedelta
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from openai import OpenAI
 import os
 
-from .config import CONTENT_DIR
+from .content_io import list_slugs, read_entry, entry_path
 
 _client = OpenAI(
     api_key=os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY"),
@@ -27,67 +26,36 @@ fields you changed updated and an updated 'updated' date of today.
 """
 
 
-def _parse_entries(file_text: str) -> List[Tuple[int, int, str]]:
-    """Heuristic split: find each top-level object in the array.
-
-    Returns list of (start, end, slug) for each entry block.
-    """
-    entries = []
-    depth = 0
-    start = None
-    in_str = False
-    esc = False
-    for i, ch in enumerate(file_text):
-        if esc:
-            esc = False
-            continue
-        if ch == "\\":
-            esc = True
-            continue
-        if ch == '"':
-            in_str = not in_str
-            continue
-        if in_str:
-            continue
-        if ch == "{":
-            if depth == 0:
-                start = i
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0 and start is not None:
-                block = file_text[start:i + 1]
-                m = re.search(r'slug:\s*"([^"]+)"', block)
-                if m:
-                    entries.append((start, i + 1, m.group(1)))
-                start = None
-    return entries
-
-
 def stale_pages(refresh_after_days: int) -> List[Dict]:
-    """List pages whose 'updated' is older than the cutoff."""
+    """List pages whose 'updated' is older than the cutoff.
+
+    We only refresh kinds we can re-validate against the GEO checklist.
+    Compare pages are hand-curated and have a different shape, so they are
+    excluded from the auto-refresh loop.
+    """
     cutoff = date.today() - timedelta(days=refresh_after_days)
-    out = []
-    # We only refresh kinds we can re-validate. Compare pages are hand-curated
-    # and have a different shape, so we leave them out of the auto-refresh loop.
-    for kind, fname in (("glossary", "glossary.ts"),
-                        ("guides", "guides.ts")):
-        path = CONTENT_DIR / fname
-        if not path.exists():
-            continue
-        text = path.read_text()
-        for start, end, slug in _parse_entries(text):
-            block = text[start:end]
-            m = re.search(r'updated:\s*"(\d{4}-\d{2}-\d{2})"', block)
-            if not m:
+    out: List[Dict] = []
+    for kind in ("glossary", "guides"):
+        for slug in list_slugs(kind):
+            entry = read_entry(kind, slug)
+            if not entry or "updated" not in entry:
                 continue
             try:
-                upd = datetime.strptime(m.group(1), "%Y-%m-%d").date()
+                upd = datetime.strptime(str(entry["updated"]), "%Y-%m-%d").date()
             except Exception:
                 continue
             if upd < cutoff:
-                out.append({"kind": kind, "slug": slug, "file": str(path),
-                            "block": block, "updated": m.group(1)})
+                # Feed the LLM a JSON-serialised view of the entry; the
+                # response is parsed back as JSON below.
+                block = json.dumps(entry, indent=2, ensure_ascii=False, default=str)
+                out.append({
+                    "kind": kind,
+                    "slug": slug,
+                    "file": str(entry_path(kind, slug)),
+                    "block": block,
+                    "updated": str(entry["updated"]),
+                    "entry": entry,
+                })
     out.sort(key=lambda x: x["updated"])
     return out
 

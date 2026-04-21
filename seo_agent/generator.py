@@ -1,9 +1,11 @@
 """GEO-template page generation using the existing OpenAI integration.
 
-Produces a draft as a kind-specific Python dict (matching the shape of
-GLOSSARY/GUIDES/COMPARE entries in marketing-site/src/content/*.ts) and
-validates against a strict checklist. Pages that fail validation are
-dropped — never softened, never published.
+Produces a draft as a kind-specific Python dict (matching the schema in
+``marketing-site/src/content/config.ts`` for each collection) and validates
+against a strict checklist. Pages that fail validation are dropped — never
+softened, never published. On approval, the dict is written to
+``marketing-site/src/content/<kind>/<slug>.md`` (Markdown + YAML frontmatter)
+by ``seo_agent/review.py``.
 """
 
 from __future__ import annotations

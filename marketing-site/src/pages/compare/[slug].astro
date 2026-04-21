@@ -1,17 +1,18 @@
 ---
+import { getCollection } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import FAQ from "../../components/FAQ.astro";
-import { COMPARE, getCompare } from "../../content/compare";
 import { SITE } from "../../utils/site";
 
-export function getStaticPaths() {
-  return COMPARE.map((c) => ({ params: { slug: c.slug } }));
+export async function getStaticPaths() {
+  const entries = await getCollection("compare");
+  return entries.map((e) => ({ params: { slug: e.slug }, props: { entry: e } }));
 }
 
-const { slug } = Astro.params;
-const c = getCompare(slug as string)!;
-const url = SITE.url + "/compare/" + c.slug;
+const { entry } = Astro.props;
+const c = entry.data;
+const url = SITE.url + "/compare/" + entry.slug;
 
 const articleLd = {
   "@context": "https://schema.org",
