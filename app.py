@@ -17,17 +17,68 @@ from context.step_history import (
 )
 
 
-def _column_config_from_schema(schema_iter, df=None):
+DATE_FORMAT_PRESETS = {
+    "DD-MMM-YYYY (default)": ("DD-MMM-YYYY", "DD-MMM-YYYY HH:mm"),
+    "MM/DD/YYYY (US)":       ("MM/DD/YYYY", "MM/DD/YYYY HH:mm"),
+    "DD/MM/YYYY (EU)":       ("DD/MM/YYYY", "DD/MM/YYYY HH:mm"),
+    "YYYY-MM-DD (ISO)":      ("YYYY-MM-DD", "YYYY-MM-DD HH:mm"),
+}
+
+NUMBER_FORMAT_PRESETS = {
+    "Thousand separators (1,234.56)": {"int": "localized", "dec": "localized"},
+    "Plain (1234.56)":                {"int": "plain",     "dec": "plain"},
+    "No decimals (1,235)":            {"int": "localized", "dec": "%.0f"},
+    "Two decimals (1,234.57)":        {"int": "%.2f",      "dec": "%.2f"},
+}
+
+CURRENCY_FORMAT_PRESETS = {
+    "Accounting":     "accounting",
+    "Dollar ($)":     "dollar",
+    "Euro (\u20ac)":  "euro",
+    "Yen (\u00a5)":   "yen",
+    "Plain number":   "%.2f",
+}
+
+DEFAULT_DISPLAY_PREFS = {
+    "date_format":     "DD-MMM-YYYY (default)",
+    "number_format":   "Thousand separators (1,234.56)",
+    "currency_format": "Accounting",
+}
+
+
+def _resolve_display_prefs(prefs):
+    """Look up the actual format strings for a (possibly partial) prefs dict."""
+    p = dict(DEFAULT_DISPLAY_PREFS)
+    if prefs:
+        p.update({k: v for k, v in prefs.items() if v})
+    date_fmt, dt_fmt = DATE_FORMAT_PRESETS.get(
+        p["date_format"], DATE_FORMAT_PRESETS[DEFAULT_DISPLAY_PREFS["date_format"]]
+    )
+    num_fmts = NUMBER_FORMAT_PRESETS.get(
+        p["number_format"], NUMBER_FORMAT_PRESETS[DEFAULT_DISPLAY_PREFS["number_format"]]
+    )
+    curr_fmt = CURRENCY_FORMAT_PRESETS.get(
+        p["currency_format"], CURRENCY_FORMAT_PRESETS[DEFAULT_DISPLAY_PREFS["currency_format"]]
+    )
+    return {
+        "date": date_fmt, "datetime": dt_fmt,
+        "int": num_fmts["int"], "dec": num_fmts["dec"],
+        "currency": curr_fmt,
+    }
+
+
+def _column_config_from_schema(schema_iter, df=None, prefs=None):
     """Build a Streamlit column_config dict that pretty-prints inferred types.
 
-    Currency/decimal columns get thousand separators and 2dp; date columns get
-    a DD-MMM-YYYY display; percentages render as percent. The mapping is driven
-    off whatever schema is captured at the active step, so manual overrides
-    automatically flow through to the preview formatting.
+    Currency/decimal/date formats come from the user's display preferences
+    (see DEFAULT_DISPLAY_PREFS); percentages always render as percent. The
+    mapping is driven off whatever schema is captured at the active step, so
+    manual overrides automatically flow through to the preview formatting.
     """
     cfg = {}
     if not schema_iter:
         return cfg
+    fmts = _resolve_display_prefs(prefs)
     cols_in_df = set(df.columns) if df is not None else None
     for s in schema_iter:
         if isinstance(s, dict):
@@ -44,11 +95,15 @@ def _column_config_from_schema(schema_iter, df=None):
             continue
         try:
             if t == "integer":
-                cfg[col] = st.column_config.NumberColumn(format="localized")
+                cfg[col] = st.column_config.NumberColumn(format=fmts["int"])
             elif t == "decimal":
-                cfg[col] = st.column_config.NumberColumn(format="localized")
+                cfg[col] = st.column_config.NumberColumn(format=fmts["dec"])
             elif t == "currency":
-                if cur_code:
+                # When the user hasn't overridden the currency format
+                # (still on the default "accounting"), prefer the inferred
+                # currency_code so symbols/codes show through. An explicit
+                # user choice always wins.
+                if cur_code and fmts["currency"] == "accounting":
                     # ISO code → suffix ("1234.50 USD"); symbol → prefix ("€ 1234.50").
                     if len(cur_code) == 3 and cur_code.isalpha():
                         fmt = f"%.2f {cur_code}"
@@ -56,13 +111,13 @@ def _column_config_from_schema(schema_iter, df=None):
                         fmt = f"{cur_code} %.2f"
                     cfg[col] = st.column_config.NumberColumn(format=fmt)
                 else:
-                    cfg[col] = st.column_config.NumberColumn(format="accounting")
+                    cfg[col] = st.column_config.NumberColumn(format=fmts["currency"])
             elif t == "percentage":
                 cfg[col] = st.column_config.NumberColumn(format="percent")
             elif t == "date":
-                cfg[col] = st.column_config.DateColumn(format="DD-MMM-YYYY")
+                cfg[col] = st.column_config.DateColumn(format=fmts["date"])
             elif t == "datetime":
-                cfg[col] = st.column_config.DatetimeColumn(format="DD-MMM-YYYY HH:mm")
+                cfg[col] = st.column_config.DatetimeColumn(format=fmts["datetime"])
         except Exception:
             # Older Streamlit versions may not support every preset; skip silently.
             pass
@@ -1402,10 +1457,18 @@ if 'cleaning_substep_plans' not in st.session_state:
     # Per-dataset ordered cleaning plan: list of dicts with
     # {instance_id, key, enabled, params}. Drives reorder/insert.
     st.session_state.cleaning_substep_plans = {}
+if 'display_prefs' not in st.session_state:
+    st.session_state.display_prefs = {}
 
 
 def _ds_key():
     return st.session_state.get('current_dataset_id') or '__local__'
+
+
+def _get_display_prefs():
+    """Return the current dataset's display preferences (created on first use)."""
+    key = _ds_key()
+    return st.session_state.display_prefs.setdefault(key, dict(DEFAULT_DISPLAY_PREFS))
 
 
 def _get_step_history(create=False):
@@ -3638,11 +3701,55 @@ def show_dashboard():
                     else:
                         schema_for_format = infer_schema(view_df)
 
+                    # ── Display preferences ──
+                    with st.expander("Display preferences", expanded=False):
+                        st.caption(
+                            "Choose how dates, numbers, and currency values are "
+                            "displayed in preview tables. Preferences apply to the "
+                            "Overview preview, Column Types samples, and the "
+                            "Statistics descriptive table for this dataset."
+                        )
+                        prefs = _get_display_prefs()
+                        date_keys = list(DATE_FORMAT_PRESETS.keys())
+                        num_keys = list(NUMBER_FORMAT_PRESETS.keys())
+                        curr_keys = list(CURRENCY_FORMAT_PRESETS.keys())
+                        pc1, pc2, pc3 = st.columns(3)
+                        with pc1:
+                            new_date = st.selectbox(
+                                "Date format", date_keys,
+                                index=date_keys.index(prefs.get("date_format",
+                                    DEFAULT_DISPLAY_PREFS["date_format"]))
+                                if prefs.get("date_format") in date_keys else 0,
+                                key=f"pref_date_{_ds_key()}",
+                            )
+                        with pc2:
+                            new_num = st.selectbox(
+                                "Number format", num_keys,
+                                index=num_keys.index(prefs.get("number_format",
+                                    DEFAULT_DISPLAY_PREFS["number_format"]))
+                                if prefs.get("number_format") in num_keys else 0,
+                                key=f"pref_num_{_ds_key()}",
+                            )
+                        with pc3:
+                            new_curr = st.selectbox(
+                                "Currency format", curr_keys,
+                                index=curr_keys.index(prefs.get("currency_format",
+                                    DEFAULT_DISPLAY_PREFS["currency_format"]))
+                                if prefs.get("currency_format") in curr_keys else 0,
+                                key=f"pref_curr_{_ds_key()}",
+                            )
+                        prefs["date_format"] = new_date
+                        prefs["number_format"] = new_num
+                        prefs["currency_format"] = new_curr
+
+                    active_prefs = _get_display_prefs()
+
                     st.subheader("Data Preview")
                     st.dataframe(
                         view_df.head(10),
                         use_container_width=True,
-                        column_config=_column_config_from_schema(schema_for_format, view_df),
+                        column_config=_column_config_from_schema(
+                            schema_for_format, view_df, prefs=active_prefs),
                     )
 
                     st.subheader("Column Types")
@@ -3770,16 +3877,17 @@ def show_dashboard():
                             columns={"index": "column"})
                         stats_cfg = {"column": st.column_config.TextColumn("column")}
                         int_like = {"count", "missing"}
+                        stats_fmts = _resolve_display_prefs(_get_display_prefs())
                         for c in stats_display.columns:
                             if c == "column":
                                 continue
                             try:
                                 if c in int_like:
-                                    stats_cfg[c] = st.column_config.NumberColumn(format="localized")
+                                    stats_cfg[c] = st.column_config.NumberColumn(format=stats_fmts["int"])
                                 elif c == "missing_pct":
                                     stats_cfg[c] = st.column_config.NumberColumn(format="%.2f%%")
                                 else:
-                                    stats_cfg[c] = st.column_config.NumberColumn(format="%.2f")
+                                    stats_cfg[c] = st.column_config.NumberColumn(format=stats_fmts["dec"])
                             except Exception:
                                 pass
                         st.dataframe(
