@@ -5968,8 +5968,8 @@ def show_dashboard():
                         
                             st.rerun()
             
-                elif active_tab == _TAB_LABELS[7]:
-                    _section_head("Comprehensive Report", "Executive summary, AI insights, and downloadable artefacts.", "08 — Report")
+                elif active_tab == _TAB_LABELS[8]:
+                    _section_head("Comprehensive Report", "Executive summary, AI insights, and downloadable artefacts.", "09 — Report")
                 
                     df_report = _active_df()
                 
