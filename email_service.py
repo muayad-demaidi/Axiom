@@ -100,6 +100,76 @@ def send_welcome_email(user_email, user_name, trial_end_date):
         return False
 
 
+def send_password_reset_email(user_email, user_name, reset_url):
+    """Send a password-reset email styled to match the welcome email."""
+    api_key, from_email = get_resend_credentials()
+
+    if not api_key:
+        print("Resend API key not available, skipping password reset email")
+        return False
+
+    resend.api_key = api_key
+
+    safe_name = user_name or "there"
+
+    html_content = f"""
+    <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f172a; color: #e2e8f0; padding: 2rem; border-radius: 12px;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <h1 style="color: #14b8a6; font-size: 2rem; margin: 0;">DataVision Pro</h1>
+            <p style="color: #94a3b8; margin-top: 0.5rem;">Password Reset Request</p>
+        </div>
+
+        <div style="background: rgba(20, 184, 166, 0.1); border: 1px solid rgba(20, 184, 166, 0.2); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
+            <h2 style="color: #e2e8f0; margin-top: 0;">Hi {safe_name},</h2>
+            <p style="color: #cbd5e1; line-height: 1.7;">We received a request to reset the password for your DataVision Pro account. Click the button below to choose a new password. This link is valid for <strong style="color: #14b8a6;">1 hour</strong> and can be used only once.</p>
+        </div>
+
+        <div style="text-align: center; margin: 2rem 0;">
+            <a href="{reset_url}" style="display: inline-block; background: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%); color: #07101f; text-decoration: none; font-family: 'DM Sans', Arial, sans-serif; font-weight: 700; font-size: 1rem; padding: 0.95rem 2.25rem; border-radius: 10px; box-shadow: 0 8px 24px rgba(45,212,191,0.28);">Reset Password</a>
+        </div>
+
+        <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+            <p style="color: #94a3b8; font-size: 0.85rem; margin: 0 0 0.5rem 0;">If the button above doesn't work, copy and paste this link into your browser:</p>
+            <p style="color: #14b8a6; font-size: 0.85rem; word-break: break-all; margin: 0;">{reset_url}</p>
+        </div>
+
+        <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+            <p style="color: #cbd5e1; font-size: 0.9rem; line-height: 1.6; margin: 0;">If you did not request a password reset, you can safely ignore this email — your current password will remain unchanged.</p>
+        </div>
+
+        <div style="text-align: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(148, 163, 184, 0.2);">
+            <p style="color: #94a3b8; font-size: 0.9rem;">Need help? Contact us at:</p>
+            <p style="color: #14b8a6;">muayad.demaidi.work@gmail.com</p>
+        </div>
+    </div>
+    """
+
+    text_content = (
+        f"Hi {safe_name},\n\n"
+        "We received a request to reset the password for your DataVision Pro "
+        "account. Open the link below to choose a new password. This link is "
+        "valid for 1 hour and can be used only once.\n\n"
+        f"{reset_url}\n\n"
+        "If you did not request a password reset, you can safely ignore this email."
+    )
+
+    try:
+        params = {
+            "from": from_email,
+            "to": [user_email],
+            "subject": "Reset your DataVision Pro password",
+            "html": html_content,
+            "text": text_content,
+        }
+
+        email_response = resend.Emails.send(params)
+        print(f"Password reset email sent to {user_email}: {email_response}")
+        return True
+    except Exception as e:
+        print(f"Error sending password reset email: {e}")
+        return False
+
+
 def send_support_notification(user_email, user_name, message):
     api_key, from_email = get_resend_credentials()
     

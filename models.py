@@ -46,6 +46,18 @@ class User(Base):
     last_dataset_id = Column(Integer, nullable=True)
 
 
+class PasswordResetToken(Base):
+    """One-time tokens for password reset email links."""
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String(128), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class SupportMessage(Base):
     """Model for support messages"""
     __tablename__ = "support_messages"
@@ -158,6 +170,16 @@ def init_db():
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS parse_meta JSON",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS step_recipes JSON",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS active_step_index INTEGER",
+        """CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            token_hash VARCHAR(128) NOT NULL UNIQUE,
+            expires_at TIMESTAMP NOT NULL,
+            used_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT NOW()
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_password_reset_tokens_user_id ON password_reset_tokens(user_id)",
+        "CREATE INDEX IF NOT EXISTS ix_password_reset_tokens_token_hash ON password_reset_tokens(token_hash)",
     ]
     # Newer tables that may not exist on older deployments need an
     # explicit create step before the in-place ALTERs above run, since
@@ -511,6 +533,82 @@ def save_support_message(db, email, name, message):
     db.commit()
     db.refresh(msg)
     return msg
+
+
+def _hash_reset_token(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
+def create_password_reset_token(db, user, ttl_hours: int = 1):
+    """Create a one-time password-reset token for `user`.
+
+    Returns the raw token string (only this is shown to the user — only the
+    hash is persisted).
+    """
+    raw_token = secrets.token_urlsafe(48)
+    record = PasswordResetToken(
+        user_id=user.id,
+        token_hash=_hash_reset_token(raw_token),
+        expires_at=datetime.utcnow() + timedelta(hours=ttl_hours),
+    )
+    db.add(record)
+    db.commit()
+    return raw_token
+
+
+def get_valid_password_reset_token(db, raw_token: str):
+    """Return the (token, user) pair if the token is valid; else (None, None)."""
+    if not raw_token:
+        return None, None
+    token = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token_hash == _hash_reset_token(raw_token)
+    ).first()
+    if not token:
+        return None, None
+    if token.used_at is not None:
+        return None, None
+    if token.expires_at < datetime.utcnow():
+        return None, None
+    user = db.query(User).filter(User.id == token.user_id).first()
+    if not user:
+        return None, None
+    return token, user
+
+
+def consume_password_reset_token(db, token: "PasswordResetToken", new_password: str):
+    """Atomically mark the token used and update the user's password.
+
+    Uses a single conditional UPDATE on the token row (`used_at IS NULL AND
+    expires_at > now`) so that two concurrent reset attempts can't both
+    succeed: the second update will affect zero rows and we abort.
+    """
+    now = datetime.utcnow()
+    rowcount = db.query(PasswordResetToken).filter(
+        PasswordResetToken.id == token.id,
+        PasswordResetToken.used_at.is_(None),
+        PasswordResetToken.expires_at > now,
+    ).update({PasswordResetToken.used_at: now}, synchronize_session=False)
+
+    if not rowcount:
+        db.rollback()
+        return None
+
+    user = db.query(User).filter(User.id == token.user_id).first()
+    if not user:
+        db.rollback()
+        return None
+    user.password_hash = hash_password(new_password)
+    db.commit()
+    return user
+
+
+def purge_expired_password_reset_tokens(db):
+    """Delete tokens that have expired or already been used."""
+    now = datetime.utcnow()
+    db.query(PasswordResetToken).filter(
+        (PasswordResetToken.expires_at < now) | (PasswordResetToken.used_at.isnot(None))
+    ).delete(synchronize_session=False)
+    db.commit()
 
 
 def check_trial_active(user):

@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -134,7 +135,9 @@ from models import (
     update_user_subscription, save_support_message, check_trial_active,
     issue_session_token, get_user_by_session_token, clear_session_token,
     update_dataset_steps, get_dataset_record, set_user_last_dataset,
-    get_user_datasets,
+    get_user_datasets, get_user_by_email,
+    create_password_reset_token, get_valid_password_reset_token,
+    consume_password_reset_token, purge_expired_password_reset_tokens,
 )
 from data_cleaner import (
     clean_data, detect_column_types, get_data_quality_score,
@@ -166,7 +169,7 @@ from ai_assistant import (
     generate_comparison_insights, generate_prediction_insights
 )
 import math
-from email_service import send_welcome_email, send_support_notification
+from email_service import send_welcome_email, send_support_notification, send_password_reset_email
 
 def get_logo_base64():
     """Load logo as base64 for HTML embedding"""
@@ -1429,7 +1432,14 @@ if 'session_hydrated' not in st.session_state:
     st.session_state.session_hydrated = False
 
 try:
-    if st.query_params.get('signin') == '1':
+    if st.query_params.get('reset_token'):
+        # Deep-link from password reset email — must land on the reset page
+        # even before any sign-in state exists. Preserve the token query param.
+        st.session_state.page = 'reset_password'
+    elif st.query_params.get('forgot') == '1':
+        st.session_state.page = 'forgot_password'
+        st.query_params.clear()
+    elif st.query_params.get('signin') == '1':
         st.session_state.page = 'login'
         st.query_params.clear()
     elif st.query_params.get('register') == '1':
@@ -3103,10 +3113,14 @@ def show_login_page():
 </div>
 ''', unsafe_allow_html=True)
 
+        _login_flash = st.session_state.pop('login_flash', None)
+        if _login_flash:
+            st.success(_login_flash)
+
         with st.form("login_form", clear_on_submit=False):
             email = st.text_input("Email Address", placeholder="you@company.com", key="login_email")
             password = st.text_input("Password", type="password", placeholder="Enter your password", key="login_password")
-            st.markdown('<div class="auth-aux-row"><a class="auth-aux-link" href="mailto:muayad.demaidi.work@gmail.com?subject=Password%20Reset%20Request">Forgot password?</a></div>', unsafe_allow_html=True)
+            st.markdown('<div class="auth-aux-row"><a class="auth-aux-link" href="?forgot=1" target="_self">Forgot password?</a></div>', unsafe_allow_html=True)
             submit = st.form_submit_button("Sign In \u2192", use_container_width=True)
 
             if submit:
@@ -3521,6 +3535,249 @@ def show_register_page():
 </div>
 </div></div>
 ''', unsafe_allow_html=True)
+
+
+def _get_app_base_url():
+    """Best-effort base URL for outbound deep-links (password reset emails)."""
+    domains = os.environ.get("REPLIT_DOMAINS", "")
+    if domains:
+        first = domains.split(",")[0].strip()
+        if first:
+            return f"https://{first}"
+    dev_domain = os.environ.get("REPLIT_DEV_DOMAIN", "")
+    if dev_domain:
+        return f"https://{dev_domain}"
+    return ""
+
+
+def _render_forgot_password_styles():
+    """Per-page tweaks shared by forgot/reset screens."""
+    st.markdown('''
+<style>
+.auth-aux-row.center { justify-content: center; margin-top: 0.6rem; }
+.auth-inline-help {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+    color: var(--text-muted); letter-spacing: 0.06em;
+    text-align: center; margin: 0.85rem 0 0 0;
+}
+</style>
+''', unsafe_allow_html=True)
+
+
+def show_forgot_password_page():
+    logo_b64 = get_logo_base64()
+    _render_auth_chrome(logo_b64, action_label="Sign In", action_href="?signin=1")
+    _render_forgot_password_styles()
+
+    col_left, col_right = st.columns([1.05, 1], gap="large")
+
+    with col_left:
+        st.markdown('''
+<div class="auth-brand-pane">
+<div class="auth-brand-eyebrow">Account Recovery</div>
+<h1 class="auth-brand-headline">Forgot your password?<br>We&rsquo;ll help you back in.</h1>
+<p class="auth-brand-sub">Enter the email address tied to your DataVision Pro account and we&rsquo;ll send you a secure link to choose a new password.</p>
+<div class="auth-brand-features">
+<div class="auth-brand-feat">
+<div class="auth-brand-feat-icon">01</div>
+<div class="auth-brand-feat-body"><strong>One-Time Link</strong><span>The reset link works once and expires after 60 minutes.</span></div>
+</div>
+<div class="auth-brand-feat">
+<div class="auth-brand-feat-icon">02</div>
+<div class="auth-brand-feat-body"><strong>Privacy First</strong><span>We never reveal whether an email is registered with us.</span></div>
+</div>
+<div class="auth-brand-feat">
+<div class="auth-brand-feat-icon">03</div>
+<div class="auth-brand-feat-body"><strong>Your Data Stays Safe</strong><span>Your datasets and analyses remain untouched during recovery.</span></div>
+</div>
+</div>
+</div>
+''', unsafe_allow_html=True)
+
+    with col_right:
+        st.markdown('''
+<div class="auth-eyebrow"><span>Reset your password</span></div>
+<div class="auth-headline">
+<h1>Reset your password</h1>
+<p>Enter your email and we&rsquo;ll send you a reset link.</p>
+</div>
+''', unsafe_allow_html=True)
+
+        _flash = st.session_state.pop('forgot_flash', None)
+        if _flash:
+            st.success(_flash)
+
+        with st.form("forgot_password_form", clear_on_submit=False):
+            email = st.text_input("Email Address", placeholder="you@company.com", key="forgot_email")
+            submit = st.form_submit_button("Send reset link \u2192", use_container_width=True)
+
+            if submit:
+                neutral_msg = ("If an account exists for that email, we've sent "
+                               "a reset link. Please check your inbox.")
+                if not email or "@" not in email:
+                    st.warning("Please enter a valid email address.")
+                else:
+                    db = get_db()
+                    try:
+                        try:
+                            purge_expired_password_reset_tokens(db)
+                        except Exception:
+                            pass
+                        user = get_user_by_email(db, email.strip().lower()) or get_user_by_email(db, email.strip())
+                        if user:
+                            try:
+                                raw_token = create_password_reset_token(db, user, ttl_hours=1)
+                                base = _get_app_base_url()
+                                reset_url = (f"{base}/?reset_token={raw_token}"
+                                             if base else f"?reset_token={raw_token}")
+                                send_password_reset_email(user.email, user.full_name or user.username, reset_url)
+                            except Exception as e:
+                                print(f"Password reset send failed: {e}")
+                        st.session_state['forgot_flash'] = neutral_msg
+                        st.rerun()
+                    finally:
+                        db.close()
+
+        st.markdown('<div class="auth-divider"><span>REMEMBERED IT</span></div>', unsafe_allow_html=True)
+        st.markdown('<p class="auth-foot-text">Take me back to the sign-in page.</p>', unsafe_allow_html=True)
+        if st.button("Back to Sign In  \u2192", use_container_width=True, key="forgot_to_login"):
+            st.session_state.page = 'login'
+            st.rerun()
+
+        st.markdown('''
+<div class="auth-trust">
+<span>ENCRYPTED</span><span class="dot">\u00b7</span><span>ONE-TIME LINK</span><span class="dot">\u00b7</span><span>EXPIRES IN 1 HOUR</span>
+</div>
+''', unsafe_allow_html=True)
+
+
+def show_reset_password_page():
+    logo_b64 = get_logo_base64()
+    _render_auth_chrome(logo_b64, action_label="Sign In", action_href="?signin=1")
+    _render_forgot_password_styles()
+
+    raw_token = ""
+    try:
+        raw_token = st.query_params.get('reset_token') or ""
+    except Exception:
+        raw_token = ""
+
+    db = get_db()
+    try:
+        token_record, user = (None, None)
+        if raw_token:
+            token_record, user = get_valid_password_reset_token(db, raw_token)
+
+        col_left, col_right = st.columns([1.05, 1], gap="large")
+
+        with col_left:
+            st.markdown('''
+<div class="auth-brand-pane">
+<div class="auth-brand-eyebrow">Choose a New Password</div>
+<h1 class="auth-brand-headline">Almost there.<br>Set a new password.</h1>
+<p class="auth-brand-sub">Pick something strong &mdash; at least 8 characters. Once updated, you&rsquo;ll be redirected to sign in with your new credentials.</p>
+<div class="auth-brand-features">
+<div class="auth-brand-feat">
+<div class="auth-brand-feat-icon">01</div>
+<div class="auth-brand-feat-body"><strong>Min 8 Characters</strong><span>Longer passwords are dramatically harder to crack.</span></div>
+</div>
+<div class="auth-brand-feat">
+<div class="auth-brand-feat-icon">02</div>
+<div class="auth-brand-feat-body"><strong>Single-Use Link</strong><span>This link is consumed the moment your password updates.</span></div>
+</div>
+<div class="auth-brand-feat">
+<div class="auth-brand-feat-icon">03</div>
+<div class="auth-brand-feat-body"><strong>Bcrypt Hashing</strong><span>We never store your password &mdash; only a salted hash.</span></div>
+</div>
+</div>
+</div>
+''', unsafe_allow_html=True)
+
+        with col_right:
+            if not token_record or not user:
+                st.markdown('''
+<div class="auth-eyebrow"><span>Link Invalid</span></div>
+<div class="auth-headline">
+<h1>This link is no longer valid</h1>
+<p>It may have expired, already been used, or been mistyped.</p>
+</div>
+''', unsafe_allow_html=True)
+                st.error("This password reset link is no longer valid \u2014 please request a new one.")
+                if st.button("Request a new reset link  \u2192", use_container_width=True, key="reset_invalid_to_forgot"):
+                    try:
+                        st.query_params.clear()
+                    except Exception:
+                        pass
+                    st.session_state.page = 'forgot_password'
+                    st.rerun()
+                if st.button("Back to Sign In", use_container_width=True, key="reset_invalid_to_login"):
+                    try:
+                        st.query_params.clear()
+                    except Exception:
+                        pass
+                    st.session_state.page = 'login'
+                    st.rerun()
+                return
+
+            st.markdown(f'''
+<div class="auth-eyebrow"><span>Choose a new password</span></div>
+<div class="auth-headline">
+<h1>Choose a new password</h1>
+<p>Updating the password for <strong style="color:var(--teal);">{user.email}</strong>.</p>
+</div>
+''', unsafe_allow_html=True)
+
+            with st.form("reset_password_form", clear_on_submit=False):
+                new_password = st.text_input("New Password", type="password",
+                                             placeholder="Min 8 characters", key="reset_new_pw")
+                confirm_password = st.text_input("Confirm New Password", type="password",
+                                                 placeholder="Re-enter new password", key="reset_confirm_pw")
+                st.markdown('<p class="auth-inline-help">Use at least 8 characters. Both fields must match.</p>',
+                            unsafe_allow_html=True)
+                submit = st.form_submit_button("Update password  \u2192", use_container_width=True)
+
+                if submit:
+                    if not new_password or not confirm_password:
+                        st.warning("Please fill in both password fields.")
+                    elif len(new_password) < 8:
+                        st.error("Password must be at least 8 characters.")
+                    elif new_password != confirm_password:
+                        st.error("Passwords do not match.")
+                    else:
+                        try:
+                            updated_user = consume_password_reset_token(
+                                db, token_record, new_password
+                            )
+                            if not updated_user:
+                                st.error(
+                                    "This password reset link is no longer valid "
+                                    "\u2014 please request a new one."
+                                )
+                            else:
+                                st.session_state['login_flash'] = (
+                                    "Your password has been updated. Please sign in "
+                                    "with your new password."
+                                )
+                                try:
+                                    st.query_params.clear()
+                                except Exception:
+                                    pass
+                                st.session_state.page = 'login'
+                                st.rerun()
+                        except Exception as e:
+                            print(f"Password reset failed: {e}")
+                            st.error("Something went wrong updating your password. Please try again.")
+
+            st.markdown('<div class="auth-divider"><span>CHANGED YOUR MIND</span></div>', unsafe_allow_html=True)
+            if st.button("Back to Sign In", use_container_width=True, key="reset_to_login"):
+                try:
+                    st.query_params.clear()
+                except Exception:
+                    pass
+                st.session_state.page = 'login'
+                st.rerun()
+    finally:
+        db.close()
 
 
 def show_pricing_page():
@@ -6475,6 +6732,10 @@ elif st.session_state.page == 'login':
     show_login_page()
 elif st.session_state.page == 'register':
     show_register_page()
+elif st.session_state.page == 'forgot_password':
+    show_forgot_password_page()
+elif st.session_state.page == 'reset_password':
+    show_reset_password_page()
 elif st.session_state.page == 'pricing':
     show_pricing_page()
 elif st.session_state.page == 'review':
