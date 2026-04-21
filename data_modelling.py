@@ -284,8 +284,38 @@ def materialize_join(
 
     left_work = left.copy()
     right_work = right.copy()
-    left_work["__dv_join_key__"] = left_work[left_col].astype(str).str.strip()
-    right_work["__dv_join_key__"] = right_work[right_col].astype(str).str.strip()
+    # Coerce keys to stripped strings so a numeric ID stored as text on
+    # one side still matches the integer on the other — but preserve
+    # NaN so that null keys never join (standard SQL/BI semantics:
+    # NULL ≠ NULL in equality joins). Without this guard, both sides'
+    # missing values would collapse to the literal "nan" string and
+    # match each other, exploding the result with bogus rows.
+    def _key(series: pd.Series, side: str) -> pd.Series:
+        # Whole-number floats need to render as ints ("1" not "1.0") so
+        # they line up with int columns or "1"-style text on the other
+        # side. This is the most common cross-source mismatch (a column
+        # gets float dtype the moment it has any nulls in pandas).
+        if pd.api.types.is_float_dtype(series):
+            def _fmt(v):
+                if pd.isna(v):
+                    return ""
+                if float(v).is_integer():
+                    return str(int(v))
+                return str(v).strip()
+            coerced = series.map(_fmt)
+        else:
+            coerced = series.astype(str).str.strip()
+        # Empty strings + null source values become per-row unique
+        # sentinels (`__dv_null_<side>_<idx>__`) so they cannot collide
+        # with any real value or with each other across the merge.
+        null_mask = series.isna() | coerced.eq("") | coerced.eq("nan") | coerced.eq("None")
+        if null_mask.any():
+            sentinels = [f"__dv_null_{side}_{i}__" for i in series.index[null_mask]]
+            coerced.loc[null_mask] = sentinels
+        return coerced
+
+    left_work["__dv_join_key__"] = _key(left_work[left_col], "L")
+    right_work["__dv_join_key__"] = _key(right_work[right_col], "R")
 
     suffixes = (f"_{left_label}", f"_{right_label}")
     merged = pd.merge(

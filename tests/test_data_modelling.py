@@ -125,6 +125,27 @@ def test_materialize_join_string_vs_int_keys():
     assert set(out["label"]) == {"x", "y", "z"}
 
 
+def test_materialize_join_does_not_match_nulls():
+    """Null keys on either side must never join (SQL semantics)."""
+    a = pd.DataFrame({"k": [1, 2, None, None], "v": ["a", "b", "c", "d"]})
+    b = pd.DataFrame({"k": [1, None, None, 9], "label": ["x", "y", "z", "w"]})
+    out = materialize_join(a, b, "k", "k", join_type="inner",
+                           left_label="A", right_label="B")
+    # Only the (1,1) pair should match — no NaN-to-NaN matches.
+    assert len(out) == 1
+    assert out["label"].tolist() == ["x"]
+
+
+def test_materialize_join_left_join_keeps_unmatched_nulls():
+    a = pd.DataFrame({"k": [1, 2, None], "v": ["a", "b", "c"]})
+    b = pd.DataFrame({"k": [1, 99], "label": ["x", "y"]})
+    out = materialize_join(a, b, "k", "k", join_type="left",
+                           left_label="A", right_label="B")
+    assert len(out) == 3  # all left rows preserved
+    # Row with k=2 and the row with k=null should both have NaN labels.
+    assert out["label"].isna().sum() == 2
+
+
 def test_materialize_join_invalid_columns_raises():
     o, c = _orders(), _customers()
     try:
