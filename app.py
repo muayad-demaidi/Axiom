@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import hashlib
+import json
+import copy
+from collections import OrderedDict
 from datetime import datetime
 import io
 import base64
@@ -1463,6 +1466,13 @@ if 'cleaning_substep_plans' not in st.session_state:
     st.session_state.cleaning_substep_plans = {}
 if 'display_prefs' not in st.session_state:
     st.session_state.display_prefs = {}
+if 'plan_replay_cache' not in st.session_state:
+    # Per-dataset LRU cache mapping prefix-hash -> snapshot of the
+    # replayed plan up to and including that step. Lets reorder/toggle
+    # actions skip re-executing prefix steps that haven't changed since
+    # the last replay. Cleared naturally when the user uploads a new
+    # dataset (new ds_key) or the session ends.
+    st.session_state.plan_replay_cache = {}
 
 
 def _ds_key():
@@ -1644,12 +1654,57 @@ def _build_unified_plan(sh: StepHistory) -> list:
     return plan
 
 
+REPLAY_CACHE_MAX = 10
+
+
+def _plan_entry_hash(entry: dict) -> str:
+    """Stable per-entry hash: kind + enabled + instance_id + params + meta_extra."""
+    payload = {
+        "kind": entry.get("kind"),
+        "enabled": bool(entry.get("enabled", True)),
+        "instance_id": entry.get("instance_id"),
+        "params": entry.get("params") or {},
+        "meta_extra": entry.get("meta_extra") or {},
+    }
+    try:
+        s = json.dumps(payload, sort_keys=True, default=str)
+    except Exception:
+        s = repr(payload)
+    return hashlib.sha1(s.encode("utf-8")).hexdigest()
+
+
+def _source_seed_hash(df) -> str:
+    """Cheap fingerprint for the source df so distinct sources don't share cache."""
+    if df is None:
+        return "none"
+    try:
+        return hashlib.sha1(
+            f"{df.shape}|{list(df.columns)}".encode("utf-8")
+        ).hexdigest()
+    except Exception:
+        return "none"
+
+
+def _get_replay_cache(ds_key) -> "OrderedDict":
+    caches = st.session_state.plan_replay_cache
+    cache = caches.get(ds_key)
+    if cache is None:
+        cache = OrderedDict()
+        caches[ds_key] = cache
+    return cache
+
+
 def _replay_unified_plan(sh: StepHistory, plan: list):
     """Replay an ordered, enable-aware plan onto sh.steps[0].df.
 
     Returns (new_steps, cleaning_report). Disabled non-source steps are
     pass-through (df copied unchanged) so they remain visible in the
     Applied Steps panel and can be re-enabled later.
+
+    Uses a per-dataset LRU cache keyed by prefix hash so that toggling /
+    reordering / removing a step only re-executes that step and the
+    entries downstream of it. The cache is invisible to callers — the
+    returned (new_steps, report) shape is unchanged.
     """
     if not sh.steps:
         return None, None
@@ -1665,7 +1720,40 @@ def _replay_unified_plan(sh: StepHistory, plan: list):
     }
     saw_cleaning = False
 
-    for entry in plan:
+    # Compute prefix hashes so we can short-circuit on any cached prefix.
+    ds_key = _ds_key()
+    cache = _get_replay_cache(ds_key)
+    src_seed = _source_seed_hash(source_step.df)
+    entry_hashes = [_plan_entry_hash(e) for e in plan]
+    prefix_hashes = []
+    acc = src_seed
+    for eh in entry_hashes:
+        acc = hashlib.sha1((acc + "|" + eh).encode("utf-8")).hexdigest()
+        prefix_hashes.append(acc)
+
+    start_index = 0
+    for i in range(len(prefix_hashes) - 1, -1, -1):
+        if prefix_hashes[i] in cache:
+            cached = cache[prefix_hashes[i]]
+            cache.move_to_end(prefix_hashes[i])
+            new_steps = [source_step] + [
+                Step(
+                    name=s['name'],
+                    summary=s['summary'],
+                    df=s['df'],
+                    meta=dict(s['meta'] or {}),
+                )
+                for s in cached['steps']
+            ]
+            last_df = cached['steps'][-1]['df'] if cached['steps'] else None
+            current = last_df.copy() if last_df is not None else None
+            cleaning_report = copy.deepcopy(cached['cleaning_report'])
+            saw_cleaning = cached['saw_cleaning']
+            start_index = i + 1
+            break
+
+    for idx in range(start_index, len(plan)):
+        entry = plan[idx]
         kind = entry["kind"]
         enabled = bool(entry.get("enabled", True))
         instance_id = entry["instance_id"]
@@ -1752,6 +1840,19 @@ def _replay_unified_plan(sh: StepHistory, plan: list):
 
         snap = current.copy() if current is not None else current
         new_steps.append(Step(name=name, summary=summary, df=snap, meta=meta))
+
+        # Memoise this prefix so future replays can short-circuit to it.
+        cache[prefix_hashes[idx]] = {
+            'steps': [
+                {'name': s.name, 'summary': s.summary, 'df': s.df, 'meta': s.meta}
+                for s in new_steps[1:]
+            ],
+            'cleaning_report': copy.deepcopy(cleaning_report),
+            'saw_cleaning': saw_cleaning,
+        }
+        cache.move_to_end(prefix_hashes[idx])
+        while len(cache) > REPLAY_CACHE_MAX:
+            cache.popitem(last=False)
 
     if current is not None:
         cleaning_report['final_rows'] = len(current)
