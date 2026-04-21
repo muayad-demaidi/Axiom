@@ -1932,6 +1932,119 @@ def _commit_unified_plan(sh: StepHistory, plan: list, ds_key) -> None:
 
 
 # --------------------------------------------------------------------------
+# Proactive Question Bar
+# --------------------------------------------------------------------------
+# Detector + UI for the "DataVision asks when uncertain" panel. Runs over
+# the active dataframe + inferred schema, surfaces rule-based doubts
+# (mixed dtypes, ambiguous date format, multi-currency column,
+# Hijri-flagged columns, near-duplicate rows) and writes the chosen
+# answer either as a real cleaning substep or as a recorded decision.
+
+from proactive_questions import (
+    Question, QuestionOption, detect_questions, resolve_answer,
+)
+
+
+def _proactive_state(ds_key: str) -> dict:
+    """Per-dataset bag holding answered/skipped question ids and any
+    free-form decisions the user made (kept so we can render an "X
+    decided" line in the future without re-asking)."""
+    bag = st.session_state.setdefault("proactive_questions", {})
+    return bag.setdefault(str(ds_key), {"answered": {}, "skipped": set()})
+
+
+def _apply_question_substep(ds_key: str, sh: StepHistory,
+                            substep_key: str, params: dict) -> None:
+    """Append a new cleaning substep to the unified plan, then rebuild.
+
+    Mirrors what the Insert UI does, but at module level so the panel
+    can be mounted from any tab. The substep lands at the end of the
+    cleaning block so previously-decided steps keep their order."""
+    if not sh:
+        return
+    plan = _build_unified_plan(sh)
+    new_entry = {
+        "instance_id": _new_instance_id(),
+        "kind": "cleaning_substep",
+        "name": substep_label(substep_key, params or {}),
+        "summary": "",
+        "enabled": True,
+        "params": dict(params or {}),
+        "meta_extra": {"substep_key": substep_key,
+                       "origin": "proactive_question"},
+    }
+    # Insert after the last existing cleaning step, otherwise at the end.
+    last_clean = -1
+    for i, e in enumerate(plan):
+        if e.get("kind") == "cleaning_substep":
+            last_clean = i
+    insert_at = last_clean + 1 if last_clean >= 0 else len(plan)
+    plan.insert(insert_at, new_entry)
+    _commit_unified_plan(sh, plan, ds_key)
+
+
+def _render_questions_panel(ds_key: str, sh: StepHistory,
+                            view_df, location: str) -> None:
+    """Render the proactive question bar for the active dataset.
+
+    `location` is a short string ("cleaning", "transform") used to
+    namespace widget keys so the same question can be rendered in two
+    panels without Streamlit complaining about duplicate keys.
+    """
+    if view_df is None or getattr(view_df, "empty", True):
+        return
+    schema = st.session_state.inferred_schema.get(ds_key)
+    try:
+        questions = detect_questions(view_df, schema=schema, ds_key=str(ds_key))
+    except Exception:
+        # The detector is best-effort: a single broken column shouldn't
+        # take down the panel. Surface nothing rather than crash.
+        return
+    state = _proactive_state(ds_key)
+    answered_ids = set(state["answered"].keys())
+    skipped_ids = set(state["skipped"])
+    open_qs = [q for q in questions
+               if q.id not in answered_ids and q.id not in skipped_ids]
+    if not open_qs:
+        return
+
+    st.markdown(
+        f"**Questions from DataVision** · {len(open_qs)} open"
+    )
+    st.caption("Pick an answer to record the decision as a step. "
+               "Skip to dismiss for this session.")
+    for q in open_qs:
+        with st.container(border=True):
+            st.markdown(f"**{q.prompt}**")
+            st.caption(q.context)
+            cols = st.columns(max(1, len(q.options)))
+            for i, opt in enumerate(q.options):
+                btn_key = f"pq_{location}_{q.id}_{i}"
+                btn_type = "primary" if opt.is_default else "secondary"
+                if cols[i].button(opt.label, key=btn_key, type=btn_type,
+                                  use_container_width=True):
+                    if opt.action == "skip":
+                        state["skipped"].add(q.id)
+                        st.rerun()
+                    else:
+                        request = resolve_answer(q, opt)
+                        if request and sh is not None:
+                            _apply_question_substep(
+                                ds_key, sh,
+                                request["substep_key"],
+                                request.get("params") or {},
+                            )
+                        state["answered"][q.id] = {
+                            "kind": q.kind,
+                            "label": opt.label,
+                            "action": opt.action,
+                            "payload": opt.payload,
+                            "applied_substep": (request or {}).get("substep_key"),
+                        }
+                        st.rerun()
+
+
+# --------------------------------------------------------------------------
 # Transform Toolkit form renderer
 # --------------------------------------------------------------------------
 # One reusable widget tree per transform substep. Used both when inserting
@@ -5583,6 +5696,8 @@ def show_dashboard():
                                 "Group By. Each one becomes its own step in Applied "
                                 "Steps and can be toggled, reordered, or removed."
                             )
+                            _render_questions_panel(ds_key, sh, view_df,
+                                                    location="transform")
                             transform_keys = [
                                 k for k, m in SUBSTEP_REGISTRY.items()
                                 if m.get("transform")
@@ -5779,6 +5894,8 @@ def show_dashboard():
 
                     view_df = _active_df()
                     sig = _active_step_signature()
+                    _render_questions_panel(_ds_key(), _get_step_history(),
+                                            view_df, location="cleaning")
                     if st.session_state.cleaning_report:
                         report = st.session_state.cleaning_report
 
