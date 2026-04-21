@@ -57,6 +57,16 @@ class AgentConfig:
     report_email_to: str = "muayad.demaidi.work@gmail.com"
     site_existing_slugs: Dict[str, List[str]] = field(default_factory=dict)
 
+    # --- Organic-traffic analytics (Task #35) ---
+    # Pulls per-URL impressions/clicks/CTR from a free source so the selector
+    # can learn which categories actually earn traffic.
+    analytics_source: str = "none"          # none|plausible|gsc_csv
+    analytics_site_url: str = ""            # plausible site_id or canonical site URL
+    analytics_lookback_days: int = 7        # window for the weekly pull
+    topic_dead_lookback_days: int = 60      # zero-traffic window that triggers down-weight
+    topic_dead_score_factor: float = 0.4    # multiplier on signal_score for dead-category overlap
+    topic_winner_score_factor: float = 1.6  # multiplier for winning-category overlap
+
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 

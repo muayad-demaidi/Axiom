@@ -18,7 +18,7 @@ from typing import Dict, List
 
 from . import sources, selector, serp, generator, refresh, geo_check, report
 from .config import AgentConfig, load_config, env_override
-from .db import init_agent_db, get_session, AgentRun, GeoCheckResult
+from .db import init_agent_db, get_session, AgentRun, GeoCheckResult, PageMetric
 from .review import write_draft
 
 
@@ -52,8 +52,14 @@ def run_weekly_cycle(cfg: AgentConfig | None = None, dry_run: bool = False) -> D
         raw, src_errs = sources.gather_all(cfg.sources_enabled)
         errors += src_errs
 
-        # 2. Selection
-        selected = selector.select_topics(raw, top_n=max(cfg.max_new_pages_per_week * 2, 6))
+        # 2. Selection (re-scored with observed organic-traffic signal)
+        selected = selector.select_topics(
+            raw,
+            top_n=max(cfg.max_new_pages_per_week * 2, 6),
+            traffic_lookback_days=cfg.topic_dead_lookback_days,
+            dead_factor=cfg.topic_dead_score_factor,
+            winner_factor=cfg.topic_winner_score_factor,
+        )
         trending_keywords = [s["topic"] for s in selected[: max(3, cfg.max_new_pages_per_week)]]
 
         # 3-4. SERP brief + generate
@@ -141,6 +147,38 @@ def run_weekly_cycle(cfg: AgentConfig | None = None, dry_run: bool = False) -> D
             except Exception as e:
                 errors.append(f"refresh exception {page.get('slug')}: {e}")
 
+        # 5b. Pull per-URL organic-traffic metrics (free analytics signal).
+        analytics_rows = 0
+        try:
+            metric_rows, an_errs = sources.fetch_analytics(
+                cfg.analytics_source,
+                site_url=cfg.analytics_site_url,
+                lookback_days=cfg.analytics_lookback_days,
+            )
+            errors += an_errs
+            if metric_rows and not dry_run:
+                sess = get_session()
+                try:
+                    for m in metric_rows:
+                        sess.add(PageMetric(
+                            period_start=m.get("period_start"),
+                            period_end=m.get("period_end"),
+                            source=m.get("source", cfg.analytics_source or "unknown"),
+                            url=m.get("url"),
+                            slug=m.get("slug") or "",
+                            kind=m.get("kind"),
+                            impressions=int(m.get("impressions") or 0),
+                            clicks=int(m.get("clicks") or 0),
+                            ctr=float(m.get("ctr") or 0.0),
+                            avg_position=m.get("avg_position"),
+                        ))
+                    sess.commit()
+                finally:
+                    sess.close()
+            analytics_rows = len(metric_rows)
+        except Exception as e:
+            errors.append(f"analytics fetch failed: {e}")
+
         # 6. GEO check
         geo_rate = None
         try:
@@ -179,6 +217,8 @@ def run_weekly_cycle(cfg: AgentConfig | None = None, dry_run: bool = False) -> D
             "drafts": drafts_meta,
             "refreshed": refreshed_meta,
             "geo_mention_rate": geo_rate,
+            "analytics_source": cfg.analytics_source,
+            "analytics_rows_ingested": analytics_rows,
             "errors": errors,
         }
 

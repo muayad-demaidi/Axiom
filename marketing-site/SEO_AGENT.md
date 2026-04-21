@@ -27,11 +27,61 @@ Every week (Mondays 08:00 UTC by default) the agent:
    (configurable).
 6. **Writes drafts to `marketing-site/_review/drafts/`** as JSON files, with
    matching rows in the `seo_agent_drafts` PostgreSQL table.
-7. **Runs a GEO visibility check** against ~15 fixed prompts and records
+7. **Pulls per-URL organic-traffic metrics** (impressions, clicks, CTR,
+   average position) from the configured free analytics source — Plausible
+   API or a Google Search Console CSV export — and writes one row per
+   slug per pull into the `seo_agent_page_metrics` table.
+8. **Runs a GEO visibility check** against ~15 fixed prompts and records
    whether DataVision Pro is mentioned (with or without a citation).
-8. **Emails a weekly summary** to the admin via the existing Resend
+9. **Emails a weekly summary** to the admin via the existing Resend
    integration and writes a full row to `seo_agent_runs` for cost / output
    audit.
+
+## Closing the loop: traffic feeds the topic selector
+
+The selector reads `seo_agent_page_metrics` before scoring each weekly
+batch:
+
+- Slugs with **zero clicks AND zero impressions** in the last
+  `topic_dead_lookback_days` (default `60`) are bucketed as *dead*. Any
+  candidate topic whose tokens overlap ≥50 % with those dead slug-tokens
+  has its `signal_score` multiplied by `topic_dead_score_factor`
+  (default `0.4`).
+- The top quartile of slugs by clicks in that same window are *winners*.
+  Candidates whose tokens overlap ≥40 % with winner-tokens get boosted by
+  `topic_winner_score_factor` (default `1.6`).
+- Tokens that appear in both buckets are dropped to avoid contradictions.
+
+This means the longer the agent runs, the more it learns to write more of
+what already works and less of what never gets clicked.
+
+## Wiring up an analytics source
+
+Edit these in the admin panel → SEO/GEO Agent → Config:
+
+| Knob | Values | Notes |
+| --- | --- | --- |
+| `analytics_source` | `none` / `plausible` / `gsc_csv` | `none` skips the pull |
+| `analytics_site_url` | hostname or full URL | Plausible `site_id` (e.g. `datavisionpro.app`) or canonical site URL for GSC |
+| `analytics_lookback_days` | int | Window per pull (default `7`) |
+
+**Plausible** — set `PLAUSIBLE_API_KEY` as a Replit secret. The agent
+calls `https://plausible.io/api/v1/stats/breakdown` with
+`property=event:page` and stores `visitors` as `clicks`. Plausible does
+not expose impressions or position, so those columns stay null.
+
+**Google Search Console (CSV)** — in GSC → Performance → Pages, click
+**Export → CSV**, unzip, and drop `Pages.csv` at `data/gsc_pages.csv`
+(override with the `GSC_CSV_IMPORT_PATH` env var). The agent reads
+clicks, impressions, CTR, and average position. Re-export weekly; the
+agent appends a fresh row per slug each pull, so you keep a real time
+series. If `analytics_site_url` is set, only CSV rows whose URL matches
+that host are imported — handy when the same export contains multiple
+properties.
+
+The "Top performing pages" tab in the admin panel summarises the latest
+window: top pages by clicks, totals, and a list of zero-traffic slugs
+that the selector will down-weight.
 
 ## Approving drafts
 
@@ -73,6 +123,12 @@ panel. Defaults:
 | `geo_prompts` | 15 prompts | Edit in admin panel |
 | `refresh_after_days` | `90` |  |
 | `report_email_to` | admin email |  |
+| `analytics_source` | `none` | `plausible` or `gsc_csv` to enable the weekly traffic pull |
+| `analytics_site_url` | `""` | Plausible `site_id` or canonical site URL for GSC |
+| `analytics_lookback_days` | `7` | Window for each pull |
+| `topic_dead_lookback_days` | `60` | Zero-traffic window that down-weights a slug-category |
+| `topic_dead_score_factor` | `0.4` | Multiplier applied to candidates overlapping dead categories |
+| `topic_winner_score_factor` | `1.6` | Multiplier applied to candidates overlapping winning categories |
 
 ## Scheduling
 
@@ -135,6 +191,7 @@ seo_agent/
 ├── refresh.py       # find stale pages, refresh stats
 ├── review.py        # file-based review queue + content-file injection
 ├── geo_check.py     # brand-mention check across the prompt set
+│                   # (sources.py also hosts fetch_analytics for GSC/Plausible)
 ├── report.py        # weekly Resend email
 └── runner.py        # orchestrator with cost cap
 

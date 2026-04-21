@@ -8,9 +8,14 @@ never block a weekly run because Reddit happened to 503.
 """
 
 from __future__ import annotations
+import csv
+import os
 import re
 import time
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import List, Dict, Tuple
+from urllib.parse import urlparse
 
 import requests
 
@@ -153,6 +158,179 @@ def fetch_google_trends() -> Tuple[List[Dict], List[str]]:
 def _decode(s: str) -> str:
     return (s.replace("&#39;", "'").replace("&quot;", '"')
              .replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">"))
+
+
+# --- Organic-traffic analytics (Task #35) -----------------------------------
+#
+# Free signals only. We support two no-cost sources:
+#
+#   plausible : Plausible Analytics breakdown API (needs PLAUSIBLE_API_KEY env
+#               var). Returns clicks (visitors) only — impressions/position are
+#               left null because Plausible doesn't expose them.
+#   gsc_csv   : Google Search Console "Pages" CSV exported from the
+#               Performance report and dropped at GSC_CSV_IMPORT_PATH (default
+#               ``data/gsc_pages.csv``). Returns clicks, impressions, CTR,
+#               and average position.
+#
+# Each row returned by ``fetch_analytics`` is normalized to:
+#   {url, slug, kind, source, period_start, period_end,
+#    impressions, clicks, ctr, avg_position}
+
+
+def _slug_kind_from_url(url: str) -> Tuple[str, str]:
+    """Map a marketing-site URL to ``(slug, kind)``.
+
+    Path conventions: ``/glossary/<slug>``, ``/guides/<slug>``,
+    ``/compare/<slug>``. Anything else is bucketed as ``other`` with the
+    last path segment as the slug.
+    """
+    try:
+        path = urlparse(url).path
+    except Exception:
+        path = url
+    path = (path or "/").strip("/")
+    if not path:
+        return ("__home__", "other")
+    parts = path.split("/")
+    if parts[0] in ("glossary", "guides", "compare") and len(parts) >= 2:
+        return (parts[1], parts[0])
+    return (parts[-1], "other")
+
+
+def fetch_plausible(site_id: str, lookback_days: int = 7) -> Tuple[List[Dict], List[str]]:
+    """Pull the per-page visitor breakdown from Plausible.
+
+    Requires ``PLAUSIBLE_API_KEY`` in the environment. ``site_id`` is the
+    bare hostname registered with Plausible (e.g. ``datavisionpro.app``).
+    """
+    out: List[Dict] = []
+    errors: List[str] = []
+    token = os.environ.get("PLAUSIBLE_API_KEY")
+    if not token:
+        return out, ["plausible: PLAUSIBLE_API_KEY env var not set"]
+    if not site_id:
+        return out, ["plausible: analytics_site_url not configured"]
+    period_end = datetime.utcnow()
+    period_start = period_end - timedelta(days=lookback_days)
+    url = (
+        "https://plausible.io/api/v1/stats/breakdown"
+        f"?site_id={requests.utils.quote(site_id)}"
+        f"&period={lookback_days}d"
+        "&property=event:page&metrics=visitors,pageviews&limit=500"
+    )
+    try:
+        r = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=TIMEOUT)
+        if r.status_code != 200:
+            return out, [f"plausible HTTP {r.status_code}: {r.text[:200]}"]
+        results = r.json().get("results", []) or []
+    except Exception as e:
+        return out, [f"plausible fetch failed: {e}"]
+    base = site_id if site_id.startswith("http") else f"https://{site_id}"
+    for row in results:
+        page_path = row.get("page") or "/"
+        page_url = base.rstrip("/") + page_path
+        slug, kind = _slug_kind_from_url(page_url)
+        out.append({
+            "url": page_url,
+            "slug": slug,
+            "kind": kind,
+            "source": "plausible",
+            "period_start": period_start,
+            "period_end": period_end,
+            "impressions": 0,                # not exposed
+            "clicks": int(row.get("visitors") or 0),
+            "ctr": 0.0,
+            "avg_position": None,
+        })
+    return out, errors
+
+
+def fetch_gsc_csv(csv_path: str | None = None,
+                  lookback_days: int = 7,
+                  site_url: str = "") -> Tuple[List[Dict], List[str]]:
+    """Read a Google Search Console "Pages" CSV export.
+
+    The operator drops the latest export at ``GSC_CSV_IMPORT_PATH`` (default
+    ``data/gsc_pages.csv``). Expected columns (case-insensitive):
+    ``Top pages``/``Page``, ``Clicks``, ``Impressions``, ``CTR``, ``Position``.
+
+    If ``site_url`` is provided (e.g. ``datavisionpro.app`` or
+    ``https://datavisionpro.app``), only rows whose page URL matches that
+    host are kept. This lets the same fetcher coexist with multi-property
+    GSC exports.
+    """
+    out: List[Dict] = []
+    errors: List[str] = []
+    path_str = csv_path or os.environ.get("GSC_CSV_IMPORT_PATH", "data/gsc_pages.csv")
+    path = Path(path_str)
+    if not path.exists():
+        return out, [f"gsc_csv: file not found at {path}"]
+    period_end = datetime.utcnow()
+    period_start = period_end - timedelta(days=lookback_days)
+    host_filter = ""
+    if site_url:
+        try:
+            host_filter = (urlparse(site_url).netloc or site_url).strip("/").lower()
+        except Exception:
+            host_filter = site_url.strip("/").lower()
+    try:
+        with path.open("r", encoding="utf-8-sig", newline="") as fh:
+            reader = csv.DictReader(fh)
+            for raw in reader:
+                row = {(k or "").strip().lower(): (v or "").strip()
+                       for k, v in raw.items()}
+                page_url = row.get("page") or row.get("top pages") or row.get("url") or ""
+                if not page_url:
+                    continue
+                if host_filter:
+                    try:
+                        row_host = (urlparse(page_url).netloc or "").lower()
+                    except Exception:
+                        row_host = ""
+                    if host_filter not in row_host and host_filter not in page_url.lower():
+                        continue
+                slug, kind = _slug_kind_from_url(page_url)
+                ctr_raw = row.get("ctr") or "0"
+                ctr = float(ctr_raw.rstrip("%")) / (100 if "%" in ctr_raw else 1) if ctr_raw else 0.0
+                try:
+                    pos = float(row.get("position") or row.get("average position") or 0) or None
+                except Exception:
+                    pos = None
+                try:
+                    clicks = int(float(row.get("clicks") or 0))
+                except Exception:
+                    clicks = 0
+                try:
+                    impr = int(float(row.get("impressions") or 0))
+                except Exception:
+                    impr = 0
+                out.append({
+                    "url": page_url,
+                    "slug": slug,
+                    "kind": kind,
+                    "source": "gsc_csv",
+                    "period_start": period_start,
+                    "period_end": period_end,
+                    "impressions": impr,
+                    "clicks": clicks,
+                    "ctr": ctr,
+                    "avg_position": pos,
+                })
+    except Exception as e:
+        errors.append(f"gsc_csv parse failed: {e}")
+    return out, errors
+
+
+def fetch_analytics(source: str, site_url: str = "",
+                    lookback_days: int = 7) -> Tuple[List[Dict], List[str]]:
+    """Dispatch to the configured free analytics source."""
+    if source == "plausible":
+        return fetch_plausible(site_url, lookback_days=lookback_days)
+    if source == "gsc_csv":
+        return fetch_gsc_csv(lookback_days=lookback_days, site_url=site_url)
+    if source in ("", "none", None):
+        return [], []
+    return [], [f"analytics source '{source}' not supported"]
 
 
 def gather_all(sources_enabled: Dict[str, bool]) -> Tuple[List[Dict], List[str]]:

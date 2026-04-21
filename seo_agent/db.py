@@ -71,6 +71,29 @@ class GeoCheckResult(AgentBase):
     answer_excerpt = Column(Text, nullable=True)
 
 
+class PageMetric(AgentBase):
+    """Per-URL organic-traffic snapshot pulled from a free analytics source.
+
+    One row per (slug, period_start, source). The agent appends new rows on
+    every weekly pull rather than upserting, so we keep a time series we can
+    reason about (e.g. "zero traffic for >60 days").
+    """
+    __tablename__ = "seo_agent_page_metrics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    fetched_at = Column(DateTime, default=datetime.utcnow, index=True)
+    period_start = Column(DateTime, index=True, nullable=True)
+    period_end = Column(DateTime, index=True, nullable=True)
+    source = Column(String(32), default="gsc_csv")  # gsc_csv|plausible|cloudflare
+    url = Column(String(1000), nullable=True)
+    slug = Column(String(255), index=True, nullable=False)
+    kind = Column(String(32), nullable=True)  # glossary|guides|compare|other
+    impressions = Column(Integer, default=0)
+    clicks = Column(Integer, default=0)
+    ctr = Column(Float, default=0.0)
+    avg_position = Column(Float, nullable=True)
+
+
 def init_agent_db():
     """Create the agent tables if they do not yet exist."""
     AgentBase.metadata.create_all(bind=engine)

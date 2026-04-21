@@ -4781,7 +4781,9 @@ def show_seo_agent_admin():
 
     st.markdown("---")
 
-    sub_tabs = st.tabs(["📥 Review queue", "📈 GEO trend", "⚙️ Config", "📜 Run history"])
+    sub_tabs = st.tabs(["📥 Review queue", "📈 GEO trend",
+                        "🚦 Top performing pages",
+                        "⚙️ Config", "📜 Run history"])
 
     with sub_tabs[0]:
         st.markdown("#### Drafts awaiting review")
@@ -4884,6 +4886,85 @@ def show_seo_agent_admin():
             st.caption("No pages published in the last 12 weeks yet.")
 
     with sub_tabs[2]:
+        st.markdown("#### Top performing pages (organic traffic)")
+        st.caption(
+            "Pulled weekly from the configured free analytics source "
+            f"(`{cfg.analytics_source}`). Slugs with zero traffic for "
+            f">{cfg.topic_dead_lookback_days} days are down-weighted by the "
+            "topic selector; high-performers are boosted."
+        )
+        from seo_agent.db import PageMetric as _PageMetric
+        from datetime import datetime as _dtm, timedelta as _tdm
+        from sqlalchemy import func as _sa_func
+        sess_pm = get_session()
+        try:
+            window_days = max(7, int(cfg.topic_dead_lookback_days))
+            since_pm = _dtm.utcnow() - _tdm(days=window_days)
+            agg_rows = (sess_pm.query(
+                            _PageMetric.slug,
+                            _PageMetric.kind,
+                            _sa_func.max(_PageMetric.url).label("url"),
+                            _sa_func.sum(_PageMetric.clicks).label("clicks"),
+                            _sa_func.sum(_PageMetric.impressions).label("impressions"),
+                            _sa_func.avg(_PageMetric.ctr).label("ctr"),
+                            _sa_func.avg(_PageMetric.avg_position).label("avg_position"),
+                            _sa_func.max(_PageMetric.fetched_at).label("last_seen"),
+                         )
+                         .filter(_PageMetric.fetched_at >= since_pm)
+                         .group_by(_PageMetric.slug, _PageMetric.kind)
+                         .all())
+        except Exception as _ex:
+            agg_rows = []
+            st.warning(f"Could not read page metrics: {_ex}")
+        finally:
+            sess_pm.close()
+
+        if not agg_rows:
+            st.info(
+                "No analytics rows yet. Configure an analytics source in "
+                "**Config** (Plausible API or a Google Search Console CSV "
+                "export) and run the agent."
+            )
+        else:
+            metric_df = pd.DataFrame([{
+                "slug": r.slug,
+                "kind": r.kind or "",
+                "url": r.url or "",
+                "clicks": int(r.clicks or 0),
+                "impressions": int(r.impressions or 0),
+                "ctr_%": round(float(r.ctr or 0) * 100, 2),
+                "avg_position": round(float(r.avg_position), 2) if r.avg_position is not None else None,
+                "last_seen": r.last_seen.strftime("%Y-%m-%d") if r.last_seen else "",
+            } for r in agg_rows])
+            metric_df = metric_df.sort_values(
+                ["clicks", "impressions"], ascending=[False, False]
+            ).reset_index(drop=True)
+
+            top_n = min(20, len(metric_df))
+            mc1, mc2, mc3, mc4 = st.columns(4)
+            mc1.metric("Pages with traffic data", len(metric_df))
+            mc2.metric("Total clicks (window)", int(metric_df["clicks"].sum()))
+            mc3.metric("Total impressions (window)", int(metric_df["impressions"].sum()))
+            dead_n = int(((metric_df["clicks"] == 0) & (metric_df["impressions"] == 0)).sum())
+            mc4.metric("Zero-traffic slugs", dead_n,
+                       help=f"No clicks AND no impressions in the last {window_days} days.")
+
+            st.markdown(f"**Top {top_n} pages by clicks**")
+            st.dataframe(metric_df.head(top_n), use_container_width=True, hide_index=True)
+
+            with st.expander(f"Slugs with zero traffic in the last {window_days} days "
+                             f"({dead_n})"):
+                dead_df = metric_df[(metric_df["clicks"] == 0)
+                                    & (metric_df["impressions"] == 0)]
+                if dead_df.empty:
+                    st.caption("None — every tracked page is at least getting impressions.")
+                else:
+                    st.dataframe(dead_df[["slug", "kind", "url", "last_seen"]],
+                                 use_container_width=True, hide_index=True)
+                    st.caption("These categories will be down-weighted in the next "
+                               "topic-selection pass.")
+
+    with sub_tabs[3]:
         st.markdown("#### Configuration")
         with st.form("seo_agent_cfg"):
             schedule = st.text_input("Cron schedule (UTC)", cfg.schedule_cron)
@@ -4912,6 +4993,28 @@ def show_seo_agent_admin():
             s_gt = sc4.checkbox("Google Trends (pytrends)", cfg.sources_enabled.get("google_trends", False))
             prompts_text = st.text_area("GEO check prompts (one per line)",
                                         "\n".join(cfg.geo_prompts), height=220)
+            st.markdown("**Organic-traffic analytics (Top performing pages)**")
+            ac1, ac2 = st.columns([1, 2])
+            an_src = ac1.selectbox(
+                "Analytics source",
+                ["none", "plausible", "gsc_csv"],
+                index=["none", "plausible", "gsc_csv"].index(
+                    cfg.analytics_source if cfg.analytics_source in ("none", "plausible", "gsc_csv") else "none"
+                ),
+                help="plausible needs PLAUSIBLE_API_KEY env var. gsc_csv reads a CSV at GSC_CSV_IMPORT_PATH (default data/gsc_pages.csv).",
+            )
+            an_site = ac2.text_input(
+                "Site URL / Plausible site_id",
+                cfg.analytics_site_url,
+                placeholder="datavisionpro.app",
+            )
+            ac3, ac4, ac5 = st.columns(3)
+            an_lookback = ac3.number_input("Pull window (days)", 1, 90, int(cfg.analytics_lookback_days))
+            dead_days = ac4.number_input("Dead-page lookback (days)", 14, 365, int(cfg.topic_dead_lookback_days))
+            dead_factor = ac5.number_input("Dead-overlap score factor", 0.0, 1.0,
+                                            float(cfg.topic_dead_score_factor), step=0.1)
+            winner_factor = st.number_input("Winner-overlap score factor", 1.0, 5.0,
+                                             float(cfg.topic_winner_score_factor), step=0.1)
             submitted = st.form_submit_button("💾 Save configuration")
             if submitted:
                 cfg.schedule_cron = schedule
@@ -4928,6 +5031,12 @@ def show_seo_agent_admin():
                     "stackoverflow": s_so, "google_trends": s_gt,
                 }
                 cfg.geo_prompts = [p.strip() for p in prompts_text.splitlines() if p.strip()]
+                cfg.analytics_source = an_src
+                cfg.analytics_site_url = an_site.strip()
+                cfg.analytics_lookback_days = int(an_lookback)
+                cfg.topic_dead_lookback_days = int(dead_days)
+                cfg.topic_dead_score_factor = float(dead_factor)
+                cfg.topic_winner_score_factor = float(winner_factor)
                 save_config(cfg)
                 st.success("Saved.")
 
@@ -4957,7 +5066,7 @@ def show_seo_agent_admin():
                     "the public mobile review link."
                 )
 
-    with sub_tabs[3]:
+    with sub_tabs[4]:
         st.markdown("#### Recent runs")
         if not recent_runs:
             st.info("No runs recorded yet.")
