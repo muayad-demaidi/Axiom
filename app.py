@@ -171,7 +171,7 @@ from ai_assistant import (
     generate_comparison_insights, generate_prediction_insights
 )
 import math
-from email_service import send_welcome_email, send_support_notification, send_password_reset_email
+from email_service import send_welcome_email, send_support_notification, send_password_reset_email, send_password_changed_email
 
 def get_logo_base64():
     """Load logo as base64 for HTML embedding"""
@@ -4437,6 +4437,13 @@ def show_reset_password_page():
                                     "\u2014 please request a new one."
                                 )
                             else:
+                                try:
+                                    send_password_changed_email(
+                                        updated_user.email,
+                                        updated_user.full_name or updated_user.username,
+                                    )
+                                except Exception as email_err:
+                                    print(f"Password changed email failed: {email_err}")
                                 st.session_state['login_flash'] = (
                                     "Your password has been updated. Please sign in "
                                     "with your new password."
