@@ -55,4 +55,13 @@ faq:
 - q: Can I use both?
   a: Yes — many teams use Looker Studio for live shareable dashboards over GA4/Google Ads, and DataVision Pro for deeper ad-hoc analysis on extracts.
 updated: '2026-04-21'
+relatedGlossary:
+- k-means-clustering
+- predictive-analytics
+- time-series
+relatedGuides:
+- how-to-build-a-3-month-sales-forecast
+- how-to-compare-this-quarter-vs-last-quarter
 ---
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/glossary/k-means-clustering">k-means clustering</a> · <a href="/glossary/predictive-analytics">predictive analytics</a> · <a href="/glossary/time-series">time series</a>.</p>
+

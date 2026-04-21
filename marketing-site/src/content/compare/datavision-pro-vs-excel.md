@@ -52,4 +52,14 @@ faq:
   - q: "Do I lose my Excel skills?"
     a: "Not at all — the cleaning steps map 1:1 to operations you already know (filter, replace, drop column, dedupe). You just stop maintaining macros to run them."
 updated: "2026-04-21"
+relatedGlossary:
+- data-cleaning
+- outlier-detection
+- missing-value-imputation
+- descriptive-statistics
+relatedGuides:
+- how-to-clean-a-messy-csv-in-60-seconds
+- how-to-detect-outliers-in-sales-data
 ---
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/glossary/data-cleaning">data cleaning</a> · <a href="/glossary/outlier-detection">outlier detection</a> · <a href="/glossary/missing-value-imputation">missing-value imputation</a> · <a href="/glossary/descriptive-statistics">descriptive statistics</a>.</p>
+

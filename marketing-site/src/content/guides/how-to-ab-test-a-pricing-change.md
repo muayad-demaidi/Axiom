@@ -23,7 +23,16 @@ faq:
 - q: Does DataVision Pro run the experiment for me?
   a: No — it analyses the data after you've collected it. Pair it with your existing experimentation platform or a simple hashed split in your application code.
 updated: '2026-04-21'
+relatedGlossary:
+- ab-testing
+- descriptive-statistics
+- predictive-analytics
+relatedCompare:
+- datavision-pro-vs-tableau
+- datavision-pro-vs-looker-studio
 ---
+
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/glossary/ab-testing">A/B testing</a> · <a href="/glossary/descriptive-statistics">descriptive statistics</a> · <a href="/glossary/predictive-analytics">predictive analytics</a>.</p>
 
 ## Pick the right metric
 

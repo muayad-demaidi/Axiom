@@ -55,4 +55,14 @@ faq:
 - q: Can I use both?
   a: Yes — Metabase is excellent for always-on dashboards over your warehouse; DataVision Pro is excellent for AI-driven deep-dives on the extracts your team needs to investigate.
 updated: '2026-04-21'
+relatedGlossary:
+- etl-vs-elt
+- predictive-analytics
+- anomaly-detection
+- k-means-clustering
+relatedGuides:
+- how-to-detect-outliers-in-sales-data
+- how-to-build-a-3-month-sales-forecast
 ---
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/glossary/etl-vs-elt">ETL vs ELT</a> · <a href="/glossary/predictive-analytics">predictive analytics</a> · <a href="/glossary/anomaly-detection">anomaly detection</a> · <a href="/glossary/k-means-clustering">k-means clustering</a>.</p>
+

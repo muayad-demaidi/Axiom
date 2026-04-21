@@ -19,7 +19,17 @@ faq:
   - q: "Can outliers signal fraud?"
     a: "Yes — most fraud-detection systems start with a simple outlier rule before adding ML. A single $50,000 transaction from a normally $50/day customer is the textbook signal."
 updated: "2026-04-15"
+relatedGlossary:
+- outlier-detection
+- k-means-clustering
+- anomaly-detection
+- normalization
+relatedCompare:
+- datavision-pro-vs-excel
+- datavision-pro-vs-tableau
 ---
+
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/glossary/outlier-detection">outlier detection</a> · <a href="/glossary/k-means-clustering">k-means clustering</a> · <a href="/glossary/anomaly-detection">anomaly detection</a> · <a href="/glossary/normalization">normalization</a>.</p>
 
 ## Profile the revenue column
 

@@ -32,7 +32,13 @@ related:
 - predictive-analytics
 - descriptive-statistics
 updated: '2026-04-21'
+relatedGuides:
+- how-to-detect-outliers-in-sales-data
+relatedCompare:
+- datavision-pro-vs-power-bi
 ---
+
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-detect-outliers-in-sales-data">how to detect outliers in sales data</a> · <a href="/compare/datavision-pro-vs-power-bi">DataVision Pro vs Power BI</a>.</p>
 
 ## The three common scalers
 

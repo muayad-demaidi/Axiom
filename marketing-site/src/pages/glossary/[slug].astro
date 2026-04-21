@@ -3,6 +3,7 @@ import { getCollection, getEntry } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import FAQ from "../../components/FAQ.astro";
+import RelatedReading from "../../components/RelatedReading.astro";
 import { SITE } from "../../utils/site";
 
 export async function getStaticPaths() {
@@ -102,6 +103,8 @@ const breadcrumbsLd = {
           </a>
         ))}
       </div>
+
+      <RelatedReading guides={data.relatedGuides} compare={data.relatedCompare} />
 
       <div class="cta-strip">
         <h2>Try this in DataVision Pro</h2>

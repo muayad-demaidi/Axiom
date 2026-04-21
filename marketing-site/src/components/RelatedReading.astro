@@ -1,0 +1,76 @@
+---
+import { getCollection } from "astro:content";
+
+type Props = {
+  glossary?: string[];
+  guides?: string[];
+  compare?: string[];
+};
+
+const { glossary = [], guides = [], compare = [] } = Astro.props as Props;
+
+const [allGlossary, allGuides, allCompare] = await Promise.all([
+  getCollection("glossary"),
+  getCollection("guides"),
+  getCollection("compare"),
+]);
+
+const glossaryItems = glossary
+  .map((s) => allGlossary.find((e) => e.slug === s))
+  .filter(Boolean) as typeof allGlossary;
+const guideItems = guides
+  .map((s) => allGuides.find((e) => e.slug === s))
+  .filter(Boolean) as typeof allGuides;
+const compareItems = compare
+  .map((s) => allCompare.find((e) => e.slug === s))
+  .filter(Boolean) as typeof allCompare;
+
+const hasAny =
+  glossaryItems.length + guideItems.length + compareItems.length > 0;
+---
+{hasAny && (
+  <section class="related-reading" style="margin-top:2.5rem; padding:1.5rem; border:1px solid var(--border, #e5e7eb); border-radius:12px; background: var(--surface, #fafafa);">
+    <h2 style="margin-top:0;">Related reading</h2>
+    <div class="grid grid-2" style="gap:1rem;">
+      {glossaryItems.length > 0 && (
+        <div>
+          <h3 style="margin:.25rem 0 .5rem; font-size:.95rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted,#6b7280);">Glossary</h3>
+          <ul style="list-style:none; padding:0; margin:0;">
+            {glossaryItems.map((g) => (
+              <li style="margin-bottom:.4rem;">
+                <a href={`/glossary/${g.slug}`}><strong>{g.data.term}</strong></a>
+                <div class="small muted">{g.data.shortDef}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {guideItems.length > 0 && (
+        <div>
+          <h3 style="margin:.25rem 0 .5rem; font-size:.95rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted,#6b7280);">Guides</h3>
+          <ul style="list-style:none; padding:0; margin:0;">
+            {guideItems.map((g) => (
+              <li style="margin-bottom:.4rem;">
+                <a href={`/guides/${g.slug}`}><strong>{g.data.title}</strong></a>
+                <div class="small muted">{g.data.estTime} · {g.data.difficulty}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {compareItems.length > 0 && (
+        <div>
+          <h3 style="margin:.25rem 0 .5rem; font-size:.95rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted,#6b7280);">Comparisons</h3>
+          <ul style="list-style:none; padding:0; margin:0;">
+            {compareItems.map((c) => (
+              <li style="margin-bottom:.4rem;">
+                <a href={`/compare/${c.slug}`}><strong>{c.data.title}</strong></a>
+                <div class="small muted">vs {c.data.competitor}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  </section>
+)}

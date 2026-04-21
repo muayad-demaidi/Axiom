@@ -22,7 +22,16 @@ faq:
 - q: Does DataVision Pro detect mix shifts automatically?
   a: Yes — the time-period comparison surfaces grouped share-of-total alongside the headline metric so a composition change is visible at a glance.
 updated: '2026-04-21'
+relatedGlossary:
+- descriptive-statistics
+- data-drift
+- ab-testing
+relatedCompare:
+- datavision-pro-vs-tableau
+- datavision-pro-vs-power-bi
 ---
+
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/glossary/descriptive-statistics">descriptive statistics</a> · <a href="/glossary/data-drift">data drift</a> · <a href="/glossary/ab-testing">A/B testing</a>.</p>
 
 ## Align the windows
 

@@ -52,4 +52,13 @@ faq:
   - q: "Which has better AI?"
     a: "Both ship AI features. DataVision Pro builds AI into every analysis page out of the box; Power BI Copilot is powerful but typically requires additional licences and a Premium capacity."
 updated: "2026-04-21"
+relatedGlossary:
+- predictive-analytics
+- k-means-clustering
+- normalization
+relatedGuides:
+- how-to-build-a-3-month-sales-forecast
+- how-to-clean-a-messy-csv-in-60-seconds
 ---
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/glossary/predictive-analytics">predictive analytics</a> · <a href="/glossary/k-means-clustering">k-means clustering</a> · <a href="/glossary/normalization">normalization</a>.</p>
+

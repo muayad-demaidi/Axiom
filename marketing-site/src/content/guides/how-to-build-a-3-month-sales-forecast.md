@@ -19,7 +19,16 @@ faq:
   - q: "What's a good MAPE for sales?"
     a: "5–10% is excellent for established products; 15–25% is realistic for new products or volatile categories; > 30% means the signal is weak and the model is mostly noise."
 updated: "2026-04-15"
+relatedGlossary:
+- predictive-analytics
+- time-series
+- data-drift
+relatedCompare:
+- datavision-pro-vs-power-bi
+- datavision-pro-vs-looker-studio
 ---
+
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/glossary/predictive-analytics">predictive analytics</a> · <a href="/glossary/time-series">time series</a> · <a href="/glossary/data-drift">data drift</a>.</p>
 
 ## Prepare the time series
 

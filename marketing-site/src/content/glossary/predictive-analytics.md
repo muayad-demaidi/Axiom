@@ -32,7 +32,13 @@ related:
   - "outlier-detection"
   - "missing-value-imputation"
 updated: "2026-04-15"
+relatedGuides:
+- how-to-build-a-3-month-sales-forecast
+relatedCompare:
+- datavision-pro-vs-power-bi
 ---
+
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-build-a-3-month-sales-forecast">how to build a 3-month sales forecast</a> · <a href="/compare/datavision-pro-vs-power-bi">DataVision Pro vs Power BI</a>.</p>
 
 ## Common model families
 

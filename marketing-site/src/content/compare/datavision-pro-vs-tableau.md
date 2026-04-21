@@ -55,4 +55,13 @@ faq:
   - q: "Does DataVision Pro connect to a warehouse?"
     a: "Today it imports CSV / Excel uploads. Direct warehouse connectors are on the roadmap."
 updated: "2026-04-21"
+relatedGlossary:
+- k-means-clustering
+- predictive-analytics
+- data-cleaning
+relatedGuides:
+- how-to-detect-outliers-in-sales-data
+- how-to-build-a-3-month-sales-forecast
 ---
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/glossary/k-means-clustering">k-means clustering</a> · <a href="/glossary/predictive-analytics">predictive analytics</a> · <a href="/glossary/data-cleaning">data cleaning</a>.</p>
+

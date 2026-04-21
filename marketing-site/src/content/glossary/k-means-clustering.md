@@ -32,7 +32,13 @@ related:
   - "descriptive-statistics"
   - "data-drift"
 updated: "2026-04-15"
+relatedGuides:
+- how-to-detect-outliers-in-sales-data
+relatedCompare:
+- datavision-pro-vs-tableau
 ---
+
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-detect-outliers-in-sales-data">how to detect outliers in sales data</a> · <a href="/compare/datavision-pro-vs-tableau">DataVision Pro vs Tableau</a>.</p>
 
 ## How it works (Lloyd's algorithm)
 

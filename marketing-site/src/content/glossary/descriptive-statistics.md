@@ -32,7 +32,14 @@ related:
   - "predictive-analytics"
   - "data-drift"
 updated: "2026-04-15"
+relatedGuides:
+- how-to-compare-this-quarter-vs-last-quarter
+- how-to-ab-test-a-pricing-change
+relatedCompare:
+- datavision-pro-vs-excel
 ---
+
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-compare-this-quarter-vs-last-quarter">how to compare this quarter vs last quarter</a> · <a href="/guides/how-to-ab-test-a-pricing-change">how to A/B test a pricing change</a> · <a href="/compare/datavision-pro-vs-excel">DataVision Pro vs Excel</a>.</p>
 
 ## The core measures
 

@@ -32,7 +32,14 @@ related:
 - descriptive-statistics
 - data-cleaning
 updated: '2026-04-21'
+relatedGuides:
+- how-to-build-a-3-month-sales-forecast
+- how-to-compare-this-quarter-vs-last-quarter
+relatedCompare:
+- datavision-pro-vs-looker-studio
 ---
+
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-build-a-3-month-sales-forecast">how to build a 3-month sales forecast</a> · <a href="/guides/how-to-compare-this-quarter-vs-last-quarter">how to compare this quarter vs last quarter</a> · <a href="/compare/datavision-pro-vs-looker-studio">DataVision Pro vs Looker Studio</a>.</p>
 
 ## The classic decomposition
 
