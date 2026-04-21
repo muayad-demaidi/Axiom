@@ -1,0 +1,247 @@
+You are a senior Python engineer working on DataVision Pro — a live 
+Streamlit analytics SaaS running on Replit. 
+
+## WHAT ALREADY EXISTS — DO NOT REWRITE THESE
+- app.py (~2100 lines): show_dashboard(), load_file(), run_analysis(), 
+  all cached wrappers (_c_quality_score, _c_numeric_stats, etc.), 
+  _section_head(), the 8-section st.radio sidebar
+- data_cleaner.py: clean_data(df) → (df_cleaned, cleaning_report)
+- data_analyzer.py: generate_summary_report(df_cleaned) → analysis_results
+- visualizations.py: all chart functions (create_bar_chart, etc.)
+- models.py: DatasetRecord, save_dataset_record(), find_similar_datasets()
+- ai_assistant.py: chat_about_data(prompt, df_info), save_chat_message()
+- predictions.py: simple_forecast(), create_trend_chart(), analyze_trend()
+- .streamlit/config.toml: enableXsrfProtection=false, enableCORS=false — 
+  DO NOT TOUCH THIS FILE
+
+## REPLIT CONSTRAINTS — FOLLOW EXACTLY
+- All secrets via os.environ.get("KEY") — never hardcode
+- Use replit.db (from replit import db) for persistent storage
+- No multiprocessing — single process only
+- No st.tabs — use st.radio for section switching (already in place)
+- Keep enableXsrfProtection=false and enableCORS=false or the iframe breaks
+- ?sid=<token> query param auth — no cookies
+- @st.cache_data must never hash a DataFrame directly — pass as _df, 
+  key on st.session_state.current_dataset_id
+
+## YOUR TASK: Implement these 5 phases in order.
+After each phase, show me a 5-line shell test I can run to verify it 
+works. Wait for me to say "confirmed, continue" before moving on.
+
+---
+
+### PHASE 1 — Business context memory + fiscal year detection
+Create two new files. Do NOT modify app.py yet.
+
+**context/business_memory.py**
+- Function: run_onboarding_wizard() → renders st.form with:
+    - industry: selectbox ["Retail", "Finance", "Healthcare", 
+                           "Manufacturing", "Real Estate", "Other"]
+    - fiscal_year_start: selectbox of month names (Jan–Dec)
+    - kpi_1, kpi_2, kpi_3: st.text_input (top 3 KPIs)
+    - currency: selectbox ["USD", "SAR", "AED", "EUR", "GBP", "Other"]
+- On submit: persist to replit.db under key "biz_ctx_{user_id}"
+- Function: get_context(user_id) → returns dict or None
+- Function: context_is_set(user_id) → bool
+- Show a compact sidebar badge if context is active:
+    st.sidebar.success("Business profile active")
+
+**context/date_intelligence.py**
+- Function: detect_fiscal_year(df) → dict with keys:
+    {detected_start_month, confidence, basis_column, sample_dates}
+- If confidence > 0.95: return silently, log to st.session_state
+- If 0.60 < confidence <= 0.95: show ONE st.warning with confirm button,
+    store answer in replit.db, never ask again for this dataset_id
+- If confidence <= 0.60: default to calendar year, note in UI
+- Function: build_date_table(df, date_col, fiscal_start_month) → 
+    returns a date dimension DataFrame with columns:
+    date, fiscal_year, fiscal_quarter, fiscal_month, 
+    calendar_year, calendar_month, is_weekend
+- Function: compare_periods(df, metric_col, date_col, 
+    mode="YoY"|"MoM"|"QoQ", fiscal_start_month=1) → 
+    returns comparison DataFrame with columns:
+    period, current_value, prior_value, change, pct_change
+
+---
+
+### PHASE 2 — Upgrade existing data_cleaner.py
+Modify data_cleaner.py only. Keep the existing function signature:
+clean_data(df) → (df_cleaned, cleaning_report)
+
+Add to clean_data():
+1. Arabic/mixed text normalization:
+   - For string columns: unicodedata.normalize("NFC", value)
+   - Detect common Arabic name variations and flag them — do not 
+     auto-merge, add to cleaning_report as suggestions
+   
+2. Date format unification:
+   - Use dateutil.parser.parse() with dayfirst=True as fallback
+   - Detect Hijri dates by year range (1300–1500) and flag for 
+     manual review — do not silently convert
+   - For each date column, pick the most common format and normalize 
+     all values to ISO 8601 (YYYY-MM-DD)
+   - Ambiguous dates (could be DD/MM or MM/DD): flag in report, 
+     default to dayfirst=True, surface to user
+
+3. Logical error detection:
+   - Negative values in columns whose name contains: age, count, 
+     quantity, qty, units, revenue, salary, price → flag as errors
+   - Future dates in columns whose name contains: birth, dob, 
+     start, created → flag as errors
+   - Values > mean + 4*std in numeric columns → flag as outliers 
+     (do not remove, just flag)
+
+4. Diff output format:
+   Each entry in cleaning_report must be a dict:
+   {"column": str, "row_count": int, "action": str, 
+    "original_sample": any, "corrected_sample": any, "reason": str}
+
+5. In app.py Cleaning section (Stage 6, second st.radio item):
+   Replace the current bullet list display with:
+   - A st.dataframe showing the cleaning_report dicts as a table
+   - An "Approve all changes" button that writes approved=True to 
+     session_state — do not apply changes until approved
+   - A download button for the cleaning report as CSV
+
+---
+
+### PHASE 3 — Auto-discovery engine
+Create discovery/auto_discovery.py. 
+Call it from run_analysis() in app.py AFTER generate_summary_report().
+Store results in st.session_state.discovery_findings.
+
+**auto_discovery.py**
+- Function: run_discovery(df_cleaned, business_context) → list of Finding
+- Finding is a dataclass:
+    @dataclass
+    class Finding:
+        type: str  # "correlation"|"seasonality"|"outlier"|"quality"|"kpi"
+        title: str
+        description: str  # max 120 chars
+        columns: list
+        severity: str  # "info"|"warning"|"critical"
+        value: float = None  # the numeric signal (e.g. correlation r=0.87)
+
+- Correlation scan: Pearson r for all numeric pairs, flag pairs where 
+    abs(r) > 0.65. Title: "Strong link: {col_a} vs {col_b} (r={r:.2f})"
+    
+- Seasonality scan: only if a datetime column exists AND a numeric column 
+    has > 52 non-null rows. Use pandas resample("ME").mean() and compute 
+    coefficient of variation across months. If CV > 0.15 flag as seasonal.
+    Title: "{col} shows monthly seasonal pattern (CV={cv:.0%})"
+    
+- KPI match: if business_context is set, check if any column name 
+    contains one of the KPI strings from the profile. Flag as "kpi" type 
+    with severity "info". Title: "KPI column detected: {col}"
+
+- Quality flags: if any column has > 20% missing values → "critical"
+    If duplicate rows > 1% → "warning"
+
+- Render in app.py Overview section:
+    Below the existing KPI metrics, add a "Discoveries" expander.
+    Inside: render each Finding as a styled st.container with:
+    - Colored left border by severity (teal=info, amber=warning, red=critical)
+    - Title in bold, description below, affected columns as st.code pills
+
+---
+
+### PHASE 4 — Upgrade AI Chat to RAG + function calling
+Modify ai_assistant.py and the AI Chat section in app.py.
+Keep save_chat_message() and the chat history display unchanged.
+
+**ai_assistant.py additions**
+- Function: build_column_index(df) → stores column embeddings in 
+    st.session_state.col_index using sentence-transformers 
+    (all-MiniLM-L6-v2). Call once after run_analysis().
+    
+- Function: retrieve_relevant_columns(question, df, top_k=3) → 
+    returns list of column names most relevant to the question.
+    Use cosine similarity against col_index.
+    
+- Replace chat_about_data(prompt, df_info) with:
+  chat_about_data(prompt, df, business_context, dataset_id) which:
+  1. Retrieves top_k=3 relevant columns
+  2. Builds a context string: column stats for those 3 columns only
+  3. Calls Claude API (claude-sonnet-4-20250514) with:
+     - System: "You are a business analyst for a {industry} company. 
+       The fiscal year starts in {fiscal_month}. 
+       The user's KPIs are: {kpi_1}, {kpi_2}, {kpi_3}.
+       You have access to these tools: [tool definitions below]
+       Always explain which tool you chose and why."
+     - Tools:
+       generate_chart(chart_type, x_col, y_col, title, filters)
+       compute_comparison(metric_col, date_col, mode, period_label)
+       explain_change(metric_col, period, context_note)
+  4. If the response contains a tool_use block:
+     - generate_chart → call the matching create_*_chart() from 
+       visualizations.py and render with st.plotly_chart
+     - compute_comparison → call compare_periods() from 
+       date_intelligence.py and render result as st.dataframe
+     - explain_change → render as a styled narrative card 
+       (dark teal border, monospace eyebrow "ANALYSIS", DM Sans body)
+  5. Always append a 2-sentence "Reasoning: ..." note below the output 
+     explaining what the AI detected and why it chose that tool.
+
+---
+
+### PHASE 5 — Proactive agent + notifications
+Create output/notifier.py and analysis/agent.py.
+Add an "Alerts" toggle to the sidebar (below the 8-section radio).
+
+**notifier.py**
+- send_whatsapp(message, phone_number):
+    Uses Twilio. Credentials from env:
+    TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM
+    Phone format: "whatsapp:+{number}"
+    
+- send_slack(message, webhook_url=None):
+    webhook_url defaults to os.environ.get("SLACK_WEBHOOK_URL")
+    POST {"text": message} to webhook
+    
+- Both functions return {"success": bool, "error": str|None}
+
+**agent.py**
+- Function: check_for_anomalies(df_cleaned, previous_df=None, 
+    business_context=None) → list of AnomalyAlert
+    
+- AnomalyAlert dataclass:
+    @dataclass
+    class AnomalyAlert:
+        column: str
+        alert_type: str  # "spike"|"drop"|"missing_surge"|"new_outlier"
+        severity: str    # "warning"|"critical"  
+        message: str     # human-readable, max 160 chars (SMS-safe)
+        value: float
+        threshold: float
+        
+- Detection logic:
+    - For each numeric column: if latest value > mean + 2.5*std → "spike"
+    - For each numeric column: if latest value < mean - 2.5*std → "drop"
+    - If missing % in any column increased by > 10pp vs previous upload → 
+      "missing_surge"
+    - KPI columns (matched from business_context) use tighter threshold: 
+      1.5*std instead of 2.5*std
+      
+- In app.py, after run_analysis() completes:
+    - Run check_for_anomalies() and store in st.session_state.alerts
+    - If any critical alerts: show st.error banner at top of dashboard
+    - In sidebar Alerts toggle: show each alert as colored st.metric
+    - "Send to WhatsApp" and "Send to Slack" buttons that call notifier.py
+    - Alert message format:
+      "DataVision Alert [{severity}]: {column} {alert_type} detected. 
+       Value: {value:.2f} (threshold: {threshold:.2f}). 
+       Dataset: {dataset_name}"
+
+---
+
+## FINAL VERIFICATION CHECKLIST
+After all 5 phases confirm:
+[ ] Uploading an Excel file with a Hijri date column does not crash
+[ ] Uploading a file with Arabic names shows normalization in diff view
+[ ] The fiscal year question appears exactly once per dataset
+[ ] Asking "why did sales drop?" in AI Chat triggers explain_change tool
+[ ] A column 4 std deviations above mean triggers a critical alert
+[ ] WhatsApp send returns success (test with Twilio sandbox)
+[ ] ?sid= auth still works — no cookie errors in Replit preview iframe
+[ ] The 8-section radio still renders and only one section loads at a time
+[ ] enableXsrfProtection and enableCORS are still false in config.toml
