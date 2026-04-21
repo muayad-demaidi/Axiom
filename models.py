@@ -558,17 +558,44 @@ def _hash_reset_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
 
-def create_password_reset_token(db, user, ttl_hours: int = 1):
+def create_password_reset_token(db, user, ttl_hours: int = 1, cooldown_seconds: int = 60):
     """Create a one-time password-reset token for `user`.
 
     Returns the raw token string (only this is shown to the user — only the
     hash is persisted).
+
+    Rate-limiting / hygiene:
+    - If a token was issued for this user within the last `cooldown_seconds`
+      and is still unused & unexpired, this is treated as a duplicate request
+      and ``None`` is returned (the caller should silently no-op while still
+      showing the neutral confirmation message).
+    - Otherwise, any previously outstanding (unused, unexpired) tokens for
+      this user are invalidated by marking them used, so only the freshly
+      issued link will work.
     """
+    now = datetime.utcnow()
+    if cooldown_seconds and cooldown_seconds > 0:
+        cooldown_cutoff = now - timedelta(seconds=cooldown_seconds)
+        recent = db.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used_at.is_(None),
+            PasswordResetToken.expires_at > now,
+            PasswordResetToken.created_at > cooldown_cutoff,
+        ).first()
+        if recent is not None:
+            return None
+
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.used_at.is_(None),
+        PasswordResetToken.expires_at > now,
+    ).update({PasswordResetToken.used_at: now}, synchronize_session=False)
+
     raw_token = secrets.token_urlsafe(48)
     record = PasswordResetToken(
         user_id=user.id,
         token_hash=_hash_reset_token(raw_token),
-        expires_at=datetime.utcnow() + timedelta(hours=ttl_hours),
+        expires_at=now + timedelta(hours=ttl_hours),
     )
     db.add(record)
     db.commit()

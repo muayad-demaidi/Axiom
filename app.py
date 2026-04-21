@@ -4310,10 +4310,11 @@ def show_forgot_password_page():
                         if user:
                             try:
                                 raw_token = create_password_reset_token(db, user, ttl_hours=1)
-                                base = _get_app_base_url()
-                                reset_url = (f"{base}/?reset_token={raw_token}"
-                                             if base else f"?reset_token={raw_token}")
-                                send_password_reset_email(user.email, user.full_name or user.username, reset_url)
+                                if raw_token:
+                                    base = _get_app_base_url()
+                                    reset_url = (f"{base}/?reset_token={raw_token}"
+                                                 if base else f"?reset_token={raw_token}")
+                                    send_password_reset_email(user.email, user.full_name or user.username, reset_url)
                             except Exception as e:
                                 print(f"Password reset send failed: {e}")
                         st.session_state['forgot_flash'] = neutral_msg
