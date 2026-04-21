@@ -1590,6 +1590,226 @@ def _rebuild_cleaning_substeps(sh: StepHistory, plan: list):
     return final_df, report
 
 
+# ── Universal step plan (Power Query-style for ALL step kinds) ─────────────
+# The cleaning-substep mechanic (reorder / toggle / remove + rebuild) is
+# generalised here to every non-source step in the history: Promoted Headers,
+# Changed Type, every cleaning substep, and every manual override. Source
+# is pinned at index 0 and locked out of all controls.
+#
+# A "unified plan" is just the post-source steps reduced to a list of
+# entries that the replay engine knows how to execute against Source.df.
+
+_UNIVERSAL_KIND_BY_NAME = {
+    "Promoted Headers": "promoted_headers",
+    "Changed Type": "changed_type",
+    "Changed Type (manual)": "manual_type",
+}
+
+
+def _step_kind(step) -> str:
+    meta = step.meta or {}
+    if meta.get("substep_key"):
+        return "cleaning_substep"
+    return _UNIVERSAL_KIND_BY_NAME.get(step.name, "custom")
+
+
+def _step_instance_id(step) -> str:
+    meta = step.meta or {}
+    inst = meta.get("substep_instance") or meta.get("step_instance")
+    if not inst:
+        inst = _new_instance_id()
+        meta["step_instance"] = inst
+        step.meta = meta
+    return inst
+
+
+def _build_unified_plan(sh: StepHistory) -> list:
+    """Derive a unified plan (excluding Source) from the current StepHistory."""
+    plan = []
+    for i, s in enumerate(sh.steps):
+        if i == 0:
+            continue
+        meta = dict(s.meta or {})
+        kind = _step_kind(s)
+        plan.append({
+            "instance_id": _step_instance_id(s),
+            "kind": kind,
+            "name": s.name,
+            "summary": s.summary,
+            "enabled": bool(meta.get("enabled", True)),
+            "params": meta.get("substep_params") or {},
+            "meta_extra": meta,
+        })
+    return plan
+
+
+def _replay_unified_plan(sh: StepHistory, plan: list):
+    """Replay an ordered, enable-aware plan onto sh.steps[0].df.
+
+    Returns (new_steps, cleaning_report). Disabled non-source steps are
+    pass-through (df copied unchanged) so they remain visible in the
+    Applied Steps panel and can be re-enabled later.
+    """
+    if not sh.steps:
+        return None, None
+    source_step = sh.steps[0]
+    new_steps = [source_step]
+    current = source_step.df.copy() if source_step.df is not None else None
+
+    cleaning_report = {
+        'original_rows': len(current) if current is not None else 0,
+        'original_columns': len(current.columns) if current is not None else 0,
+        'changes': [],
+        'substeps': [],
+    }
+    saw_cleaning = False
+
+    for entry in plan:
+        kind = entry["kind"]
+        enabled = bool(entry.get("enabled", True))
+        instance_id = entry["instance_id"]
+        params = entry.get("params") or {}
+        meta_extra = dict(entry.get("meta_extra") or {})
+        # Drop runtime fields we'll re-derive so they don't go stale.
+        for k in ("enabled", "details", "effective_params", "step_instance",
+                  "substep_instance", "substep_params"):
+            meta_extra.pop(k, None)
+
+        name = entry.get("name") or "Step"
+        summary = entry.get("summary") or ""
+        meta = {**meta_extra, "enabled": enabled, "step_instance": instance_id}
+
+        if kind == "promoted_headers":
+            if enabled and current is not None and len(current) > 0 and (
+                all(str(c).startswith("Column") for c in current.columns)
+            ):
+                promoted = current.iloc[1:].reset_index(drop=True)
+                promoted.columns = [str(v) for v in current.iloc[0].tolist()]
+                current = promoted
+                summary = "First row promoted to column names"
+            elif not enabled:
+                summary = "Disabled — pass through (headers not promoted)"
+            name = "Promoted Headers"
+
+        elif kind == "changed_type":
+            schema_dicts = meta_extra.get("schema") or []
+            schema = [ColumnType(**{
+                "column": d.get("column"),
+                "inferred_type": d.get("inferred_type", "text"),
+                "confidence": float(d.get("confidence", 0.0)),
+                "sample_values": list(d.get("sample_values") or []),
+                "notes": d.get("notes", "") or "",
+            }) for d in schema_dicts if d.get("column") is not None]
+            if enabled and schema and current is not None:
+                current = apply_schema(current, schema)
+            elif not enabled:
+                summary = "Disabled — pass through (types not applied)"
+            name = "Changed Type"
+
+        elif kind == "cleaning_substep":
+            key = meta_extra.get("substep_key")
+            label = substep_label(key, params)
+            if enabled and key in SUBSTEP_FUNCS and current is not None:
+                current, summary, details = run_substep(key, current, params)
+                cleaning_report['changes'].extend(details.get('changes', []))
+            else:
+                summary = "Disabled — pass through" if not enabled else "Skipped — unknown substep"
+                details = {}
+            effective_params = {
+                p["key"]: params.get(p["key"], p["default"])
+                for p in SUBSTEP_PARAM_SCHEMA.get(key, [])
+            }
+            meta = {
+                **meta_extra,
+                "substep_key": key,
+                "substep_instance": instance_id,
+                "substep_params": params,
+                "effective_params": effective_params,
+                "enabled": enabled,
+                "details": details,
+            }
+            name = label
+            saw_cleaning = True
+            cleaning_report['substeps'].append({
+                "key": key, "label": label, "enabled": enabled,
+                "instance_id": instance_id,
+                "params": params, "effective_params": effective_params,
+                "summary": summary, "details": details,
+            })
+
+        elif kind == "manual_type":
+            override = meta_extra.get("override") or {}
+            if enabled and override and current is not None:
+                base = current.copy()
+                for col, t in override.items():
+                    if col in base.columns:
+                        base[col] = cast_column(base[col], t)
+                current = base
+            elif not enabled:
+                summary = "Disabled — pass through (override not applied)"
+            name = "Changed Type (manual)"
+
+        snap = current.copy() if current is not None else current
+        new_steps.append(Step(name=name, summary=summary, df=snap, meta=meta))
+
+    if current is not None:
+        cleaning_report['final_rows'] = len(current)
+        cleaning_report['final_columns'] = len(current.columns)
+        cleaning_report['rows_removed'] = (
+            cleaning_report['original_rows'] - cleaning_report['final_rows']
+        )
+    return new_steps, (cleaning_report if saw_cleaning else None)
+
+
+def _commit_unified_plan(sh: StepHistory, plan: list, ds_key) -> None:
+    """Apply a new unified plan: rebuild every step from Source down,
+    refresh df / df_cleaned / cleaning_report, keep cleaning_substep_plans
+    (the legacy insert UI's source of truth) in sync, and persist."""
+    new_steps, report = _replay_unified_plan(sh, plan)
+    if new_steps is None:
+        return
+    prev_active = sh.active_index
+    sh.steps = new_steps
+    if prev_active >= len(new_steps):
+        sh.active_index = len(new_steps) - 1
+    else:
+        sh.active_index = max(0, prev_active)
+
+    # Keep the cleaning-only plan (used by the Insert UI) in sync.
+    cleaning_only = [
+        {"instance_id": e["instance_id"],
+         "key": (e.get("meta_extra") or {}).get("substep_key"),
+         "enabled": e["enabled"],
+         "params": dict(e.get("params") or {})}
+        for e in plan if e["kind"] == "cleaning_substep"
+    ]
+    st.session_state.cleaning_substep_plans[ds_key] = cleaning_only
+    st.session_state.cleaning_substep_states[ds_key] = {
+        e["key"]: e["enabled"] for e in cleaning_only if e["key"]
+    }
+
+    # Refresh dashboard-facing dataframes from the rebuilt history.
+    last_typed = None
+    last_cleaning = None
+    for s in new_steps:
+        if s.name in ("Changed Type", "Changed Type (manual)"):
+            last_typed = s
+        if (s.meta or {}).get("substep_key"):
+            last_cleaning = s
+    if last_typed is not None:
+        st.session_state.df = last_typed.df
+    elif len(new_steps) >= 2:
+        st.session_state.df = new_steps[1].df
+    if last_cleaning is not None:
+        st.session_state.df_cleaned = last_cleaning.df
+    else:
+        st.session_state.df_cleaned = new_steps[-1].df if new_steps else None
+    if report is not None:
+        st.session_state.cleaning_report = report
+
+    _persist_step_history()
+
+
 def _persist_step_history():
     """Save the current dataset's step recipes + active pointer to the DB.
 
@@ -3530,109 +3750,116 @@ def show_dashboard():
                     if sh and not sh.is_empty():
                         st.subheader("Applied Steps")
                         st.caption("Click any step to view the dataset at that point. "
-                                   "Cleaning substeps can be toggled, reordered, removed, "
-                                   "or new ones inserted — and each substep's thresholds "
-                                   "can be tweaked under Parameters. The chain is recomputed.")
+                                   "Every step (except Source) can be toggled on/off, "
+                                   "reordered, or removed — and the chain is recomputed "
+                                   "live. Cleaning substeps also expose threshold params "
+                                   "under Parameters.")
 
                         ds_key = _ds_key()
-                        plan = _get_cleaning_plan(ds_key)
-                        # Map plan instance_id → index for quick lookups.
-                        plan_idx_by_inst = {e["instance_id"]: i for i, e in enumerate(plan)}
+                        # Universal plan: index 0 is Source (locked); the rest
+                        # are post-source steps that share the same controls.
+                        u_plan = _build_unified_plan(sh)
+                        u_idx_by_inst = {e["instance_id"]: i for i, e in enumerate(u_plan)}
 
-                        def _commit_plan(new_plan):
-                            st.session_state.cleaning_substep_plans[ds_key] = new_plan
-                            st.session_state.cleaning_substep_states[ds_key] = {
-                                e["key"]: e["enabled"] for e in new_plan
-                            }
-                            final_df, new_report = _rebuild_cleaning_substeps(sh, new_plan)
-                            if new_report is not None:
-                                st.session_state.df_cleaned = final_df
-                                st.session_state.cleaning_report = new_report
+                        def _commit_unified(new_plan):
+                            _commit_unified_plan(sh, new_plan, ds_key)
 
                         steps_col, ctrl_col = st.columns([3, 1])
                         with steps_col:
                             for i, step in enumerate(sh.steps):
+                                is_source = (i == 0)
                                 is_active = (i == sh.active_index)
                                 is_future = (i > sh.active_index)
-                                substep_key = step.meta.get('substep_key')
-                                substep_inst = step.meta.get('substep_instance')
-                                enabled = step.meta.get('enabled', True)
+                                meta = step.meta or {}
+                                substep_key = meta.get('substep_key')
+                                step_inst = meta.get('substep_instance') or meta.get('step_instance')
+                                kind = _step_kind(step)
+                                enabled = bool(meta.get('enabled', True))
+                                pidx = u_idx_by_inst.get(step_inst) if not is_source else None
+
                                 badge = "▶" if is_active else ("◌" if is_future else "✓")
                                 color = "#2dd4bf" if is_active else ("#64748b" if is_future else "#94a3b8")
                                 weight = "700" if is_active else "500"
-                                opacity = "0.55" if is_future else ("0.55" if (substep_key and not enabled) else "1")
+                                opacity = "0.55" if is_future else (
+                                    "0.55" if (not is_source and not enabled) else "1")
+                                # Active row gets a subtle teal-tinted background +
+                                # thicker rail so it reads like a selected tab.
+                                bg = "rgba(45,212,191,0.08)" if is_active else "transparent"
+                                rail = "4px" if is_active else "3px"
                                 disabled_tag = (" <span style='color:#f59e0b;font-size:0.7rem;"
                                                 "letter-spacing:0.08em;'>· DISABLED</span>"
-                                                if substep_key and not enabled else "")
-                                if substep_key:
-                                    row_l, row_ctrls, row_btn = st.columns([0.55, 0.27, 0.18])
-                                else:
+                                                if not is_source and not enabled else "")
+                                locked_tag = (" <span style='color:#64748b;font-size:0.7rem;"
+                                              "letter-spacing:0.08em;'>· LOCKED</span>"
+                                              if is_source else "")
+                                # Source has no controls; everything else gets
+                                # ↑ / ↓ / toggle / ✕ in a single layout so the
+                                # panel reads as one unified editor.
+                                if is_source:
                                     row_l, row_btn = st.columns([0.78, 0.22])
                                     row_ctrls = None
+                                else:
+                                    row_l, row_ctrls, row_btn = st.columns([0.55, 0.27, 0.18])
                                 with row_l:
                                     st.markdown(
-                                        f"<div style='padding:0.45rem 0.6rem;border-left:3px solid {color};"
+                                        f"<div style='padding:0.45rem 0.6rem;border-left:{rail} solid {color};"
+                                        f"background:{bg};border-radius:0 6px 6px 0;"
                                         f"opacity:{opacity};font-weight:{weight};color:#e2e8f0;'>"
                                         f"<span style='color:{color};font-family:JetBrains Mono,monospace;"
                                         f"font-size:0.78rem;letter-spacing:0.1em;'>{badge} STEP {i+1}</span>"
-                                        f"{disabled_tag}<br>"
+                                        f"{locked_tag}{disabled_tag}<br>"
                                         f"<b>{step.name}</b> · <span style='color:#94a3b8;font-size:0.85rem;'>"
                                         f"{step.summary}</span><br>"
                                         f"<span style='color:#64748b;font-size:0.75rem;'>{step.rows:,} rows × {step.cols} cols</span>"
                                         f"</div>",
                                         unsafe_allow_html=True,
                                     )
-                                if row_ctrls is not None:
-                                    pidx = plan_idx_by_inst.get(substep_inst)
+                                if row_ctrls is not None and pidx is not None:
                                     with row_ctrls:
                                         c_up, c_dn, c_chk, c_rm = st.columns(4)
                                         with c_up:
                                             if st.button(
-                                                "↑", key=f"sub_up_{ds_key}_{substep_inst}",
-                                                help="Move this substep up",
-                                                disabled=(pidx is None or pidx == 0),
+                                                "↑", key=f"u_up_{ds_key}_{step_inst}",
+                                                help="Move this step up",
+                                                disabled=(pidx == 0),
                                                 use_container_width=True,
-                                            ) and pidx is not None and pidx > 0:
-                                                new_plan = list(plan)
-                                                new_plan[pidx - 1], new_plan[pidx] = new_plan[pidx], new_plan[pidx - 1]
-                                                _commit_plan(new_plan)
+                                            ) and pidx > 0:
+                                                np_ = list(u_plan)
+                                                np_[pidx - 1], np_[pidx] = np_[pidx], np_[pidx - 1]
+                                                _commit_unified(np_)
                                                 st.rerun()
                                         with c_dn:
                                             if st.button(
-                                                "↓", key=f"sub_dn_{ds_key}_{substep_inst}",
-                                                help="Move this substep down",
-                                                disabled=(pidx is None or pidx >= len(plan) - 1),
+                                                "↓", key=f"u_dn_{ds_key}_{step_inst}",
+                                                help="Move this step down",
+                                                disabled=(pidx >= len(u_plan) - 1),
                                                 use_container_width=True,
-                                            ) and pidx is not None and pidx < len(plan) - 1:
-                                                new_plan = list(plan)
-                                                new_plan[pidx + 1], new_plan[pidx] = new_plan[pidx], new_plan[pidx + 1]
-                                                _commit_plan(new_plan)
+                                            ) and pidx < len(u_plan) - 1:
+                                                np_ = list(u_plan)
+                                                np_[pidx + 1], np_[pidx] = np_[pidx], np_[pidx + 1]
+                                                _commit_unified(np_)
                                                 st.rerun()
                                         with c_chk:
                                             new_enabled = st.checkbox(
                                                 "On", value=enabled,
-                                                key=f"substep_toggle_{ds_key}_{substep_inst}",
-                                                help="Toggle this substep on/off",
+                                                key=f"u_toggle_{ds_key}_{step_inst}",
+                                                help="Toggle this step on/off (pass through when off)",
                                                 label_visibility="collapsed",
                                             )
-                                            if new_enabled != enabled and pidx is not None:
-                                                new_plan = list(plan)
-                                                new_plan[pidx] = {**new_plan[pidx], "enabled": new_enabled}
-                                                _commit_plan(new_plan)
+                                            if new_enabled != enabled:
+                                                np_ = list(u_plan)
+                                                np_[pidx] = {**np_[pidx], "enabled": new_enabled}
+                                                _commit_unified(np_)
                                                 st.rerun()
                                         with c_rm:
                                             if st.button(
-                                                "✕", key=f"sub_rm_{ds_key}_{substep_inst}",
-                                                help="Remove this substep from the plan",
-                                                disabled=(pidx is None),
+                                                "✕", key=f"u_rm_{ds_key}_{step_inst}",
+                                                help="Remove this step from the plan",
                                                 use_container_width=True,
-                                            ) and pidx is not None:
-                                                new_plan = [e for j, e in enumerate(plan) if j != pidx]
-                                                if not new_plan:
-                                                    st.warning("Cleaning plan must have at least one substep.")
-                                                else:
-                                                    _commit_plan(new_plan)
-                                                    st.rerun()
+                                            ):
+                                                np_ = [e for j, e in enumerate(u_plan) if j != pidx]
+                                                _commit_unified(np_)
+                                                st.rerun()
                                 with row_btn:
                                     if not is_active:
                                         if st.button("Go to", key=f"goto_step_{i}_{sig}",
@@ -3640,19 +3867,15 @@ def show_dashboard():
                                             sh.go_to(i)
                                             _persist_step_history()
                                             st.rerun()
-                                # Per-substep parameter controls. Adjusting any
-                                # value re-runs this substep + every downstream
-                                # substep, identical to the enable/disable flow.
-                                # Params live on the plan entry itself, so the
-                                # whole plan is committed via `_commit_plan`.
-                                if (substep_key and substep_inst is not None
+                                # Per-substep parameter controls (cleaning only).
+                                # Adjusting any value re-runs the whole chain
+                                # via the unified commit path.
+                                if (kind == "cleaning_substep" and step_inst is not None
+                                        and pidx is not None
                                         and SUBSTEP_PARAM_SCHEMA.get(substep_key)):
                                     schema_entries = SUBSTEP_PARAM_SCHEMA[substep_key]
-                                    pidx = plan_idx_by_inst.get(substep_inst)
-                                    plan_entry = plan[pidx] if pidx is not None else None
-                                    current_params = dict(
-                                        (plan_entry or {}).get("params") or {}
-                                    )
+                                    plan_entry = u_plan[pidx]
+                                    current_params = dict(plan_entry.get("params") or {})
                                     for entry in schema_entries:
                                         current_params.setdefault(entry["key"], entry["default"])
                                     with st.expander("Parameters", expanded=False):
@@ -3668,23 +3891,53 @@ def show_dashboard():
                                                 value=float(current_params[entry["key"]]),
                                                 step=float(entry["step"]),
                                                 help=entry.get("help"),
-                                                key=f"substep_param_{ds_key}_{substep_inst}_{entry['key']}",
+                                                key=f"substep_param_{ds_key}_{step_inst}_{entry['key']}",
                                                 disabled=not enabled,
                                             )
-                                        if (enabled and pidx is not None and any(
+                                        if (enabled and any(
                                             float(new_params[e["key"]]) != float(current_params[e["key"]])
                                             for e in schema_entries
                                         )):
-                                            new_plan = list(plan)
-                                            new_plan[pidx] = {
-                                                **new_plan[pidx],
+                                            np_ = list(u_plan)
+                                            np_[pidx] = {
+                                                **np_[pidx],
                                                 "params": {
-                                                    **(new_plan[pidx].get("params") or {}),
+                                                    **(np_[pidx].get("params") or {}),
                                                     **new_params,
                                                 },
                                             }
-                                            _commit_plan(new_plan)
+                                            _commit_unified(np_)
                                             st.rerun()
+                        # Aliases used by the existing Insert UI below.
+                        plan = _get_cleaning_plan(ds_key)
+
+                        def _commit_plan(new_plan):
+                            # Map cleaning-only mutations onto the unified plan
+                            # so reorder/remove work uniformly across step kinds.
+                            u_now = _build_unified_plan(sh)
+                            kept_non_cleaning = [e for e in u_now if e["kind"] != "cleaning_substep"]
+                            new_cleaning_entries = []
+                            for entry in new_plan:
+                                existing = next((e for e in u_now
+                                                 if e["instance_id"] == entry["instance_id"]), None)
+                                if existing:
+                                    new_cleaning_entries.append({
+                                        **existing,
+                                        "enabled": entry["enabled"],
+                                        "params": dict(entry.get("params") or {}),
+                                    })
+                                else:
+                                    new_cleaning_entries.append({
+                                        "instance_id": entry["instance_id"],
+                                        "kind": "cleaning_substep",
+                                        "name": substep_label(entry["key"], entry.get("params") or {}),
+                                        "summary": "",
+                                        "enabled": bool(entry.get("enabled", True)),
+                                        "params": dict(entry.get("params") or {}),
+                                        "meta_extra": {"substep_key": entry["key"]},
+                                    })
+                            _commit_unified_plan(sh, kept_non_cleaning + new_cleaning_entries, ds_key)
+
                         with ctrl_col:
                             st.markdown(f"**Active:** `{sh.current().name}`")
                             if sh.has_later_steps():

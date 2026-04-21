@@ -177,11 +177,23 @@ def rebuild_history_from_recipes(
         name = recipe.get("name") or rtype or "Step"
         summary = recipe.get("summary") or ""
         meta = recipe.get("meta") or {}
+        # Universal enable flag — honored for every non-source step kind so
+        # users can disable Promoted Headers / Changed Type / manual / etc.
+        # and the chain still replays correctly. Source is always on.
+        enabled = bool(meta.get("enabled", True))
 
         if rtype == "source":
             current = source_df
             history.add(name, summary, current, meta=meta)
         elif rtype == "promoted_headers":
+            if enabled:
+                # Promote first row to column names if the snapshot looks
+                # like an unpromoted Source view (auto-named Column1..N).
+                if (len(current) > 0 and
+                        all(str(c).startswith("Column") for c in current.columns)):
+                    promoted = current.iloc[1:].reset_index(drop=True)
+                    promoted.columns = [str(v) for v in current.iloc[0].tolist()]
+                    current = promoted
             history.add(name, summary, current, meta=meta)
         elif rtype == "changed_type":
             schema_dicts = meta.get("schema") or []
@@ -192,25 +204,28 @@ def rebuild_history_from_recipes(
                 "sample_values": list(d.get("sample_values") or []),
                 "notes": d.get("notes", "") or "",
             }) for d in schema_dicts if d.get("column") is not None]
-            current = apply_schema(current, schema) if schema else current.copy()
+            if enabled and schema:
+                current = apply_schema(current, schema)
             history.add(name, summary, current, meta=meta)
         elif rtype == "cleaning":
-            current, _report = clean_data(current)
+            if enabled:
+                current, _report = clean_data(current)
             history.add(name, summary, current, meta=meta)
         elif rtype == "cleaning_substep":
             from data_cleaner import SUBSTEP_FUNCS
             key = meta.get("substep_key")
-            enabled = bool(meta.get("enabled", True))
+            params = meta.get("substep_params") or {}
             if enabled and key in SUBSTEP_FUNCS:
-                current, _summary, _details = SUBSTEP_FUNCS[key](current)
+                current, _summary, _details = SUBSTEP_FUNCS[key](current, **params)
             history.add(name, summary, current, meta=meta)
         elif rtype == "manual_type":
             override = meta.get("override") or {}
-            base = current.copy()
-            for col, t in override.items():
-                if col in base.columns:
-                    base[col] = cast_column(base[col], t)
-            current = base
+            if enabled and override:
+                base = current.copy()
+                for col, t in override.items():
+                    if col in base.columns:
+                        base[col] = cast_column(base[col], t)
+                current = base
             history.add(name, summary, current, meta=meta)
         else:
             history.add(name, summary, current, meta=meta)
