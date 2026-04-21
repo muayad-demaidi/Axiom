@@ -26,9 +26,25 @@ A comprehensive intelligent data analytics system built with Streamlit that prov
 │   └── logo.png           # Transparent logo (DataVision Pro)
 ├── .streamlit/
 │   └── config.toml        # Streamlit configuration
+├── marketing-site/        # SEO/GEO marketing site (Astro, separate deployment)
+│   ├── src/
+│   │   ├── content/       # Glossary, Compare, Guides data (TypeScript)
+│   │   ├── pages/         # Astro pages (Home, Features, Pricing, About, Contact, Glossary, Compare, Guides)
+│   │   ├── layouts/       # BaseLayout with SEO/JSON-LD
+│   │   └── components/    # Header, Footer, FAQ, Breadcrumbs
+│   ├── public/            # robots.txt, logo.png
+│   ├── package.json
+│   └── README.md          # Run / deploy instructions
 ├── pyproject.toml         # Project dependencies
 └── replit.md              # This file
 ```
+
+## Marketing Site (SEO/GEO)
+A separate, fully crawlable Astro site at `marketing-site/` powers organic discovery for search engines and AI engines (ChatGPT, Perplexity, Google AI Overviews). The Streamlit app is unchanged except for footer "Learn" links pointing back to the marketing hub pages (Glossary, Guides, Compare, About).
+
+- Workflow: **Marketing site** runs `astro dev` on port 8000 (console output).
+- Build: `cd marketing-site && npm run build` produces a static `dist/` folder for separate deployment.
+- See `marketing-site/README.md` for full details, content rules, and the publishable page list (~22 pages: 5 core + 8 glossary + 3 compare + 3 guides + 3 hubs).
 
 ## Tech Stack
 - **Streamlit**: Interactive web interface

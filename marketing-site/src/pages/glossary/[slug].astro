@@ -1,0 +1,114 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import FAQ from "../../components/FAQ.astro";
+import { GLOSSARY, getEntry } from "../../content/glossary";
+import { SITE } from "../../utils/site";
+
+export function getStaticPaths() {
+  return GLOSSARY.map((g) => ({ params: { slug: g.slug } }));
+}
+
+const { slug } = Astro.params;
+const entry = getEntry(slug as string)!;
+
+const url = SITE.url + "/glossary/" + entry.slug;
+
+const definedTermLd = {
+  "@context": "https://schema.org",
+  "@type": "DefinedTerm",
+  name: entry.term,
+  description: entry.shortDef,
+  url,
+  inDefinedTermSet: SITE.url + "/glossary",
+};
+
+const articleLd = {
+  "@context": "https://schema.org",
+  "@type": "Article",
+  headline: entry.question,
+  description: entry.description,
+  datePublished: entry.updated,
+  dateModified: entry.updated,
+  author: { "@type": "Organization", name: SITE.organization.name, url: SITE.url },
+  publisher: {
+    "@type": "Organization",
+    name: SITE.organization.name,
+    logo: { "@type": "ImageObject", url: SITE.url + "/logo.png" },
+  },
+  mainEntityOfPage: url,
+};
+
+const faqLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: entry.faq.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: { "@type": "Answer", text: f.a },
+  })),
+};
+
+const breadcrumbsLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: SITE.url },
+    { "@type": "ListItem", position: 2, name: "Glossary", item: SITE.url + "/glossary" },
+    { "@type": "ListItem", position: 3, name: entry.term, item: url },
+  ],
+};
+---
+<BaseLayout
+  title={entry.question}
+  description={entry.description}
+  type="article"
+  jsonLd={[definedTermLd, articleLd, faqLd, breadcrumbsLd]}
+>
+  <section class="section" style="padding-top:3.5rem;">
+    <div class="container" style="max-width: 820px;">
+      <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Glossary", href: "/glossary" }, { label: entry.term }]} />
+      <span class="eyebrow">Glossary</span>
+      <h1>{entry.question}</h1>
+      <div class="updated">Updated {entry.updated}</div>
+
+      <p style="font-size: 1.1rem; color: var(--text);"><strong>{entry.answer}</strong></p>
+
+      {entry.stats.map((s) => (
+        <div class="stat">
+          <div class="value">{s.value}</div>
+          <div>{s.label}</div>
+          <cite><a href={s.source.url} rel="nofollow noopener" target="_blank">{s.source.label}</a></cite>
+        </div>
+      ))}
+
+      {entry.sections.map((sec) => (
+        <>
+          <h2>{sec.heading}</h2>
+          <div set:html={sec.html}></div>
+        </>
+      ))}
+
+      <FAQ items={entry.faq} />
+
+      <h2>Related terms</h2>
+      <div class="grid grid-2">
+        {entry.related
+          .map((r) => GLOSSARY.find((g) => g.slug === r))
+          .filter(Boolean)
+          .map((r) => (
+            <a class="term-card" href={`/glossary/${r!.slug}`}>
+              <h3>{r!.term}</h3>
+              <p>{r!.shortDef}</p>
+            </a>
+          ))}
+      </div>
+
+      <div class="cta-strip">
+        <h2>Try this in DataVision Pro</h2>
+        <p>Upload a CSV and see the concept applied to your own data — free for 60 days.</p>
+        <a class="btn btn-primary" href={SITE.appUrl}>Launch the app →</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

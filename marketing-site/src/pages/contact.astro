@@ -1,0 +1,56 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { SITE } from "../utils/site";
+
+const description =
+  "Contact DataVision Pro support — email us at " + SITE.supportEmail + " or use the form below. We reply within one business day.";
+---
+<BaseLayout title="Contact" description={description}>
+  <section class="hero" style="padding-top:5rem; padding-bottom:2rem;">
+    <div class="container">
+      <span class="eyebrow">Contact</span>
+      <h1>Talk to us.</h1>
+      <p class="lead">Bug? Feature request? Activation question after your trial ends? We read every message and reply within one business day.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="grid grid-2">
+        <div>
+          <h2>Email</h2>
+          <p>The fastest channel — your message lands directly in our inbox.</p>
+          <p><a class="btn btn-primary" href={`mailto:${SITE.supportEmail}?subject=DataVision%20Pro%20support`}>Email {SITE.supportEmail}</a></p>
+
+          <h2 style="margin-top:2rem;">Inside the app</h2>
+          <p>Already signed in? The <strong>Support</strong> form at the bottom of every page in the app routes to the same inbox and is the fastest way to attach screenshots or logs.</p>
+          <p><a class="btn btn-ghost" href={SITE.appUrl}>Open the app →</a></p>
+        </div>
+        <div class="card">
+          <h3>Quick contact</h3>
+          <p class="small muted">This form opens your email client with a pre-filled message. Once we have a hosted backend on this site, it will submit directly.</p>
+          <form
+            action={`mailto:${SITE.supportEmail}`}
+            method="post"
+            enctype="text/plain"
+            style="display:flex; flex-direction:column; gap:0.85rem; margin-top:1rem;"
+          >
+            <label>
+              <span class="small mono muted">Your name</span>
+              <input name="name" type="text" required style="width:100%; padding:0.65rem 0.85rem; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit;" />
+            </label>
+            <label>
+              <span class="small mono muted">Your email</span>
+              <input name="email" type="email" required style="width:100%; padding:0.65rem 0.85rem; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit;" />
+            </label>
+            <label>
+              <span class="small mono muted">Message</span>
+              <textarea name="message" rows="6" required style="width:100%; padding:0.65rem 0.85rem; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; resize:vertical;"></textarea>
+            </label>
+            <button type="submit" class="btn btn-primary">Send via email</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

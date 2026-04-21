@@ -1,0 +1,67 @@
+---
+import { SITE } from "../utils/site";
+const year = new Date().getFullYear();
+---
+<footer class="dv-footer">
+  <div class="container dv-footer-inner">
+    <div class="dv-footer-brand">
+      <img src="/logo.png" alt="DataVision Pro" width="48" height="48" />
+      <p>An intelligent data analytics platform that turns raw datasets into clear, actionable insights — in seconds, no code required.</p>
+    </div>
+    <div>
+      <div class="dv-footer-title">Product</div>
+      <ul>
+        <li><a href="/features">Features</a></li>
+        <li><a href="/pricing">Pricing &amp; Plans</a></li>
+        <li><a href={SITE.appUrl}>Launch App</a></li>
+        <li><a href={SITE.appUrl}>60-Day Free Trial</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="dv-footer-title">Learn</div>
+      <ul>
+        <li><a href="/glossary">Glossary</a></li>
+        <li><a href="/guides">Guides</a></li>
+        <li><a href="/compare">Compare</a></li>
+        <li><a href="/about">About</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="dv-footer-title">Support</div>
+      <ul>
+        <li><a href="/contact">Contact</a></li>
+        <li><a href={`mailto:${SITE.supportEmail}`}>Email Support</a></li>
+        <li><a href="/sitemap.xml">Sitemap</a></li>
+        <li><a href="/robots.txt">Robots</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="container dv-footer-bottom">
+    <span>© {year} {SITE.name}. All rights reserved.</span>
+    <span class="status">All systems operational</span>
+  </div>
+</footer>
+<style>
+  .dv-footer { border-top: 1px solid var(--border); padding: 3rem 0 1.5rem; margin-top: 5rem; background: rgba(7,16,31,0.6); }
+  .dv-footer-inner { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 2.5rem; padding-bottom: 2.5rem; }
+  .dv-footer-brand img { border-radius: 8px; margin-bottom: 0.85rem; }
+  .dv-footer-brand p { font-size: 0.875rem; color: var(--text-muted); max-width: 320px; }
+  .dv-footer-title {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 600;
+    color: var(--text-secondary); letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .dv-footer ul { list-style: none; padding: 0; margin: 0; }
+  .dv-footer li { margin-bottom: 0.55rem; }
+  .dv-footer li a { font-size: 0.875rem; color: var(--text-muted); text-decoration: none; }
+  .dv-footer li a:hover { color: var(--teal); }
+  .dv-footer-bottom {
+    border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.25rem;
+    display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem; color: var(--text-muted);
+  }
+  .status::before { content: "● "; color: var(--teal); }
+  @media (max-width: 880px) {
+    .dv-footer-inner { grid-template-columns: 1fr 1fr; }
+  }
+</style>

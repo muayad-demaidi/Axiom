@@ -1,0 +1,29 @@
+export const SITE = {
+  name: "DataVision Pro",
+  tagline: "Intelligent data analytics, no code required",
+  description:
+    "DataVision Pro turns raw CSVs and Excel files into clean, analyzed, AI-explained insights in seconds. Auto cleaning, statistics, ML, predictions, and a built-in chat assistant.",
+  url: "https://datavisionpro.app",
+  appUrl:
+    (typeof process !== "undefined" && process.env && process.env.APP_URL) ||
+    "https://app.datavisionpro.app",
+  supportEmail: "muayad.demaidi.work@gmail.com",
+  organization: {
+    name: "DataVision Pro",
+    legalName: "DataVision Pro",
+    foundingDate: "2026-01-01",
+    sameAs: [],
+  },
+  socialImage: "/og-default.png",
+  twitter: "@datavisionpro",
+  defaultUpdated: "2026-04-01",
+};
+
+export const NAV_LINKS = [
+  { href: "/features", label: "Features" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/glossary", label: "Glossary" },
+  { href: "/guides", label: "Guides" },
+  { href: "/compare", label: "Compare" },
+  { href: "/about", label: "About" },
+];

@@ -1177,7 +1177,8 @@ html { scroll-behavior: smooth; }
 
 /* ── Footer ──────────────────────────────────────────────────── */
 .lp-footer { border-top: 1px solid rgba(255,255,255,0.06); padding: 3.5rem 0 2rem 0; margin-top: 4rem; }
-.lp-footer-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 4rem; margin-bottom: 3rem; }
+.lp-footer-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 3rem; margin-bottom: 3rem; }
+@media (max-width: 880px) { .lp-footer-inner { grid-template-columns: 1fr 1fr; } }
 .lp-footer-brand-desc { font-size: 0.875rem; color: var(--text-muted); line-height: 1.7; margin-top: 0.85rem; max-width: 280px; }
 .lp-footer-col-title { font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.08em; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; margin-bottom: 1.25rem; }
 .lp-footer-links-list { list-style: none; padding: 0; margin: 0; }
@@ -2626,6 +2627,15 @@ def show_login_page():
 <li><a href="/" target="_self">60-Day Free Trial</a></li>
 </ul>
 </div>
+<div>
+<div class="lp-footer-col-title">Learn</div>
+<ul class="lp-footer-links-list">
+<li><a href="https://datavisionpro.app/glossary/" target="_blank" rel="noopener">Data Glossary</a></li>
+<li><a href="https://datavisionpro.app/guides/" target="_blank" rel="noopener">How-to Guides</a></li>
+<li><a href="https://datavisionpro.app/compare/" target="_blank" rel="noopener">Compare</a></li>
+<li><a href="https://datavisionpro.app/about/" target="_blank" rel="noopener">About</a></li>
+</ul>
+</div>
 </div>
 <div class="lp-footer-bottom">
 <span class="lp-footer-copy">&copy; 2026 DataVision Pro. All rights reserved.</span>
@@ -2955,6 +2965,13 @@ def show_register_page():
 <a class="lp-footer-link" href="/#contact" target="_self">Contact Us</a>
 <a class="lp-footer-link" href="mailto:muayad.demaidi.work@gmail.com">Email Support</a>
 <a class="lp-footer-link" href="/#contact" target="_self">Help Center</a>
+</div>
+<div class="lp-footer-col">
+<div class="lp-footer-col-title">LEARN</div>
+<a class="lp-footer-link" href="https://datavisionpro.app/glossary/" target="_blank" rel="noopener">Data Glossary</a>
+<a class="lp-footer-link" href="https://datavisionpro.app/guides/" target="_blank" rel="noopener">How-to Guides</a>
+<a class="lp-footer-link" href="https://datavisionpro.app/compare/" target="_blank" rel="noopener">Compare</a>
+<a class="lp-footer-link" href="https://datavisionpro.app/about/" target="_blank" rel="noopener">About</a>
 </div>
 </div>
 <div class="lp-footer-bottom">
@@ -4957,6 +4974,15 @@ def show_home_page():
 <li><a href="#">Documentation</a></li>
 <li><a href="#">Account Help</a></li>
 <li><a href="#">Report an Issue</a></li>
+</ul>
+</div>
+<div>
+<div class="lp-footer-col-title">Learn</div>
+<ul class="lp-footer-links-list">
+<li><a href="https://datavisionpro.app/glossary/" target="_blank" rel="noopener">Data Glossary</a></li>
+<li><a href="https://datavisionpro.app/guides/" target="_blank" rel="noopener">How-to Guides</a></li>
+<li><a href="https://datavisionpro.app/compare/" target="_blank" rel="noopener">Compare</a></li>
+<li><a href="https://datavisionpro.app/about/" target="_blank" rel="noopener">About</a></li>
 </ul>
 </div>
 </div>
