@@ -3182,18 +3182,32 @@ def show_dashboard():
                     return
 
                 # Build pipeline: Source -> Promoted Headers -> Changed Type -> Cleaning
+                # Source step shows the *unpromoted* view (Column1..N + original
+                # header sitting as the first data row), exactly like Power
+                # Query, so navigating back to it actually shows a different
+                # snapshot than Promoted Headers.
                 history = StepHistory()
                 src_summary = (f"Read {parse_meta.get('kind','file')} — "
                                f"delimiter `{parse_meta.get('delimiter') or 'n/a'}`, "
                                f"encoding `{parse_meta.get('encoding') or 'n/a'}`, "
                                f"{len(df_raw):,} rows × {len(df_raw.columns)} cols")
-                history.add("Source", src_summary, df_raw, meta={'parse': parse_meta})
 
                 if parse_meta.get('has_header'):
+                    # Reconstruct the pre-promotion view: original header values
+                    # become the first data row, and columns are auto-named.
+                    header_row = pd.DataFrame([list(df_raw.columns)],
+                                              columns=df_raw.columns)
+                    df_unpromoted = pd.concat([header_row, df_raw],
+                                              ignore_index=True)
+                    df_unpromoted.columns = [f"Column{i+1}" for i in range(len(df_raw.columns))]
+                    history.add("Source", src_summary, df_unpromoted,
+                                meta={'parse': parse_meta})
                     history.add("Promoted Headers",
                                 "First row promoted to column names",
                                 df_raw, meta={})
                 else:
+                    history.add("Source", src_summary, df_raw,
+                                meta={'parse': parse_meta})
                     history.add("Promoted Headers",
                                 "Headers auto-named (Column_1 … Column_N)",
                                 df_raw, meta={})
