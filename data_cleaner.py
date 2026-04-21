@@ -1,11 +1,24 @@
 import pandas as pd
 import numpy as np
-from typing import Tuple, Dict, Any, List, Callable
+from typing import Tuple, Dict, Any, List, Callable, Optional
 
 
 # ── Power Query-style cleaning substeps ──────────────────────────────────────
 # Each substep is a small, named, reversible transformation. They appear as
-# their own entries in the Applied Steps panel and can be toggled on/off.
+# their own entries in the Applied Steps panel and can be toggled on/off,
+# and each accepts keyword params so users can tune thresholds without
+# editing code. Default values live in `SUBSTEP_PARAM_SCHEMA` below.
+
+
+def _params_for(key: str, params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Merge user-supplied params on top of the substep's declared defaults."""
+    merged = {p["key"]: p["default"] for p in SUBSTEP_PARAM_SCHEMA.get(key, [])}
+    if params:
+        for k, v in params.items():
+            if k in merged and v is not None:
+                merged[k] = v
+    return merged
+
 
 def remove_duplicates_step(df: pd.DataFrame, **_params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
     out = df.copy()
@@ -18,31 +31,38 @@ def remove_duplicates_step(df: pd.DataFrame, **_params) -> Tuple[pd.DataFrame, s
     return out, summary, {"duplicates_removed": n, "changes": ([summary] if n > 0 else [])}
 
 
-def fill_missing_numeric_step(df: pd.DataFrame, **_params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+def fill_missing_numeric_step(df: pd.DataFrame, **params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+    p = _params_for("fill_missing_numeric", params)
+    cap = float(p["missing_cap_pct"])
     out = df.copy()
     changes: List[str] = []
+    filled_cols = 0
     numeric_cols = out.select_dtypes(include=[np.number]).columns
     for col in numeric_cols:
         missing = int(out[col].isnull().sum())
         if missing == 0:
             continue
         pct = (missing / len(out)) * 100 if len(out) else 0
-        if pct > 50:
-            changes.append(f"Skipped `{col}` — {pct:.1f}% missing (too sparse to impute)")
+        if pct > cap:
+            changes.append(f"Skipped `{col}` — {pct:.1f}% missing (> {cap:.0f}% cap)")
             continue
         median_val = out[col].median()
         if pd.isna(median_val):
             continue
         out[col] = out[col].fillna(median_val)
+        filled_cols += 1
         changes.append(f"Filled {missing} missing in `{col}` with median ({median_val:.2f})")
-    summary = (f"Filled missing in {len(changes)} numeric column(s)"
-               if changes else "No numeric missing values to fill")
+    summary = (f"Filled missing in {filled_cols} numeric column(s) (cap {cap:.0f}%)"
+               if filled_cols else f"No numeric missing values to fill (cap {cap:.0f}%)")
     return out, summary, {"changes": changes}
 
 
-def fill_missing_categorical_step(df: pd.DataFrame, **_params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+def fill_missing_categorical_step(df: pd.DataFrame, **params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+    p = _params_for("fill_missing_categorical", params)
+    cap = float(p["missing_cap_pct"])
     out = df.copy()
     changes: List[str] = []
+    filled_cols = 0
     numeric_cols = set(out.select_dtypes(include=[np.number]).columns)
     for col in out.columns:
         if col in numeric_cols:
@@ -51,19 +71,23 @@ def fill_missing_categorical_step(df: pd.DataFrame, **_params) -> Tuple[pd.DataF
         if missing == 0:
             continue
         pct = (missing / len(out)) * 100 if len(out) else 0
-        if pct > 50:
-            changes.append(f"Skipped `{col}` — {pct:.1f}% missing (too sparse to impute)")
+        if pct > cap:
+            changes.append(f"Skipped `{col}` — {pct:.1f}% missing (> {cap:.0f}% cap)")
             continue
         mode_val = out[col].mode()
         if len(mode_val) > 0:
             out[col] = out[col].fillna(mode_val[0])
+            filled_cols += 1
             changes.append(f"Filled {missing} missing in `{col}` with mode (`{mode_val[0]}`)")
-    summary = (f"Filled missing in {len(changes)} categorical column(s)"
-               if changes else "No categorical missing values to fill")
+    summary = (f"Filled missing in {filled_cols} categorical column(s) (cap {cap:.0f}%)"
+               if filled_cols else f"No categorical missing values to fill (cap {cap:.0f}%)")
     return out, summary, {"changes": changes}
 
 
-def clip_outliers_step(df: pd.DataFrame, **_params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+def clip_outliers_step(df: pd.DataFrame, **params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+    p = _params_for("clip_outliers", params)
+    iqr_mult = float(p["iqr_multiplier"])
+    clip_cap = float(p["clip_threshold_pct"])
     out = df.copy()
     changes: List[str] = []
     clipped_cols = 0
@@ -73,23 +97,28 @@ def clip_outliers_step(df: pd.DataFrame, **_params) -> Tuple[pd.DataFrame, str, 
         IQR = Q3 - Q1
         if pd.isna(IQR) or IQR == 0:
             continue
-        lower = Q1 - 1.5 * IQR
-        upper = Q3 + 1.5 * IQR
+        lower = Q1 - iqr_mult * IQR
+        upper = Q3 + iqr_mult * IQR
         mask = (out[col] < lower) | (out[col] > upper)
         n = int(mask.sum())
         if n == 0:
             continue
         pct = (n / len(out)) * 100 if len(out) else 0
-        if pct < 5:
+        if pct < clip_cap:
             out.loc[out[col] < lower, col] = lower
             out.loc[out[col] > upper, col] = upper
             changes.append(f"Clipped {n} outlier(s) in `{col}` to [{lower:.2f}, {upper:.2f}]")
             clipped_cols += 1
         else:
-            changes.append(f"Detected {n} outlier(s) in `{col}` ({pct:.1f}%) — left as-is")
-    summary = (f"Clipped outliers in {clipped_cols} numeric column(s)"
+            changes.append(
+                f"Detected {n} outlier(s) in `{col}` ({pct:.1f}%) — left as-is "
+                f"(above {clip_cap:.0f}% clip cap)"
+            )
+    summary = (f"Clipped outliers in {clipped_cols} numeric column(s) "
+               f"(IQR×{iqr_mult:g}, cap {clip_cap:.0f}%)"
                if clipped_cols else
-               ("Outliers reported but not clipped" if changes else "No outliers detected"))
+               (f"Outliers reported but not clipped (above {clip_cap:.0f}% cap)"
+                if changes else f"No outliers detected (IQR×{iqr_mult:g})"))
     return out, summary, {"changes": changes}
 
 
@@ -129,9 +158,50 @@ def rename_column_step(df: pd.DataFrame, column: str | None = None,
     return out, "Skipped — invalid rename parameters", {"changes": []}
 
 
-# Unified registry. `params` describes user-editable parameters for substeps
-# inserted via the UI. `kind` is one of: "column" (pick from current columns),
-# "text" (free text input).
+# Declarative parameter schema per substep. The UI uses this to render
+# threshold-tuning controls in the Applied Steps panel; backend functions
+# read defaults from here via `_params_for`. Add new entries here to expose
+# more knobs.
+SUBSTEP_PARAM_SCHEMA: Dict[str, List[Dict[str, Any]]] = {
+    "remove_duplicates": [],
+    "fill_missing_numeric": [
+        {
+            "key": "missing_cap_pct", "label": "Missing-value cap (%)",
+            "default": 50.0, "min": 0.0, "max": 100.0, "step": 5.0,
+            "help": "Skip imputing any column whose share of missing values "
+                    "exceeds this cap.",
+        },
+    ],
+    "fill_missing_categorical": [
+        {
+            "key": "missing_cap_pct", "label": "Missing-value cap (%)",
+            "default": 50.0, "min": 0.0, "max": 100.0, "step": 5.0,
+            "help": "Skip imputing any column whose share of missing values "
+                    "exceeds this cap.",
+        },
+    ],
+    "clip_outliers": [
+        {
+            "key": "iqr_multiplier", "label": "IQR multiplier",
+            "default": 1.5, "min": 0.5, "max": 5.0, "step": 0.1,
+            "help": "Outlier fence width: lower = more aggressive, "
+                    "higher = more permissive (Tukey default is 1.5).",
+        },
+        {
+            "key": "clip_threshold_pct", "label": "Clip-vs-report cutoff (%)",
+            "default": 5.0, "min": 0.0, "max": 100.0, "step": 1.0,
+            "help": "If outliers in a column exceed this share of rows, "
+                    "report them but leave values untouched.",
+        },
+    ],
+}
+
+
+# Unified registry. `params` describes user-editable structural parameters
+# for substeps inserted via the UI (e.g. choosing a column to drop or
+# rename). `kind` is one of: "column" (pick from current columns),
+# "text" (free text input). Threshold-style numeric parameters live
+# separately in `SUBSTEP_PARAM_SCHEMA` above.
 SUBSTEP_REGISTRY: Dict[str, Dict[str, Any]] = {
     "remove_duplicates": {
         "label": "Remove Duplicates",
@@ -216,15 +286,30 @@ def run_substep(key: str, df: pd.DataFrame,
     return fn(df, **(params or {}))
 
 
+def default_substep_params() -> Dict[str, Dict[str, Any]]:
+    """Return the canonical default threshold params for every substep
+    in the default cleaning plan."""
+    return {
+        key: {p["key"]: p["default"] for p in SUBSTEP_PARAM_SCHEMA.get(key, [])}
+        for key in DEFAULT_CLEANING_PLAN
+    }
+
+
 def clean_data(df: pd.DataFrame,
-               enabled: Dict[str, bool] | None = None
+               enabled: Dict[str, bool] | None = None,
+               params: Dict[str, Dict[str, Any]] | None = None,
                ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     """Run the default cleaning pipeline as a sequence of named substeps.
 
     `enabled` optionally maps substep keys to bool toggles; missing keys
-    default to True. Disabled substeps are pass-through.
+    default to True. `params` optionally maps substep keys to a per-substep
+    params dict (e.g. `{"clip_outliers": {"iqr_multiplier": 2.0}}`); missing
+    entries fall back to `SUBSTEP_PARAM_SCHEMA` defaults. Disabled substeps
+    are pass-through. Returns the final cleaned dataframe and a report
+    aggregated across all enabled substeps.
     """
     enabled = enabled or {}
+    params = params or {}
     report: Dict[str, Any] = {
         'original_rows': len(df),
         'original_columns': len(df.columns),
@@ -235,13 +320,15 @@ def clean_data(df: pd.DataFrame,
     for key in DEFAULT_CLEANING_PLAN:
         label = SUBSTEP_REGISTRY[key]["label"]
         on = enabled.get(key, True)
+        sub_params = params.get(key) or {}
         if on:
-            current, summary, details = run_substep(key, current)
+            current, summary, details = run_substep(key, current, sub_params)
             report['changes'].extend(details.get('changes', []))
         else:
             summary, details = "Disabled — pass through", {}
         report['substeps'].append({
             'key': key, 'label': label, 'enabled': on,
+            'params': _params_for(key, sub_params),
             'summary': summary, 'details': details,
         })
     report['final_rows'] = len(current)

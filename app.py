@@ -137,6 +137,7 @@ from data_cleaner import (
     clean_data, detect_column_types, get_data_quality_score,
     CLEANING_SUBSTEPS, SUBSTEP_FUNCS, SUBSTEP_REGISTRY,
     DEFAULT_CLEANING_PLAN, run_substep, substep_label,
+    SUBSTEP_PARAM_SCHEMA, default_substep_params,
 )
 from data_analyzer import (
     get_basic_stats, get_numeric_stats, get_categorical_stats, 
@@ -1455,7 +1456,9 @@ if 'cleaning_substep_states' not in st.session_state:
     st.session_state.cleaning_substep_states = {}
 if 'cleaning_substep_plans' not in st.session_state:
     # Per-dataset ordered cleaning plan: list of dicts with
-    # {instance_id, key, enabled, params}. Drives reorder/insert.
+    # {instance_id, key, enabled, params}. Drives reorder/insert and
+    # carries each substep's threshold params (missing-value cap,
+    # IQR multiplier, etc.) so they survive across rebuilds.
     st.session_state.cleaning_substep_plans = {}
 if 'display_prefs' not in st.session_state:
     st.session_state.display_prefs = {}
@@ -1486,10 +1489,12 @@ def _new_instance_id() -> str:
 
 
 def _default_cleaning_plan() -> list:
-    """Build the default ordered cleaning plan (all enabled, no params)."""
+    """Build the default ordered cleaning plan (all enabled, params seeded
+    from `SUBSTEP_PARAM_SCHEMA` defaults so the UI has values to render)."""
+    defaults = default_substep_params()
     return [
         {"instance_id": _new_instance_id(), "key": k,
-         "enabled": True, "params": {}}
+         "enabled": True, "params": dict(defaults.get(k, {}))}
         for k in DEFAULT_CLEANING_PLAN
     ]
 
@@ -1515,6 +1520,9 @@ def _apply_cleaning_substeps(history: StepHistory, base_df,
     pass-through entries so the user can flip them back on later.
 
     `plan` is an ordered list of {instance_id, key, enabled, params} dicts.
+    Each entry's `params` carries the substep's threshold knobs (e.g.
+    missing-value cap %, IQR multiplier); missing keys fall back to
+    `SUBSTEP_PARAM_SCHEMA` defaults inside the substep functions.
     """
     report = {
         'original_rows': len(base_df),
@@ -1533,15 +1541,25 @@ def _apply_cleaning_substeps(history: StepHistory, base_df,
             report['changes'].extend(details.get('changes', []))
         else:
             summary, details = "Disabled — pass through", {}
+        # Effective threshold params after default merge — recorded on the
+        # Step.meta and report so downstream consumers (UI, persistence)
+        # always see the values that were actually used.
+        effective_params = {
+            p["key"]: params.get(p["key"], p["default"])
+            for p in SUBSTEP_PARAM_SCHEMA.get(key, [])
+        }
         history.add(label, summary, current,
                     meta={'substep_key': key,
                           'substep_instance': entry["instance_id"],
                           'substep_params': params,
+                          'effective_params': effective_params,
                           'enabled': on, 'details': details})
         report['substeps'].append({
             'key': key, 'label': label, 'enabled': on,
+            'instance_id': entry["instance_id"],
+            'params': params,
+            'effective_params': effective_params,
             'summary': summary, 'details': details,
-            'instance_id': entry["instance_id"], 'params': params,
         })
     report['final_rows'] = len(current)
     report['final_columns'] = len(current.columns)
@@ -3192,7 +3210,8 @@ def show_dashboard():
 
                 # Cleaning is broken into individual, toggleable substeps so
                 # each appears as its own entry in the Applied Steps panel.
-                # Users can later reorder, insert, or remove substeps.
+                # Users can later reorder, insert, or remove substeps, and
+                # tune each substep's threshold params (cap %, IQR×, …).
                 cleaning_plan = _default_cleaning_plan()
                 df_cleaned, cleaning_report = _apply_cleaning_substeps(
                     history, df_typed, cleaning_plan
@@ -3498,7 +3517,8 @@ def show_dashboard():
                         st.subheader("Applied Steps")
                         st.caption("Click any step to view the dataset at that point. "
                                    "Cleaning substeps can be toggled, reordered, removed, "
-                                   "or new ones inserted — the chain is recomputed.")
+                                   "or new ones inserted — and each substep's thresholds "
+                                   "can be tweaked under Parameters. The chain is recomputed.")
 
                         ds_key = _ds_key()
                         plan = _get_cleaning_plan(ds_key)
@@ -3605,6 +3625,51 @@ def show_dashboard():
                                                      use_container_width=True):
                                             sh.go_to(i)
                                             _persist_step_history()
+                                            st.rerun()
+                                # Per-substep parameter controls. Adjusting any
+                                # value re-runs this substep + every downstream
+                                # substep, identical to the enable/disable flow.
+                                # Params live on the plan entry itself, so the
+                                # whole plan is committed via `_commit_plan`.
+                                if (substep_key and substep_inst is not None
+                                        and SUBSTEP_PARAM_SCHEMA.get(substep_key)):
+                                    schema_entries = SUBSTEP_PARAM_SCHEMA[substep_key]
+                                    pidx = plan_idx_by_inst.get(substep_inst)
+                                    plan_entry = plan[pidx] if pidx is not None else None
+                                    current_params = dict(
+                                        (plan_entry or {}).get("params") or {}
+                                    )
+                                    for entry in schema_entries:
+                                        current_params.setdefault(entry["key"], entry["default"])
+                                    with st.expander("Parameters", expanded=False):
+                                        if not enabled:
+                                            st.caption("This substep is disabled — "
+                                                       "re-enable it to apply parameter changes.")
+                                        new_params = dict(current_params)
+                                        for entry in schema_entries:
+                                            new_params[entry["key"]] = st.number_input(
+                                                entry["label"],
+                                                min_value=float(entry["min"]),
+                                                max_value=float(entry["max"]),
+                                                value=float(current_params[entry["key"]]),
+                                                step=float(entry["step"]),
+                                                help=entry.get("help"),
+                                                key=f"substep_param_{ds_key}_{substep_inst}_{entry['key']}",
+                                                disabled=not enabled,
+                                            )
+                                        if (enabled and pidx is not None and any(
+                                            float(new_params[e["key"]]) != float(current_params[e["key"]])
+                                            for e in schema_entries
+                                        )):
+                                            new_plan = list(plan)
+                                            new_plan[pidx] = {
+                                                **new_plan[pidx],
+                                                "params": {
+                                                    **(new_plan[pidx].get("params") or {}),
+                                                    **new_params,
+                                                },
+                                            }
+                                            _commit_plan(new_plan)
                                             st.rerun()
                         with ctrl_col:
                             st.markdown(f"**Active:** `{sh.current().name}`")
