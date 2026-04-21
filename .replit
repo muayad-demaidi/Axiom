@@ -43,17 +43,25 @@ outputType = "webview"
 name = "Marketing site"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd marketing-site && ASTRO_TELEMETRY_DISABLED=1 npx astro dev --host 0.0.0.0 --port 8000"
-waitForPort = 8000
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd marketing-site && npm ci && ASTRO_TELEMETRY_DISABLED=1 npx astro dev --host 0.0.0.0 --port 8000"
+waitForPort = 8000
 
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 8000
+externalPort = 8000
+
+[[ports]]
+localPort = 8001
+externalPort = 3000
 
 [postMerge]
 path = "scripts/post-merge.sh"

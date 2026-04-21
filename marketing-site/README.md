@@ -20,7 +20,7 @@ npm install   # only the first time
 npm run dev   # http://0.0.0.0:8000
 ```
 
-Or via Replit workflow: the **Marketing site** workflow runs `astro dev` on port 8000.
+Or via Replit workflow: the **Marketing site** workflow runs `npm ci && astro dev` on port 8000 (the `npm ci` step ensures the locally pinned Astro 4.x is used, since `npx astro` on its own would otherwise pull Astro 5+, which requires Node 22).
 
 ## Build for production
 
