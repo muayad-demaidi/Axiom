@@ -12,6 +12,48 @@ from context.type_inference import (
 )
 from context.step_history import StepHistory, Step
 
+
+def _column_config_from_schema(schema_iter, df=None):
+    """Build a Streamlit column_config dict that pretty-prints inferred types.
+
+    Currency/decimal columns get thousand separators and 2dp; date columns get
+    a DD-MMM-YYYY display; percentages render as percent. The mapping is driven
+    off whatever schema is captured at the active step, so manual overrides
+    automatically flow through to the preview formatting.
+    """
+    cfg = {}
+    if not schema_iter:
+        return cfg
+    cols_in_df = set(df.columns) if df is not None else None
+    for s in schema_iter:
+        if isinstance(s, dict):
+            col = s.get("column")
+            t = (s.get("inferred_type") or "").lower()
+        else:
+            col = getattr(s, "column", None)
+            t = (getattr(s, "inferred_type", "") or "").lower()
+        if not col:
+            continue
+        if cols_in_df is not None and col not in cols_in_df:
+            continue
+        try:
+            if t == "integer":
+                cfg[col] = st.column_config.NumberColumn(format="localized")
+            elif t == "decimal":
+                cfg[col] = st.column_config.NumberColumn(format="localized")
+            elif t == "currency":
+                cfg[col] = st.column_config.NumberColumn(format="accounting")
+            elif t == "percentage":
+                cfg[col] = st.column_config.NumberColumn(format="percent")
+            elif t == "date":
+                cfg[col] = st.column_config.DateColumn(format="DD-MMM-YYYY")
+            elif t == "datetime":
+                cfg[col] = st.column_config.DatetimeColumn(format="DD-MMM-YYYY HH:mm")
+        except Exception:
+            # Older Streamlit versions may not support every preset; skip silently.
+            pass
+    return cfg
+
 from models import (
     init_db, get_db, save_dataset_record, find_similar_datasets, 
     get_datasets_by_name, save_chat_message, get_chat_history,
@@ -3232,8 +3274,22 @@ def show_dashboard():
                                     sh.drop_later()
                                     st.rerun()
 
+                    # Resolve the schema for the ACTIVE step first so the
+                    # preview can render currency/date columns in their
+                    # inferred display format.
+                    active_step = sh.current() if sh else None
+                    schema_dicts = (active_step.meta.get('schema') if active_step else None) or []
+                    if schema_dicts:
+                        schema_for_format = schema_dicts
+                    else:
+                        schema_for_format = infer_schema(view_df)
+
                     st.subheader("Data Preview")
-                    st.dataframe(view_df.head(10), use_container_width=True)
+                    st.dataframe(
+                        view_df.head(10),
+                        use_container_width=True,
+                        column_config=_column_config_from_schema(schema_for_format, view_df),
+                    )
 
                     st.subheader("Column Types")
                     # Always derive Column Types from the ACTIVE step. If the
@@ -3242,8 +3298,6 @@ def show_dashboard():
                     # confidence + samples; otherwise re-infer live against the
                     # active dataframe so navigating back to Source / Promoted
                     # Headers shows the schema that fits *that* step's data.
-                    active_step = sh.current() if sh else None
-                    schema_dicts = (active_step.meta.get('schema') if active_step else None) or []
                     if schema_dicts:
                         schema_df = pd.DataFrame(schema_dicts)
                         if 'sample_values' in schema_df.columns:
@@ -3252,8 +3306,7 @@ def show_dashboard():
                         schema_df = schema_df[['column', 'inferred_type', 'confidence',
                                                'sample_values', 'notes']]
                     else:
-                        schema_live = infer_schema(view_df)
-                        schema_df = schema_to_dataframe(schema_live)
+                        schema_df = schema_to_dataframe(schema_for_format)
                     st.dataframe(schema_df, use_container_width=True)
 
                     # ── Type override control ──
@@ -3351,7 +3404,35 @@ def show_dashboard():
                     st.subheader("Descriptive Statistics")
                     numeric_stats = _c_numeric_stats(df_analysis, _ds_id)
                     if not numeric_stats.empty:
-                        st.dataframe(numeric_stats, use_container_width=True)
+                        # numeric_stats is `df.describe().T` plus extra metrics:
+                        # source column names live in the index and the columns
+                        # are statistics (count/mean/std/min/.../missing/...).
+                        # Surface the source column as a visible field and apply
+                        # numeric formatting (thousand separators + 2dp) to the
+                        # stat columns so values like 1234567.89 read as
+                        # 1,234,567.89 instead of the raw float.
+                        stats_display = numeric_stats.reset_index().rename(
+                            columns={"index": "column"})
+                        stats_cfg = {"column": st.column_config.TextColumn("column")}
+                        int_like = {"count", "missing"}
+                        for c in stats_display.columns:
+                            if c == "column":
+                                continue
+                            try:
+                                if c in int_like:
+                                    stats_cfg[c] = st.column_config.NumberColumn(format="localized")
+                                elif c == "missing_pct":
+                                    stats_cfg[c] = st.column_config.NumberColumn(format="%.2f%%")
+                                else:
+                                    stats_cfg[c] = st.column_config.NumberColumn(format="%.2f")
+                            except Exception:
+                                pass
+                        st.dataframe(
+                            stats_display,
+                            use_container_width=True,
+                            hide_index=True,
+                            column_config=stats_cfg,
+                        )
                     else:
                         st.info("No numeric columns found")
                 
