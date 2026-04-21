@@ -10,6 +10,8 @@ from datetime import datetime
 import io
 import base64
 import csv as _csv
+import re
+import time
 
 from context.type_inference import (
     infer_schema, apply_schema, schema_to_dataframe, cast_column, ColumnType
@@ -1507,6 +1509,577 @@ def _get_step_history(create=False):
         sh = StepHistory()
         st.session_state.step_histories[key] = sh
     return sh
+
+
+# ── Phase 1 auto-apply: doubt detection + persistent chat dock ───────────
+# Phase 1 (type inference, default cleaning, formatting) runs the moment a
+# dataset loads. These helpers surface what was done, flag low-confidence
+# decisions ("doubts"), and feed chat answers back into the pipeline.
+
+_DATE_AMBIG_RE = re.compile(
+    r'^\s*(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})')
+
+
+def _detect_dataset_doubts(schema, cleaning_report=None, df=None):
+    """Return a list of low-confidence Phase 1 decisions worth surfacing.
+
+    Each doubt is a dict {id, kind, column, message, options} where `kind`
+    is 'type' | 'currency' | 'outlier' | 'date_format'. Used by the
+    auto-applied strip (inline notes) and the chat dock (quick replies +
+    free-text routing).
+    """
+    doubts = []
+    for s in (schema or []):
+        is_dict = isinstance(s, dict)
+        col = s['column'] if is_dict else s.column
+        t = s['inferred_type'] if is_dict else s.inferred_type
+        conf = float(s.get('confidence', 0) if is_dict else s.confidence)
+        cur_code = (s.get('currency_code') if is_dict else s.currency_code)
+        if t in ('text', 'empty'):
+            continue
+        if conf < 0.85:
+            doubts.append({
+                'id': f"type__{col}", 'kind': 'type',
+                'column': col, 'value': t, 'confidence': conf,
+                'message': (f"I read **{col}** as **{t}** "
+                            f"(confidence {int(conf*100)}%)."),
+                'options': [f"Keep as {t}", "Treat as text", "Treat as categorical"],
+            })
+        if t == 'currency' and not cur_code:
+            doubts.append({
+                'id': f"currency__{col}", 'kind': 'currency',
+                'column': col,
+                'message': (f"**{col}** looks like currency but I couldn't "
+                            "detect a currency code."),
+                'options': ['USD', 'EUR', 'GBP', 'SAR', 'AED'],
+            })
+        if t in ('date', 'datetime') and df is not None and col in df.columns:
+            try:
+                vals = df[col].dropna().astype(str).head(60)
+            except Exception:
+                vals = []
+            ambig = 0
+            for v in vals:
+                m = _DATE_AMBIG_RE.match(v)
+                if (m and 1 <= int(m.group(1)) <= 12
+                        and 1 <= int(m.group(2)) <= 12
+                        and m.group(1) != m.group(2)):
+                    ambig += 1
+            if ambig >= 3:
+                doubts.append({
+                    'id': f"date_format__{col}", 'kind': 'date_format',
+                    'column': col,
+                    'message': (f"`{col}` could be parsed as either day-first "
+                                "or month-first dates."),
+                    'options': ['Day first (DMY)', 'Month first (MDY)'],
+                })
+    if cleaning_report:
+        for sub in cleaning_report.get('substeps', []):
+            key = sub.get('key')
+            details = sub.get('details') or {}
+            for c in details.get('changes', []):
+                if key == 'clip_outliers' and 'left as-is' in c:
+                    m = re.search(r'`([^`]+)`', c)
+                    col_name = m.group(1) if m else ''
+                    doubts.append({
+                        'id': f"outlier__{col_name or len(doubts)}",
+                        'kind': 'outlier', 'column': col_name,
+                        'message': f"Possible outliers: {c}",
+                        'options': ['Clip anyway', 'Leave as-is'],
+                    })
+                if key in ('fill_missing_numeric', 'fill_missing_categorical') \
+                        and c.startswith('Skipped'):
+                    m = re.search(r'`([^`]+)`.*?([\d.]+)%', c)
+                    if not m:
+                        continue
+                    col_name = m.group(1)
+                    pct = m.group(2)
+                    flavour = ('numeric' if key == 'fill_missing_numeric'
+                               else 'categorical')
+                    doubts.append({
+                        'id': f"missing__{col_name}",
+                        'kind': 'missing', 'column': col_name,
+                        'flavour': flavour,
+                        'message': (f"`{col_name}` has {pct}% missing values — "
+                                    "above the safety cap, so I left it alone. "
+                                    "How should I handle it?"),
+                        'options': ['Fill anyway', 'Drop column', 'Leave as-is'],
+                    })
+            if key == 'remove_duplicates':
+                rows_removed = details.get('rows_removed') or 0
+                total = (cleaning_report.get('original_rows') or 0)
+                if total and rows_removed / max(total, 1) > 0.20:
+                    pct = int(round(100 * rows_removed / total))
+                    doubts.append({
+                        'id': "duplicates__bulk",
+                        'kind': 'duplicates', 'column': '',
+                        'rows_removed': int(rows_removed),
+                        'message': (f"I removed {rows_removed:,} duplicate rows "
+                                    f"({pct}% of the dataset). Keep them removed?"),
+                        'options': ['Keep removed', 'Restore duplicates'],
+                    })
+    return doubts
+
+
+def _match_freetext_to_doubt(prompt, doubts):
+    """Heuristic: route a chat message to one of the active doubts.
+
+    Returns (doubt, answer_label) or (None, None). We match on the column
+    name plus an option keyword, falling back to kind-specific cues
+    (currency code regex, type keywords, day/month for dates, etc.).
+    """
+    if not prompt or not doubts:
+        return None, None
+    p = prompt.lower()
+    for d in doubts:
+        col = (d.get('column') or '').lower()
+        if col and col not in p:
+            continue
+        for opt in d.get('options') or []:
+            opt_l = opt.lower()
+            if opt_l in p:
+                return d, opt
+            tokens = [t for t in re.split(r'\W+', opt_l) if len(t) > 2]
+            if tokens and all(t in p for t in tokens):
+                return d, opt
+    for d in doubts:
+        col = (d.get('column') or '').lower()
+        if col and col not in p:
+            continue
+        if d['kind'] == 'currency':
+            m = re.search(
+                r'\b(USD|EUR|GBP|SAR|AED|JPY|CNY|KWD|QAR|BHD|OMR|JOD|EGP|ILS|TRY|CAD|AUD|CHF)\b',
+                prompt, re.IGNORECASE)
+            if m:
+                return d, m.group(1).upper()
+        elif d['kind'] == 'type':
+            for kw in ('text', 'categorical', 'integer', 'decimal',
+                       'number', 'date'):
+                if kw in p:
+                    return d, ('Treat as text' if kw == 'text'
+                               else 'Treat as categorical')
+        elif d['kind'] == 'date_format':
+            if 'day' in p or 'dmy' in p:
+                return d, 'Day first (DMY)'
+            if 'month' in p or 'mdy' in p:
+                return d, 'Month first (MDY)'
+        elif d['kind'] == 'missing':
+            if 'drop' in p:
+                return d, 'Drop column'
+            if 'fill' in p or 'impute' in p:
+                return d, 'Fill anyway'
+            if 'leave' in p or 'keep' in p:
+                return d, 'Leave as-is'
+        elif d['kind'] == 'outlier':
+            if 'clip' in p or 'cap' in p:
+                return d, 'Clip anyway'
+            if 'leave' in p or 'keep' in p:
+                return d, 'Leave as-is'
+        elif d['kind'] == 'duplicates':
+            if 'restore' in p or 'keep' in p and 'dup' in p:
+                return d, 'Restore duplicates'
+            if 'remov' in p:
+                return d, 'Keep removed'
+    return None, None
+
+
+def _seed_chat_doubts(ds_id, doubts):
+    """Prepend a single grouped doubt message to chat, once per dataset load."""
+    if not doubts:
+        return
+    seeded = st.session_state.setdefault('chat_doubts_seeded', set())
+    if ds_id in seeded:
+        return
+    lines = ["Here's what I auto-applied where I wasn't fully sure:"]
+    for d in doubts[:6]:
+        lines.append(f"• {d['message']}")
+    if len(doubts) > 6:
+        lines.append(f"…and {len(doubts) - 6} more.")
+    lines.append("Tap a quick reply below to confirm any of these.")
+    st.session_state.chat_messages.insert(0, {
+        'role': 'assistant',
+        'content': '\n\n'.join(lines),
+    })
+    seeded.add(ds_id)
+
+
+def _resolve_doubt_in_chat(doubt, answer):
+    """Apply a chat-resolved doubt back into the active pipeline.
+
+    Returns (mutated, reply_text). `mutated` is True when the pipeline
+    was actually rebuilt or an Applied Step was added; `reply_text` is
+    the assistant message shown in chat.
+    """
+    sh = _get_step_history(create=False)
+    if sh is None or sh.is_empty():
+        return False, "No active dataset."
+    ds_key = _ds_key()
+    ans = (answer or '').lower()
+    kind = doubt['kind']
+    col = doubt.get('column') or ''
+
+    if kind == 'type':
+        if 'text' in ans:
+            target_type = 'text'
+        elif 'categorical' in ans:
+            target_type = 'categorical'
+        elif 'keep' in ans:
+            return False, (f"Kept `{col}` as `{doubt.get('value')}` — "
+                           "no pipeline change.")
+        else:
+            return False, ("I didn't catch that — please pick one of: "
+                           + ", ".join(doubt.get('options') or []))
+        if sh.has_later_steps():
+            sh.drop_later()
+        base_df = sh.current_df().copy()
+        if col in base_df.columns:
+            base_df[col] = cast_column(base_df[col], target_type)
+        new_schema = infer_schema(base_df)
+        sh.add(
+            "Changed Type (manual)",
+            f"Column `{col}` retyped to `{target_type}` (chat)",
+            base_df,
+            meta={'override': {col: target_type},
+                  'schema': [s.to_dict() for s in new_schema]},
+        )
+        st.session_state.inferred_schema[ds_key] = [s.to_dict() for s in new_schema]
+        st.session_state.type_overrides.setdefault(ds_key, {})[col] = target_type
+        st.session_state.df_cleaned = base_df
+        try: _persist_step_history()
+        except Exception: pass
+        return True, (f"Applied — `{col}` is now `{target_type}` and saved as "
+                      "a new step in Applied Steps.")
+
+    if kind == 'currency':
+        code = (answer or '').strip().upper()
+        if not code or len(code) > 6:
+            return False, "Please reply with a currency code like USD or EUR."
+        # Source the most recent schema-carrying meta. The post-cleaning
+        # active step often has no `schema` key, so fall back to the
+        # canonical inferred_schema in session state, then walk the
+        # history backwards as a last resort.
+        sch = [dict(s) for s in
+               (st.session_state.inferred_schema.get(ds_key) or [])]
+        if not sch:
+            for s in reversed(sh.steps):
+                m = (s.meta or {}).get('schema')
+                if m:
+                    sch = [dict(x) for x in m]
+                    break
+        found = False
+        for s in sch:
+            if s.get('column') == col:
+                s['inferred_type'] = 'currency'
+                s['currency_code'] = code
+                found = True
+        if not found:
+            sch.append({'column': col, 'inferred_type': 'currency',
+                        'currency_code': code, 'confidence': 1.0,
+                        'sample_values': [], 'notes': 'set via chat'})
+        if sh.has_later_steps():
+            sh.drop_later()
+        base_df = sh.current_df().copy()
+        sh.add(
+            "Changed Type (manual)",
+            f"Set currency for `{col}` to `{code}` (chat)",
+            base_df,
+            meta={'override': {col: 'currency'},
+                  'currency_code': {col: code},
+                  'schema': sch},
+        )
+        st.session_state.inferred_schema[ds_key] = sch
+        # Track the override so downstream formatting / replay sees it.
+        ov = st.session_state.type_overrides.setdefault(ds_key, {})
+        ov[col] = 'currency'
+        cur_map = st.session_state.setdefault('currency_codes', {})
+        cur_map.setdefault(ds_key, {})[col] = code
+        try: _persist_step_history()
+        except Exception: pass
+        return True, (f"Set `{col}` currency to `{code}` and saved it as a "
+                      "new step in Applied Steps.")
+
+    if kind == 'date_format':
+        prefer_day = 'day' in ans or 'dmy' in ans
+        prefer_month = 'month' in ans or 'mdy' in ans
+        if not (prefer_day or prefer_month):
+            return False, "Please pick day-first or month-first."
+        if sh.has_later_steps():
+            sh.drop_later()
+        base_df = sh.current_df().copy()
+        if col in base_df.columns:
+            try:
+                base_df[col] = pd.to_datetime(
+                    base_df[col], errors='coerce',
+                    dayfirst=prefer_day, yearfirst=False)
+            except Exception:
+                pass
+        new_schema = infer_schema(base_df)
+        label = 'day-first' if prefer_day else 'month-first'
+        sh.add(
+            "Changed Type (manual)",
+            f"Reparsed `{col}` as date ({label}) (chat)",
+            base_df,
+            meta={'override': {col: 'date'},
+                  'date_format': {col: 'dayfirst' if prefer_day else 'monthfirst'},
+                  'schema': [s.to_dict() for s in new_schema]},
+        )
+        st.session_state.inferred_schema[ds_key] = [s.to_dict() for s in new_schema]
+        st.session_state.df_cleaned = base_df
+        try: _persist_step_history()
+        except Exception: pass
+        return True, f"Reparsed `{col}` as {label} dates and saved as a new step."
+
+    if kind == 'outlier':
+        if 'leave' in ans or 'as-is' in ans:
+            return False, "Left outliers as-is — no change."
+        if 'clip' not in ans and 'cap' not in ans:
+            return False, "Please reply with Clip anyway or Leave as-is."
+        plan = _build_unified_plan(sh)
+        new_plan, mutated = [], False
+        for e in plan:
+            meta = e.get('meta_extra') or {}
+            if (e.get('kind') == 'cleaning_substep'
+                    and meta.get('substep_key') == 'clip_outliers'):
+                params = dict(e.get('params') or {})
+                params['clip_threshold_pct'] = 100.0
+                new_plan.append({**e, 'params': params,
+                                 'meta_extra': {**meta, 'substep_params': params}})
+                mutated = True
+            else:
+                new_plan.append(e)
+        if not mutated:
+            return False, "Couldn't find a Clip Outliers step to update."
+        _commit_unified_plan(sh, new_plan, ds_key)
+        return True, ("Raised the outlier cap to 100% — all detected outliers "
+                      "are now clipped. Pipeline rebuilt.")
+
+    if kind == 'missing':
+        flavour = doubt.get('flavour', 'numeric')
+        substep_key = ('fill_missing_numeric' if flavour == 'numeric'
+                       else 'fill_missing_categorical')
+        if 'leave' in ans or 'keep as' in ans:
+            return False, f"Left `{col}` untouched — no change."
+        plan = _build_unified_plan(sh)
+        if 'drop' in ans:
+            new_entry = {
+                "instance_id": f"drop__{col}__{int(time.time()*1000)}",
+                "kind": "cleaning_substep",
+                "name": f"Drop Column · {col}",
+                "summary": f"Dropped `{col}` (chat)",
+                "enabled": True,
+                "params": {"column": col},
+                "meta_extra": {"substep_key": "drop_column",
+                               "substep_params": {"column": col}},
+            }
+            _commit_unified_plan(sh, plan + [new_entry], ds_key)
+            return True, (f"Dropped `{col}` from the dataset. Pipeline rebuilt "
+                          "and saved as a new step.")
+        if 'fill' in ans or 'impute' in ans or 'anyway' in ans:
+            new_plan, mutated = [], False
+            for e in plan:
+                meta = e.get('meta_extra') or {}
+                if (e.get('kind') == 'cleaning_substep'
+                        and meta.get('substep_key') == substep_key):
+                    params = dict(e.get('params') or {})
+                    params['missing_cap_pct'] = 100.0
+                    new_plan.append({**e, 'params': params,
+                                     'meta_extra': {**meta,
+                                                    'substep_params': params}})
+                    mutated = True
+                else:
+                    new_plan.append(e)
+            if not mutated:
+                return False, "Couldn't find the matching Fill Missing step."
+            _commit_unified_plan(sh, new_plan, ds_key)
+            return True, (f"Raised the missing-value cap to 100% — `{col}` "
+                          "will now be imputed. Pipeline rebuilt.")
+        return False, "Please reply with Fill anyway, Drop column, or Leave as-is."
+
+    if kind == 'duplicates':
+        plan = _build_unified_plan(sh)
+        if 'restore' in ans:
+            new_plan, mutated = [], False
+            for e in plan:
+                meta = e.get('meta_extra') or {}
+                if (e.get('kind') == 'cleaning_substep'
+                        and meta.get('substep_key') == 'remove_duplicates'):
+                    new_plan.append({**e, 'enabled': False})
+                    mutated = True
+                else:
+                    new_plan.append(e)
+            if not mutated:
+                return False, "Couldn't find the Remove Duplicates step."
+            _commit_unified_plan(sh, new_plan, ds_key)
+            return True, ("Restored duplicate rows — Remove Duplicates is "
+                          "disabled. Pipeline rebuilt.")
+        return False, (f"Kept duplicates removed — no change.")
+
+    return False, "Noted."
+
+
+def _render_phase1_dock(tab_id, limits):
+    """Render the auto-applied status strip, doubt notes, and chat dock.
+
+    Mounted on the Cleaning, Statistics, and ML tabs so users always see
+    what Phase 1 did, can review the controls in place, and can resolve
+    any doubts via chat (when their plan includes it).
+    """
+    sh = _get_step_history()
+    if sh is None or sh.is_empty():
+        return
+    ds_key = _ds_key()
+    plan_now = _build_unified_plan(sh)
+    n_clean = sum(1 for e in plan_now
+                  if e['kind'] == 'cleaning_substep' and e.get('enabled', True))
+    n_typed = sum(1 for e in plan_now
+                  if e['kind'] in ('changed_type', 'manual_type'))
+    schema_dicts = []
+    for s in sh.steps:
+        meta = s.meta or {}
+        if meta.get('schema'):
+            schema_dicts = meta['schema']
+    doubts = _detect_dataset_doubts(
+        schema_dicts, st.session_state.get('cleaning_report'),
+        df=_active_df())
+    st.session_state.dataset_doubts = doubts
+    if limits.get('ai_chat_enabled'):
+        _seed_chat_doubts(ds_key, doubts)
+
+    bits = []
+    if n_clean:
+        bits.append(f"{n_clean} cleaning step{'s' if n_clean != 1 else ''} applied")
+    if n_typed:
+        bits.append(f"{n_typed} type pass{'es' if n_typed != 1 else ''} run")
+    if not bits:
+        bits.append("Phase 1 ran")
+    summary = " · ".join(bits)
+    if doubts:
+        summary += f" · {len(doubts)} doubt{'s' if len(doubts) != 1 else ''}"
+
+    strip_l, strip_r = st.columns([0.78, 0.22])
+    with strip_l:
+        st.markdown(
+            "<div style='padding:0.5rem 0.85rem;border:1px solid rgba(45,212,191,0.18);"
+            "border-radius:10px;background:rgba(45,212,191,0.04);color:#cbd5e1;"
+            "font-size:0.88rem;'>"
+            "<span style='color:#2dd4bf;font-family:JetBrains Mono,monospace;"
+            f"font-size:0.72rem;letter-spacing:0.16em;'>AUTO-APPLIED</span> · {summary}"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+    with strip_r:
+        review_open = st.toggle(
+            "Review", value=False, key=f"review_open_{tab_id}_{ds_key}",
+            help="Phase 1 controls — steps, parameters, type overrides, "
+                 "display preferences — live on the Overview tab.",
+        )
+    if review_open:
+        st.info("Open the **Overview** tab — the Applied Steps panel, type "
+                "overrides, and display preferences are all there. Every "
+                "former click is still available, just no longer required.")
+
+    for d in doubts[:5]:
+        cta = ("confirm in chat below" if limits.get('ai_chat_enabled')
+               else "open Review to confirm")
+        st.markdown(
+            "<div style='padding:0.5rem 0.85rem;margin-top:0.4rem;"
+            "border-left:3px solid #f59e0b;background:rgba(245,158,11,0.06);"
+            "border-radius:0 6px 6px 0;color:#e2e8f0;font-size:0.85rem;'>"
+            f"<b style='color:#f59e0b;'>DataVision wasn't sure:</b> "
+            f"{d['message']} — {cta}.</div>",
+            unsafe_allow_html=True,
+        )
+
+    _render_chat_dock(tab_id, limits, doubts)
+
+
+def _render_chat_dock(tab_id, limits, doubts):
+    """Persistent chat dock shared across the Phase-1 tabs."""
+    if not limits.get('ai_chat_enabled'):
+        with st.expander("Chat with DataVision (Tier 3)", expanded=False):
+            st.caption("AI chat is part of Tier 3. The doubts above stay "
+                       "visible as inline notes — open Review on each tab "
+                       "to confirm them manually.")
+        return
+
+    expanded_default = bool(doubts)
+    with st.expander("Chat with DataVision", expanded=expanded_default):
+        st.caption("Same conversation across Cleaning, Statistics, and ML tabs.")
+        chat_box = st.container(height=300)
+        with chat_box:
+            if not st.session_state.chat_messages:
+                st.caption("Ask anything about your dataset.")
+            for msg in st.session_state.chat_messages:
+                role_label = "You" if msg["role"] == "user" else "DataVision"
+                bg = ("rgba(45,212,191,0.10)" if msg["role"] == "user"
+                      else "rgba(30,41,59,0.6)")
+                content = (msg.get("content") or "").replace("\n", "<br>")
+                st.markdown(
+                    f"<div style='padding:0.55rem 0.8rem;margin:0.25rem 0;"
+                    f"background:{bg};border-radius:8px;color:#e2e8f0;"
+                    f"font-size:0.88rem;'>"
+                    f"<b style='color:#94a3b8;font-size:0.7rem;letter-spacing:0.1em;"
+                    f"text-transform:uppercase;'>{role_label}</b><br>{content}</div>",
+                    unsafe_allow_html=True,
+                )
+        if doubts:
+            st.markdown("**Quick replies**")
+            for d in doubts[:5]:
+                st.caption(d['message'])
+                opts = d.get('options') or []
+                cols = st.columns(max(1, len(opts)))
+                for j, opt in enumerate(opts):
+                    with cols[j]:
+                        if st.button(opt, key=f"qr_{tab_id}_{d['id']}_{j}",
+                                     use_container_width=True):
+                            user_msg = (f"For `{d['column']}`: {opt}"
+                                        if d['column'] else opt)
+                            st.session_state.chat_messages.append(
+                                {"role": "user", "content": user_msg})
+                            _, reply = _resolve_doubt_in_chat(d, opt)
+                            st.session_state.chat_messages.append(
+                                {"role": "assistant", "content": reply})
+                            try:
+                                db = get_db()
+                                save_chat_message(
+                                    db, st.session_state.current_dataset_id,
+                                    user_msg, reply)
+                                db.close()
+                            except Exception:
+                                pass
+                            st.rerun()
+        prompt = st.chat_input("Ask DataVision...",
+                               key=f"dock_chat_{tab_id}_{_ds_key()}")
+        if prompt:
+            st.session_state.chat_messages.append(
+                {"role": "user", "content": prompt})
+            matched_doubt, matched_answer = _match_freetext_to_doubt(
+                prompt, doubts)
+            if matched_doubt is not None:
+                _, response = _resolve_doubt_in_chat(matched_doubt, matched_answer)
+            else:
+                df_chat = _active_df()
+                df_info = {
+                    'row_count': len(df_chat),
+                    'column_count': len(df_chat.columns),
+                    'columns': df_chat.columns.tolist(),
+                    'dtypes': df_chat.dtypes.astype(str).to_dict(),
+                    'numeric_summary': (df_chat.describe().to_dict()
+                        if not df_chat.select_dtypes(include=[np.number]).empty
+                        else {}),
+                }
+                with st.spinner("Thinking..."):
+                    response = chat_about_data(prompt, df_info)
+            st.session_state.chat_messages.append(
+                {"role": "assistant", "content": response})
+            try:
+                db = get_db()
+                save_chat_message(db, st.session_state.current_dataset_id,
+                                  prompt, response)
+                db.close()
+            except Exception:
+                pass
+            st.rerun()
 
 
 def _new_instance_id() -> str:
@@ -4450,7 +5023,7 @@ def _recipe_signature(rec) -> str:
     return f"{rec.id}:{n}:{rec.active_step_index or -1}"
 
 
-def _render_model_section(uid):
+def _render_model_section(uid, run_analysis_cb=None, limits=None):
     """Power BI-style relationship modelling tab.
 
     Lists the user's saved datasets, lets them toggle two or more onto a
@@ -4459,26 +5032,52 @@ def _render_model_section(uid):
     materialises a Joined View that can be promoted to the active dataset
     so the rest of the dashboard tabs render against it without any
     special cases."""
+    from datetime import datetime
     from data_modelling import (
         suggest_relationships, materialize_join, validate_relationship,
         VALID_JOINS,
     )
     from models import (
         list_relationships, save_relationship, delete_relationship,
-        get_user_datasets,
+        get_user_datasets, delete_dataset_record,
     )
 
     _section_head(
-        "Data Model",
-        "Combine multiple uploaded datasets the way Power BI does — pick "
-        "two tables, confirm a relationship, and the dashboard tabs will "
-        "render against the joined view.",
-        "07 — Model",
+        "Data Modeling",
+        "Combine multiple uploaded datasets the way Power BI does — add "
+        "tables to your project, confirm relationships, and the dashboard "
+        "tabs will render against the joined view.",
+        "03 — Data Modeling",
     )
 
     if uid is None:
         st.info("Sign in to model relationships across your datasets.")
         return
+
+    # ----- 0. Add tables to the project --------------------------------
+    with st.expander("➕ Add tables to this project", expanded=False):
+        if run_analysis_cb is None:
+            st.caption("Upload a dataset from Overview to add tables to your project.")
+        else:
+            new_files = st.file_uploader(
+                "Upload one or more files (CSV / Excel)",
+                type=["csv", "xlsx", "xls"],
+                accept_multiple_files=True,
+                key=f"model_multi_upload_{uid}",
+            )
+            if new_files:
+                now = datetime.now()
+                for nf in new_files:
+                    ds_name = nf.name.rsplit(".", 1)[0]
+                    try:
+                        run_analysis_cb(
+                            nf, ds_name, now.month, now.year,
+                            limits or get_user_limits(),
+                        )
+                        st.success(f"Added **{ds_name}** to your project.")
+                    except Exception as e:  # noqa: BLE001
+                        st.error(f"Could not add {nf.name}: {e}")
+                st.rerun()
 
     db = get_db()
     try:
@@ -4495,24 +5094,48 @@ def _render_model_section(uid):
     st.session_state.setdefault(canvas_key, set())
     canvas_ids: set = st.session_state[canvas_key]
 
-    st.markdown("**Your datasets** — click to add or remove from the model canvas.")
+    st.markdown("**Your datasets** — click a card to add/remove from the canvas, or × to delete.")
     cols = st.columns(min(3, max(1, len(datasets))))
     for i, ds in enumerate(datasets):
         col = cols[i % len(cols)]
         with col:
             in_canvas = ds.id in canvas_ids
             label_prefix = "✓ " if in_canvas else "+ "
-            if st.button(
-                f"{label_prefix}{ds.dataset_name}",
-                key=f"model_card_{ds.id}",
-                use_container_width=True,
-                type=("primary" if in_canvas else "secondary"),
-            ):
-                if in_canvas:
-                    canvas_ids.discard(ds.id)
+            card_col, rm_col = st.columns([5, 1])
+            with card_col:
+                if st.button(
+                    f"{label_prefix}{ds.dataset_name}",
+                    key=f"model_card_{ds.id}",
+                    help=f"{ds.row_count:,} rows · {ds.column_count} cols · "
+                         f"updated {ds.upload_date.strftime('%Y-%m-%d')}",
+                    use_container_width=True,
+                    type=("primary" if in_canvas else "secondary"),
+                ):
+                    if in_canvas:
+                        canvas_ids.discard(ds.id)
+                    else:
+                        canvas_ids.add(ds.id)
+                    st.rerun()
+            with rm_col:
+                confirm_key = f"model_rm_confirm_{ds.id}"
+                if st.session_state.get(confirm_key):
+                    if st.button("✓", key=f"model_rm_yes_{ds.id}",
+                                 help="Confirm delete", use_container_width=True):
+                        db2 = get_db()
+                        try:
+                            delete_dataset_record(db2, ds.id, uid)
+                        finally:
+                            db2.close()
+                        canvas_ids.discard(ds.id)
+                        st.session_state.pop(confirm_key, None)
+                        st.success(f"Removed {ds.dataset_name}.")
+                        st.rerun()
                 else:
-                    canvas_ids.add(ds.id)
-                st.rerun()
+                    if st.button("×", key=f"model_rm_{ds.id}",
+                                 help="Remove this table from the project",
+                                 use_container_width=True):
+                        st.session_state[confirm_key] = True
+                        st.rerun()
             st.caption(
                 f"{ds.row_count:,} rows · {ds.column_count} cols · "
                 f"updated {ds.upload_date.strftime('%Y-%m-%d')}"
@@ -4968,7 +5591,7 @@ def show_dashboard():
             return chosen_delim, (header_choice == "Yes")
 
         def run_analysis(file_obj, ds_name, p_month, p_year, lmts,
-                         delimiter=None, has_header=None):
+                         delimiter=None, has_header=None, content_hash=None):
             with st.spinner("Loading and analyzing data..."):
                 # Reset upload position so a re-read works
                 try:
@@ -4979,6 +5602,10 @@ def show_dashboard():
                                                has_header=has_header, return_meta=True)
                 if df_raw is None:
                     return
+                # Stamp the content hash so subsequent uploads of the same
+                # file can hydrate the saved recipe instead of re-running.
+                if content_hash and isinstance(parse_meta, dict):
+                    parse_meta['content_hash'] = content_hash
                 if len(df_raw) > lmts['max_rows']:
                     st.error(f"Row count ({len(df_raw):,}) exceeds the limit ({lmts['max_rows']:,})")
                     return
@@ -5106,17 +5733,58 @@ def show_dashboard():
                     if file_size_mb > limits['max_file_size_mb']:
                         st.error(f"File size ({file_size_mb:.1f} MB) exceeds the limit ({limits['max_file_size_mb']} MB)")
                     else:
-                        st.success(f"Uploaded: {uploaded_file.name}")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            period_month = st.selectbox("Month", range(1, 13), index=datetime.now().month - 1)
-                        with col2:
-                            period_year = st.selectbox("Year", range(2020, 2030), index=datetime.now().year - 2020)
-                        dataset_name = st.text_input("Dataset Name", value=uploaded_file.name.split('.')[0])
-                        csv_delim, csv_hdr = _csv_options_panel(uploaded_file, "first")
-                        if st.button("Start Analysis", type="primary", use_container_width=True):
-                            run_analysis(uploaded_file, dataset_name, period_month, period_year,
-                                         limits, delimiter=csv_delim, has_header=csv_hdr)
+                        # Auto-run Phase 1 the moment a fresh file is uploaded
+                        # (no "Start Analysis" click needed). Sensible defaults:
+                        # filename as dataset name, current month/year, sniffed
+                        # CSV options. Users can still re-run with a custom
+                        # name from the "Upload New Data" panel later. If the
+                        # file's content hash matches a previously persisted
+                        # dataset that already has a saved recipe, hydrate
+                        # from the DB instead of re-running the pipeline.
+                        try:
+                            file_bytes = uploaded_file.getvalue()
+                        except Exception:
+                            file_bytes = b''
+                        content_hash = hashlib.sha1(file_bytes).hexdigest() if file_bytes else None
+                        sig = f"{uploaded_file.name}|{uploaded_file.size}|{content_hash or ''}"
+                        if st.session_state.get('_auto_analyzed_sig') != sig:
+                            st.session_state['_auto_analyzed_sig'] = sig
+                            hydrated = False
+                            if content_hash:
+                                _uid_now = (st.session_state.user or {}).get('id')
+                                if _uid_now:
+                                    _hdb = get_db()
+                                    try:
+                                        _existing = get_user_datasets(_hdb, _uid_now)
+                                    except Exception:
+                                        _existing = []
+                                    finally:
+                                        _hdb.close()
+                                    for _r in _existing:
+                                        _meta = _r.parse_meta or {}
+                                        if (_meta.get('content_hash') == content_hash
+                                                and _r.source_parquet
+                                                and _r.step_recipes):
+                                            if _hydrate_dataset_from_db(_r.id):
+                                                st.success(
+                                                    f"Reopened previous analysis "
+                                                    f"of `{uploaded_file.name}` — "
+                                                    "no re-run needed.")
+                                                hydrated = True
+                                                st.rerun()
+                                            break
+                            if not hydrated:
+                                csv_delim, csv_hdr = _csv_options_panel(uploaded_file, "first")
+                                run_analysis(
+                                    uploaded_file,
+                                    uploaded_file.name.rsplit('.', 1)[0],
+                                    datetime.now().month, datetime.now().year,
+                                    limits, delimiter=csv_delim, has_header=csv_hdr,
+                                    content_hash=content_hash,
+                                )
+                        else:
+                            st.success(f"Uploaded: {uploaded_file.name}")
+                            st.caption("Auto-analysis already running — please wait…")
 
                 # ── Recent datasets ─ reopen a previously analysed file with
                 # its full Applied Steps history rebuilt from the database.
@@ -5159,6 +5827,18 @@ def show_dashboard():
                     if file_size_mb > limits['max_file_size_mb']:
                         st.error(f"File size exceeds limit ({limits['max_file_size_mb']} MB)")
                     else:
+                        # Same auto-run pattern as the empty-state uploader:
+                        # hash the bytes, hydrate from a saved recipe if the
+                        # same file was analysed before, otherwise auto-run
+                        # Phase 1 immediately. The metadata fields below are
+                        # pre-filled from the file and let the user re-run
+                        # with a custom name/period if they want.
+                        try:
+                            new_bytes = new_file.getvalue()
+                        except Exception:
+                            new_bytes = b''
+                        new_hash = hashlib.sha1(new_bytes).hexdigest() if new_bytes else None
+                        new_sig = f"new|{new_file.name}|{new_file.size}|{new_hash or ''}"
                         st.success(f"Uploaded: {new_file.name}")
                         col1, col2 = st.columns(2)
                         with col1:
@@ -5167,18 +5847,50 @@ def show_dashboard():
                             period_year = st.selectbox("Year", range(2020, 2030), index=datetime.now().year - 2020, key="new_year")
                         dataset_name = st.text_input("Dataset Name", value=new_file.name.split('.')[0], key="new_name")
                         csv_delim2, csv_hdr2 = _csv_options_panel(new_file, "next")
-                        if st.button("Start Analysis", type="primary", use_container_width=True, key="new_analyze"):
+                        if st.session_state.get('_auto_analyzed_sig') != new_sig:
+                            st.session_state['_auto_analyzed_sig'] = new_sig
+                            hydrated = False
+                            if new_hash:
+                                _uid_now = (st.session_state.user or {}).get('id')
+                                if _uid_now:
+                                    _hdb = get_db()
+                                    try:
+                                        _existing = get_user_datasets(_hdb, _uid_now)
+                                    except Exception:
+                                        _existing = []
+                                    finally:
+                                        _hdb.close()
+                                    for _r in _existing:
+                                        _meta = _r.parse_meta or {}
+                                        if (_meta.get('content_hash') == new_hash
+                                                and _r.source_parquet
+                                                and _r.step_recipes):
+                                            if _hydrate_dataset_from_db(_r.id):
+                                                st.success(
+                                                    f"Reopened previous analysis "
+                                                    f"of `{new_file.name}` — "
+                                                    "no re-run needed.")
+                                                hydrated = True
+                                                st.rerun()
+                                            break
+                            if not hydrated:
+                                run_analysis(new_file, dataset_name, period_month, period_year,
+                                             limits, delimiter=csv_delim2, has_header=csv_hdr2,
+                                             content_hash=new_hash)
+                        if st.button("Re-run with these settings",
+                                     use_container_width=True, key="new_analyze"):
                             run_analysis(new_file, dataset_name, period_month, period_year,
-                                         limits, delimiter=csv_delim2, has_header=csv_hdr2)
+                                         limits, delimiter=csv_delim2, has_header=csv_hdr2,
+                                         content_hash=new_hash)
     
             _TAB_LABELS = [
                 "Overview",
                 "Cleaning",
+                "Data Modeling",
                 "Statistics",
                 "Visualizations",
                 "Predictions",
                 "ML & Clusters",
-                "Model",
                 "AI Chat",
                 "Report",
             ]
@@ -5892,6 +6604,8 @@ def show_dashboard():
                 elif active_tab == _TAB_LABELS[1]:
                     _section_head("Data Cleaning", "What was changed, why, and how it improved the data.", "02 — Cleaning")
 
+                    _render_phase1_dock("cleaning", limits)
+
                     view_df = _active_df()
                     sig = _active_step_signature()
                     _render_questions_panel(_ds_key(), _get_step_history(),
@@ -5928,9 +6642,11 @@ def show_dashboard():
                         if missing_chart:
                             st.plotly_chart(missing_chart, use_container_width=True)
             
-                elif active_tab == _TAB_LABELS[2]:
-                    _section_head("Statistical Analysis", "Descriptive statistics, correlations, and outlier signals.", "03 — Statistics")
-                
+                elif active_tab == _TAB_LABELS[3]:
+                    _section_head("Statistical Analysis", "Descriptive statistics, correlations, and outlier signals.", "04 — Statistics")
+
+                    _render_phase1_dock("stats", limits)
+
                     df_analysis = _active_df()
 
                     _ds_id = _active_step_signature()
@@ -6000,8 +6716,8 @@ def show_dashboard():
                     else:
                         st.success("No outliers detected")
             
-                elif active_tab == _TAB_LABELS[3]:
-                    _section_head("Visualizations", "Distributions, relationships, and custom charts.", "04 — Visualizations")
+                elif active_tab == _TAB_LABELS[4]:
+                    _section_head("Visualizations", "Distributions, relationships, and custom charts.", "05 — Visualizations")
                 
                     df_viz = _active_df()
                     numeric_cols = df_viz.select_dtypes(include=[np.number]).columns.tolist()
@@ -6076,8 +6792,8 @@ def show_dashboard():
                         if fig:
                             st.plotly_chart(fig, use_container_width=True)
             
-                elif active_tab == _TAB_LABELS[4]:
-                    _section_head("Predictions & Comparisons", "Forecast a target column and compare against historical periods.", "05 — Predictions")
+                elif active_tab == _TAB_LABELS[5]:
+                    _section_head("Predictions & Comparisons", "Forecast a target column and compare against historical periods.", "06 — Predictions")
                 
                     if not limits['predictions_enabled']:
                         st.markdown("""
@@ -6136,9 +6852,11 @@ def show_dashboard():
                                         if trend_analysis:
                                             st.markdown(f'<div class="insight-box">**Analysis:** {trend_analysis}</div>', unsafe_allow_html=True)
             
-                elif active_tab == _TAB_LABELS[5]:
-                    _section_head("ML & Clustering", "Categorical analysis, ML models, clusters, and outliers.", "06 — Machine Learning")
-                
+                elif active_tab == _TAB_LABELS[6]:
+                    _section_head("ML & Clustering", "Categorical analysis, ML models, clusters, and outliers.", "07 — Machine Learning")
+
+                    _render_phase1_dock("ml", limits)
+
                     df_ml = _active_df()
                     numeric_cols_ml = df_ml.select_dtypes(include=[np.number]).columns.tolist()
                     cat_cols_ml = df_ml.select_dtypes(include=['object', 'category']).columns.tolist()
@@ -6265,8 +6983,8 @@ def show_dashboard():
                         else:
                             st.success("No significant outliers detected in the numeric columns.")
             
-                elif active_tab == _TAB_LABELS[6]:
-                    _render_model_section(uid)
+                elif active_tab == _TAB_LABELS[2]:
+                    _render_model_section(uid, run_analysis_cb=run_analysis, limits=limits)
 
                 elif active_tab == _TAB_LABELS[7]:
                     _section_head("AI Assistant", "Ask questions about your data in natural language.", "08 — AI Chat")

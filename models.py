@@ -522,6 +522,25 @@ def delete_relationship(db, user_id, relationship_id):
     return True
 
 
+def delete_dataset_record(db, dataset_id, user_id):
+    """Remove a dataset the user owns and any relationships referencing it.
+    Returns True on success."""
+    rec = (db.query(DatasetRecord)
+             .filter(DatasetRecord.id == dataset_id,
+                     DatasetRecord.user_id == user_id)
+             .first())
+    if not rec:
+        return False
+    (db.query(DatasetRelationship)
+       .filter(DatasetRelationship.user_id == user_id,
+               (DatasetRelationship.left_dataset_id == dataset_id)
+               | (DatasetRelationship.right_dataset_id == dataset_id))
+       .delete(synchronize_session=False))
+    db.delete(rec)
+    db.commit()
+    return True
+
+
 def save_support_message(db, email, name, message):
     """Create a SupportMessage record"""
     msg = SupportMessage(
