@@ -1,78 +1,145 @@
 import pandas as pd
 import numpy as np
-from typing import Tuple, Dict, Any, List
+from typing import Tuple, Dict, Any, List, Callable
 
 
-def clean_data(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+# ── Power Query-style cleaning substeps ──────────────────────────────────────
+# Each substep is a small, named, reversible transformation. They appear as
+# their own entries in the Applied Steps panel and can be toggled on/off.
+
+def remove_duplicates_step(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+    out = df.copy()
+    n = int(out.duplicated().sum())
+    if n > 0:
+        out = out.drop_duplicates().reset_index(drop=True)
+        summary = f"Removed {n:,} duplicate rows"
+    else:
+        summary = "No duplicate rows found"
+    return out, summary, {"duplicates_removed": n, "changes": ([summary] if n > 0 else [])}
+
+
+def fill_missing_numeric_step(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+    out = df.copy()
+    changes: List[str] = []
+    numeric_cols = out.select_dtypes(include=[np.number]).columns
+    for col in numeric_cols:
+        missing = int(out[col].isnull().sum())
+        if missing == 0:
+            continue
+        pct = (missing / len(out)) * 100 if len(out) else 0
+        if pct > 50:
+            changes.append(f"Skipped `{col}` — {pct:.1f}% missing (too sparse to impute)")
+            continue
+        median_val = out[col].median()
+        if pd.isna(median_val):
+            continue
+        out[col] = out[col].fillna(median_val)
+        changes.append(f"Filled {missing} missing in `{col}` with median ({median_val:.2f})")
+    summary = (f"Filled missing in {len(changes)} numeric column(s)"
+               if changes else "No numeric missing values to fill")
+    return out, summary, {"changes": changes}
+
+
+def fill_missing_categorical_step(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+    out = df.copy()
+    changes: List[str] = []
+    numeric_cols = set(out.select_dtypes(include=[np.number]).columns)
+    for col in out.columns:
+        if col in numeric_cols:
+            continue
+        missing = int(out[col].isnull().sum())
+        if missing == 0:
+            continue
+        pct = (missing / len(out)) * 100 if len(out) else 0
+        if pct > 50:
+            changes.append(f"Skipped `{col}` — {pct:.1f}% missing (too sparse to impute)")
+            continue
+        mode_val = out[col].mode()
+        if len(mode_val) > 0:
+            out[col] = out[col].fillna(mode_val[0])
+            changes.append(f"Filled {missing} missing in `{col}` with mode (`{mode_val[0]}`)")
+    summary = (f"Filled missing in {len(changes)} categorical column(s)"
+               if changes else "No categorical missing values to fill")
+    return out, summary, {"changes": changes}
+
+
+def clip_outliers_step(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+    out = df.copy()
+    changes: List[str] = []
+    clipped_cols = 0
+    for col in out.select_dtypes(include=[np.number]).columns:
+        Q1 = out[col].quantile(0.25)
+        Q3 = out[col].quantile(0.75)
+        IQR = Q3 - Q1
+        if pd.isna(IQR) or IQR == 0:
+            continue
+        lower = Q1 - 1.5 * IQR
+        upper = Q3 + 1.5 * IQR
+        mask = (out[col] < lower) | (out[col] > upper)
+        n = int(mask.sum())
+        if n == 0:
+            continue
+        pct = (n / len(out)) * 100 if len(out) else 0
+        if pct < 5:
+            out.loc[out[col] < lower, col] = lower
+            out.loc[out[col] > upper, col] = upper
+            changes.append(f"Clipped {n} outlier(s) in `{col}` to [{lower:.2f}, {upper:.2f}]")
+            clipped_cols += 1
+        else:
+            changes.append(f"Detected {n} outlier(s) in `{col}` ({pct:.1f}%) — left as-is")
+    summary = (f"Clipped outliers in {clipped_cols} numeric column(s)"
+               if clipped_cols else
+               ("Outliers reported but not clipped" if changes else "No outliers detected"))
+    return out, summary, {"changes": changes}
+
+
+CLEANING_SUBSTEPS: List[Tuple[str, str]] = [
+    ("remove_duplicates", "Remove Duplicates"),
+    ("fill_missing_numeric", "Fill Missing — Numeric"),
+    ("fill_missing_categorical", "Fill Missing — Categorical"),
+    ("clip_outliers", "Clip Outliers"),
+]
+
+SUBSTEP_FUNCS: Dict[str, Callable[[pd.DataFrame], Tuple[pd.DataFrame, str, Dict[str, Any]]]] = {
+    "remove_duplicates": remove_duplicates_step,
+    "fill_missing_numeric": fill_missing_numeric_step,
+    "fill_missing_categorical": fill_missing_categorical_step,
+    "clip_outliers": clip_outliers_step,
+}
+
+
+def clean_data(df: pd.DataFrame,
+               enabled: Dict[str, bool] | None = None
+               ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    """Run the full cleaning pipeline as a sequence of named substeps.
+
+    `enabled` optionally maps substep keys to bool toggles; missing keys
+    default to True. Disabled substeps are pass-through. Returns the final
+    cleaned dataframe and a report aggregated across all enabled substeps.
     """
-    Clean the dataframe by handling missing values, duplicates, and outliers.
-    Returns cleaned dataframe and a report of changes made.
-    """
-    report = {
+    enabled = enabled or {}
+    report: Dict[str, Any] = {
         'original_rows': len(df),
         'original_columns': len(df.columns),
-        'changes': []
+        'changes': [],
+        'substeps': [],
     }
-    
-    df_cleaned = df.copy()
-    
-    duplicates_count = df_cleaned.duplicated().sum()
-    if duplicates_count > 0:
-        df_cleaned = df_cleaned.drop_duplicates()
-        report['changes'].append(f"تم إزالة {duplicates_count} صف مكرر")
-    
-    missing_report = []
-    for col in df_cleaned.columns:
-        missing_count = df_cleaned[col].isnull().sum()
-        if missing_count > 0:
-            missing_pct = (missing_count / len(df_cleaned)) * 100
-            
-            if missing_pct > 50:
-                missing_report.append(f"العمود '{col}' يحتوي على {missing_pct:.1f}% قيم مفقودة")
-            else:
-                if df_cleaned[col].dtype in ['int64', 'float64']:
-                    median_val = df_cleaned[col].median()
-                    df_cleaned[col].fillna(median_val, inplace=True)
-                    missing_report.append(f"تم ملء {missing_count} قيمة مفقودة في '{col}' بالقيمة الوسطى ({median_val:.2f})")
-                else:
-                    mode_val = df_cleaned[col].mode()
-                    if len(mode_val) > 0:
-                        df_cleaned[col].fillna(mode_val[0], inplace=True)
-                        missing_report.append(f"تم ملء {missing_count} قيمة مفقودة في '{col}' بالقيمة الأكثر تكراراً")
-    
-    if missing_report:
-        report['changes'].extend(missing_report)
-    
-    outliers_report = []
-    numeric_cols = df_cleaned.select_dtypes(include=[np.number]).columns
-    
-    for col in numeric_cols:
-        Q1 = df_cleaned[col].quantile(0.25)
-        Q3 = df_cleaned[col].quantile(0.75)
-        IQR = Q3 - Q1
-        lower_bound = Q1 - 1.5 * IQR
-        upper_bound = Q3 + 1.5 * IQR
-        
-        outliers_mask = (df_cleaned[col] < lower_bound) | (df_cleaned[col] > upper_bound)
-        outliers_count = outliers_mask.sum()
-        
-        if outliers_count > 0:
-            outliers_pct = (outliers_count / len(df_cleaned)) * 100
-            if outliers_pct < 5:
-                df_cleaned.loc[df_cleaned[col] < lower_bound, col] = lower_bound
-                df_cleaned.loc[df_cleaned[col] > upper_bound, col] = upper_bound
-                outliers_report.append(f"تم معالجة {outliers_count} قيمة شاذة في '{col}' (تم تقريبها للحدود)")
-            else:
-                outliers_report.append(f"تم اكتشاف {outliers_count} قيمة شاذة في '{col}' ({outliers_pct:.1f}%)")
-    
-    if outliers_report:
-        report['changes'].extend(outliers_report)
-    
-    report['final_rows'] = len(df_cleaned)
-    report['final_columns'] = len(df_cleaned.columns)
+    current = df.copy()
+    for key, label in CLEANING_SUBSTEPS:
+        on = enabled.get(key, True)
+        if on:
+            current, summary, details = SUBSTEP_FUNCS[key](current)
+            report['changes'].extend(details.get('changes', []))
+        else:
+            summary, details = "Disabled — pass through", {}
+        report['substeps'].append({
+            'key': key, 'label': label, 'enabled': on,
+            'summary': summary, 'details': details,
+        })
+    report['final_rows'] = len(current)
+    report['final_columns'] = len(current.columns)
     report['rows_removed'] = report['original_rows'] - report['final_rows']
-    
-    return df_cleaned, report
+    return current, report
 
 
 def detect_column_types(df: pd.DataFrame) -> Dict[str, str]:

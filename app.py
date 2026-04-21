@@ -10,7 +10,7 @@ import csv as _csv
 from context.type_inference import (
     infer_schema, apply_schema, schema_to_dataframe, cast_column, ColumnType
 )
-from context.step_history import StepHistory
+from context.step_history import StepHistory, Step
 
 from models import (
     init_db, get_db, save_dataset_record, find_similar_datasets, 
@@ -20,7 +20,10 @@ from models import (
     update_user_subscription, save_support_message, check_trial_active,
     issue_session_token, get_user_by_session_token, clear_session_token
 )
-from data_cleaner import clean_data, detect_column_types, get_data_quality_score
+from data_cleaner import (
+    clean_data, detect_column_types, get_data_quality_score,
+    CLEANING_SUBSTEPS, SUBSTEP_FUNCS,
+)
 from data_analyzer import (
     get_basic_stats, get_numeric_stats, get_categorical_stats, 
     get_correlation_matrix, find_strong_correlations, detect_outliers, 
@@ -1334,6 +1337,8 @@ if 'inferred_schema' not in st.session_state:
     st.session_state.inferred_schema = {}
 if 'type_overrides' not in st.session_state:
     st.session_state.type_overrides = {}
+if 'cleaning_substep_states' not in st.session_state:
+    st.session_state.cleaning_substep_states = {}
 
 
 def _ds_key():
@@ -1347,6 +1352,61 @@ def _get_step_history(create=False):
         sh = StepHistory()
         st.session_state.step_histories[key] = sh
     return sh
+
+
+def _apply_cleaning_substeps(history: StepHistory, base_df,
+                             enabled_map: dict) -> tuple:
+    """Append one Step per cleaning substep onto `history`, then return
+    (final_df, aggregated_report). Disabled substeps still appear as
+    pass-through entries so the user can flip them back on later."""
+    report = {
+        'original_rows': len(base_df),
+        'original_columns': len(base_df.columns),
+        'changes': [],
+        'substeps': [],
+    }
+    current = base_df
+    for key, label in CLEANING_SUBSTEPS:
+        on = bool(enabled_map.get(key, True))
+        if on:
+            current, summary, details = SUBSTEP_FUNCS[key](current)
+            report['changes'].extend(details.get('changes', []))
+        else:
+            summary, details = "Disabled — pass through", {}
+        history.add(label, summary, current,
+                    meta={'substep_key': key, 'enabled': on,
+                          'details': details})
+        report['substeps'].append({
+            'key': key, 'label': label, 'enabled': on,
+            'summary': summary, 'details': details,
+        })
+    report['final_rows'] = len(current)
+    report['final_columns'] = len(current.columns)
+    report['rows_removed'] = report['original_rows'] - report['final_rows']
+    return current, report
+
+
+def _rebuild_cleaning_substeps(sh: StepHistory, enabled_map: dict):
+    """Rebuild the contiguous cleaning block at the tail of `sh`.
+
+    Drops every step from the first cleaning substep onward (this also
+    discards any later manual edits, mirroring `drop_later` semantics
+    elsewhere), then re-applies all substeps with the new enabled map.
+    Returns (final_df, report) or (None, None) if no cleaning block found.
+    """
+    first_idx = None
+    for i, s in enumerate(sh.steps):
+        if s.meta.get('substep_key'):
+            first_idx = i
+            break
+    if first_idx is None or first_idx == 0:
+        return None, None
+    base_df = sh.steps[first_idx - 1].df
+    sh.steps = sh.steps[:first_idx]
+    sh.active_index = len(sh.steps) - 1
+    final_df, report = _apply_cleaning_substeps(sh, base_df, enabled_map)
+    sh.active_index = len(sh.steps) - 1
+    return final_df, report
 
 
 def _active_df():
@@ -2839,11 +2899,12 @@ def show_dashboard():
                 history.add("Changed Type", type_summary, df_typed,
                             meta={'schema': [s.to_dict() for s in schema]})
 
-                df_cleaned, cleaning_report = clean_data(df_typed)
-                clean_summary = (f"Removed {cleaning_report.get('rows_removed', 0):,} rows, "
-                                 f"applied {len(cleaning_report.get('changes', []))} changes")
-                history.add("Cleaning", clean_summary, df_cleaned,
-                            meta={'report': cleaning_report})
+                # Cleaning is broken into individual, toggleable substeps so
+                # each appears as its own entry in the Applied Steps panel.
+                substep_states = {k: True for k, _ in CLEANING_SUBSTEPS}
+                df_cleaned, cleaning_report = _apply_cleaning_substeps(
+                    history, df_typed, substep_states
+                )
 
                 st.session_state.df = df_typed
                 st.session_state.df_cleaned = df_cleaned
@@ -2867,6 +2928,7 @@ def show_dashboard():
                     st.session_state.step_histories[record.id] = history
                     st.session_state.inferred_schema[record.id] = [s.to_dict() for s in schema]
                     st.session_state.type_overrides[record.id] = {}
+                    st.session_state.cleaning_substep_states[record.id] = substep_states
                     similar = find_similar_datasets(db, columns_info)
                     similar = [s for s in similar if s['record']['id'] != record.id]
                     st.session_state.similar_datasets = similar
@@ -3098,30 +3160,61 @@ def show_dashboard():
                     # ── Applied Steps panel (Power Query-style) ──
                     if sh and not sh.is_empty():
                         st.subheader("Applied Steps")
-                        st.caption("Click any step to view the dataset at that point in the pipeline.")
+                        st.caption("Click any step to view the dataset at that point. "
+                                   "Cleaning substeps can be toggled on/off — downstream "
+                                   "substeps are recomputed automatically.")
                         steps_col, ctrl_col = st.columns([3, 1])
                         with steps_col:
                             for i, step in enumerate(sh.steps):
                                 is_active = (i == sh.active_index)
                                 is_future = (i > sh.active_index)
+                                substep_key = step.meta.get('substep_key')
+                                enabled = step.meta.get('enabled', True)
                                 badge = "▶" if is_active else ("◌" if is_future else "✓")
                                 color = "#2dd4bf" if is_active else ("#64748b" if is_future else "#94a3b8")
                                 weight = "700" if is_active else "500"
-                                opacity = "0.55" if is_future else "1"
-                                row_l, row_r = st.columns([0.78, 0.22])
+                                opacity = "0.55" if is_future else ("0.55" if (substep_key and not enabled) else "1")
+                                disabled_tag = (" <span style='color:#f59e0b;font-size:0.7rem;"
+                                                "letter-spacing:0.08em;'>· DISABLED</span>"
+                                                if substep_key and not enabled else "")
+                                if substep_key:
+                                    row_l, row_chk, row_btn = st.columns([0.6, 0.2, 0.2])
+                                else:
+                                    row_l, row_btn = st.columns([0.78, 0.22])
+                                    row_chk = None
                                 with row_l:
                                     st.markdown(
                                         f"<div style='padding:0.45rem 0.6rem;border-left:3px solid {color};"
                                         f"opacity:{opacity};font-weight:{weight};color:#e2e8f0;'>"
                                         f"<span style='color:{color};font-family:JetBrains Mono,monospace;"
-                                        f"font-size:0.78rem;letter-spacing:0.1em;'>{badge} STEP {i+1}</span><br>"
+                                        f"font-size:0.78rem;letter-spacing:0.1em;'>{badge} STEP {i+1}</span>"
+                                        f"{disabled_tag}<br>"
                                         f"<b>{step.name}</b> · <span style='color:#94a3b8;font-size:0.85rem;'>"
                                         f"{step.summary}</span><br>"
                                         f"<span style='color:#64748b;font-size:0.75rem;'>{step.rows:,} rows × {step.cols} cols</span>"
                                         f"</div>",
                                         unsafe_allow_html=True,
                                     )
-                                with row_r:
+                                if row_chk is not None:
+                                    with row_chk:
+                                        new_enabled = st.checkbox(
+                                            "Enabled", value=enabled,
+                                            key=f"substep_toggle_{_ds_key()}_{substep_key}",
+                                            help="Toggle this cleaning substep on/off. "
+                                                 "Downstream substeps will be recomputed.",
+                                        )
+                                        if new_enabled != enabled:
+                                            states = st.session_state.cleaning_substep_states.setdefault(
+                                                _ds_key(),
+                                                {k: True for k, _ in CLEANING_SUBSTEPS},
+                                            )
+                                            states[substep_key] = new_enabled
+                                            final_df, new_report = _rebuild_cleaning_substeps(sh, states)
+                                            if new_report is not None:
+                                                st.session_state.df_cleaned = final_df
+                                                st.session_state.cleaning_report = new_report
+                                            st.rerun()
+                                with row_btn:
                                     if not is_active:
                                         if st.button("Go to", key=f"goto_step_{i}_{sig}",
                                                      use_container_width=True):
