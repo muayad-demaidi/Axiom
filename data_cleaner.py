@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from typing import Tuple, Dict, Any, List, Callable, Optional
 
+from transforms import TRANSFORM_REGISTRY, transform_step_label
+
 
 # ── Power Query-style cleaning substeps ──────────────────────────────────────
 # Each substep is a small, named, reversible transformation. They appear as
@@ -250,6 +252,13 @@ SUBSTEP_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
 }
 
+# Transforms (Add Column from Examples, Merge, Split, Replace, Conditional,
+# Group By) plug into the same registry so the unified plan, replay cache,
+# and Applied Steps editor handle them with no special cases. They are
+# inserted via the dedicated "Transform" expander, not the legacy "Insert
+# step" picker, so each entry sets ``insertable=False``.
+SUBSTEP_REGISTRY.update(TRANSFORM_REGISTRY)
+
 # Default ordered cleaning plan applied to fresh datasets.
 DEFAULT_CLEANING_PLAN: List[str] = [
     "remove_duplicates",
@@ -270,6 +279,9 @@ SUBSTEP_FUNCS: Dict[str, Callable[..., Tuple[pd.DataFrame, str, Dict[str, Any]]]
 
 def substep_label(key: str, params: Dict[str, Any] | None = None) -> str:
     """Human-readable label for a (possibly parameterized) substep."""
+    transform_label = transform_step_label(key, params)
+    if transform_label is not None:
+        return transform_label
     base = SUBSTEP_REGISTRY.get(key, {}).get("label", key)
     params = params or {}
     if key == "drop_column" and params.get("column"):

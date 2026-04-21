@@ -142,6 +142,7 @@ from data_cleaner import (
     DEFAULT_CLEANING_PLAN, run_substep, substep_label,
     SUBSTEP_PARAM_SCHEMA, default_substep_params,
 )
+from transforms import VALID_AGGS as TRANSFORM_AGGS, infer_examples_op
 from data_analyzer import (
     get_basic_stats, get_numeric_stats, get_categorical_stats, 
     get_correlation_matrix, find_strong_correlations, detect_outliers, 
@@ -1914,6 +1915,363 @@ def _commit_unified_plan(sh: StepHistory, plan: list, ds_key) -> None:
         st.session_state.cleaning_report = report
 
     _persist_step_history()
+
+
+# --------------------------------------------------------------------------
+# Transform Toolkit form renderer
+# --------------------------------------------------------------------------
+# One reusable widget tree per transform substep. Used both when inserting
+# a new transform via the "Transform" expander on the Overview tab and when
+# editing an already-inserted transform via the per-step Parameters panel.
+# Returns the current widget state as a JSON-friendly params dict; the
+# caller is responsible for the commit button + plan splice.
+
+_COND_OPS_UI = ["==", "!=", "<", "<=", ">", ">=",
+                "contains", "starts_with", "ends_with", "is_null"]
+
+
+def _safe_index(seq, value, default=0):
+    try:
+        return seq.index(value)
+    except (ValueError, TypeError):
+        return default
+
+
+def _render_transform_form(kind: str, current_params: dict,
+                           view_df, key_prefix: str) -> dict:
+    """Render structural inputs for a transform substep and return the
+    user's current selections. The caller wires this output to a "save"
+    button — re-runs of the form during widget interaction don't commit
+    anything by themselves."""
+    cols_avail = list(view_df.columns) if view_df is not None else []
+    p: dict = dict(current_params or {})
+
+    if kind == "merge_columns":
+        c1, c2 = st.columns(2)
+        with c1:
+            p["columns"] = st.multiselect(
+                "Columns to merge", cols_avail,
+                default=[c for c in (p.get("columns") or []) if c in cols_avail],
+                key=f"{key_prefix}_cols",
+            )
+            p["new_column"] = st.text_input(
+                "New column name",
+                value=str(p.get("new_column") or "merged"),
+                key=f"{key_prefix}_new",
+            )
+        with c2:
+            p["separator"] = st.text_input(
+                "Separator", value=str(p.get("separator") if p.get("separator") is not None else " "),
+                key=f"{key_prefix}_sep",
+            )
+            p["keep_originals"] = st.checkbox(
+                "Keep original columns",
+                value=bool(p.get("keep_originals", True)),
+                key=f"{key_prefix}_keep",
+            )
+        return p
+
+    if kind == "split_column":
+        c1, c2 = st.columns(2)
+        with c1:
+            p["column"] = (st.selectbox(
+                "Column to split", cols_avail,
+                index=_safe_index(cols_avail, p.get("column"), 0),
+                key=f"{key_prefix}_col",
+            ) if cols_avail else "")
+            p["new_column_prefix"] = st.text_input(
+                "New column prefix",
+                value=str(p.get("new_column_prefix") or f"{p.get('column') or 'col'}_part"),
+                key=f"{key_prefix}_prefix",
+            )
+        with c2:
+            mode_opts = ["delimiter", "width"]
+            p["mode"] = st.selectbox(
+                "Split by", mode_opts,
+                index=_safe_index(mode_opts, p.get("mode", "delimiter"), 0),
+                key=f"{key_prefix}_mode",
+            )
+            if p["mode"] == "delimiter":
+                p["delimiter"] = st.text_input(
+                    "Delimiter", value=str(p.get("delimiter") or ","),
+                    key=f"{key_prefix}_delim",
+                )
+            else:
+                p["width"] = int(st.number_input(
+                    "Width (chars)", min_value=1, max_value=200,
+                    value=int(p.get("width") or 1), step=1,
+                    key=f"{key_prefix}_width",
+                ))
+            p["keep_original"] = st.checkbox(
+                "Keep original column",
+                value=bool(p.get("keep_original", True)),
+                key=f"{key_prefix}_keep",
+            )
+        return p
+
+    if kind == "replace_values":
+        c1, c2 = st.columns(2)
+        with c1:
+            p["column"] = (st.selectbox(
+                "Column", cols_avail,
+                index=_safe_index(cols_avail, p.get("column"), 0),
+                key=f"{key_prefix}_col",
+            ) if cols_avail else "")
+            p["find"] = st.text_input(
+                "Find", value=str(p.get("find") or ""),
+                key=f"{key_prefix}_find",
+            )
+            p["replace"] = st.text_input(
+                "Replace with", value=str(p.get("replace") or ""),
+                key=f"{key_prefix}_repl",
+            )
+        with c2:
+            p["whole_cell"] = st.checkbox(
+                "Match whole cell only",
+                value=bool(p.get("whole_cell", False)),
+                key=f"{key_prefix}_whole",
+            )
+            p["case_sensitive"] = st.checkbox(
+                "Case sensitive",
+                value=bool(p.get("case_sensitive", True)),
+                key=f"{key_prefix}_case",
+            )
+        return p
+
+    if kind == "conditional_column":
+        c1, c2 = st.columns(2)
+        with c1:
+            p["source_column"] = (st.selectbox(
+                "Source column", cols_avail,
+                index=_safe_index(cols_avail, p.get("source_column"), 0),
+                key=f"{key_prefix}_src",
+            ) if cols_avail else "")
+            p["new_column"] = st.text_input(
+                "New column name",
+                value=str(p.get("new_column") or "category"),
+                key=f"{key_prefix}_new",
+            )
+        with c2:
+            p["else_value"] = st.text_input(
+                "Else value (when no rule matches)",
+                value=str(p.get("else_value") if p.get("else_value") is not None else ""),
+                key=f"{key_prefix}_else",
+            )
+        rules = list(p.get("rules") or [])
+        n_key = f"{key_prefix}_n_rules"
+        if n_key not in st.session_state:
+            st.session_state[n_key] = max(1, len(rules))
+        n_rules = int(st.session_state[n_key])
+        st.markdown("**Rules** — evaluated top-to-bottom; first match wins")
+        new_rules = []
+        for ri in range(n_rules):
+            existing = rules[ri] if ri < len(rules) else {"op": "==", "value": "", "then": ""}
+            rcol1, rcol2, rcol3 = st.columns([1, 1, 1])
+            with rcol1:
+                op = st.selectbox(
+                    f"Rule {ri + 1} · op",
+                    _COND_OPS_UI,
+                    index=_safe_index(_COND_OPS_UI, existing.get("op", "=="), 0),
+                    key=f"{key_prefix}_op_{ri}",
+                )
+            with rcol2:
+                val = st.text_input(
+                    f"Rule {ri + 1} · value",
+                    value=str(existing.get("value") if existing.get("value") is not None else ""),
+                    key=f"{key_prefix}_val_{ri}",
+                    disabled=(op == "is_null"),
+                )
+            with rcol3:
+                then = st.text_input(
+                    f"Rule {ri + 1} · then output",
+                    value=str(existing.get("then") if existing.get("then") is not None else ""),
+                    key=f"{key_prefix}_then_{ri}",
+                )
+            new_rules.append({"op": op, "value": val, "then": then})
+        p["rules"] = new_rules
+        b1, b2 = st.columns(2)
+        with b1:
+            if st.button("➕ Add rule", key=f"{key_prefix}_add_rule",
+                         use_container_width=True):
+                st.session_state[n_key] = n_rules + 1
+                st.rerun()
+        with b2:
+            if n_rules > 1 and st.button("➖ Remove last rule",
+                                          key=f"{key_prefix}_rm_rule",
+                                          use_container_width=True):
+                st.session_state[n_key] = max(1, n_rules - 1)
+                st.rerun()
+        return p
+
+    if kind == "group_by":
+        p["keys"] = st.multiselect(
+            "Group keys", cols_avail,
+            default=[c for c in (p.get("keys") or []) if c in cols_avail],
+            key=f"{key_prefix}_keys",
+        )
+        aggs = list(p.get("aggregations") or [])
+        n_key = f"{key_prefix}_n_aggs"
+        if n_key not in st.session_state:
+            st.session_state[n_key] = max(1, len(aggs))
+        n_aggs = int(st.session_state[n_key])
+        st.markdown("**Aggregations**")
+        new_aggs = []
+        for ai in range(n_aggs):
+            existing = (aggs[ai] if ai < len(aggs)
+                        else {"column": cols_avail[0] if cols_avail else "",
+                              "agg": "sum", "alias": ""})
+            ac1, ac2, ac3 = st.columns([1, 1, 1])
+            with ac1:
+                col = (st.selectbox(
+                    f"Agg {ai + 1} · column", cols_avail,
+                    index=_safe_index(cols_avail, existing.get("column"), 0),
+                    key=f"{key_prefix}_acol_{ai}",
+                ) if cols_avail else "")
+            with ac2:
+                agg = st.selectbox(
+                    f"Agg {ai + 1} · function", TRANSFORM_AGGS,
+                    index=_safe_index(TRANSFORM_AGGS, existing.get("agg", "sum"), 0),
+                    key=f"{key_prefix}_aagg_{ai}",
+                )
+            with ac3:
+                alias = st.text_input(
+                    f"Agg {ai + 1} · alias",
+                    value=str(existing.get("alias") or f"{col}_{agg}"),
+                    key=f"{key_prefix}_aalias_{ai}",
+                )
+            new_aggs.append({"column": col, "agg": agg, "alias": alias})
+        p["aggregations"] = new_aggs
+        b1, b2 = st.columns(2)
+        with b1:
+            if st.button("➕ Add aggregation", key=f"{key_prefix}_add_agg",
+                         use_container_width=True):
+                st.session_state[n_key] = n_aggs + 1
+                st.rerun()
+        with b2:
+            if n_aggs > 1 and st.button("➖ Remove last aggregation",
+                                         key=f"{key_prefix}_rm_agg",
+                                         use_container_width=True):
+                st.session_state[n_key] = max(1, n_aggs - 1)
+                st.rerun()
+        return p
+
+    if kind == "add_column_from_examples":
+        p["new_column"] = st.text_input(
+            "New column name",
+            value=str(p.get("new_column") or "new_column"),
+            key=f"{key_prefix}_new",
+        )
+        p["source_columns"] = st.multiselect(
+            "Source columns",
+            cols_avail,
+            default=[c for c in (p.get("source_columns") or []) if c in cols_avail],
+            key=f"{key_prefix}_src",
+            help="Pick the column(s) the new column should be derived from.",
+        )
+        st.markdown("**Examples** — type the desired output for the first few "
+                    "rows; the system will infer a transform that reproduces them.")
+        examples = list(p.get("examples") or [])
+        n_examples = 3
+        new_examples = []
+        for ei in range(n_examples):
+            existing = examples[ei] if ei < len(examples) else {}
+            row_idx = int(existing.get("row_idx", ei))
+            preview_vals = []
+            if view_df is not None and row_idx < len(view_df):
+                preview_vals = [
+                    str(view_df.iloc[row_idx][c])
+                    for c in (p.get("source_columns") or []) if c in view_df.columns
+                ]
+            ec1, ec2 = st.columns([2, 1])
+            with ec1:
+                st.caption(
+                    f"Row {row_idx + 1} input · "
+                    f"{' · '.join(preview_vals) if preview_vals else '—'}"
+                )
+            with ec2:
+                target = st.text_input(
+                    f"Target output for row {row_idx + 1}",
+                    value=str(existing.get("target") or ""),
+                    key=f"{key_prefix}_ex_{ei}",
+                    label_visibility="collapsed",
+                )
+            new_examples.append({"row_idx": row_idx, "target": target})
+        p["examples"] = new_examples
+
+        # Inference is opt-in — running it on every keystroke would be
+        # expensive on million-row frames.
+        infer_key = f"{key_prefix}_inferred"
+        if st.button("Infer transform from examples",
+                     key=f"{key_prefix}_infer"):
+            ex_pairs = [(e["row_idx"], e["target"]) for e in new_examples
+                        if str(e.get("target", "")).strip()]
+            if not p.get("source_columns"):
+                st.warning("Pick at least one source column first.")
+            elif not ex_pairs:
+                st.warning("Type at least one example output.")
+            else:
+                op, op_params, cov = infer_examples_op(
+                    view_df, list(p["source_columns"]), ex_pairs,
+                )
+                if op is None:
+                    st.warning("Could not infer a transform from those examples. "
+                               "Try different examples or more source columns.")
+                else:
+                    st.session_state[infer_key] = {
+                        "op": op, "op_params": op_params, "coverage": cov,
+                    }
+                    st.success(
+                        f"Inferred `{op}` (matches {int(cov * 100)}% of examples). "
+                        "Click 'Apply transform' to add the column."
+                    )
+
+        prev = st.session_state.get(infer_key)
+        if prev:
+            p["op"] = prev["op"]
+            p["op_params"] = prev["op_params"]
+            st.caption(
+                f"Current op: `{prev['op']}` · params: `{prev['op_params']}` · "
+                f"coverage: {int(prev['coverage'] * 100)}%"
+            )
+        return p
+
+    return p
+
+
+def _validate_transform_params(kind: str, params: dict) -> tuple:
+    """Return (ok, message). message is shown to the user when ok is False."""
+    p = params or {}
+    if kind == "merge_columns":
+        if not (p.get("columns") and len(p["columns"]) >= 2):
+            return False, "Pick at least two columns to merge."
+        if not str(p.get("new_column") or "").strip():
+            return False, "Provide a name for the new column."
+    elif kind == "split_column":
+        if not p.get("column"):
+            return False, "Pick a column to split."
+    elif kind == "replace_values":
+        if not p.get("column"):
+            return False, "Pick a column."
+        if not str(p.get("find") or "").strip():
+            return False, "Find pattern cannot be empty."
+    elif kind == "conditional_column":
+        if not str(p.get("new_column") or "").strip():
+            return False, "Provide a name for the new column."
+        if not p.get("rules"):
+            return False, "Add at least one rule."
+    elif kind == "group_by":
+        if not p.get("keys"):
+            return False, "Pick at least one group key."
+        if not p.get("aggregations"):
+            return False, "Add at least one aggregation."
+    elif kind == "add_column_from_examples":
+        if not str(p.get("new_column") or "").strip():
+            return False, "Provide a name for the new column."
+        if not p.get("source_columns"):
+            return False, "Pick at least one source column."
+        if not p.get("op"):
+            return False, "Click 'Infer transform from examples' first."
+    return True, ""
 
 
 def _persist_step_history():
@@ -3989,9 +4347,56 @@ def show_dashboard():
                                             sh.go_to(i)
                                             _persist_step_history()
                                             st.rerun()
-                                # Per-substep parameter controls (cleaning only).
-                                # Adjusting any value re-runs the whole chain
-                                # via the unified commit path.
+                                # Per-substep parameter controls.
+                                # Transforms (Add Column from Examples,
+                                # Merge, Split, Replace, Conditional, Group
+                                # By) get the same structural form they
+                                # were inserted with so users can tweak
+                                # find/replace targets, separators, rules,
+                                # etc. without removing and re-inserting
+                                # the step. Cleaning substeps with declared
+                                # threshold params get the legacy numeric
+                                # editor below.
+                                is_transform_step = (
+                                    kind == "cleaning_substep"
+                                    and SUBSTEP_REGISTRY.get(substep_key, {}).get("transform")
+                                )
+                                if (is_transform_step and step_inst is not None
+                                        and pidx is not None):
+                                    plan_entry = u_plan[pidx]
+                                    current_params = dict(plan_entry.get("params") or {})
+                                    with st.expander("Parameters", expanded=False):
+                                        if not enabled:
+                                            st.caption("This transform is disabled — "
+                                                       "re-enable it to apply parameter changes.")
+                                        new_params = _render_transform_form(
+                                            substep_key, current_params, step.df,
+                                            key_prefix=f"trf_edit_{ds_key}_{step_inst}",
+                                        )
+                                        save_col, _ = st.columns([1, 3])
+                                        with save_col:
+                                            if st.button(
+                                                "Save changes",
+                                                key=f"trf_save_{ds_key}_{step_inst}",
+                                                use_container_width=True,
+                                                type="primary",
+                                            ):
+                                                ok, msg = _validate_transform_params(
+                                                    substep_key, new_params,
+                                                )
+                                                if not ok:
+                                                    st.warning(msg)
+                                                else:
+                                                    np_ = list(u_plan)
+                                                    np_[pidx] = {
+                                                        **np_[pidx],
+                                                        "params": new_params,
+                                                        "name": substep_label(
+                                                            substep_key, new_params,
+                                                        ),
+                                                    }
+                                                    _commit_unified(np_)
+                                                    st.rerun()
                                 if (kind == "cleaning_substep" and step_inst is not None
                                         and pidx is not None
                                         and SUBSTEP_PARAM_SCHEMA.get(substep_key)):
@@ -4161,6 +4566,76 @@ def show_dashboard():
                                     _commit_plan(new_plan)
                                     st.success(f"Inserted `{SUBSTEP_REGISTRY[ins_choice]['label']}` "
                                                f"at position {ins_pos}")
+                                    st.rerun()
+
+                        # ── Transform Toolkit ──
+                        # Power Query-style column-shaping transforms. Each
+                        # one registers as its own substep so reorder /
+                        # toggle / remove / Parameters all reuse the same
+                        # universal Applied Steps editor.
+                        with st.expander("⚙️ Transform", expanded=False):
+                            st.caption(
+                                "Add Power Query-style column transforms — Add Column "
+                                "from Examples, Merge / Split / Replace / Conditional / "
+                                "Group By. Each one becomes its own step in Applied "
+                                "Steps and can be toggled, reordered, or removed."
+                            )
+                            transform_keys = [
+                                k for k, m in SUBSTEP_REGISTRY.items()
+                                if m.get("transform")
+                            ]
+                            t_col1, t_col2 = st.columns([2, 1])
+                            with t_col1:
+                                t_choice = st.selectbox(
+                                    "Transform",
+                                    options=transform_keys,
+                                    format_func=lambda k: SUBSTEP_REGISTRY[k]["label"],
+                                    key=f"trf_choice_{ds_key}",
+                                )
+                            with t_col2:
+                                t_pos_options = list(range(1, len(plan) + 2))
+                                t_pos = st.selectbox(
+                                    "Insert at position",
+                                    options=t_pos_options,
+                                    index=len(t_pos_options) - 1,
+                                    format_func=lambda p: (
+                                        f"{p} · before `{plan[p-1]['key']}`"
+                                        if p <= len(plan) else f"{p} · at end"
+                                    ),
+                                    key=f"trf_pos_{ds_key}",
+                                )
+                            t_params = _render_transform_form(
+                                t_choice, {}, view_df,
+                                key_prefix=f"trf_{ds_key}_{t_choice}",
+                            )
+                            if st.button(
+                                "Apply transform",
+                                key=f"trf_apply_{ds_key}_{t_choice}",
+                                type="primary",
+                            ):
+                                ok, msg = _validate_transform_params(t_choice, t_params)
+                                if not ok:
+                                    st.warning(msg)
+                                else:
+                                    new_entry = {
+                                        "instance_id": _new_instance_id(),
+                                        "key": t_choice,
+                                        "enabled": True,
+                                        "params": t_params,
+                                    }
+                                    new_plan = list(plan)
+                                    new_plan.insert(t_pos - 1, new_entry)
+                                    _commit_plan(new_plan)
+                                    # Drop the cached inferred op so the next
+                                    # Add-Column-from-Examples insert starts
+                                    # fresh instead of reusing stale state.
+                                    st.session_state.pop(
+                                        f"trf_{ds_key}_{t_choice}_inferred", None,
+                                    )
+                                    st.success(
+                                        f"Inserted `{SUBSTEP_REGISTRY[t_choice]['label']}` "
+                                        f"at position {t_pos}"
+                                    )
                                     st.rerun()
 
                     # Resolve the schema for the ACTIVE step first so the
