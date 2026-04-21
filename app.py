@@ -3997,6 +3997,374 @@ def render_clickable_logo(key_suffix=""):
     ''', unsafe_allow_html=True)
     return logo_clicked
 
+# --------------------------------------------------------------------------
+# Data Modelling — relationships between datasets (Task #29).
+# Loads each saved dataset's *cleaned* dataframe (active step output) so
+# suggestions and joins work against the user's curated views, not raw
+# uploads. Cached per dataset id + recipe count so flipping between
+# datasets stays snappy on million-row frames.
+# --------------------------------------------------------------------------
+
+@st.cache_data(ttl=600, show_spinner=False, max_entries=32)
+def _load_dataset_active_df(dataset_id, recipe_sig):  # noqa: ARG001 — sig for cache
+    """Materialise a saved dataset at its active step. ``recipe_sig`` is a
+    cheap fingerprint (recipe count + active index) so the cache busts
+    automatically when the user appends or reorders steps elsewhere."""
+    db = get_db()
+    try:
+        rec = db.query(__import__("models").DatasetRecord).filter_by(id=dataset_id).first()
+        if rec is None or not rec.source_parquet:
+            return None
+        source_df = deserialize_source_df(rec.source_parquet)
+        if not rec.step_recipes:
+            return source_df
+        history = rebuild_history_from_recipes(
+            source_df, rec.step_recipes, rec.active_step_index,
+        )
+        cur = history.current_df()
+        return cur if cur is not None else source_df
+    except Exception:
+        return None
+    finally:
+        db.close()
+
+
+def _recipe_signature(rec) -> str:
+    """Cheap, deterministic fingerprint for a dataset's recipe state."""
+    n = len(rec.step_recipes or [])
+    return f"{rec.id}:{n}:{rec.active_step_index or -1}"
+
+
+def _render_model_section(uid):
+    """Power BI-style relationship modelling tab.
+
+    Lists the user's saved datasets, lets them toggle two or more onto a
+    relationship canvas, surfaces auto-suggested join columns, accepts
+    confirmed (or fully manual) relationships, persists them, and finally
+    materialises a Joined View that can be promoted to the active dataset
+    so the rest of the dashboard tabs render against it without any
+    special cases."""
+    from data_modelling import (
+        suggest_relationships, materialize_join, validate_relationship,
+        VALID_JOINS,
+    )
+    from models import (
+        list_relationships, save_relationship, delete_relationship,
+        get_user_datasets,
+    )
+
+    _section_head(
+        "Data Model",
+        "Combine multiple uploaded datasets the way Power BI does — pick "
+        "two tables, confirm a relationship, and the dashboard tabs will "
+        "render against the joined view.",
+        "07 — Model",
+    )
+
+    if uid is None:
+        st.info("Sign in to model relationships across your datasets.")
+        return
+
+    db = get_db()
+    try:
+        datasets = get_user_datasets(db, uid)
+    finally:
+        db.close()
+
+    if not datasets:
+        st.info("Upload at least two datasets to start modelling relationships.")
+        return
+
+    # ----- 1. Dataset cards / canvas ------------------------------------
+    canvas_key = f"model_canvas_{uid}"
+    st.session_state.setdefault(canvas_key, set())
+    canvas_ids: set = st.session_state[canvas_key]
+
+    st.markdown("**Your datasets** — click to add or remove from the model canvas.")
+    cols = st.columns(min(3, max(1, len(datasets))))
+    for i, ds in enumerate(datasets):
+        col = cols[i % len(cols)]
+        with col:
+            in_canvas = ds.id in canvas_ids
+            label_prefix = "✓ " if in_canvas else "+ "
+            if st.button(
+                f"{label_prefix}{ds.dataset_name}",
+                key=f"model_card_{ds.id}",
+                help=f"{ds.row_count:,} rows · {ds.column_count} cols · "
+                     f"updated {ds.upload_date.strftime('%Y-%m-%d')}",
+                use_container_width=True,
+                type=("primary" if in_canvas else "secondary"),
+            ):
+                if in_canvas:
+                    canvas_ids.discard(ds.id)
+                else:
+                    canvas_ids.add(ds.id)
+                st.rerun()
+            st.caption(f"{ds.row_count:,} rows · {ds.column_count} cols")
+
+    if len(canvas_ids) < 2:
+        st.markdown("---")
+        st.info("Pick at least two datasets to see suggested relationships.")
+        return
+
+    # ----- 2. Relationship canvas (chosen datasets) ---------------------
+    canvas_records = [d for d in datasets if d.id in canvas_ids]
+    canvas_lookup = {d.id: d for d in canvas_records}
+
+    st.markdown("---")
+    st.markdown("**Model canvas** — datasets currently in scope:")
+    chip_cols = st.columns(min(4, len(canvas_records)))
+    for i, ds in enumerate(canvas_records):
+        with chip_cols[i % len(chip_cols)]:
+            st.markdown(
+                f'<div style="padding:0.55rem 0.85rem;border-radius:10px;'
+                f'background:rgba(45,212,191,0.10);border:1px solid '
+                f'rgba(45,212,191,0.30);font-family:JetBrains Mono,monospace;'
+                f'font-size:0.78rem;color:#2dd4bf;letter-spacing:0.05em;">'
+                f'{ds.dataset_name}</div>',
+                unsafe_allow_html=True,
+            )
+
+    # ----- 3. Pair picker + auto-suggestions ----------------------------
+    st.markdown("---")
+    st.markdown("**Pick a pair to inspect**")
+    pc1, pc2 = st.columns(2)
+    label_for = lambda d: f"{d.dataset_name} (#{d.id})"
+    with pc1:
+        left_ds = st.selectbox(
+            "Left dataset", canvas_records,
+            format_func=label_for, key=f"model_left_{uid}",
+        )
+    with pc2:
+        right_choices = [d for d in canvas_records if d.id != left_ds.id]
+        if not right_choices:
+            st.info("Add a second dataset to the canvas.")
+            return
+        right_ds = st.selectbox(
+            "Right dataset", right_choices,
+            format_func=label_for, key=f"model_right_{uid}",
+        )
+
+    left_df = _load_dataset_active_df(left_ds.id, _recipe_signature(left_ds))
+    right_df = _load_dataset_active_df(right_ds.id, _recipe_signature(right_ds))
+    if left_df is None or right_df is None:
+        st.warning("Could not load one of the datasets — re-open it from the Overview tab to refresh.")
+        return
+
+    suggestions = suggest_relationships(left_df, right_df)
+    st.markdown("**Suggested relationships**")
+    if suggestions:
+        for s in suggestions:
+            row_l, row_m, row_r = st.columns([3, 2, 1])
+            with row_l:
+                st.markdown(
+                    f"`{left_ds.dataset_name}.{s.left_column}` ↔ "
+                    f"`{right_ds.dataset_name}.{s.right_column}`"
+                )
+                st.caption(
+                    f"name {s.name_score:.2f} · dtype {s.dtype_score:.2f} · "
+                    f"overlap {s.overlap_score:.2f}"
+                )
+            with row_m:
+                st.markdown(
+                    f"**{s.cardinality}** · {int(s.confidence * 100)}% confidence"
+                )
+            with row_r:
+                if st.button(
+                    "Confirm",
+                    key=f"model_confirm_{left_ds.id}_{right_ds.id}_"
+                        f"{s.left_column}_{s.right_column}",
+                    type="primary",
+                ):
+                    db = get_db()
+                    try:
+                        save_relationship(
+                            db, uid,
+                            left_dataset_id=left_ds.id, left_column=s.left_column,
+                            right_dataset_id=right_ds.id, right_column=s.right_column,
+                            cardinality=s.cardinality, join_type="left",
+                        )
+                    finally:
+                        db.close()
+                    st.success("Relationship saved.")
+                    st.rerun()
+    else:
+        st.caption("No automatic suggestions reached the confidence threshold "
+                   "for this pair — define one manually below.")
+
+    # ----- 4. Manual relationship form ----------------------------------
+    with st.expander("Define a relationship manually", expanded=not suggestions):
+        m1, m2 = st.columns(2)
+        with m1:
+            l_col = st.selectbox(
+                f"{left_ds.dataset_name} column",
+                list(left_df.columns), key=f"model_man_lcol_{uid}",
+            )
+        with m2:
+            r_col = st.selectbox(
+                f"{right_ds.dataset_name} column",
+                list(right_df.columns), key=f"model_man_rcol_{uid}",
+            )
+        m3, m4 = st.columns(2)
+        with m3:
+            cardinality = st.selectbox(
+                "Cardinality", ["1:1", "1:N", "N:1", "N:N"],
+                index=1, key=f"model_man_card_{uid}",
+            )
+        with m4:
+            join_type = st.selectbox(
+                "Join type", list(VALID_JOINS),
+                index=1, key=f"model_man_join_{uid}",
+            )
+        diag = validate_relationship(left_df, right_df, l_col, r_col)
+        if "error" in diag:
+            st.warning(diag["error"])
+        elif diag.get("warning"):
+            st.warning(diag["warning"])
+        else:
+            st.caption(
+                f"{diag['matching_keys']} matching key value(s) — "
+                f"left distinct: {diag['left_distinct_keys']}, "
+                f"right distinct: {diag['right_distinct_keys']}, "
+                f"cardinality: {diag['cardinality']}"
+            )
+        if st.button("Save manual relationship", key=f"model_man_save_{uid}"):
+            db = get_db()
+            try:
+                rel = save_relationship(
+                    db, uid,
+                    left_dataset_id=left_ds.id, left_column=l_col,
+                    right_dataset_id=right_ds.id, right_column=r_col,
+                    cardinality=cardinality, join_type=join_type,
+                )
+            finally:
+                db.close()
+            if rel is None:
+                st.warning("That relationship looks like a self-join on the same column — skipped.")
+            else:
+                st.success("Relationship saved.")
+                st.rerun()
+
+    # ----- 5. Saved relationships --------------------------------------
+    db = get_db()
+    try:
+        rels = list_relationships(db, uid)
+    finally:
+        db.close()
+
+    st.markdown("---")
+    st.markdown("**Saved relationships**")
+    if not rels:
+        st.caption("No relationships saved yet.")
+    else:
+        ds_name = {d.id: d.dataset_name for d in datasets}
+        for rel in rels:
+            r_l, r_r = st.columns([6, 1])
+            with r_l:
+                left_name = ds_name.get(rel.left_dataset_id,
+                                        f"#{rel.left_dataset_id}")
+                right_name = ds_name.get(rel.right_dataset_id,
+                                         f"#{rel.right_dataset_id}")
+                st.markdown(
+                    f"`{left_name}.{rel.left_column}` → "
+                    f"`{right_name}.{rel.right_column}` · "
+                    f"{rel.cardinality} · {rel.join_type} join"
+                )
+            with r_r:
+                if st.button("Remove", key=f"model_del_{rel.id}"):
+                    db = get_db()
+                    try:
+                        delete_relationship(db, uid, rel.id)
+                    finally:
+                        db.close()
+                    st.rerun()
+
+    # ----- 6. Joined View preview & promotion ---------------------------
+    st.markdown("---")
+    st.markdown("**Joined view**")
+    jv1, jv2 = st.columns([3, 1])
+    with jv1:
+        st.caption(
+            f"Materialise `{left_ds.dataset_name}` joined with "
+            f"`{right_ds.dataset_name}` using the matching saved "
+            "relationship (or the manual form above if you haven't saved one)."
+        )
+    with jv2:
+        join_pick = st.selectbox(
+            "Join", list(VALID_JOINS), index=1, key=f"model_jv_join_{uid}",
+        )
+
+    # Find the most recent saved relationship for this pair, fall back
+    # to the manual form's current selection.
+    saved = next(
+        (r for r in rels
+         if {r.left_dataset_id, r.right_dataset_id} ==
+            {left_ds.id, right_ds.id}),
+        None,
+    )
+    if saved and saved.left_dataset_id == left_ds.id:
+        eff_lcol, eff_rcol = saved.left_column, saved.right_column
+    elif saved:
+        eff_lcol, eff_rcol = saved.right_column, saved.left_column
+    else:
+        eff_lcol, eff_rcol = l_col, r_col
+
+    if st.button("Build joined view", key=f"model_build_jv_{uid}",
+                 type="primary"):
+        try:
+            joined = materialize_join(
+                left_df, right_df, eff_lcol, eff_rcol,
+                join_type=join_pick,
+                left_label=left_ds.dataset_name[:12].replace(" ", "_") or "left",
+                right_label=right_ds.dataset_name[:12].replace(" ", "_") or "right",
+            )
+        except Exception as e:
+            st.error(f"Join failed: {e}")
+            joined = None
+        if joined is not None:
+            st.session_state[f"model_jv_df_{uid}"] = joined
+            st.session_state[f"model_jv_meta_{uid}"] = {
+                "left": left_ds.dataset_name, "right": right_ds.dataset_name,
+                "left_col": eff_lcol, "right_col": eff_rcol,
+                "join": join_pick,
+            }
+
+    jv_df = st.session_state.get(f"model_jv_df_{uid}")
+    jv_meta = st.session_state.get(f"model_jv_meta_{uid}")
+    if jv_df is not None and jv_meta is not None:
+        st.success(
+            f"Joined view ready — {len(jv_df):,} rows × {len(jv_df.columns)} cols "
+            f"({jv_meta['left']} ⋈ {jv_meta['right']} on "
+            f"{jv_meta['left_col']} = {jv_meta['right_col']}, {jv_meta['join']} join)"
+        )
+        st.dataframe(jv_df.head(20), use_container_width=True)
+        if st.button(
+            "Use joined view as active dataset",
+            key=f"model_promote_jv_{uid}",
+            type="primary",
+        ):
+            # Synthesise a fresh dataset id + step history holding the
+            # joined frame as a single Source step. Existing tabs read
+            # from `current_dataset_id` + `step_histories`, so once we
+            # flip those they pick the joined view up automatically.
+            from datetime import datetime as _dt
+            jv_id = f"joined_{_dt.utcnow().strftime('%Y%m%d_%H%M%S')}"
+            jv_history = StepHistory()
+            jv_history.add(
+                "Source",
+                f"Joined view: {jv_meta['left']} ⋈ {jv_meta['right']}",
+                jv_df, meta={"is_joined_view": True, **jv_meta},
+            )
+            st.session_state.current_dataset_id = jv_id
+            st.session_state.step_histories[jv_id] = jv_history
+            st.session_state.df = jv_df
+            st.session_state.df_cleaned = jv_df
+            st.session_state.cleaning_report = None
+            st.session_state.dashboard_section = _TAB_LABELS[0]
+            st.success("Switched to the joined view — open Overview to start analysing it.")
+            st.rerun()
+
+
 def show_dashboard():
     limits = get_user_limits()
     logo_b64 = get_logo_base64()
@@ -4394,6 +4762,7 @@ def show_dashboard():
                 "Visualizations",
                 "Predictions",
                 "ML & Clusters",
+                "Model",
                 "AI Chat",
                 "Report",
             ]
@@ -5477,7 +5846,10 @@ def show_dashboard():
                             st.success("No significant outliers detected in the numeric columns.")
             
                 elif active_tab == _TAB_LABELS[6]:
-                    _section_head("AI Assistant", "Ask questions about your data in natural language.", "07 — AI Chat")
+                    _render_model_section(uid)
+
+                elif active_tab == _TAB_LABELS[7]:
+                    _section_head("AI Assistant", "Ask questions about your data in natural language.", "08 — AI Chat")
                 
                     if not limits['ai_chat_enabled']:
                         st.markdown("""

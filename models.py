@@ -95,6 +95,28 @@ class DatasetRecord(Base):
     active_step_index = Column(Integer, nullable=True)
     
 
+class DatasetRelationship(Base):
+    """User-confirmed relationship between two of their datasets.
+
+    Mirrors a Power BI model edge: a left dataset/column points at a
+    right dataset/column with a stated cardinality and the join type
+    that should be used when the joined view is materialised.
+    """
+    __tablename__ = "dataset_relationships"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    left_dataset_id = Column(Integer, ForeignKey("dataset_records.id"),
+                             nullable=False, index=True)
+    left_column = Column(String(255), nullable=False)
+    right_dataset_id = Column(Integer, ForeignKey("dataset_records.id"),
+                              nullable=False, index=True)
+    right_column = Column(String(255), nullable=False)
+    cardinality = Column(String(8), nullable=False, default="1:N")
+    join_type = Column(String(16), nullable=False, default="left")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class AnalysisHistory(Base):
     """Model to store analysis history"""
     __tablename__ = "analysis_history"
@@ -137,6 +159,14 @@ def init_db():
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS step_recipes JSON",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS active_step_index INTEGER",
     ]
+    # Newer tables that may not exist on older deployments need an
+    # explicit create step before the in-place ALTERs above run, since
+    # `create_all` only handles brand-new schemas. ``checkfirst`` makes
+    # this idempotent on already-migrated DBs.
+    try:
+        DatasetRelationship.__table__.create(bind=engine, checkfirst=True)
+    except Exception:
+        pass
     with engine.begin() as conn:
         for stmt in _migrations:
             try:
@@ -416,6 +446,48 @@ def get_admin_stats(db):
         'total_analyses': total_analyses,
         'total_chats': total_chats
     }
+
+
+def list_relationships(db, user_id):
+    """All relationships defined by a user, newest first."""
+    if user_id is None:
+        return []
+    return (db.query(DatasetRelationship)
+              .filter(DatasetRelationship.user_id == user_id)
+              .order_by(DatasetRelationship.created_at.desc())
+              .all())
+
+
+def save_relationship(db, user_id, left_dataset_id, left_column,
+                      right_dataset_id, right_column,
+                      cardinality="1:N", join_type="left"):
+    """Persist a confirmed relationship; refuses obvious self-joins on
+    identical (dataset, column) pairs because they're never meaningful."""
+    if (left_dataset_id == right_dataset_id and left_column == right_column):
+        return None
+    rel = DatasetRelationship(
+        user_id=user_id,
+        left_dataset_id=left_dataset_id, left_column=left_column,
+        right_dataset_id=right_dataset_id, right_column=right_column,
+        cardinality=cardinality, join_type=join_type,
+    )
+    db.add(rel)
+    db.commit()
+    db.refresh(rel)
+    return rel
+
+
+def delete_relationship(db, user_id, relationship_id):
+    """Remove a relationship the user owns. Returns True if deleted."""
+    rel = (db.query(DatasetRelationship)
+             .filter(DatasetRelationship.id == relationship_id,
+                     DatasetRelationship.user_id == user_id)
+             .first())
+    if not rel:
+        return False
+    db.delete(rel)
+    db.commit()
+    return True
 
 
 def save_support_message(db, email, name, message):
