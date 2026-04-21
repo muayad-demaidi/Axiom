@@ -12,9 +12,9 @@ Entry points:
 """
 
 from .config import AgentConfig, load_config
-from .db import init_agent_db, AgentRun, AgentDraft, GeoCheckResult
+from .db import init_agent_db, AgentRun, AgentDraft, GeoCheckResult, AgentBuildJob
 
 __all__ = [
     "AgentConfig", "load_config", "init_agent_db",
-    "AgentRun", "AgentDraft", "GeoCheckResult",
+    "AgentRun", "AgentDraft", "GeoCheckResult", "AgentBuildJob",
 ]

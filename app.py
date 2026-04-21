@@ -4711,9 +4711,14 @@ def show_seo_agent_admin():
         list_drafts, get_draft_payload, approve_draft, reject_draft,
     )
     from seo_agent.runner import run_weekly_cycle
-    from seo_agent.db import AgentDraft
+    from seo_agent.db import AgentDraft, AgentBuildJob
+    from seo_agent.build_queue import (
+        list_build_jobs, retry_build_job, enqueue_build, ensure_worker_running,
+        confirm_publish,
+    )
 
     init_agent_db()
+    ensure_worker_running()
     cfg = load_config()
     sess = get_session()
     try:
@@ -4791,8 +4796,8 @@ def show_seo_agent_admin():
 
     st.markdown("---")
 
-    sub_tabs = st.tabs(["📥 Review queue", "📈 GEO trend",
-                        "🚦 Top performing pages",
+    sub_tabs = st.tabs(["📥 Review queue", "🚀 Build & deploy",
+                        "📈 GEO trend", "🚦 Top performing pages",
                         "⚙️ Config", "📜 Run history"])
 
     with sub_tabs[0]:
@@ -4833,8 +4838,12 @@ def show_seo_agent_admin():
                                          notes=("edited" if edited_payload else ""),
                                          edited_payload=edited_payload)
                     if res.get("ok"):
-                        st.success(f"Approved → injected into {res['file']}"
-                                   + (" · build triggered" if res.get("build_triggered") else ""))
+                        if res.get("build_queued"):
+                            st.success(f"Approved → injected into {res['file']} · "
+                                       f"rebuild + redeploy queued (job #{res.get('build_job_id')})")
+                        else:
+                            st.warning(f"Approved → injected into {res['file']} · "
+                                       f"build queue failed: {res.get('build_error', 'unknown')}")
                         st.rerun()
                     else:
                         st.error(f"Approve failed: {res.get('error')}")
@@ -4854,6 +4863,75 @@ def show_seo_agent_admin():
             st.json(summary)
 
     with sub_tabs[1]:
+        st.markdown("#### Build & deploy queue")
+        st.caption(
+            "After a draft is approved, the marketing site is rebuilt "
+            "(`npm run build` in `marketing-site/`) and — if "
+            "`SEO_AGENT_DEPLOY_HOOK_URL` is set — a redeploy webhook is "
+            "POSTed. Failures retry automatically with exponential backoff."
+        )
+        bc1, bc2, bc3 = st.columns([1, 1, 4])
+        if bc1.button("🔁 Refresh", key="bq_refresh"):
+            st.rerun()
+        if bc2.button("▶ Trigger build now", key="bq_manual"):
+            job = enqueue_build(reason="manual")
+            st.success(f"Queued build job #{job.id}")
+            st.rerun()
+
+        jobs = list_build_jobs(limit=25)
+        if not jobs:
+            st.info("No build jobs yet. Approve a draft to kick one off.")
+        else:
+            _status_emoji = {
+                "queued": "⏳", "running": "🔄", "success": "✅",
+                "failed": "❌", "skipped": "⏭️", "needs_publish": "📤",
+            }
+            for j in jobs:
+                emoji = _status_emoji.get(j.status, "•")
+                dur = ""
+                if j.started_at and j.finished_at:
+                    secs = (j.finished_at - j.started_at).total_seconds()
+                    dur = f" · {secs:.1f}s"
+                title = (f"{emoji} #{j.id} · {j.status} · {j.reason or '—'} "
+                         f"· attempt {j.attempts}/{j.max_attempts}{dur}")
+                with st.expander(title):
+                    st.write({
+                        "queued_at": j.queued_at.strftime("%Y-%m-%d %H:%M:%S")
+                                     if j.queued_at else None,
+                        "started_at": j.started_at.strftime("%Y-%m-%d %H:%M:%S")
+                                      if j.started_at else None,
+                        "finished_at": j.finished_at.strftime("%Y-%m-%d %H:%M:%S")
+                                       if j.finished_at else None,
+                        "next_attempt_at": j.next_attempt_at.strftime("%Y-%m-%d %H:%M:%S")
+                                           if j.next_attempt_at else None,
+                        "build_ok": j.build_ok,
+                        "deploy_ok": j.deploy_ok,
+                        "deploy_target": j.deploy_target,
+                        "draft_id": j.draft_id,
+                    })
+                    if j.error:
+                        st.error(j.error)
+                    if j.log_tail:
+                        st.code(j.log_tail, language="bash")
+                    if j.status == "failed":
+                        if st.button("🔁 Retry this job", key=f"bq_retry_{j.id}"):
+                            if retry_build_job(j.id):
+                                st.success("Re-queued.")
+                                st.rerun()
+                    if j.status == "needs_publish":
+                        st.warning(
+                            "Build succeeded but the site has not been "
+                            "republished yet. Open Replit → Deployments → "
+                            "Static deployment for `marketing-site/` and "
+                            "click Republish, then mark this job published."
+                        )
+                        if st.button("✅ Mark as published", key=f"bq_pub_{j.id}"):
+                            reviewer = (st.session_state.user or {}).get("email", "admin")
+                            if confirm_publish(j.id, reviewer):
+                                st.success("Marked as published.")
+                                st.rerun()
+
+    with sub_tabs[2]:
         st.markdown("#### GEO mention rate per run")
         rows = []
         for r in reversed(geo_runs):
@@ -4895,7 +4973,7 @@ def show_seo_agent_admin():
         else:
             st.caption("No pages published in the last 12 weeks yet.")
 
-    with sub_tabs[2]:
+    with sub_tabs[3]:
         st.markdown("#### Top performing pages (organic traffic)")
         st.caption(
             "Pulled weekly from the configured free analytics source "
@@ -4974,7 +5052,7 @@ def show_seo_agent_admin():
                     st.caption("These categories will be down-weighted in the next "
                                "topic-selection pass.")
 
-    with sub_tabs[3]:
+    with sub_tabs[4]:
         st.markdown("#### Configuration")
         with st.form("seo_agent_cfg"):
             schedule = st.text_input("Cron schedule (UTC)", cfg.schedule_cron)
@@ -5130,7 +5208,7 @@ def show_seo_agent_admin():
                     "link — the app URL is auto-detected after deploy."
                 )
 
-    with sub_tabs[4]:
+    with sub_tabs[5]:
         st.markdown("#### Recent runs")
         if not recent_runs:
             st.info("No runs recorded yet.")

@@ -57,6 +57,34 @@ class AgentDraft(AgentBase):
     review_notes = Column(Text, nullable=True)
 
 
+class AgentBuildJob(AgentBase):
+    """A queued rebuild + redeploy of the marketing site.
+
+    Created when a draft is approved (or nightly batch fires). A background
+    worker picks it up, runs ``npm run build`` and optionally hits a deploy
+    webhook. Failures are retried with exponential backoff up to
+    ``max_attempts`` so an approval is never silently lost.
+    """
+    __tablename__ = "seo_agent_build_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    draft_id = Column(Integer, nullable=True, index=True)
+    reason = Column(String(255), nullable=True)  # e.g. "approve:42", "manual", "nightly"
+    status = Column(String(32), default="queued", index=True)
+    # queued | running | success | failed | skipped
+    attempts = Column(Integer, default=0)
+    max_attempts = Column(Integer, default=3)
+    queued_at = Column(DateTime, default=datetime.utcnow, index=True)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+    next_attempt_at = Column(DateTime, nullable=True, index=True)
+    build_ok = Column(Boolean, nullable=True)
+    deploy_ok = Column(Boolean, nullable=True)
+    deploy_target = Column(String(255), nullable=True)  # webhook URL or "build-only"
+    log_tail = Column(Text, nullable=True)  # last ~4 KB of build/deploy output
+    error = Column(Text, nullable=True)
+
+
 class GeoCheckResult(AgentBase):
     """Per-prompt result of the GEO visibility check."""
     __tablename__ = "seo_agent_geo_checks"

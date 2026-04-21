@@ -187,10 +187,20 @@ def approve_draft(draft_id: int, reviewer: str, notes: str = "",
         except Exception:
             pass
 
-        build_ok = trigger_sitemap_regen()
-
-        return {"ok": True, "kind": kind, "slug": d.slug, "file": str(written),
-                "build_triggered": build_ok}
+        # Queue an async rebuild + redeploy. The background worker drains
+        # the queue with retries so an approval is never lost on a flaky
+        # build. The approval itself has already committed (content +
+        # status), so we always return ok=True; if the enqueue itself
+        # fails we surface build_queued=False + build_error and let the
+        # admin manually trigger a build from the queue UI.
+        from .build_queue import enqueue_build
+        try:
+            job = enqueue_build(reason=f"approve:{d.id}", draft_id=d.id)
+            return {"ok": True, "kind": kind, "slug": d.slug, "file": str(written),
+                    "build_queued": True, "build_job_id": job.id}
+        except Exception as ex:
+            return {"ok": True, "kind": kind, "slug": d.slug, "file": str(written),
+                    "build_queued": False, "build_error": str(ex)}
     finally:
         sess.close()
 
