@@ -246,6 +246,27 @@ def run_weekly_cycle(cfg: AgentConfig | None = None, dry_run: bool = False) -> D
         if not dry_run and cfg.report_email_to:
             report.send_weekly_report(cfg.report_email_to, summary)
 
+        # Instant alert: opt-in, fires only when a run produced new drafts
+        # that actually need a human review (auto-published drafts skip it,
+        # since there's nothing to approve).
+        pending_count = sum(
+            1 for d in drafts_meta if (d.get("status") or "").lower() == "pending"
+        )
+        if (not dry_run
+                and getattr(cfg, "notify_on_new_drafts", False)
+                and pending_count > 0):
+            alert_to = (getattr(cfg, "notify_email_to", "") or "").strip() \
+                or cfg.report_email_to
+            alert_summary = dict(summary)
+            alert_summary["drafts_created"] = pending_count
+            alert_summary["drafts"] = [
+                d for d in drafts_meta if (d.get("status") or "").lower() == "pending"
+            ]
+            try:
+                report.send_new_drafts_alert(alert_to, alert_summary)
+            except Exception as e:
+                errors.append(f"new-drafts alert failed: {e}")
+
         return summary
 
     except Exception as e:

@@ -4985,6 +4985,18 @@ def show_seo_agent_admin():
             auto_pub = st.checkbox("Auto-publish on generation (skip review)", cfg.auto_publish)
             refresh_days = st.number_input("Refresh pages older than (days)", 7, 365, cfg.refresh_after_days)
             email_to = st.text_input("Weekly report email", cfg.report_email_to)
+            notify_on = st.checkbox(
+                "📱 Alert me as soon as new drafts are ready",
+                value=getattr(cfg, "notify_on_new_drafts", False),
+                help="Sends a short email (with the public review link) right "
+                     "after every run that creates at least one draft. Off by default.",
+            )
+            notify_to = st.text_input(
+                "Send draft alerts to",
+                value=getattr(cfg, "notify_email_to", "") or "",
+                placeholder="leave blank to reuse the weekly report email above",
+                help="Use a phone-friendly inbox (or an email-to-SMS gateway) to get a push.",
+            )
             _suggested_token = st.session_state.pop("_seo_suggested_token", None)
             review_token = st.text_input(
                 "Public review token (gates the mobile review URL)",
@@ -5035,6 +5047,8 @@ def show_seo_agent_admin():
                 cfg.auto_publish = bool(auto_pub)
                 cfg.refresh_after_days = int(refresh_days)
                 cfg.report_email_to = email_to.strip()
+                cfg.notify_on_new_drafts = bool(notify_on)
+                cfg.notify_email_to = (notify_to or "").strip()
                 cfg.admin_review_token = (review_token or "").strip()
                 cfg.sources_enabled = {
                     "reddit": s_reddit, "hackernews": s_hn,

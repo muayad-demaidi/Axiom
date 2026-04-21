@@ -55,6 +55,8 @@ class AgentConfig:
     admin_review_token: str = ""            # gates the marketing-site review URL
     refresh_after_days: int = 90
     report_email_to: str = "muayad.demaidi.work@gmail.com"
+    notify_on_new_drafts: bool = False      # opt-in instant alert when drafts land
+    notify_email_to: str = ""               # routes the alert (falls back to report_email_to)
     site_existing_slugs: Dict[str, List[str]] = field(default_factory=dict)
 
     # --- Organic-traffic analytics (Task #35) ---

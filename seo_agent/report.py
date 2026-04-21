@@ -119,6 +119,72 @@ def render_html(summary: Dict) -> str:
     """
 
 
+def render_new_drafts_alert_html(summary: Dict) -> str:
+    count = summary.get("drafts_created", 0)
+    drafts = summary.get("drafts", [])[:10]
+    review_url = public_review_url()
+    items = "".join(
+        f'<li style="margin-bottom:6px;">'
+        f'<span style="color:#14b8a6;">[{d.get("kind","?")}]</span> '
+        f'<strong>{d.get("title","(untitled)")}</strong></li>'
+        for d in drafts
+    ) or "<li>(see admin panel for details)</li>"
+    if review_url:
+        cta = (
+            f'<p style="margin:1rem 0 0 0;">'
+            f'<a href="{review_url}" style="display:inline-block;padding:0.6rem 1.1rem;'
+            f'background:#14b8a6;color:#0f172a;text-decoration:none;border-radius:6px;'
+            f'font-weight:600;">Review {count} pending draft{"s" if count != 1 else ""} →</a>'
+            f'</p>'
+        )
+    else:
+        cta = ('<p style="margin:1rem 0 0 0;color:#94a3b8;">'
+               'Open the admin panel → SEO/GEO Agent → Review queue to approve.</p>')
+    return f"""
+    <div style="font-family:'Inter',Arial,sans-serif;max-width:560px;margin:0 auto;
+                background:#0f172a;color:#e2e8f0;padding:1.5rem;border-radius:12px;">
+      <h2 style="color:#14b8a6;margin:0 0 0.25rem 0;">
+        📱 {count} new draft{"s" if count != 1 else ""} ready to review
+      </h2>
+      <p style="color:#94a3b8;margin:0 0 1rem 0;">
+        Run finished {summary.get('finished_at','')}
+      </p>
+      <ul style="color:#cbd5e1;line-height:1.6;padding-left:1.2rem;">{items}</ul>
+      {cta}
+    </div>
+    """
+
+
+def send_new_drafts_alert(to_email: str, summary: Dict) -> bool:
+    """Send an instant alert when a run produces new drafts.
+
+    Returns False (without raising) on any failure or when there is nothing
+    to alert about, so the caller can stay best-effort.
+    """
+    count = int(summary.get("drafts_created", 0) or 0)
+    if count <= 0:
+        return False
+    to_email = (to_email or "").strip()
+    if not to_email:
+        return False
+    api_key, from_email = get_resend_credentials()
+    if not api_key:
+        print("[seo_agent] Resend API key unavailable; skipping new-drafts alert.")
+        return False
+    resend.api_key = api_key
+    try:
+        resend.Emails.send({
+            "from": from_email,
+            "to": [to_email],
+            "subject": f"📱 {count} new DataVision draft{'s' if count != 1 else ''} ready to review",
+            "html": render_new_drafts_alert_html(summary),
+        })
+        return True
+    except Exception as e:
+        print(f"[seo_agent] New-drafts alert failed: {e}")
+        return False
+
+
 def send_weekly_report(to_email: str, summary: Dict) -> bool:
     api_key, from_email = get_resend_credentials()
     if not api_key:
