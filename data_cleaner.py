@@ -160,6 +160,27 @@ def rename_column_step(df: pd.DataFrame, column: str | None = None,
     return out, "Skipped — invalid rename parameters", {"changes": []}
 
 
+def record_decision_step(df: pd.DataFrame,
+                         column: str | None = None,
+                         decision: str | None = None,
+                         note: str | None = None,
+                         **_params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+    """A pass-through step that records a user decision in the Applied
+    Steps panel. Used by the Proactive Question Bar when the chosen
+    answer has no concrete transform yet (e.g., 'keep as text', 'treat
+    as primary currency') so the decision is still visible, reorderable,
+    and reversible — matching Power Query-style auditability."""
+    label_bits = []
+    if column:
+        label_bits.append(f"`{column}`")
+    if decision:
+        label_bits.append(decision)
+    if note:
+        label_bits.append(note)
+    summary = "Decision recorded" + (": " + " · ".join(label_bits) if label_bits else "")
+    return df, summary, {"changes": [summary]}
+
+
 # Declarative parameter schema per substep. The UI uses this to render
 # threshold-tuning controls in the Applied Steps panel; backend functions
 # read defaults from here via `_params_for`. Add new entries here to expose
@@ -250,6 +271,15 @@ SUBSTEP_REGISTRY: Dict[str, Dict[str, Any]] = {
         ],
         "insertable": True,
     },
+    "record_decision": {
+        "label": "Record Decision",
+        "fn": record_decision_step,
+        # Inserted programmatically by the Proactive Question Bar — not
+        # offered in the manual "Insert step" picker, which is for
+        # actions that change the data.
+        "params": [],
+        "insertable": False,
+    },
 }
 
 # Transforms (Add Column from Examples, Merge, Split, Replace, Conditional,
@@ -288,6 +318,13 @@ def substep_label(key: str, params: Dict[str, Any] | None = None) -> str:
         return f"Drop Column · {params['column']}"
     if key == "rename_column" and params.get("column"):
         return f"Rename · {params['column']} → {params.get('new_name', '?')}"
+    if key == "record_decision":
+        bits = []
+        if params.get("column"):
+            bits.append(str(params["column"]))
+        if params.get("decision"):
+            bits.append(str(params["decision"]))
+        return "Decision · " + " · ".join(bits) if bits else "Decision"
     return base
 
 

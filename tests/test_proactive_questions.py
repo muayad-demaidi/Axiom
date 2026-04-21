@@ -124,6 +124,47 @@ def test_resolve_answer_insert_substep():
     assert out == {"substep_key": "trim_whitespace", "params": {}}
 
 
+def test_resolve_answer_record_decision_emits_substep():
+    """Non-skip answers must always produce an Applied Steps entry."""
+    q = Question(id="x", kind="multi_currency", prompt="", context="",
+                 options=[QuestionOption(
+                     label="Treat all as $", action="record_decision",
+                     payload={"column": "price", "decision": "treat_as_$"})])
+    out = resolve_answer(q, q.options[0])
+    assert out is not None
+    assert out["substep_key"] == "record_decision"
+    assert out["params"]["column"] == "price"
+    assert "treat_as_$" in out["params"]["decision"]
+
+
+def test_resolve_answer_cast_column_emits_decision_step():
+    """Cast answers fall back to a TODO decision step rather than no-op."""
+    q = Question(id="x", kind="ambiguous_date", prompt="", context="",
+                 options=[QuestionOption(
+                     label="DD/MM/YYYY", action="cast_column",
+                     payload={"column": "d", "target_type": "date",
+                              "date_order": "DMY"})])
+    out = resolve_answer(q, q.options[0])
+    assert out is not None
+    assert out["substep_key"] == "record_decision"
+    assert out["params"]["column"] == "d"
+    assert "DMY" in out["params"]["decision"]
+    assert out["params"]["note"]
+
+
+def test_record_decision_substep_runs_as_pass_through():
+    """The record_decision substep must execute without changing data."""
+    import pandas as pd
+    from data_cleaner import run_substep
+    df = pd.DataFrame({"a": [1, 2, 3]})
+    out, summary, _ = run_substep(
+        "record_decision", df,
+        {"column": "a", "decision": "keep_as_text"},
+    )
+    assert out.equals(df)
+    assert "keep_as_text" in summary
+
+
 def test_question_ids_are_stable_per_dataset():
     df = pd.DataFrame({
         "amount": ["10", "20", "30", "Pending", "40", "50", "Pending",

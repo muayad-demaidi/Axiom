@@ -458,20 +458,28 @@ def resolve_answer(question: "Question", option: "QuestionOption") -> Optional[d
     p = option.payload or {}
     if a == "skip":
         return None
-    if a == "record_decision":
-        return None
     if a == "drop_column":
         return {"substep_key": "drop_column", "params": {"column": p["column"]}}
     if a == "insert_substep":
         return {"substep_key": p["substep_key"], "params": p.get("params", {})}
+    if a == "record_decision":
+        # No concrete transform — emit a Record Decision step so the
+        # answer is still visible and reversible from Applied Steps.
+        return {"substep_key": "record_decision",
+                "params": {"column": p.get("column"),
+                           "decision": p.get("decision") or option.label}}
     if a == "cast_column":
-        # Defer to the rename_column substep is wrong here — there is no
-        # generic "cast" substep in the registry yet. We surface the
-        # decision through record_decision semantics; the dashboard's
-        # Changed Type panel already lets the user apply the cast
-        # explicitly. Returning None means: log the answer + no plan
-        # mutation. This avoids crashing when a future cast substep
-        # isn't registered yet (per task: "if none exists, store the
-        # decision and surface a TODO step rather than crashing").
-        return None
+        # No generic 'cast column' substep exists in the registry yet
+        # (the Changed Type panel handles casts explicitly). Per the
+        # task spec — "if none exists, store the decision and surface a
+        # TODO step rather than crashing" — we emit a Record Decision
+        # step carrying the desired column + target type so the answer
+        # appears in Applied Steps.
+        decision = f"cast → {p.get('target_type', '?')}"
+        if p.get("date_order"):
+            decision += f" ({p['date_order']})"
+        return {"substep_key": "record_decision",
+                "params": {"column": p.get("column"),
+                           "decision": decision,
+                           "note": "TODO: apply via Changed Type"}}
     return None
