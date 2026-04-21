@@ -11,15 +11,66 @@ from email_service import get_resend_credentials
 from .config import load_config
 
 
+def _normalise_base_url(value: str) -> Optional[str]:
+    """Return ``https://host[/path]`` from a raw URL or bare hostname."""
+    raw = (value or "").strip()
+    if not raw:
+        return None
+    if "://" not in raw:
+        raw = "https://" + raw.lstrip("/")
+    parts = urlsplit(raw)
+    if not parts.scheme or not parts.netloc:
+        return None
+    return urlunsplit((parts.scheme, parts.netloc, parts.path or "", "", ""))
+
+
+def autodetect_app_url() -> Optional[str]:
+    """Auto-detect the deployed Streamlit base URL from Replit env vars.
+
+    Prefers ``REPLIT_DOMAINS`` (set in deployments and workspaces) and
+    falls back to ``REPLIT_DEV_DOMAIN``. Returns ``None`` when neither
+    is available.
+    """
+    domains = (os.environ.get("REPLIT_DOMAINS") or "").strip()
+    if domains:
+        first = domains.split(",")[0].strip()
+        url = _normalise_base_url(first)
+        if url:
+            return url
+    dev = (os.environ.get("REPLIT_DEV_DOMAIN") or "").strip()
+    if dev:
+        return _normalise_base_url(dev)
+    return None
+
+
+def resolve_public_app_url() -> Optional[str]:
+    """Resolve the public base URL for the Streamlit app.
+
+    Precedence: explicit ``SEO_AGENT_PUBLIC_APP_URL`` env var override →
+    saved ``AgentConfig.public_app_url`` → auto-detected Replit
+    deployment domain. Returns ``None`` if none can be determined.
+    """
+    env_override = _normalise_base_url(os.environ.get("SEO_AGENT_PUBLIC_APP_URL") or "")
+    if env_override:
+        return env_override
+    try:
+        cfg = load_config()
+        cfg_url = _normalise_base_url(getattr(cfg, "public_app_url", "") or "")
+        if cfg_url:
+            return cfg_url
+    except Exception:
+        pass
+    return autodetect_app_url()
+
+
 def public_review_url() -> Optional[str]:
     """Build the token-gated public review URL for the Streamlit app.
 
-    Requires both the ``SEO_AGENT_PUBLIC_APP_URL`` env var (e.g. the
-    deployed app's base URL) and ``AgentConfig.admin_review_token`` to
-    be set. Returns ``None`` if either is missing so callers can render
-    a graceful fallback in the email.
+    Combines :func:`resolve_public_app_url` with
+    ``AgentConfig.admin_review_token``. Returns ``None`` if no base URL
+    can be resolved or no token has been set.
     """
-    base = (os.environ.get("SEO_AGENT_PUBLIC_APP_URL") or "").strip()
+    base = resolve_public_app_url()
     cfg = load_config()
     token = (cfg.admin_review_token or "").strip()
     if not base or not token:
@@ -76,9 +127,9 @@ def render_html(summary: Dict) -> str:
     else:
         review_block = ""
         admin_hint = ("Review and approve drafts in the DataVision Pro admin panel "
-                      "(Admin → SEO/GEO Agent → Review queue). Set "
-                      "<code>SEO_AGENT_PUBLIC_APP_URL</code> and an "
-                      "<code>admin_review_token</code> to enable the mobile review link.")
+                      "(Admin → SEO/GEO Agent → Review queue). Set an "
+                      "<code>admin_review_token</code> in that tab to enable "
+                      "the mobile review link.")
 
     return f"""
     <div style="font-family:'Inter',Arial,sans-serif;max-width:680px;margin:0 auto;

@@ -5007,6 +5007,36 @@ def show_seo_agent_admin():
                      "Use the 'Generate new token' button below the form to "
                      "create a strong random one, then click Save.",
             )
+            from seo_agent.report import (
+                autodetect_app_url as _seo_autodetect_url,
+                resolve_public_app_url as _seo_resolved_url,
+            )
+            _detected = _seo_autodetect_url() or ""
+            _resolved_now = _seo_resolved_url() or ""
+            _placeholder = _detected or "https://your-app.example.com"
+            _help_bits = [
+                "Base URL of this Streamlit app — used to build the mobile "
+                "review link in the weekly email.",
+            ]
+            if _detected:
+                _help_bits.append(f"Auto-detected: {_detected}")
+            _help_bits.append(
+                "Leave blank to use the auto-detected URL (or set the "
+                "`SEO_AGENT_PUBLIC_APP_URL` env var to force a value)."
+            )
+            public_app_url = st.text_input(
+                "Public app URL (mobile review link)",
+                cfg.public_app_url,
+                placeholder=_placeholder,
+                help=" ".join(_help_bits),
+            )
+            if _resolved_now:
+                st.caption(f"Resolved review base URL: `{_resolved_now}`")
+            else:
+                st.caption(
+                    "No public URL detected yet — set one above or deploy "
+                    "the app so the URL can be auto-detected."
+                )
             st.markdown("**Sources enabled**")
             sc1, sc2, sc3, sc4 = st.columns(4)
             s_reddit = sc1.checkbox("Reddit", cfg.sources_enabled.get("reddit", True))
@@ -5050,6 +5080,7 @@ def show_seo_agent_admin():
                 cfg.notify_on_new_drafts = bool(notify_on)
                 cfg.notify_email_to = (notify_to or "").strip()
                 cfg.admin_review_token = (review_token or "").strip()
+                cfg.public_app_url = (public_app_url or "").strip()
                 cfg.sources_enabled = {
                     "reddit": s_reddit, "hackernews": s_hn,
                     "stackoverflow": s_so, "google_trends": s_gt,
@@ -5073,21 +5104,30 @@ def show_seo_agent_admin():
                 st.session_state["_seo_suggested_token"] = _secrets.token_urlsafe(32)
                 st.rerun()
         with lcol:
-            from seo_agent.report import public_review_url as _pru
+            from seo_agent.report import (
+                public_review_url as _pru,
+                resolve_public_app_url as _rpau,
+            )
             _url = _pru()
             if _url:
                 st.success("Public review link is live.")
                 st.code(_url, language="text")
             elif (cfg.admin_review_token or "").strip():
-                st.info(
-                    "Token set. To enable the mobile review link in the weekly "
-                    "email, set the `SEO_AGENT_PUBLIC_APP_URL` environment "
-                    "variable to your deployed Streamlit URL."
-                )
+                if _rpau():
+                    st.info(
+                        "Token set and base URL detected, but the link could "
+                        "not be built. Double-check the public app URL above."
+                    )
+                else:
+                    st.info(
+                        "Token set. Add the deployed Streamlit URL above (or "
+                        "publish the app so it can be auto-detected) to enable "
+                        "the mobile review link."
+                    )
             else:
                 st.caption(
-                    "Set a token (and `SEO_AGENT_PUBLIC_APP_URL`) to enable "
-                    "the public mobile review link."
+                    "Set a review token to enable the public mobile review "
+                    "link — the app URL is auto-detected after deploy."
                 )
 
     with sub_tabs[4]:

@@ -53,6 +53,7 @@ class AgentConfig:
         "Cheapest AI tool to clean and analyse a 100k-row CSV?",
     ])
     admin_review_token: str = ""            # gates the marketing-site review URL
+    public_app_url: str = ""                # base URL used to build the mobile review link
     refresh_after_days: int = 90
     report_email_to: str = "muayad.demaidi.work@gmail.com"
     notify_on_new_drafts: bool = False      # opt-in instant alert when drafts land
