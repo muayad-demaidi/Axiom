@@ -3169,17 +3169,15 @@ def show_login_page():
 <ul class="lp-footer-links-list">
 <li><a href="/" target="_self">Home</a></li>
 <li><a href="/#features" target="_self">Features</a></li>
-<li><a href="/#pricing" target="_self">Pricing &amp; Plans</a></li>
 <li><a href="/#how" target="_self">How It Works</a></li>
+<li><a href="/#pricing" target="_self">Pricing &amp; Plans</a></li>
 </ul>
 </div>
 <div>
 <div class="lp-footer-col-title">Support</div>
 <ul class="lp-footer-links-list">
 <li><a href="/#contact" target="_self">Contact Us</a></li>
-<li><a href="mailto:muayad.demaidi.work@gmail.com">Account Help</a></li>
-<li><a href="mailto:muayad.demaidi.work@gmail.com">Report an Issue</a></li>
-<li><a href="/" target="_self">60-Day Free Trial</a></li>
+<li><a href="mailto:muayad.demaidi.work@gmail.com">Email Support</a></li>
 </ul>
 </div>
 <div>
@@ -3510,16 +3508,15 @@ def show_register_page():
 </div>
 <div class="lp-footer-col">
 <div class="lp-footer-col-title">PLATFORM</div>
+<a class="lp-footer-link" href="/" target="_self">Home</a>
 <a class="lp-footer-link" href="/#features" target="_self">Features</a>
 <a class="lp-footer-link" href="/#how" target="_self">How It Works</a>
 <a class="lp-footer-link" href="/#pricing" target="_self">Pricing</a>
-<a class="lp-footer-link" href="?signin=1" target="_self">Sign In</a>
 </div>
 <div class="lp-footer-col">
 <div class="lp-footer-col-title">SUPPORT</div>
 <a class="lp-footer-link" href="/#contact" target="_self">Contact Us</a>
 <a class="lp-footer-link" href="mailto:muayad.demaidi.work@gmail.com">Email Support</a>
-<a class="lp-footer-link" href="/#contact" target="_self">Help Center</a>
 </div>
 <div class="lp-footer-col">
 <div class="lp-footer-col-title">LEARN</div>
@@ -6579,19 +6576,17 @@ def show_home_page():
 <div>
 <div class="lp-footer-col-title">Platform</div>
 <ul class="lp-footer-links-list">
-<li><a href="#">Features</a></li>
-<li><a href="#">How It Works</a></li>
-<li><a href="#">Pricing &amp; Plans</a></li>
-<li><a href="#">60-Day Free Trial</a></li>
+<li><a href="/" target="_self">Home</a></li>
+<li><a href="/#features" target="_self">Features</a></li>
+<li><a href="/#how" target="_self">How It Works</a></li>
+<li><a href="/#pricing" target="_self">Pricing &amp; Plans</a></li>
 </ul>
 </div>
 <div>
 <div class="lp-footer-col-title">Support</div>
 <ul class="lp-footer-links-list">
-<li><a href="#">Contact Us</a></li>
-<li><a href="#">Documentation</a></li>
-<li><a href="#">Account Help</a></li>
-<li><a href="#">Report an Issue</a></li>
+<li><a href="/#contact" target="_self">Contact Us</a></li>
+<li><a href="mailto:muayad.demaidi.work@gmail.com">Email Support</a></li>
 </ul>
 </div>
 <div>
