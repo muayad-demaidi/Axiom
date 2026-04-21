@@ -125,6 +125,15 @@ def test_materialize_join_string_vs_int_keys():
     assert set(out["label"]) == {"x", "y", "z"}
 
 
+def test_materialize_join_full_alias_maps_to_outer():
+    """The user-facing `full` join name must work the same as `outer`."""
+    a = pd.DataFrame({"k": [1, 2], "v": ["a", "b"]})
+    b = pd.DataFrame({"k": [2, 3], "label": ["x", "y"]})
+    full = materialize_join(a, b, "k", "k", join_type="full",
+                            left_label="A", right_label="B")
+    assert len(full) == 3  # all keys preserved
+
+
 def test_materialize_join_does_not_match_nulls():
     """Null keys on either side must never join (SQL semantics)."""
     a = pd.DataFrame({"k": [1, 2, None, None], "v": ["a", "b", "c", "d"]})

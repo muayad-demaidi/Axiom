@@ -462,8 +462,18 @@ def save_relationship(db, user_id, left_dataset_id, left_column,
                       right_dataset_id, right_column,
                       cardinality="1:N", join_type="left"):
     """Persist a confirmed relationship; refuses obvious self-joins on
-    identical (dataset, column) pairs because they're never meaningful."""
+    identical (dataset, column) pairs because they're never meaningful.
+
+    Defensively re-checks that *both* datasets belong to ``user_id`` so a
+    spoofed dataset id from a hand-crafted form submission cannot create
+    a relationship pointing at someone else's data."""
     if (left_dataset_id == right_dataset_id and left_column == right_column):
+        return None
+    owned = (db.query(DatasetRecord.id)
+               .filter(DatasetRecord.user_id == user_id,
+                       DatasetRecord.id.in_([left_dataset_id, right_dataset_id]))
+               .all())
+    if len({row[0] for row in owned}) != 2:
         return None
     rel = DatasetRelationship(
         user_id=user_id,

@@ -254,7 +254,10 @@ def suggest_relationships(
 # Public API: materialize_join
 # --------------------------------------------------------------------------
 
-VALID_JOINS = ("inner", "left", "right", "outer")
+VALID_JOINS = ("inner", "left", "right", "full")
+
+# UI-facing names ("full") map to pandas merge how= names ("outer").
+_JOIN_ALIASES = {"full": "outer", "outer": "outer"}
 
 
 def materialize_join(
@@ -279,7 +282,10 @@ def materialize_join(
     if right_col not in right.columns:
         raise ValueError(f"Right column '{right_col}' not in right dataframe.")
     jt = (join_type or "left").lower()
-    if jt not in VALID_JOINS:
+    # Accept both the user-facing "full" and the pandas-native "outer".
+    if jt in _JOIN_ALIASES:
+        jt = _JOIN_ALIASES[jt]
+    elif jt not in VALID_JOINS:
         raise ValueError(f"join_type must be one of {VALID_JOINS}.")
 
     left_work = left.copy()

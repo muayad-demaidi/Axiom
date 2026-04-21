@@ -4006,14 +4006,21 @@ def render_clickable_logo(key_suffix=""):
 # --------------------------------------------------------------------------
 
 @st.cache_data(ttl=600, show_spinner=False, max_entries=32)
-def _load_dataset_active_df(dataset_id, recipe_sig):  # noqa: ARG001 — sig for cache
+def _load_dataset_active_df(dataset_id, recipe_sig, owner_uid=None):  # noqa: ARG001 — sig for cache
     """Materialise a saved dataset at its active step. ``recipe_sig`` is a
     cheap fingerprint (recipe count + active index) so the cache busts
-    automatically when the user appends or reorders steps elsewhere."""
+    automatically when the user appends or reorders steps elsewhere.
+
+    When ``owner_uid`` is supplied the loader refuses to return any
+    dataset whose ``user_id`` does not match — defence-in-depth against
+    a tampered dataset id reaching the suggestion engine."""
     db = get_db()
     try:
-        rec = db.query(__import__("models").DatasetRecord).filter_by(id=dataset_id).first()
+        DatasetRecord = __import__("models").DatasetRecord
+        rec = db.query(DatasetRecord).filter_by(id=dataset_id).first()
         if rec is None or not rec.source_parquet:
+            return None
+        if owner_uid is not None and rec.user_id != owner_uid:
             return None
         source_df = deserialize_source_df(rec.source_parquet)
         if not rec.step_recipes:
@@ -4090,8 +4097,6 @@ def _render_model_section(uid):
             if st.button(
                 f"{label_prefix}{ds.dataset_name}",
                 key=f"model_card_{ds.id}",
-                help=f"{ds.row_count:,} rows · {ds.column_count} cols · "
-                     f"updated {ds.upload_date.strftime('%Y-%m-%d')}",
                 use_container_width=True,
                 type=("primary" if in_canvas else "secondary"),
             ):
@@ -4100,7 +4105,10 @@ def _render_model_section(uid):
                 else:
                     canvas_ids.add(ds.id)
                 st.rerun()
-            st.caption(f"{ds.row_count:,} rows · {ds.column_count} cols")
+            st.caption(
+                f"{ds.row_count:,} rows · {ds.column_count} cols · "
+                f"updated {ds.upload_date.strftime('%Y-%m-%d')}"
+            )
 
     if len(canvas_ids) < 2:
         st.markdown("---")
@@ -4145,8 +4153,8 @@ def _render_model_section(uid):
             format_func=label_for, key=f"model_right_{uid}",
         )
 
-    left_df = _load_dataset_active_df(left_ds.id, _recipe_signature(left_ds))
-    right_df = _load_dataset_active_df(right_ds.id, _recipe_signature(right_ds))
+    left_df = _load_dataset_active_df(left_ds.id, _recipe_signature(left_ds), owner_uid=uid)
+    right_df = _load_dataset_active_df(right_ds.id, _recipe_signature(right_ds), owner_uid=uid)
     if left_df is None or right_df is None:
         st.warning("Could not load one of the datasets — re-open it from the Overview tab to refresh.")
         return
