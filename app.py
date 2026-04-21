@@ -1902,6 +1902,10 @@ def _commit_unified_plan(sh: StepHistory, plan: list, ds_key) -> None:
         st.session_state.df = last_typed.df
     elif len(new_steps) >= 2:
         st.session_state.df = new_steps[1].df
+    elif new_steps:
+        # Only Source survived — keep df in sync so dashboard tabs that
+        # read st.session_state.df directly don't show a stale frame.
+        st.session_state.df = new_steps[0].df
     if last_cleaning is not None:
         st.session_state.df_cleaned = last_cleaning.df
     else:
@@ -4031,9 +4035,14 @@ def show_dashboard():
 
                         def _commit_plan(new_plan):
                             # Map cleaning-only mutations onto the unified plan
-                            # so reorder/remove work uniformly across step kinds.
+                            # while preserving the position of every
+                            # non-cleaning step (Promoted Headers, Changed
+                            # Type, manual overrides). The whole cleaning
+                            # block is rewritten in-place at the slot of
+                            # the first existing cleaning step; if there
+                            # was none, the new cleaning entries land at
+                            # the end of the unified plan.
                             u_now = _build_unified_plan(sh)
-                            kept_non_cleaning = [e for e in u_now if e["kind"] != "cleaning_substep"]
                             new_cleaning_entries = []
                             for entry in new_plan:
                                 existing = next((e for e in u_now
@@ -4054,7 +4063,20 @@ def show_dashboard():
                                         "params": dict(entry.get("params") or {}),
                                         "meta_extra": {"substep_key": entry["key"]},
                                     })
-                            _commit_unified_plan(sh, kept_non_cleaning + new_cleaning_entries, ds_key)
+                            merged = []
+                            inserted = False
+                            for e in u_now:
+                                if e["kind"] == "cleaning_substep":
+                                    if not inserted:
+                                        merged.extend(new_cleaning_entries)
+                                        inserted = True
+                                    # drop original cleaning entries — the new
+                                    # block has already been spliced in
+                                else:
+                                    merged.append(e)
+                            if not inserted:
+                                merged.extend(new_cleaning_entries)
+                            _commit_unified_plan(sh, merged, ds_key)
 
                         with ctrl_col:
                             st.markdown(f"**Active:** `{sh.current().name}`")
