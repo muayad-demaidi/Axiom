@@ -18,7 +18,7 @@ rows:
   them: Limited — calculated fields and data blending only
 - feature: AI chat over your data
   us: Built-in (GPT-powered)
-  them: Gemini in Looker Studio Pro [verify against current Google pricing]
+  them: Gemini in Looker Studio Pro ($9/user/project/month, per Google Cloud pricing as of April 2026)
 - feature: Built-in ML
   us: K-Means + RandomForest + linear models
   them: None natively; requires BigQuery ML or Vertex AI
@@ -47,7 +47,7 @@ whenToChoose:
   - You're standing up marketing or product reporting on a Google stack.
 faq:
 - q: Is Looker Studio really free?
-  a: Yes — the standard product is free for any Google account. Looker Studio Pro adds enterprise features (team workspaces, asset management, support) at a per-project monthly fee. [verify against current Google pricing]
+  a: Yes — the standard product is free for any Google account. Looker Studio Pro adds enterprise features (team workspaces, asset management, support) at $9/user/project/month as of April 2026, billed through Google Cloud.
 - q: Does DataVision Pro connect to BigQuery?
   a: Today it consumes CSV/Excel uploads. Direct warehouse connectors are on the roadmap. For now, export the relevant slice from BigQuery to CSV and upload it.
 - q: Which is better for AI?

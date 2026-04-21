@@ -21,7 +21,7 @@ rows:
   them: Not really — Metabase assumes the warehouse is already clean
 - feature: AI features
   us: GPT-powered chat + auto-generated reports
-  them: Metabot AI for natural-language questions [verify against current Metabase tier]
+  them: Metabot AI for natural-language questions; available on Metabase Pro Cloud and Enterprise tiers
 - feature: Built-in ML
   us: K-Means + RandomForest + linear models
   them: None — relies on SQL and your warehouse's ML if any
@@ -47,7 +47,7 @@ whenToChoose:
   - You need fine-grained permissions and audit logs that come with self-hosting.
 faq:
 - q: Is Metabase free?
-  a: The open-source edition is free to self-host. Metabase Cloud and Pro/Enterprise editions add managed hosting, SSO, and advanced permissions at per-user pricing. [verify against current Metabase pricing]
+  a: The open-source edition is free to self-host. As of April 2026, Metabase Starter Cloud begins at $85/month (5 users included, then $5/extra user), Pro Cloud at $500/month (10 users included, then $10/extra user), and Enterprise is custom-quoted.
 - q: Can DataVision Pro connect to my Postgres?
   a: Today it consumes CSV/Excel uploads. Direct database connectors are on the roadmap. For now, export the slice you need and upload it.
 - q: Which is better for AI?

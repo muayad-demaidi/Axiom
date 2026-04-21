@@ -8,7 +8,8 @@
     "build": "astro build",
     "postbuild": "node ../scripts/ping-search-engines.mjs",
     "preview": "astro preview --host 0.0.0.0 --port 8000",
-    "start": "astro preview --host 0.0.0.0 --port 8000"
+    "start": "astro preview --host 0.0.0.0 --port 8000",
+    "check:freshness": "node scripts/check-content-freshness.mjs"
   },
   "dependencies": {
     "astro": "^4.16.18"

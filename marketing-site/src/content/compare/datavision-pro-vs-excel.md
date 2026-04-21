@@ -21,7 +21,7 @@ rows:
     them: "None natively (Analysis ToolPak is descriptive only)"
   - feature: "AI chat over data"
     us: "Built-in"
-    them: "Copilot in Excel 365 (separate licence) [verify]"
+    them: "Copilot in Excel; requires a Microsoft 365 Copilot licence ($30/user/month) on top of M365"
   - feature: "Time-period comparison"
     us: "Built-in dataset history"
     them: "Manual workbook compare"
@@ -51,5 +51,5 @@ faq:
     a: "Same trade-offs apply. Sheets struggles past ~50k rows; DataVision Pro is comfortable into the millions."
   - q: "Do I lose my Excel skills?"
     a: "Not at all — the cleaning steps map 1:1 to operations you already know (filter, replace, drop column, dedupe). You just stop maintaining macros to run them."
-updated: "2026-04-15"
+updated: "2026-04-21"
 ---
