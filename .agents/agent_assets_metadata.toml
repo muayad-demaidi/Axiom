@@ -6,3 +6,9 @@ id = "6p4SnNwQ7rXe2Xw9o6Z4g"
 uri = "file://DataVision_Pro_Execution_Plan.pdf"
 type = "pdf"
 title = "خطة DataVision Pro التنفيذية الشاملة"
+
+[[outputs]]
+id = "6o3gj3HPyz5OEza0iowcN"
+uri = "file://ملخص_تحديثات_DataVisionPro.pdf"
+type = "pdf"
+title = "ملخص تحديثات DataVision Pro - أبريل 2026"
