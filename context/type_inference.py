@@ -25,6 +25,9 @@ import pandas as pd
 
 _BOOL_TRUE = {"true", "false", "yes", "no", "y", "n", "0", "1",
               "نعم", "لا", "صح", "خطأ"}
+_JUNK_TOKENS = {"", "nan", "na", "n/a", "null", "none", "-", "--", "?",
+                "error", "err", "#n/a", "#error", "#null!", "#div/0!",
+                "#value!", "#ref!", "#name?", "#num!", "missing", "unknown"}
 _CURRENCY_SYMBOLS = "$€£¥₪₺₩₽﷼"
 _CURRENCY_CODES = {"USD", "EUR", "GBP", "SAR", "AED", "JPY", "CNY",
                    "KWD", "QAR", "BHD", "OMR", "JOD", "EGP", "ILS", "TRY"}
@@ -88,8 +91,11 @@ def _is_int(v: str) -> bool:
 
 
 def _is_dec(v: str) -> bool:
+    """A 'decimal' covers any well-formed number (integer or fractional). The
+    integer/decimal split is decided downstream by a tie-break — this lets a
+    column with a mix of '4886' and '3534.86' score as numeric overall."""
     s = _strip(v)
-    return bool(_RE_DEC.match(s)) and not _RE_INT.match(s)
+    return bool(_RE_DEC.match(s) or _RE_INT.match(s))
 
 
 def _is_pct(v: str) -> bool:
@@ -130,10 +136,22 @@ def _is_date_str(v: str) -> bool:
 # Public API
 # --------------------------------------------------------------------------
 
+def _is_junk(v) -> bool:
+    try:
+        if v is None:
+            return True
+        s = str(v).strip().lower()
+        return s in _JUNK_TOKENS
+    except Exception:
+        return False
+
+
 def infer_column_type(series: pd.Series, name_hint: str = "") -> ColumnType:
     """Infer the most likely Power Query-style type for a single column."""
     name_l = (name_hint or series.name or "").lower() if hasattr(series, "name") else ""
     raw = series.dropna()
+    if not raw.empty and raw.dtype == object:
+        raw = raw[~raw.map(_is_junk)]
     sample_values = [str(x) for x in raw.head(5).tolist()]
 
     if raw.empty:
@@ -225,9 +243,10 @@ def schema_to_dataframe(schema: list[ColumnType]) -> pd.DataFrame:
 # --------------------------------------------------------------------------
 
 def _clean_numeric(s: pd.Series) -> pd.Series:
-    return (s.astype(str)
-              .str.replace(",", "", regex=False)
-              .str.replace(r"\s+", "", regex=True))
+    out = s.astype(str).str.strip()
+    out = out.where(~out.str.lower().isin(_JUNK_TOKENS), other="")
+    return (out.str.replace(",", "", regex=False)
+               .str.replace(r"\s+", "", regex=True))
 
 
 def cast_column(series: pd.Series, target_type: str) -> pd.Series:
@@ -249,7 +268,18 @@ def cast_column(series: pd.Series, target_type: str) -> pd.Series:
                 cleaned = cleaned.str.replace(rf"\b{code}\b", "", regex=True)
             return pd.to_numeric(_clean_numeric(cleaned), errors="coerce")
         if t in ("date", "datetime"):
-            return pd.to_datetime(series, errors="coerce", dayfirst=True)
+            s = series.astype(str).str.strip()
+            s = s.where(~s.str.lower().isin(_JUNK_TOKENS), other=pd.NA)
+            ymd_mask = s.str.match(r"^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}", na=False)
+            try:
+                out = pd.to_datetime(s.where(ymd_mask), errors="coerce", format="mixed", yearfirst=True)
+            except Exception:
+                out = pd.to_datetime(s.where(ymd_mask), errors="coerce", yearfirst=True)
+            try:
+                rest = pd.to_datetime(s.where(~ymd_mask), errors="coerce", format="mixed", dayfirst=True)
+            except Exception:
+                rest = pd.to_datetime(s.where(~ymd_mask), errors="coerce", dayfirst=True)
+            return out.fillna(rest)
         if t == "time":
             return pd.to_datetime(series, errors="coerce", format=None).dt.time
         if t == "boolean":

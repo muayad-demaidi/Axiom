@@ -5,6 +5,12 @@ import hashlib
 from datetime import datetime
 import io
 import base64
+import csv as _csv
+
+from context.type_inference import (
+    infer_schema, apply_schema, schema_to_dataframe, cast_column, ColumnType
+)
+from context.step_history import StepHistory
 
 from models import (
     init_db, get_db, save_dataset_record, find_similar_datasets, 
@@ -1322,6 +1328,48 @@ if 'chat_messages' not in st.session_state:
     st.session_state.chat_messages = []
 if 'current_dataset_id' not in st.session_state:
     st.session_state.current_dataset_id = None
+if 'step_histories' not in st.session_state:
+    st.session_state.step_histories = {}
+if 'inferred_schema' not in st.session_state:
+    st.session_state.inferred_schema = {}
+if 'type_overrides' not in st.session_state:
+    st.session_state.type_overrides = {}
+
+
+def _ds_key():
+    return st.session_state.get('current_dataset_id') or '__local__'
+
+
+def _get_step_history(create=False):
+    key = _ds_key()
+    sh = st.session_state.step_histories.get(key)
+    if sh is None and create:
+        sh = StepHistory()
+        st.session_state.step_histories[key] = sh
+    return sh
+
+
+def _active_df():
+    """Return the dataframe at the currently active pipeline step.
+    Falls back to df_cleaned -> df when no step history exists."""
+    sh = _get_step_history()
+    if sh and not sh.is_empty():
+        cur = sh.current_df()
+        if cur is not None:
+            return cur
+    if st.session_state.get('df_cleaned') is not None:
+        return st.session_state.df_cleaned
+    return st.session_state.get('df')
+
+
+def _active_step_signature():
+    """Stable cache-key fragment for the currently active step."""
+    sh = _get_step_history()
+    if sh and not sh.is_empty():
+        return f"{_ds_key()}::{sh.active_index}::{sh.current().name}"
+    return f"{_ds_key()}::raw"
+
+
 # ── Cached wrappers (keyed by dataset id, df hashing skipped via _ prefix) ──
 @st.cache_data(ttl=3600, show_spinner=False)
 def _c_quality_score(_df, dataset_id):
@@ -1487,63 +1535,133 @@ def calculate_data_hash(df):
     return hashlib.md5(columns_str.encode()).hexdigest()
 
 
-def load_file(uploaded_file):
-    """Load CSV or Excel file with multi-encoding support for Arabic and other languages"""
-    ENCODINGS = [
-        'utf-8',
-        'utf-8-sig',
-        'cp1256',
-        'windows-1256', 
-        'iso-8859-6',
-        'utf-16',
-        'latin-1',
-        'cp1252'
-    ]
-    
+_CSV_ENCODINGS = [
+    'utf-8', 'utf-8-sig', 'cp1256', 'windows-1256',
+    'iso-8859-6', 'utf-16', 'latin-1', 'cp1252',
+]
+_CSV_DELIMITERS = [',', ';', '\t', '|']
+_DELIM_LABELS = {',': 'Comma (,)', ';': 'Semicolon (;)',
+                 '\t': 'Tab (\\t)', '|': 'Pipe (|)'}
+
+
+def _decode_bytes(file_bytes):
+    """Try a list of encodings and return (text, encoding) or (None, None)."""
+    for enc in _CSV_ENCODINGS:
+        try:
+            text = file_bytes.decode(enc)
+            if '\ufffd' in text[:4096]:
+                continue
+            return text, enc
+        except (UnicodeDecodeError, UnicodeError):
+            continue
     try:
-        if uploaded_file.name.endswith('.csv'):
+        return file_bytes.decode('utf-8', errors='replace'), 'utf-8'
+    except Exception:
+        return None, None
+
+
+def sniff_csv_options(file_bytes):
+    """Inspect raw CSV bytes and guess encoding, delimiter, and whether the
+    first row is a header. Returns a dict with confidence flags."""
+    text, encoding = _decode_bytes(file_bytes)
+    if not text:
+        return {'encoding': 'utf-8', 'delimiter': ',', 'delimiter_confident': False,
+                'has_header': True, 'header_confident': False, 'preview': '', 'error': 'decode_failed'}
+    sample = text[:8192]
+    delimiter = ','
+    delim_confident = False
+    try:
+        dialect = _csv.Sniffer().sniff(sample, delimiters=''.join(_CSV_DELIMITERS))
+        if dialect.delimiter in _CSV_DELIMITERS:
+            delimiter = dialect.delimiter
+            delim_confident = True
+    except Exception:
+        # Fallback: count occurrences in the first non-empty line
+        first_line = next((ln for ln in sample.splitlines() if ln.strip()), '')
+        counts = {d: first_line.count(d) for d in _CSV_DELIMITERS}
+        delimiter = max(counts, key=counts.get) if any(counts.values()) else ','
+        delim_confident = max(counts.values()) >= 2 if counts else False
+    has_header = True
+    header_confident = False
+    try:
+        has_header = _csv.Sniffer().has_header(sample)
+        header_confident = True
+    except Exception:
+        # Heuristic: if first row has no numeric tokens, assume header
+        first_line = next((ln for ln in sample.splitlines() if ln.strip()), '')
+        toks = [t.strip() for t in first_line.split(delimiter)]
+        numeric_toks = sum(1 for t in toks if t.replace('.', '', 1).replace(',', '').lstrip('-+').isdigit())
+        has_header = numeric_toks <= max(0, len(toks) // 4)
+        header_confident = False
+    return {
+        'encoding': encoding,
+        'delimiter': delimiter,
+        'delimiter_confident': delim_confident,
+        'has_header': has_header,
+        'header_confident': header_confident,
+        'preview': '\n'.join(sample.splitlines()[:5]),
+    }
+
+
+def load_file(uploaded_file, delimiter=None, has_header=None, return_meta=False):
+    """Load CSV or Excel file. For CSVs, optionally accept explicit delimiter
+    and has_header overrides. Returns the DataFrame, or (df, meta) if
+    return_meta is True. meta includes the parser settings actually used."""
+    meta = {'kind': None, 'encoding': None, 'delimiter': None, 'has_header': None,
+            'sheet_name': None}
+    try:
+        name = uploaded_file.name.lower()
+        if name.endswith('.csv'):
             file_bytes = uploaded_file.read()
-            
+            sniff = sniff_csv_options(file_bytes)
+            chosen_delim = delimiter if delimiter else sniff['delimiter']
+            chosen_header = has_header if has_header is not None else sniff['has_header']
+            chosen_encoding = sniff['encoding'] or 'utf-8'
             df = None
-            successful_encoding = None
             last_error = None
-            
-            for encoding in ENCODINGS:
+            encodings_to_try = [chosen_encoding] + [e for e in _CSV_ENCODINGS if e != chosen_encoding]
+            for enc in encodings_to_try:
                 try:
-                    df = pd.read_csv(io.BytesIO(file_bytes), encoding=encoding)
-                    
+                    df = pd.read_csv(
+                        io.BytesIO(file_bytes), encoding=enc,
+                        sep=chosen_delim, header=0 if chosen_header else None,
+                        engine='python',
+                    )
                     if df.empty or len(df.columns) == 0:
                         continue
-                    
                     col_text = ''.join(str(c) for c in df.columns)
                     if '\ufffd' in col_text or '?' * 5 in col_text:
                         continue
-                    
-                    successful_encoding = encoding
+                    chosen_encoding = enc
                     break
-                except (UnicodeDecodeError, UnicodeError) as e:
-                    last_error = e
-                    continue
                 except Exception as e:
                     last_error = e
+                    df = None
                     continue
-            
             if df is None or df.empty:
-                st.error(f"Could not read file with any supported encoding. The file may be corrupted or use an unsupported format.")
-                return None
-            
-            return df
-            
-        elif uploaded_file.name.endswith(('.xlsx', '.xls')):
-            df = pd.read_excel(uploaded_file)
-            return df
+                st.error("Could not read file with any supported encoding. "
+                         "The file may be corrupted or use an unsupported format.")
+                return (None, meta) if return_meta else None
+            if not chosen_header:
+                df.columns = [f"Column_{i+1}" for i in range(len(df.columns))]
+            meta.update(kind='csv', encoding=chosen_encoding,
+                        delimiter=chosen_delim, has_header=bool(chosen_header))
+            return (df, meta) if return_meta else df
+
+        elif name.endswith(('.xlsx', '.xls')):
+            header_arg = 0 if (has_header is None or has_header) else None
+            df = pd.read_excel(uploaded_file, header=header_arg)
+            if has_header is False:
+                df.columns = [f"Column_{i+1}" for i in range(len(df.columns))]
+            meta.update(kind='excel', has_header=(header_arg == 0))
+            return (df, meta) if return_meta else df
         else:
             st.error("Unsupported file type. Please upload a CSV or Excel file.")
-            return None
-            
+            return (None, meta) if return_meta else None
+
     except Exception as e:
         st.error(f"Error reading file: {str(e)}")
-        return None
+        return (None, meta) if return_meta else None
 
 
 def _render_auth_chrome(logo_b64, action_label="Home", action_href="/"):
@@ -2629,40 +2747,135 @@ def show_dashboard():
                         finally:
                             db.close()
 
-        def run_analysis(file_obj, ds_name, p_month, p_year, lmts):
+        def _csv_options_panel(uploaded_file, key_prefix):
+            """Render CSV parser options (delimiter, header) and return overrides.
+            For non-CSV files, just returns (None, None)."""
+            name = uploaded_file.name.lower()
+            if not name.endswith('.csv'):
+                return None, None
+            cache_key = f"_sniff_cache_{key_prefix}_{uploaded_file.name}_{uploaded_file.size}"
+            if cache_key not in st.session_state:
+                pos = uploaded_file.tell() if hasattr(uploaded_file, 'tell') else 0
+                file_bytes = uploaded_file.read()
+                try:
+                    uploaded_file.seek(pos)
+                except Exception:
+                    pass
+                st.session_state[cache_key] = sniff_csv_options(file_bytes)
+            sniff = st.session_state[cache_key]
+            ambiguous = (not sniff['delimiter_confident']) or (not sniff['header_confident'])
+            with st.expander("CSV parsing options" + (" — please confirm" if ambiguous else ""),
+                             expanded=ambiguous):
+                if sniff.get('preview'):
+                    st.caption("First 5 rows of the raw file:")
+                    st.code(sniff['preview'], language="text")
+                opt_col1, opt_col2 = st.columns(2)
+                with opt_col1:
+                    delim_options = list(_DELIM_LABELS.keys())
+                    default_delim = sniff['delimiter'] if sniff['delimiter'] in delim_options else ','
+                    chosen_delim = st.selectbox(
+                        "Delimiter",
+                        options=delim_options,
+                        index=delim_options.index(default_delim),
+                        format_func=lambda d: _DELIM_LABELS[d] +
+                            (" — auto-detected" if d == sniff['delimiter'] and sniff['delimiter_confident'] else ""),
+                        key=f"{key_prefix}_delim",
+                    )
+                with opt_col2:
+                    header_choice = st.radio(
+                        "Use first row as headers?",
+                        options=["Yes", "No"],
+                        index=0 if sniff['has_header'] else 1,
+                        horizontal=True,
+                        key=f"{key_prefix}_hdr",
+                        help=("Auto-detected" if sniff['header_confident']
+                              else "Could not auto-detect — please confirm"),
+                    )
+                if ambiguous:
+                    st.info("The delimiter or header row could not be auto-detected with confidence. "
+                            "Please confirm the values above before running the analysis.")
+            return chosen_delim, (header_choice == "Yes")
+
+        def run_analysis(file_obj, ds_name, p_month, p_year, lmts,
+                         delimiter=None, has_header=None):
             with st.spinner("Loading and analyzing data..."):
-                df = load_file(file_obj)
-                if df is not None:
-                    if len(df) > lmts['max_rows']:
-                        st.error(f"Row count ({len(df):,}) exceeds the limit ({lmts['max_rows']:,})")
-                    else:
-                        st.session_state.df = df
-                        df_cleaned, cleaning_report = clean_data(df)
-                        st.session_state.df_cleaned = df_cleaned
-                        st.session_state.cleaning_report = cleaning_report
-                        analysis_results = generate_summary_report(df_cleaned)
-                        st.session_state.analysis_results = analysis_results
-                        data_hash = calculate_data_hash(df)
-                        columns_info = {col: str(df[col].dtype) for col in df.columns}
-                        db = get_db()
-                        try:
-                            record = save_dataset_record(
-                                db, filename=file_obj.name, dataset_name=ds_name,
-                                period_month=p_month, period_year=p_year,
-                                row_count=len(df), column_count=len(df.columns),
-                                columns_info=columns_info, data_hash=data_hash,
-                                summary_stats=sanitize_for_json(analysis_results.get('numeric_summary', {}))
-                            )
-                            st.session_state.current_dataset_id = record.id
-                            similar = find_similar_datasets(db, columns_info)
-                            similar = [s for s in similar if s['record']['id'] != record.id]
-                            st.session_state.similar_datasets = similar
-                            if st.session_state.user:
-                                increment_analysis_count(db, st.session_state.user.get('id'))
-                        finally:
-                            db.close()
-                        st.success("Analysis completed!")
-                        st.rerun()
+                # Reset upload position so a re-read works
+                try:
+                    file_obj.seek(0)
+                except Exception:
+                    pass
+                df_raw, parse_meta = load_file(file_obj, delimiter=delimiter,
+                                               has_header=has_header, return_meta=True)
+                if df_raw is None:
+                    return
+                if len(df_raw) > lmts['max_rows']:
+                    st.error(f"Row count ({len(df_raw):,}) exceeds the limit ({lmts['max_rows']:,})")
+                    return
+
+                # Build pipeline: Source -> Promoted Headers -> Changed Type -> Cleaning
+                history = StepHistory()
+                src_summary = (f"Read {parse_meta.get('kind','file')} — "
+                               f"delimiter `{parse_meta.get('delimiter') or 'n/a'}`, "
+                               f"encoding `{parse_meta.get('encoding') or 'n/a'}`, "
+                               f"{len(df_raw):,} rows × {len(df_raw.columns)} cols")
+                history.add("Source", src_summary, df_raw, meta={'parse': parse_meta})
+
+                if parse_meta.get('has_header'):
+                    history.add("Promoted Headers",
+                                "First row promoted to column names",
+                                df_raw, meta={})
+                else:
+                    history.add("Promoted Headers",
+                                "Headers auto-named (Column_1 … Column_N)",
+                                df_raw, meta={})
+
+                schema = infer_schema(df_raw)
+                df_typed = apply_schema(df_raw, schema)
+                changed = [s for s in schema if s.inferred_type not in ("text", "empty")]
+                type_summary = (f"{len(changed)} of {len(schema)} columns retyped — "
+                                + ", ".join(f"{s.column}→{s.inferred_type}"
+                                            for s in changed[:6])
+                                + ("…" if len(changed) > 6 else ""))
+                history.add("Changed Type", type_summary, df_typed,
+                            meta={'schema': [s.to_dict() for s in schema]})
+
+                df_cleaned, cleaning_report = clean_data(df_typed)
+                clean_summary = (f"Removed {cleaning_report.get('rows_removed', 0):,} rows, "
+                                 f"applied {len(cleaning_report.get('changes', []))} changes")
+                history.add("Cleaning", clean_summary, df_cleaned,
+                            meta={'report': cleaning_report})
+
+                st.session_state.df = df_typed
+                st.session_state.df_cleaned = df_cleaned
+                st.session_state.cleaning_report = cleaning_report
+                st.session_state.inferred_schema_obj = schema
+
+                analysis_results = generate_summary_report(df_cleaned)
+                st.session_state.analysis_results = analysis_results
+                data_hash = calculate_data_hash(df_typed)
+                columns_info = {col: str(df_typed[col].dtype) for col in df_typed.columns}
+                db = get_db()
+                try:
+                    record = save_dataset_record(
+                        db, filename=file_obj.name, dataset_name=ds_name,
+                        period_month=p_month, period_year=p_year,
+                        row_count=len(df_typed), column_count=len(df_typed.columns),
+                        columns_info=columns_info, data_hash=data_hash,
+                        summary_stats=sanitize_for_json(analysis_results.get('numeric_summary', {}))
+                    )
+                    st.session_state.current_dataset_id = record.id
+                    st.session_state.step_histories[record.id] = history
+                    st.session_state.inferred_schema[record.id] = [s.to_dict() for s in schema]
+                    st.session_state.type_overrides[record.id] = {}
+                    similar = find_similar_datasets(db, columns_info)
+                    similar = [s for s in similar if s['record']['id'] != record.id]
+                    st.session_state.similar_datasets = similar
+                    if st.session_state.user:
+                        increment_analysis_count(db, st.session_state.user.get('id'))
+                finally:
+                    db.close()
+                st.success("Analysis completed!")
+                st.rerun()
     
         if st.session_state.df is None:
             upload_col1, upload_col2, upload_col3 = st.columns([1, 2, 1])
@@ -2696,8 +2909,10 @@ def show_dashboard():
                         with col2:
                             period_year = st.selectbox("Year", range(2020, 2030), index=datetime.now().year - 2020)
                         dataset_name = st.text_input("Dataset Name", value=uploaded_file.name.split('.')[0])
+                        csv_delim, csv_hdr = _csv_options_panel(uploaded_file, "first")
                         if st.button("Start Analysis", type="primary", use_container_width=True):
-                            run_analysis(uploaded_file, dataset_name, period_month, period_year, limits)
+                            run_analysis(uploaded_file, dataset_name, period_month, period_year,
+                                         limits, delimiter=csv_delim, has_header=csv_hdr)
     
         if st.session_state.df is not None:
             with st.expander("Upload New Data", expanded=False):
@@ -2718,8 +2933,10 @@ def show_dashboard():
                         with col2:
                             period_year = st.selectbox("Year", range(2020, 2030), index=datetime.now().year - 2020, key="new_year")
                         dataset_name = st.text_input("Dataset Name", value=new_file.name.split('.')[0], key="new_name")
+                        csv_delim2, csv_hdr2 = _csv_options_panel(new_file, "next")
                         if st.button("Start Analysis", type="primary", use_container_width=True, key="new_analyze"):
-                            run_analysis(new_file, dataset_name, period_month, period_year, limits)
+                            run_analysis(new_file, dataset_name, period_month, period_year,
+                                         limits, delimiter=csv_delim2, has_header=csv_hdr2)
     
             _TAB_LABELS = [
                 "Overview",
@@ -2861,38 +3078,148 @@ def show_dashboard():
             with content_col:
                 if active_tab == _TAB_LABELS[0]:
                     _section_head("Data Overview", "A snapshot of the dataset — size, integrity, and field types.", "01 — Overview")
-                
+
+                    sh = _get_step_history()
+                    view_df = _active_df()
+                    sig = _active_step_signature()
+
                     col1, col2, col3, col4 = st.columns(4)
                     with col1:
-                        st.metric("Total Rows", f"{len(st.session_state.df):,}")
+                        st.metric("Total Rows", f"{len(view_df):,}")
                     with col2:
-                        st.metric("Total Columns", len(st.session_state.df.columns))
-                    _ds_id = st.session_state.current_dataset_id
+                        st.metric("Total Columns", len(view_df.columns))
                     with col3:
-                        if st.session_state.df_cleaned is not None:
-                            quality = _c_quality_score(st.session_state.df_cleaned, _ds_id)
-                            st.metric("Data Quality", f"{quality['overall_score']}%")
+                        quality = _c_quality_score(view_df, sig)
+                        st.metric("Data Quality", f"{quality['overall_score']}%")
                     with col4:
-                        missing_pct = _c_missing_pct(st.session_state.df, _ds_id)
+                        missing_pct = _c_missing_pct(view_df, sig)
                         st.metric("Missing Values", f"{missing_pct:.1f}%")
-                
+
+                    # ── Applied Steps panel (Power Query-style) ──
+                    if sh and not sh.is_empty():
+                        st.subheader("Applied Steps")
+                        st.caption("Click any step to view the dataset at that point in the pipeline.")
+                        steps_col, ctrl_col = st.columns([3, 1])
+                        with steps_col:
+                            for i, step in enumerate(sh.steps):
+                                is_active = (i == sh.active_index)
+                                is_future = (i > sh.active_index)
+                                badge = "▶" if is_active else ("◌" if is_future else "✓")
+                                color = "#2dd4bf" if is_active else ("#64748b" if is_future else "#94a3b8")
+                                weight = "700" if is_active else "500"
+                                opacity = "0.55" if is_future else "1"
+                                row_l, row_r = st.columns([0.78, 0.22])
+                                with row_l:
+                                    st.markdown(
+                                        f"<div style='padding:0.45rem 0.6rem;border-left:3px solid {color};"
+                                        f"opacity:{opacity};font-weight:{weight};color:#e2e8f0;'>"
+                                        f"<span style='color:{color};font-family:JetBrains Mono,monospace;"
+                                        f"font-size:0.78rem;letter-spacing:0.1em;'>{badge} STEP {i+1}</span><br>"
+                                        f"<b>{step.name}</b> · <span style='color:#94a3b8;font-size:0.85rem;'>"
+                                        f"{step.summary}</span><br>"
+                                        f"<span style='color:#64748b;font-size:0.75rem;'>{step.rows:,} rows × {step.cols} cols</span>"
+                                        f"</div>",
+                                        unsafe_allow_html=True,
+                                    )
+                                with row_r:
+                                    if not is_active:
+                                        if st.button("Go to", key=f"goto_step_{i}_{sig}",
+                                                     use_container_width=True):
+                                            sh.go_to(i)
+                                            st.rerun()
+                        with ctrl_col:
+                            st.markdown(f"**Active:** `{sh.current().name}`")
+                            if sh.has_later_steps():
+                                if st.button("Redo to latest", use_container_width=True,
+                                             key=f"redo_latest_{sig}"):
+                                    sh.redo_latest()
+                                    st.rerun()
+                                if st.button("Drop later steps", use_container_width=True,
+                                             key=f"drop_later_{sig}"):
+                                    sh.drop_later()
+                                    st.rerun()
+
                     st.subheader("Data Preview")
-                    st.dataframe(st.session_state.df.head(10), use_container_width=True)
-                
+                    st.dataframe(view_df.head(10), use_container_width=True)
+
                     st.subheader("Column Types")
-                    col_types = _c_column_types(st.session_state.df, _ds_id)
-                    col_types_df = pd.DataFrame({
-                        'Column': list(col_types.keys()),
-                        'Type': list(col_types.values())
-                    })
-                    st.dataframe(col_types_df, use_container_width=True)
+                    # Always derive Column Types from the ACTIVE step. If the
+                    # active step carries pre-computed schema metadata (e.g.
+                    # "Changed Type" or "Changed Type (manual)"), use it for
+                    # confidence + samples; otherwise re-infer live against the
+                    # active dataframe so navigating back to Source / Promoted
+                    # Headers shows the schema that fits *that* step's data.
+                    active_step = sh.current() if sh else None
+                    schema_dicts = (active_step.meta.get('schema') if active_step else None) or []
+                    if schema_dicts:
+                        schema_df = pd.DataFrame(schema_dicts)
+                        if 'sample_values' in schema_df.columns:
+                            schema_df['sample_values'] = schema_df['sample_values'].apply(
+                                lambda xs: ", ".join(map(str, (xs or [])[:3])))
+                        schema_df = schema_df[['column', 'inferred_type', 'confidence',
+                                               'sample_values', 'notes']]
+                    else:
+                        schema_live = infer_schema(view_df)
+                        schema_df = schema_to_dataframe(schema_live)
+                    st.dataframe(schema_df, use_container_width=True)
+
+                    # ── Type override control ──
+                    with st.expander("Override a column's type", expanded=False):
+                        st.caption("If a column was typed incorrectly, force a different type. "
+                                   "This appends a new step to the history.")
+                        ovr_cols = list(view_df.columns)
+                        if ovr_cols:
+                            ov1, ov2, ov3 = st.columns([2, 2, 1])
+                            with ov1:
+                                ovr_col = st.selectbox("Column", ovr_cols, key=f"ovr_col_{_ds_key()}")
+                            with ov2:
+                                ovr_type = st.selectbox(
+                                    "New type",
+                                    options=["text", "integer", "decimal", "currency",
+                                             "percentage", "date", "datetime", "boolean",
+                                             "categorical"],
+                                    key=f"ovr_type_{_ds_key()}",
+                                )
+                            with ov3:
+                                st.markdown("&nbsp;", unsafe_allow_html=True)
+                                if st.button("Apply", use_container_width=True,
+                                             key=f"ovr_apply_{_ds_key()}"):
+                                    sh2 = _get_step_history(create=True)
+                                    # Power Query semantics: editing from a
+                                    # non-latest step truncates the redo tail
+                                    # before appending the new step, so the
+                                    # history stays a coherent linear chain.
+                                    if sh2.has_later_steps():
+                                        sh2.drop_later()
+                                    base_df = view_df.copy()
+                                    base_df[ovr_col] = cast_column(base_df[ovr_col], ovr_type)
+                                    # Capture a fresh schema snapshot so the
+                                    # Column Types table reflects the override
+                                    # immediately when this step becomes active.
+                                    new_schema = infer_schema(base_df)
+                                    sh2.add(
+                                        "Changed Type (manual)",
+                                        f"Column `{ovr_col}` retyped to `{ovr_type}`",
+                                        base_df,
+                                        meta={
+                                            'override': {ovr_col: ovr_type},
+                                            'schema': [s.to_dict() for s in new_schema],
+                                        },
+                                    )
+                                    st.session_state.inferred_schema[_ds_key()] = new_schema
+                                    overrides = st.session_state.type_overrides.setdefault(_ds_key(), {})
+                                    overrides[ovr_col] = ovr_type
+                                    st.success(f"Set {ovr_col} → {ovr_type}")
+                                    st.rerun()
             
                 elif active_tab == _TAB_LABELS[1]:
                     _section_head("Data Cleaning", "What was changed, why, and how it improved the data.", "02 — Cleaning")
-                
+
+                    view_df = _active_df()
+                    sig = _active_step_signature()
                     if st.session_state.cleaning_report:
                         report = st.session_state.cleaning_report
-                    
+
                         col1, col2, col3 = st.columns(3)
                         with col1:
                             st.metric("Original Rows", f"{report['original_rows']:,}")
@@ -2900,36 +3227,34 @@ def show_dashboard():
                             st.metric("Cleaned Rows", f"{report['final_rows']:,}")
                         with col3:
                             st.metric("Rows Removed", report['rows_removed'])
-                    
+
                         if report['changes']:
                             st.subheader("Changes Applied")
                             for change in report['changes']:
                                 st.markdown(f'<div class="success-box">{change}</div>', unsafe_allow_html=True)
                         else:
                             st.success("Data is clean! No modifications needed.")
-                    
+
                         st.subheader("Data Quality Score")
-                        if st.session_state.df_cleaned is not None:
-                            quality = _c_quality_score(st.session_state.df_cleaned, st.session_state.current_dataset_id)
-                        
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("Completeness", f"{quality['completeness']}%")
-                            with col2:
-                                st.metric("Uniqueness", f"{quality['uniqueness']}%")
-                            with col3:
-                                st.metric("Overall Score", f"{quality['overall_score']}%")
-                    
-                        missing_chart = _c_missing_values_chart(st.session_state.df, st.session_state.current_dataset_id)
+                        quality = _c_quality_score(view_df, sig)
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Completeness", f"{quality['completeness']}%")
+                        with col2:
+                            st.metric("Uniqueness", f"{quality['uniqueness']}%")
+                        with col3:
+                            st.metric("Overall Score", f"{quality['overall_score']}%")
+
+                        missing_chart = _c_missing_values_chart(view_df, sig)
                         if missing_chart:
                             st.plotly_chart(missing_chart, use_container_width=True)
             
                 elif active_tab == _TAB_LABELS[2]:
                     _section_head("Statistical Analysis", "Descriptive statistics, correlations, and outlier signals.", "03 — Statistics")
                 
-                    df_analysis = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
-                
-                    _ds_id = st.session_state.current_dataset_id
+                    df_analysis = _active_df()
+
+                    _ds_id = _active_step_signature()
                     st.subheader("Descriptive Statistics")
                     numeric_stats = _c_numeric_stats(df_analysis, _ds_id)
                     if not numeric_stats.empty:
@@ -2970,11 +3295,11 @@ def show_dashboard():
                 elif active_tab == _TAB_LABELS[3]:
                     _section_head("Visualizations", "Distributions, relationships, and custom charts.", "04 — Visualizations")
                 
-                    df_viz = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
+                    df_viz = _active_df()
                     numeric_cols = df_viz.select_dtypes(include=[np.number]).columns.tolist()
                     categorical_cols = df_viz.select_dtypes(include=['object']).columns.tolist()
-                
-                    _ds_id = st.session_state.current_dataset_id
+
+                    _ds_id = _active_step_signature()
                     st.subheader("Distribution Overview")
                     dist_overview = _c_distribution_overview(df_viz, _ds_id)
                     if dist_overview:
@@ -3059,7 +3384,7 @@ def show_dashboard():
                             st.session_state.page = 'pricing'
                             st.rerun()
                     else:
-                        df_pred = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
+                        df_pred = _active_df()
                         numeric_cols = df_pred.select_dtypes(include=[np.number]).columns.tolist()
                     
                         if st.session_state.similar_datasets:
@@ -3106,7 +3431,7 @@ def show_dashboard():
                 elif active_tab == _TAB_LABELS[5]:
                     _section_head("ML & Clustering", "Categorical analysis, ML models, clusters, and outliers.", "06 — Machine Learning")
                 
-                    df_ml = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
+                    df_ml = _active_df()
                     numeric_cols_ml = df_ml.select_dtypes(include=[np.number]).columns.tolist()
                     cat_cols_ml = df_ml.select_dtypes(include=['object', 'category']).columns.tolist()
                 
@@ -3115,7 +3440,7 @@ def show_dashboard():
                         "ML Section", _ML_SUBTABS, horizontal=True,
                         label_visibility="collapsed", key="ml_subsection"
                     )
-                    _ds_id_ml = st.session_state.current_dataset_id
+                    _ds_id_ml = _active_step_signature()
                 
                     if ml_active == _ML_SUBTABS[0]:
                         _section_head("Categorical Data Analysis", "Distribution and balance of every non-numeric field. Pick a column to explore.")
@@ -3333,7 +3658,7 @@ def show_dashboard():
                             st.session_state.chat_messages.append({"role": "user", "content": prompt})
                         
                             with st.spinner("Analyzing your data..."):
-                                df_chat = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
+                                df_chat = _active_df()
                                 df_info = {
                                     'row_count': len(df_chat),
                                     'column_count': len(df_chat.columns),
@@ -3355,7 +3680,7 @@ def show_dashboard():
                 elif active_tab == _TAB_LABELS[7]:
                     _section_head("Comprehensive Report", "Executive summary, AI insights, and downloadable artefacts.", "08 — Report")
                 
-                    df_report = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
+                    df_report = _active_df()
                 
                     st.subheader("Executive Summary")
                     col1, col2, col3, col4 = st.columns(4)
