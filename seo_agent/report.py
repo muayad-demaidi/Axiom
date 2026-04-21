@@ -1,11 +1,34 @@
 """Weekly summary email via the existing Resend integration."""
 
 from __future__ import annotations
-from typing import Dict, List
+import os
+from typing import Dict, List, Optional
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import resend
 
 from email_service import get_resend_credentials
+from .config import load_config
+
+
+def public_review_url() -> Optional[str]:
+    """Build the token-gated public review URL for the Streamlit app.
+
+    Requires both the ``SEO_AGENT_PUBLIC_APP_URL`` env var (e.g. the
+    deployed app's base URL) and ``AgentConfig.admin_review_token`` to
+    be set. Returns ``None`` if either is missing so callers can render
+    a graceful fallback in the email.
+    """
+    base = (os.environ.get("SEO_AGENT_PUBLIC_APP_URL") or "").strip()
+    cfg = load_config()
+    token = (cfg.admin_review_token or "").strip()
+    if not base or not token:
+        return None
+    parts = urlsplit(base)
+    if not parts.scheme or not parts.netloc:
+        return None
+    query = urlencode({"review_token": token})
+    return urlunsplit((parts.scheme, parts.netloc, parts.path or "/", query, ""))
 
 
 def _row(label: str, value) -> str:
@@ -32,6 +55,31 @@ def render_html(summary: Dict) -> str:
     geo_rate = summary.get("geo_mention_rate")
     geo_rate_str = f"{geo_rate*100:.1f}%" if geo_rate is not None else "—"
 
+    review_url = public_review_url()
+    if review_url:
+        review_block = f"""
+      <div style="margin:1.25rem 0;padding:1rem 1.25rem;background:rgba(20,184,166,0.10);
+                  border:1px solid rgba(20,184,166,0.35);border-radius:8px;">
+        <p style="margin:0 0 0.6rem 0;color:#e2e8f0;">
+          📱 <strong>Approve drafts on the go</strong> — open the secure link
+          below on your phone (no admin login required):
+        </p>
+        <p style="margin:0;">
+          <a href="{review_url}" style="display:inline-block;padding:0.6rem 1.1rem;
+             background:#14b8a6;color:#0f172a;text-decoration:none;border-radius:6px;
+             font-weight:600;">Review pending drafts →</a>
+        </p>
+      </div>
+        """
+        admin_hint = ("Or review them in the DataVision Pro admin panel "
+                      "(Admin → SEO/GEO Agent → Review queue).")
+    else:
+        review_block = ""
+        admin_hint = ("Review and approve drafts in the DataVision Pro admin panel "
+                      "(Admin → SEO/GEO Agent → Review queue). Set "
+                      "<code>SEO_AGENT_PUBLIC_APP_URL</code> and an "
+                      "<code>admin_review_token</code> to enable the mobile review link.")
+
     return f"""
     <div style="font-family:'Inter',Arial,sans-serif;max-width:680px;margin:0 auto;
                 background:#0f172a;color:#e2e8f0;padding:2rem;border-radius:12px;">
@@ -56,6 +104,7 @@ def render_html(summary: Dict) -> str:
 
       <h3 style="color:#14b8a6;">Drafts (review queue)</h3>
       <ul style="color:#cbd5e1;line-height:1.6;">{drafts_html or "<li>No new drafts.</li>"}</ul>
+      {review_block}
 
       <h3 style="color:#14b8a6;">Refreshed pages</h3>
       <ul style="color:#cbd5e1;line-height:1.6;">{refreshed_html}</ul>
@@ -64,8 +113,7 @@ def render_html(summary: Dict) -> str:
       <ul style="color:#cbd5e1;line-height:1.6;">{errors_html}</ul>
 
       <p style="margin-top:1.5rem;color:#94a3b8;font-size:0.9rem;">
-        Review and approve drafts in the DataVision Pro admin panel
-        (Admin → SEO/GEO Agent → Review queue).
+        {admin_hint}
       </p>
     </div>
     """

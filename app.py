@@ -1435,6 +1435,10 @@ try:
     elif st.query_params.get('register') == '1':
         st.session_state.page = 'register'
         st.query_params.clear()
+    # Public, token-gated SEO review page (mobile-friendly, no login required).
+    # Keep the token in the URL so refreshes stay authorised.
+    elif st.query_params.get('review_token'):
+        st.session_state.page = 'review'
 except Exception:
     pass
 if 'df' not in st.session_state:
@@ -3943,6 +3947,16 @@ def show_seo_agent_admin():
             auto_pub = st.checkbox("Auto-publish on generation (skip review)", cfg.auto_publish)
             refresh_days = st.number_input("Refresh pages older than (days)", 7, 365, cfg.refresh_after_days)
             email_to = st.text_input("Weekly report email", cfg.report_email_to)
+            _suggested_token = st.session_state.pop("_seo_suggested_token", None)
+            review_token = st.text_input(
+                "Public review token (gates the mobile review URL)",
+                _suggested_token if _suggested_token else cfg.admin_review_token,
+                type="password",
+                help="Anyone with this token + the app URL can approve/reject "
+                     "drafts without an admin login. Leave blank to disable. "
+                     "Use the 'Generate new token' button below the form to "
+                     "create a strong random one, then click Save.",
+            )
             st.markdown("**Sources enabled**")
             sc1, sc2, sc3, sc4 = st.columns(4)
             s_reddit = sc1.checkbox("Reddit", cfg.sources_enabled.get("reddit", True))
@@ -3961,6 +3975,7 @@ def show_seo_agent_admin():
                 cfg.auto_publish = bool(auto_pub)
                 cfg.refresh_after_days = int(refresh_days)
                 cfg.report_email_to = email_to.strip()
+                cfg.admin_review_token = (review_token or "").strip()
                 cfg.sources_enabled = {
                     "reddit": s_reddit, "hackernews": s_hn,
                     "stackoverflow": s_so, "google_trends": s_gt,
@@ -3968,6 +3983,32 @@ def show_seo_agent_admin():
                 cfg.geo_prompts = [p.strip() for p in prompts_text.splitlines() if p.strip()]
                 save_config(cfg)
                 st.success("Saved.")
+
+        # Helpers that live outside the form (form_submit_button is the only
+        # button allowed *inside* st.form).
+        gcol, lcol = st.columns([1, 2])
+        with gcol:
+            if st.button("🎲 Generate new review token", key="seo_cfg_gen_token"):
+                import secrets as _secrets
+                st.session_state["_seo_suggested_token"] = _secrets.token_urlsafe(32)
+                st.rerun()
+        with lcol:
+            from seo_agent.report import public_review_url as _pru
+            _url = _pru()
+            if _url:
+                st.success("Public review link is live.")
+                st.code(_url, language="text")
+            elif (cfg.admin_review_token or "").strip():
+                st.info(
+                    "Token set. To enable the mobile review link in the weekly "
+                    "email, set the `SEO_AGENT_PUBLIC_APP_URL` environment "
+                    "variable to your deployed Streamlit URL."
+                )
+            else:
+                st.caption(
+                    "Set a token (and `SEO_AGENT_PUBLIC_APP_URL`) to enable "
+                    "the public mobile review link."
+                )
 
     with sub_tabs[3]:
         st.markdown("#### Recent runs")
@@ -6324,6 +6365,110 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+def show_public_review_page():
+    """Token-gated, login-free draft review page for non-admin reviewers
+    (e.g. operator approving from a phone via the link in the weekly email).
+
+    URL: ``/?review_token=<AgentConfig.admin_review_token>``
+    """
+    import json as _json
+    import hmac as _hmac
+    from seo_agent.config import load_config
+    from seo_agent.db import init_agent_db
+    from seo_agent.review import (
+        list_drafts, get_draft_payload, approve_draft, reject_draft,
+    )
+
+    supplied = (st.query_params.get('review_token') or '').strip()
+    cfg = load_config()
+    expected = (cfg.admin_review_token or '').strip()
+
+    st.markdown(
+        '<h2 style="margin-bottom:0.25rem;">Draft review</h2>'
+        '<p style="color:#94a3b8;margin-top:0;">Approve or reject pending '
+        'SEO/GEO drafts from anywhere — no admin login required.</p>',
+        unsafe_allow_html=True,
+    )
+
+    if not expected:
+        st.error(
+            "Public review is not enabled. Set an `admin_review_token` in "
+            "the agent configuration first."
+        )
+        return
+    if not supplied or not _hmac.compare_digest(supplied, expected):
+        st.error("Invalid or missing review token.")
+        return
+
+    init_agent_db()
+    drafts = list_drafts("pending")
+    st.caption(f"{len(drafts)} draft(s) awaiting review.")
+
+    if not drafts:
+        st.info("Nothing to review right now. Check back after the next agent run.")
+        return
+
+    for d in drafts:
+        with st.expander(f"[{d.kind}] {d.title}", expanded=False):
+            st.caption(
+                f"slug: `{d.slug}` · {'Refresh' if d.is_refresh else 'New'} · "
+                f"created {d.created_at.strftime('%Y-%m-%d %H:%M')}"
+            )
+            if d.target_query:
+                st.markdown(f"**Target query:** {d.target_query}")
+            if d.info_gain:
+                st.markdown(f"**Information-gain note:** {d.info_gain}")
+
+            payload = get_draft_payload(d.id) or {}
+            inner = payload.get("payload", payload)
+
+            edit_mode = st.checkbox("✏️ Edit JSON before approving",
+                                    key=f"pub_edit_{d.id}")
+            edited_text = None
+            if edit_mode:
+                edited_text = st.text_area(
+                    "Draft JSON",
+                    value=_json.dumps(inner, indent=2, ensure_ascii=False),
+                    height=320, key=f"pub_edit_text_{d.id}",
+                )
+            else:
+                with st.expander("Show full draft JSON"):
+                    st.json(inner)
+
+            # Stack buttons full-width so they're easy to tap on a phone.
+            if st.button("✅ Approve & publish", key=f"pub_appr_{d.id}",
+                         type="primary", use_container_width=True):
+                edited_payload = None
+                if edit_mode and edited_text:
+                    try:
+                        edited_payload = _json.loads(edited_text)
+                    except Exception as ex:
+                        st.error(f"Edit JSON invalid: {ex}")
+                        st.stop()
+                res = approve_draft(
+                    d.id,
+                    reviewer="public-review-link",
+                    notes=("edited via public link" if edited_payload
+                           else "approved via public link"),
+                    edited_payload=edited_payload,
+                )
+                if res.get("ok"):
+                    st.success(
+                        f"Approved → injected into {res['file']}"
+                        + (" · build triggered" if res.get("build_triggered")
+                           else " · build skipped")
+                    )
+                    st.rerun()
+                else:
+                    st.error(f"Approve failed: {res.get('error')}")
+            if st.button("❌ Reject", key=f"pub_rej_{d.id}",
+                         use_container_width=True):
+                if reject_draft(d.id, reviewer="public-review-link",
+                                notes="rejected via public link"):
+                    st.warning("Rejected and archived.")
+                    st.rerun()
+
+
 if st.session_state.page == 'home':
     show_home_page()
 elif st.session_state.page == 'login':
@@ -6332,6 +6477,8 @@ elif st.session_state.page == 'register':
     show_register_page()
 elif st.session_state.page == 'pricing':
     show_pricing_page()
+elif st.session_state.page == 'review':
+    show_public_review_page()
 elif st.session_state.page == 'admin':
     if st.session_state.user and st.session_state.user.get('is_admin'):
         show_admin_panel()
