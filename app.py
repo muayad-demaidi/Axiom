@@ -2291,8 +2291,15 @@ def _transform_added_columns(kind: str, params: dict) -> list:
                 "add_column_from_examples") and p.get("new_column"):
         return [str(p["new_column"])]
     if kind == "split_column":
+        # Real output is `prefix_1`, `prefix_2`, ... — return up to 8 so the
+        # preview highlight surfaces the actual new columns rather than just
+        # the bare prefix (which never appears in the dataframe).
         prefix = p.get("new_column_prefix") or f"{p.get('column') or 'col'}_part"
-        return [prefix]
+        max_parts = 8
+        if p.get("mode") == "delimiter":
+            max_parts = max(1, int(p.get("max_splits") or 0)) + 1 \
+                        if p.get("max_splits") else 8
+        return [f"{prefix}_{i}" for i in range(1, max_parts + 1)]
     return []
 
 
@@ -2320,8 +2327,17 @@ def _validate_transform_params(kind: str, params: dict) -> tuple:
     elif kind == "group_by":
         if not p.get("keys"):
             return False, "Pick at least one group key."
-        if not p.get("aggregations"):
+        aggs = p.get("aggregations") or []
+        if not aggs:
             return False, "Add at least one aggregation."
+        from transforms import VALID_AGGS  # local import — avoids cycle at module load
+        valid = [a for a in aggs
+                 if isinstance(a, dict)
+                 and str(a.get("column") or "").strip()
+                 and a.get("agg") in VALID_AGGS]
+        if not valid:
+            return False, ("Each aggregation needs a column and a "
+                           f"supported function ({', '.join(sorted(VALID_AGGS))}).")
     elif kind == "add_column_from_examples":
         if not str(p.get("new_column") or "").strip():
             return False, "Provide a name for the new column."
