@@ -33,6 +33,17 @@ _SPLIT_DELIMITERS = [" ", "-", "_", "/", ".", "@", ",", ":"]
 _ARITH_OPS = ["+", "-", "*", "/"]
 _CASE_KINDS = ["upper", "lower", "title"]
 
+# Catalogue of regex extraction patterns inference will try in addition to
+# the structural ops. Covers the common Power Query "extract before /
+# after delimiter" and "first / last numeric or alphabetic run" cases.
+_REGEX_PATTERNS = [
+    r"^([^@]+)", r"^([^\.]+)", r"^([^/]+)", r"^([^_]+)",
+    r"^([^\- ]+)", r"^(\w+)", r"^(\d+)", r"^([A-Za-z]+)",
+    r"([^@]+)$", r"([^\.]+)$", r"([^/]+)$", r"([^_]+)$",
+    r"(\w+)$", r"(\d+)$", r"([A-Za-z]+)$",
+    r"(\d+)", r"([A-Z][a-z]+)", r"([A-Za-z]+)",
+]
+
 
 def _safe_str(series: pd.Series) -> pd.Series:
     return series.astype(object).where(series.notna(), other="").astype(str)
@@ -175,10 +186,33 @@ def infer_examples_op(
             params = {"delimiter": delim, "index": idx}
             candidates.append(("split_take", params, _score("split_take", params)))
 
+    # Prefix slice (start ≥ 0) and suffix slice (start < 0) — covers both
+    # "first N chars" and "last N chars" extraction patterns. Pandas /
+    # Python slicing handles negative starts natively.
     for start in range(0, 6):
         for length in (1, 2, 3, 4, 5):
             params = {"start": start, "end": start + length}
             candidates.append(("slice", params, _score("slice", params)))
+    for length in (1, 2, 3, 4, 5, 6, 7):
+        params = {"start": -length, "end": None}
+        candidates.append(("slice", params, _score("slice", params)))
+
+    # Regex extract — try the catalogue plus literal-target patterns
+    # derived from the user's typed examples (so e.g. typing "ada" from
+    # "ada@x.com" can match a literal extraction even outside the preset
+    # delimiters).
+    derived_patterns: List[str] = []
+    for _, target in examples:
+        t = str(target or "").strip()
+        if t and len(t) <= 64:
+            derived_patterns.append(rf"({re.escape(t)})")
+    seen_patterns = set()
+    for pat in list(_REGEX_PATTERNS) + derived_patterns:
+        if pat in seen_patterns:
+            continue
+        seen_patterns.add(pat)
+        candidates.append(("regex_extract", {"pattern": pat},
+                           _score("regex_extract", {"pattern": pat})))
 
     candidates.sort(key=lambda x: x[2], reverse=True)
     if candidates and candidates[0][2] > 0.0:

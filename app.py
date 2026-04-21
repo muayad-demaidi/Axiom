@@ -2238,6 +2238,64 @@ def _render_transform_form(kind: str, current_params: dict,
     return p
 
 
+def _preview_transform(kind: str, params: dict, view_df, n: int = 15):
+    """Run the transform on a small head sample so the user sees the
+    resulting frame before committing. Returns (preview_df, ok, message);
+    ``ok`` is False when params are invalid or execution raises — the
+    caller renders the message inline so the user can fix the form."""
+    if view_df is None or len(view_df) == 0:
+        return None, False, "No data to preview yet."
+    ok, msg = _validate_transform_params(kind, params)
+    if not ok:
+        return None, False, msg
+    sample_rows = min(max(50, n + 5), len(view_df))
+    sample = view_df.head(sample_rows).copy().reset_index(drop=True)
+    fn = SUBSTEP_REGISTRY.get(kind, {}).get("fn")
+    if fn is None:
+        return None, False, "Unknown transform."
+    try:
+        out, _summary, _ = fn(sample, **params)
+    except Exception as e:
+        return None, False, f"Preview failed: {e}"
+    return out.head(n), True, ""
+
+
+def _render_transform_preview(kind: str, params: dict, view_df,
+                              new_columns: list | None = None) -> None:
+    """Render the inline preview block under a transform form. Highlights
+    the column(s) the transform will add when known so the user can
+    immediately spot the result."""
+    preview_df, ok, msg = _preview_transform(kind, params, view_df)
+    st.markdown("**Preview**")
+    if not ok:
+        st.info(msg)
+        return
+    if preview_df is None or preview_df.empty:
+        st.info("Preview returned no rows.")
+        return
+    cols = list(preview_df.columns)
+    if new_columns:
+        # Reorder so the newly added columns sit at the front of the
+        # preview — easier to verify the transform did what was wanted.
+        ordered = [c for c in new_columns if c in cols] + \
+                  [c for c in cols if c not in new_columns]
+        preview_df = preview_df[ordered]
+    st.dataframe(preview_df, use_container_width=True, hide_index=True)
+
+
+def _transform_added_columns(kind: str, params: dict) -> list:
+    """Best-effort list of columns the transform will add — used to bring
+    them to the front of the preview."""
+    p = params or {}
+    if kind in ("merge_columns", "conditional_column",
+                "add_column_from_examples") and p.get("new_column"):
+        return [str(p["new_column"])]
+    if kind == "split_column":
+        prefix = p.get("new_column_prefix") or f"{p.get('column') or 'col'}_part"
+        return [prefix]
+    return []
+
+
 def _validate_transform_params(kind: str, params: dict) -> tuple:
     """Return (ok, message). message is shown to the user when ok is False."""
     p = params or {}
@@ -4369,9 +4427,22 @@ def show_dashboard():
                                         if not enabled:
                                             st.caption("This transform is disabled — "
                                                        "re-enable it to apply parameter changes.")
+                                        # Edits apply against the dataframe
+                                        # going INTO this step (the previous
+                                        # step's output) so the preview shows
+                                        # what the transform will do once
+                                        # re-run with the new params.
+                                        in_df = (sh.steps[i - 1].df if i > 0
+                                                 else step.df)
                                         new_params = _render_transform_form(
-                                            substep_key, current_params, step.df,
+                                            substep_key, current_params, in_df,
                                             key_prefix=f"trf_edit_{ds_key}_{step_inst}",
+                                        )
+                                        _render_transform_preview(
+                                            substep_key, new_params, in_df,
+                                            new_columns=_transform_added_columns(
+                                                substep_key, new_params,
+                                            ),
                                         )
                                         save_col, _ = st.columns([1, 3])
                                         with save_col:
@@ -4607,6 +4678,10 @@ def show_dashboard():
                             t_params = _render_transform_form(
                                 t_choice, {}, view_df,
                                 key_prefix=f"trf_{ds_key}_{t_choice}",
+                            )
+                            _render_transform_preview(
+                                t_choice, t_params, view_df,
+                                new_columns=_transform_added_columns(t_choice, t_params),
                             )
                             if st.button(
                                 "Apply transform",
