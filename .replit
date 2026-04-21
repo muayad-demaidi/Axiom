@@ -1,7 +1,8 @@
 modules = ["python-3.11", "system", "nix", "nodejs-20", "postgresql-16"]
 [deployment]
-deploymentTarget = "autoscale"
-run = ["streamlit", "run", "app.py", "--server.port", "5000"]
+deploymentTarget = "static"
+build = ["bash", "-c", "cd marketing-site && npm install && npm run build"]
+publicDir = "marketing-site/dist"
 
 [nix]
 channel = "stable-25_05"

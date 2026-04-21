@@ -46,7 +46,8 @@ A separate, fully crawlable Astro site at `marketing-site/` powers organic disco
 
 - Workflow: **Marketing site** runs `astro dev` on port 8000 (console output).
 - Build: `cd marketing-site && npm run build` produces a static `dist/` folder for separate deployment.
-- See `marketing-site/README.md` for full details, content rules, and the publishable page list (~22 pages: 5 core + 8 glossary + 3 compare + 3 guides + 3 hubs).
+- **Deployment**: the project's `.replit` `[deployment]` block is configured as a **Static** deployment of this site (`build = npm install && npm run build`, `publicDir = marketing-site/dist`). Publishing it from the Replit Publishing UI serves the site over HTTPS; the custom domain `datavisionpro.app` is then attached in *Settings → Domains*. The Streamlit product app (`app.datavisionpro.app`) is published as a **separate** autoscale deployment (`streamlit run app.py --server.port 5000`) — the two deployments are independent and must not be collapsed.
+- See `marketing-site/README.md` for full deploy steps, custom domain DNS, and Google / Bing sitemap submission.
 
 ## Weekly SEO/GEO Automation Agent
 A scheduled background agent (`seo_agent/` package + `scripts/run_seo_agent.py` CLI) runs once a week to keep the marketing site fresh and front-of-mind for both search engines and AI answer engines.
