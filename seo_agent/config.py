@@ -52,7 +52,11 @@ class AgentConfig:
         "Where can I get AI-generated insights about a pandas DataFrame?",
         "Cheapest AI tool to clean and analyse a 100k-row CSV?",
     ])
-    admin_review_token: str = ""            # gates the marketing-site review URL
+    admin_review_token: str = ""            # legacy single-token (anonymous)
+    # Named tokens so each operator can have their own review link and we
+    # can attribute approvals to a real person. Each entry is
+    # ``{"name": "alice", "token": "abc..."}``.
+    admin_review_tokens: List[Dict[str, str]] = field(default_factory=list)
     public_app_url: str = ""                # base URL used to build the mobile review link
     refresh_after_days: int = 90
     report_email_to: str = "muayad.demaidi.work@gmail.com"

@@ -7,7 +7,7 @@ same PostgreSQL connection pool. Tables are created on demand via
 
 from datetime import datetime
 from sqlalchemy import (
-    Column, Integer, String, DateTime, Text, Float, JSON, Boolean,
+    Column, Integer, String, DateTime, Text, Float, JSON, Boolean, inspect, text,
 )
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -54,6 +54,7 @@ class AgentDraft(AgentBase):
     status = Column(String(32), default="pending")  # pending|approved|rejected|edited
     reviewed_at = Column(DateTime, nullable=True)
     reviewed_by = Column(String(255), nullable=True)
+    review_source = Column(String(32), nullable=True)  # admin|public_link|auto
     review_notes = Column(Text, nullable=True)
 
 
@@ -123,8 +124,24 @@ class PageMetric(AgentBase):
 
 
 def init_agent_db():
-    """Create the agent tables if they do not yet exist."""
+    """Create the agent tables if they do not yet exist, and apply any
+    lightweight in-place column additions for older deployments."""
     AgentBase.metadata.create_all(bind=engine)
+    # Additive migration: add review_source on existing seo_agent_drafts tables.
+    try:
+        insp = inspect(engine)
+        if insp.has_table("seo_agent_drafts"):
+            cols = {c["name"] for c in insp.get_columns("seo_agent_drafts")}
+            if "review_source" not in cols:
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        "ALTER TABLE seo_agent_drafts "
+                        "ADD COLUMN review_source VARCHAR(32)"
+                    ))
+    except Exception:
+        # Best-effort: a missing column will just stay NULL until a
+        # subsequent successful migration; never block app startup.
+        pass
 
 
 def get_session():

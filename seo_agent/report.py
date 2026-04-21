@@ -73,6 +73,14 @@ def public_review_url() -> Optional[str]:
     base = resolve_public_app_url()
     cfg = load_config()
     token = (cfg.admin_review_token or "").strip()
+    if not token:
+        # Fall back to the first named operator token so emails still work
+        # for setups that have moved entirely to per-operator tokens.
+        for entry in (cfg.admin_review_tokens or []):
+            t = (entry.get("token") or "").strip()
+            if t:
+                token = t
+                break
     if not base or not token:
         return None
     parts = urlsplit(base)

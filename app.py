@@ -4836,7 +4836,8 @@ def show_seo_agent_admin():
                             st.stop()
                     res = approve_draft(d.id, reviewer=reviewer,
                                          notes=("edited" if edited_payload else ""),
-                                         edited_payload=edited_payload)
+                                         edited_payload=edited_payload,
+                                         source="admin")
                     if res.get("ok"):
                         if res.get("build_queued"):
                             st.success(f"Approved → injected into {res['file']} · "
@@ -4849,7 +4850,7 @@ def show_seo_agent_admin():
                         st.error(f"Approve failed: {res.get('error')}")
                 if colB.button("❌ Reject", key=f"rej_{d.id}"):
                     reviewer = (st.session_state.user or {}).get("email", "admin")
-                    if reject_draft(d.id, reviewer=reviewer):
+                    if reject_draft(d.id, reviewer=reviewer, source="admin"):
                         st.warning("Rejected and archived.")
                         st.rerun()
 
@@ -5208,14 +5209,117 @@ def show_seo_agent_admin():
                     "link — the app URL is auto-detected after deploy."
                 )
 
+        st.markdown("---")
+        st.markdown("##### 👥 Named reviewer tokens")
+        st.caption(
+            "Issue a separate token to each operator so approvals are "
+            "attributed to a real person in the run history."
+        )
+        existing = list(cfg.admin_review_tokens or [])
+        if existing:
+            from urllib.parse import urlencode as _urlenc
+            from seo_agent.report import resolve_public_app_url as _rpau2
+            base_url = (_rpau2() or "").strip()
+            for idx, ent in enumerate(existing):
+                ent_name = ent.get("name", "")
+                ent_token = ent.get("token", "")
+                cn, ct, cu, cd = st.columns([2, 4, 4, 1])
+                cn.markdown(f"**{ent_name or '(unnamed)'}**")
+                ct.code((ent_token[:8] + "…") if ent_token else "—",
+                        language="text")
+                if base_url and ent_token:
+                    cu.code(
+                        f"{base_url.rstrip('/')}/?{_urlenc({'review_token': ent_token})}",
+                        language="text",
+                    )
+                else:
+                    cu.caption("Set the public app URL above to see link")
+                if cd.button("🗑", key=f"del_named_token_{idx}",
+                             help="Remove this token"):
+                    cfg.admin_review_tokens = [
+                        e for i, e in enumerate(existing) if i != idx
+                    ]
+                    save_config(cfg)
+                    st.rerun()
+        else:
+            st.caption("No named tokens yet.")
+
+        with st.form("seo_add_named_token"):
+            ac1, ac2 = st.columns([3, 2])
+            new_name = ac1.text_input("Reviewer name (e.g. alice)",
+                                       key="new_token_name")
+            _suggested_named = st.session_state.pop(
+                "_seo_suggested_named_token", "")
+            new_token = ac2.text_input("Token", value=_suggested_named,
+                                        key="new_token_value",
+                                        help="Click 'Generate' below the form "
+                                             "to create a strong random one.")
+            if st.form_submit_button("➕ Add named token"):
+                nm = (new_name or "").strip()
+                tk = (new_token or "").strip()
+                if not nm or not tk:
+                    st.error("Both a name and a token are required.")
+                elif any((e.get("name") or "").strip() == nm
+                         for e in (cfg.admin_review_tokens or [])):
+                    st.error(f"A token named '{nm}' already exists.")
+                else:
+                    cfg.admin_review_tokens = list(cfg.admin_review_tokens or []) + [
+                        {"name": nm, "token": tk}
+                    ]
+                    save_config(cfg)
+                    st.success(f"Added token for '{nm}'.")
+                    st.rerun()
+        if st.button("🎲 Generate token for a new reviewer",
+                     key="gen_named_token"):
+            import secrets as _secrets
+            st.session_state["_seo_suggested_named_token"] = _secrets.token_urlsafe(32)
+            st.rerun()
+
     with sub_tabs[5]:
         st.markdown("#### Recent runs")
         if not recent_runs:
             st.info("No runs recorded yet.")
+
+        def _source_badge(src: str) -> str:
+            s = (src or "").lower()
+            if s == "admin":
+                return "🛠️ admin panel"
+            if s == "public_link":
+                return "📱 public link"
+            if s == "auto":
+                return "🤖 auto-publish"
+            return src or "—"
+
         for r in recent_runs:
             label = (f"{r.started_at.strftime('%Y-%m-%d %H:%M')} · {r.status} · "
                      f"{r.drafts_created or 0} drafts · ${r.estimated_cost_usd or 0:.3f}")
             with st.expander(label):
+                # Per-run draft decisions: show who approved/rejected what
+                # and from which channel so we have an audit trail.
+                sess_h = get_session()
+                try:
+                    run_drafts = (sess_h.query(AgentDraft)
+                                  .filter(AgentDraft.run_id == r.id)
+                                  .order_by(AgentDraft.created_at.asc())
+                                  .all())
+                finally:
+                    sess_h.close()
+                if run_drafts:
+                    rows = []
+                    for rd in run_drafts:
+                        rows.append({
+                            "kind": rd.kind,
+                            "title": rd.title,
+                            "status": rd.status,
+                            "source": _source_badge(rd.review_source),
+                            "reviewer": rd.reviewed_by or "—",
+                            "reviewed_at": (rd.reviewed_at.strftime("%Y-%m-%d %H:%M")
+                                            if rd.reviewed_at else "—"),
+                        })
+                    st.markdown("**Draft decisions**")
+                    st.dataframe(pd.DataFrame(rows), use_container_width=True,
+                                 hide_index=True)
+                st.markdown("**Run summary**")
                 st.json(r.summary or {})
                 if r.errors:
                     st.error(r.errors[:2000])
@@ -7951,7 +8055,8 @@ def show_public_review_page():
 
     supplied = (st.query_params.get('review_token') or '').strip()
     cfg = load_config()
-    expected = (cfg.admin_review_token or '').strip()
+    legacy = (cfg.admin_review_token or '').strip()
+    named_tokens = list(cfg.admin_review_tokens or [])
 
     st.markdown(
         '<h2 style="margin-bottom:0.25rem;">Draft review</h2>'
@@ -7960,15 +8065,30 @@ def show_public_review_page():
         unsafe_allow_html=True,
     )
 
-    if not expected:
+    if not legacy and not named_tokens:
         st.error(
-            "Public review is not enabled. Set an `admin_review_token` in "
-            "the agent configuration first."
+            "Public review is not enabled. Add a review token in the agent "
+            "configuration first."
         )
         return
-    if not supplied or not _hmac.compare_digest(supplied, expected):
+
+    # Match the supplied token against named tokens (preferred — gives us
+    # an attributable reviewer label) and finally the legacy single token.
+    reviewer_name = None
+    if supplied:
+        for entry in named_tokens:
+            entry_token = (entry.get("token") or "").strip()
+            entry_name = (entry.get("name") or "").strip()
+            if entry_token and _hmac.compare_digest(supplied, entry_token):
+                reviewer_name = entry_name or "public-review-link"
+                break
+        if reviewer_name is None and legacy and _hmac.compare_digest(supplied, legacy):
+            reviewer_name = "public-review-link"
+
+    if not reviewer_name:
         st.error("Invalid or missing review token.")
         return
+    st.caption(f"Signed in via public link as: **{reviewer_name}**")
 
     init_agent_db()
     drafts = list_drafts("pending")
@@ -8017,10 +8137,11 @@ def show_public_review_page():
                         st.stop()
                 res = approve_draft(
                     d.id,
-                    reviewer="public-review-link",
+                    reviewer=reviewer_name,
                     notes=("edited via public link" if edited_payload
                            else "approved via public link"),
                     edited_payload=edited_payload,
+                    source="public_link",
                 )
                 if res.get("ok"):
                     st.success(
@@ -8033,8 +8154,9 @@ def show_public_review_page():
                     st.error(f"Approve failed: {res.get('error')}")
             if st.button("❌ Reject", key=f"pub_rej_{d.id}",
                          use_container_width=True):
-                if reject_draft(d.id, reviewer="public-review-link",
-                                notes="rejected via public link"):
+                if reject_draft(d.id, reviewer=reviewer_name,
+                                notes="rejected via public link",
+                                source="public_link"):
                     st.warning("Rejected and archived.")
                     st.rerun()
 

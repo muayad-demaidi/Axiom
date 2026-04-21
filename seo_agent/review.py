@@ -83,7 +83,8 @@ def get_draft_payload(draft_id: int) -> Optional[Dict]:
         sess.close()
 
 
-def reject_draft(draft_id: int, reviewer: str, notes: str = "") -> bool:
+def reject_draft(draft_id: int, reviewer: str, notes: str = "",
+                 source: str = "admin") -> bool:
     sess = get_session()
     try:
         d = sess.query(AgentDraft).filter(AgentDraft.id == draft_id).first()
@@ -92,6 +93,7 @@ def reject_draft(draft_id: int, reviewer: str, notes: str = "") -> bool:
         d.status = "rejected"
         d.reviewed_at = datetime.utcnow()
         d.reviewed_by = reviewer
+        d.review_source = source
         d.review_notes = notes
         sess.commit()
         rej_dir = REVIEW_DIR.parent / "rejected"
@@ -150,7 +152,8 @@ def _sanitize_payload(payload: Dict) -> Dict:
 
 
 def approve_draft(draft_id: int, reviewer: str, notes: str = "",
-                  edited_payload: Optional[Dict] = None) -> Dict:
+                  edited_payload: Optional[Dict] = None,
+                  source: str = "admin") -> Dict:
     """Write the draft to its Markdown file, then trigger a rebuild."""
     sess = get_session()
     try:
@@ -177,6 +180,7 @@ def approve_draft(draft_id: int, reviewer: str, notes: str = "",
         d.status = "approved"
         d.reviewed_at = datetime.utcnow()
         d.reviewed_by = reviewer
+        d.review_source = source
         d.review_notes = notes
         sess.commit()
 

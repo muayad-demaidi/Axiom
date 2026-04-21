@@ -100,7 +100,8 @@ def run_weekly_cycle(cfg: AgentConfig | None = None, dry_run: bool = False) -> D
                 if cfg.auto_publish:
                     from .review import approve_draft
                     res = approve_draft(d.id, reviewer="auto-publish",
-                                        notes="auto_publish=True")
+                                        notes="auto_publish=True",
+                                        source="auto")
                     status = "published" if res.get("ok") else f"auto-publish failed: {res.get('error')}"
                 drafts_meta.append({"kind": kind, "title": d.title, "status": status, "id": d.id})
                 created += 1
@@ -139,7 +140,8 @@ def run_weekly_cycle(cfg: AgentConfig | None = None, dry_run: bool = False) -> D
                 if cfg.auto_publish:
                     from .review import approve_draft
                     res = approve_draft(d.id, reviewer="auto-publish",
-                                        notes="auto_publish=True (refresh)")
+                                        notes="auto_publish=True (refresh)",
+                                        source="auto")
                     status = "published" if res.get("ok") else f"auto-publish failed: {res.get('error')}"
                 refreshed_meta.append({"kind": page["kind"], "slug": page["slug"],
                                        "status": status, "id": d.id})
