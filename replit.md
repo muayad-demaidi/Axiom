@@ -48,7 +48,7 @@ streamlit run app.py --server.port 5000
 
 ## Key Features
 1. **File Upload**: Support for CSV and Excel files
-2. **Auto Cleaning**: Remove duplicates, handle missing values and outliers
+2. **Auto Cleaning**: Remove duplicates, handle missing values and outliers. Cleaning runs as an ordered list of toggleable substeps that users can reorder (↑/↓) or extend by inserting custom substeps (Trim Whitespace, Drop Column, Rename Column).
 3. **Statistical Analysis**: Descriptive stats, correlations, distributions
 4. **Visualizations**: Bar, scatter, box, pie, line charts, heatmaps
 5. **Time Tracking**: Save and compare data across time periods

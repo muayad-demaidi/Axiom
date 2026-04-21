@@ -70,7 +70,8 @@ from models import (
 )
 from data_cleaner import (
     clean_data, detect_column_types, get_data_quality_score,
-    CLEANING_SUBSTEPS, SUBSTEP_FUNCS,
+    CLEANING_SUBSTEPS, SUBSTEP_FUNCS, SUBSTEP_REGISTRY,
+    DEFAULT_CLEANING_PLAN, run_substep, substep_label,
 )
 from data_analyzer import (
     get_basic_stats, get_numeric_stats, get_categorical_stats, 
@@ -1387,6 +1388,10 @@ if 'type_overrides' not in st.session_state:
     st.session_state.type_overrides = {}
 if 'cleaning_substep_states' not in st.session_state:
     st.session_state.cleaning_substep_states = {}
+if 'cleaning_substep_plans' not in st.session_state:
+    # Per-dataset ordered cleaning plan: list of dicts with
+    # {instance_id, key, enabled, params}. Drives reorder/insert.
+    st.session_state.cleaning_substep_plans = {}
 
 
 def _ds_key():
@@ -1402,11 +1407,42 @@ def _get_step_history(create=False):
     return sh
 
 
+def _new_instance_id() -> str:
+    import uuid
+    return uuid.uuid4().hex[:10]
+
+
+def _default_cleaning_plan() -> list:
+    """Build the default ordered cleaning plan (all enabled, no params)."""
+    return [
+        {"instance_id": _new_instance_id(), "key": k,
+         "enabled": True, "params": {}}
+        for k in DEFAULT_CLEANING_PLAN
+    ]
+
+
+def _get_cleaning_plan(ds_key: str) -> list:
+    plans = st.session_state.cleaning_substep_plans
+    if ds_key not in plans:
+        # Migrate from legacy enabled-map form if present.
+        legacy = st.session_state.cleaning_substep_states.get(ds_key)
+        plan = _default_cleaning_plan()
+        if isinstance(legacy, dict):
+            for entry in plan:
+                if entry["key"] in legacy:
+                    entry["enabled"] = bool(legacy[entry["key"]])
+        plans[ds_key] = plan
+    return plans[ds_key]
+
+
 def _apply_cleaning_substeps(history: StepHistory, base_df,
-                             enabled_map: dict) -> tuple:
+                             plan: list) -> tuple:
     """Append one Step per cleaning substep onto `history`, then return
     (final_df, aggregated_report). Disabled substeps still appear as
-    pass-through entries so the user can flip them back on later."""
+    pass-through entries so the user can flip them back on later.
+
+    `plan` is an ordered list of {instance_id, key, enabled, params} dicts.
+    """
     report = {
         'original_rows': len(base_df),
         'original_columns': len(base_df.columns),
@@ -1414,19 +1450,25 @@ def _apply_cleaning_substeps(history: StepHistory, base_df,
         'substeps': [],
     }
     current = base_df
-    for key, label in CLEANING_SUBSTEPS:
-        on = bool(enabled_map.get(key, True))
+    for entry in plan:
+        key = entry["key"]
+        params = entry.get("params") or {}
+        on = bool(entry.get("enabled", True))
+        label = substep_label(key, params)
         if on:
-            current, summary, details = SUBSTEP_FUNCS[key](current)
+            current, summary, details = run_substep(key, current, params)
             report['changes'].extend(details.get('changes', []))
         else:
             summary, details = "Disabled — pass through", {}
         history.add(label, summary, current,
-                    meta={'substep_key': key, 'enabled': on,
-                          'details': details})
+                    meta={'substep_key': key,
+                          'substep_instance': entry["instance_id"],
+                          'substep_params': params,
+                          'enabled': on, 'details': details})
         report['substeps'].append({
             'key': key, 'label': label, 'enabled': on,
             'summary': summary, 'details': details,
+            'instance_id': entry["instance_id"], 'params': params,
         })
     report['final_rows'] = len(current)
     report['final_columns'] = len(current.columns)
@@ -1434,12 +1476,12 @@ def _apply_cleaning_substeps(history: StepHistory, base_df,
     return current, report
 
 
-def _rebuild_cleaning_substeps(sh: StepHistory, enabled_map: dict):
+def _rebuild_cleaning_substeps(sh: StepHistory, plan: list):
     """Rebuild the contiguous cleaning block at the tail of `sh`.
 
     Drops every step from the first cleaning substep onward (this also
     discards any later manual edits, mirroring `drop_later` semantics
-    elsewhere), then re-applies all substeps with the new enabled map.
+    elsewhere), then re-applies all substeps from `plan`.
     Returns (final_df, report) or (None, None) if no cleaning block found.
     """
     first_idx = None
@@ -1452,7 +1494,7 @@ def _rebuild_cleaning_substeps(sh: StepHistory, enabled_map: dict):
     base_df = sh.steps[first_idx - 1].df
     sh.steps = sh.steps[:first_idx]
     sh.active_index = len(sh.steps) - 1
-    final_df, report = _apply_cleaning_substeps(sh, base_df, enabled_map)
+    final_df, report = _apply_cleaning_substeps(sh, base_df, plan)
     sh.active_index = len(sh.steps) - 1
     return final_df, report
 
@@ -3077,9 +3119,10 @@ def show_dashboard():
 
                 # Cleaning is broken into individual, toggleable substeps so
                 # each appears as its own entry in the Applied Steps panel.
-                substep_states = {k: True for k, _ in CLEANING_SUBSTEPS}
+                # Users can later reorder, insert, or remove substeps.
+                cleaning_plan = _default_cleaning_plan()
                 df_cleaned, cleaning_report = _apply_cleaning_substeps(
-                    history, df_typed, substep_states
+                    history, df_typed, cleaning_plan
                 )
 
                 st.session_state.df = df_typed
@@ -3114,7 +3157,10 @@ def show_dashboard():
                     st.session_state.step_histories[record.id] = history
                     st.session_state.inferred_schema[record.id] = [s.to_dict() for s in schema]
                     st.session_state.type_overrides[record.id] = {}
-                    st.session_state.cleaning_substep_states[record.id] = substep_states
+                    st.session_state.cleaning_substep_plans[record.id] = cleaning_plan
+                    st.session_state.cleaning_substep_states[record.id] = {
+                        e["key"]: e["enabled"] for e in cleaning_plan
+                    }
                     if uid:
                         set_user_last_dataset(db, uid, record.id)
                     similar = find_similar_datasets(db, columns_info)
@@ -3378,14 +3424,31 @@ def show_dashboard():
                     if sh and not sh.is_empty():
                         st.subheader("Applied Steps")
                         st.caption("Click any step to view the dataset at that point. "
-                                   "Cleaning substeps can be toggled on/off — downstream "
-                                   "substeps are recomputed automatically.")
+                                   "Cleaning substeps can be toggled, reordered, removed, "
+                                   "or new ones inserted — the chain is recomputed.")
+
+                        ds_key = _ds_key()
+                        plan = _get_cleaning_plan(ds_key)
+                        # Map plan instance_id → index for quick lookups.
+                        plan_idx_by_inst = {e["instance_id"]: i for i, e in enumerate(plan)}
+
+                        def _commit_plan(new_plan):
+                            st.session_state.cleaning_substep_plans[ds_key] = new_plan
+                            st.session_state.cleaning_substep_states[ds_key] = {
+                                e["key"]: e["enabled"] for e in new_plan
+                            }
+                            final_df, new_report = _rebuild_cleaning_substeps(sh, new_plan)
+                            if new_report is not None:
+                                st.session_state.df_cleaned = final_df
+                                st.session_state.cleaning_report = new_report
+
                         steps_col, ctrl_col = st.columns([3, 1])
                         with steps_col:
                             for i, step in enumerate(sh.steps):
                                 is_active = (i == sh.active_index)
                                 is_future = (i > sh.active_index)
                                 substep_key = step.meta.get('substep_key')
+                                substep_inst = step.meta.get('substep_instance')
                                 enabled = step.meta.get('enabled', True)
                                 badge = "▶" if is_active else ("◌" if is_future else "✓")
                                 color = "#2dd4bf" if is_active else ("#64748b" if is_future else "#94a3b8")
@@ -3395,10 +3458,10 @@ def show_dashboard():
                                                 "letter-spacing:0.08em;'>· DISABLED</span>"
                                                 if substep_key and not enabled else "")
                                 if substep_key:
-                                    row_l, row_chk, row_btn = st.columns([0.6, 0.2, 0.2])
+                                    row_l, row_ctrls, row_btn = st.columns([0.55, 0.27, 0.18])
                                 else:
                                     row_l, row_btn = st.columns([0.78, 0.22])
-                                    row_chk = None
+                                    row_ctrls = None
                                 with row_l:
                                     st.markdown(
                                         f"<div style='padding:0.45rem 0.6rem;border-left:3px solid {color};"
@@ -3412,25 +3475,57 @@ def show_dashboard():
                                         f"</div>",
                                         unsafe_allow_html=True,
                                     )
-                                if row_chk is not None:
-                                    with row_chk:
-                                        new_enabled = st.checkbox(
-                                            "Enabled", value=enabled,
-                                            key=f"substep_toggle_{_ds_key()}_{substep_key}",
-                                            help="Toggle this cleaning substep on/off. "
-                                                 "Downstream substeps will be recomputed.",
-                                        )
-                                        if new_enabled != enabled:
-                                            states = st.session_state.cleaning_substep_states.setdefault(
-                                                _ds_key(),
-                                                {k: True for k, _ in CLEANING_SUBSTEPS},
+                                if row_ctrls is not None:
+                                    pidx = plan_idx_by_inst.get(substep_inst)
+                                    with row_ctrls:
+                                        c_up, c_dn, c_chk, c_rm = st.columns(4)
+                                        with c_up:
+                                            if st.button(
+                                                "↑", key=f"sub_up_{ds_key}_{substep_inst}",
+                                                help="Move this substep up",
+                                                disabled=(pidx is None or pidx == 0),
+                                                use_container_width=True,
+                                            ) and pidx is not None and pidx > 0:
+                                                new_plan = list(plan)
+                                                new_plan[pidx - 1], new_plan[pidx] = new_plan[pidx], new_plan[pidx - 1]
+                                                _commit_plan(new_plan)
+                                                st.rerun()
+                                        with c_dn:
+                                            if st.button(
+                                                "↓", key=f"sub_dn_{ds_key}_{substep_inst}",
+                                                help="Move this substep down",
+                                                disabled=(pidx is None or pidx >= len(plan) - 1),
+                                                use_container_width=True,
+                                            ) and pidx is not None and pidx < len(plan) - 1:
+                                                new_plan = list(plan)
+                                                new_plan[pidx + 1], new_plan[pidx] = new_plan[pidx], new_plan[pidx + 1]
+                                                _commit_plan(new_plan)
+                                                st.rerun()
+                                        with c_chk:
+                                            new_enabled = st.checkbox(
+                                                "On", value=enabled,
+                                                key=f"substep_toggle_{ds_key}_{substep_inst}",
+                                                help="Toggle this substep on/off",
+                                                label_visibility="collapsed",
                                             )
-                                            states[substep_key] = new_enabled
-                                            final_df, new_report = _rebuild_cleaning_substeps(sh, states)
-                                            if new_report is not None:
-                                                st.session_state.df_cleaned = final_df
-                                                st.session_state.cleaning_report = new_report
-                                            st.rerun()
+                                            if new_enabled != enabled and pidx is not None:
+                                                new_plan = list(plan)
+                                                new_plan[pidx] = {**new_plan[pidx], "enabled": new_enabled}
+                                                _commit_plan(new_plan)
+                                                st.rerun()
+                                        with c_rm:
+                                            if st.button(
+                                                "✕", key=f"sub_rm_{ds_key}_{substep_inst}",
+                                                help="Remove this substep from the plan",
+                                                disabled=(pidx is None),
+                                                use_container_width=True,
+                                            ) and pidx is not None:
+                                                new_plan = [e for j, e in enumerate(plan) if j != pidx]
+                                                if not new_plan:
+                                                    st.warning("Cleaning plan must have at least one substep.")
+                                                else:
+                                                    _commit_plan(new_plan)
+                                                    st.rerun()
                                 with row_btn:
                                     if not is_active:
                                         if st.button("Go to", key=f"goto_step_{i}_{sig}",
@@ -3450,6 +3545,77 @@ def show_dashboard():
                                              key=f"drop_later_{sig}"):
                                     sh.drop_later()
                                     _persist_step_history()
+                                    st.rerun()
+
+                        # ── Insert step affordance ──
+                        with st.expander("➕ Insert step", expanded=False):
+                            st.caption("Add a new cleaning substep at any position. "
+                                       "The chain is rebuilt from the first cleaning substep onward.")
+                            insertable = [(k, meta["label"]) for k, meta in SUBSTEP_REGISTRY.items()
+                                          if meta.get("insertable")]
+                            ins_col1, ins_col2 = st.columns([2, 1])
+                            with ins_col1:
+                                ins_choice = st.selectbox(
+                                    "Substep",
+                                    options=[k for k, _ in insertable],
+                                    format_func=lambda k: SUBSTEP_REGISTRY[k]["label"],
+                                    key=f"ins_choice_{ds_key}",
+                                )
+                            with ins_col2:
+                                # Position: 1 = beginning, len(plan)+1 = end.
+                                pos_options = list(range(1, len(plan) + 2))
+                                pos_default = len(plan)  # before last (end)
+                                ins_pos = st.selectbox(
+                                    "Insert at position",
+                                    options=pos_options,
+                                    index=len(pos_options) - 1,
+                                    format_func=lambda p: (
+                                        f"{p} · before `{plan[p-1]['key']}`"
+                                        if p <= len(plan) else f"{p} · at end"
+                                    ),
+                                    key=f"ins_pos_{ds_key}",
+                                )
+                            # Render param inputs for the chosen substep.
+                            param_specs = SUBSTEP_REGISTRY[ins_choice].get("params", [])
+                            param_values = {}
+                            if param_specs:
+                                cur_cols = list(view_df.columns)
+                                pcols = st.columns(max(1, len(param_specs)))
+                                for j, spec in enumerate(param_specs):
+                                    with pcols[j]:
+                                        if spec["kind"] == "column":
+                                            if cur_cols:
+                                                param_values[spec["name"]] = st.selectbox(
+                                                    spec["label"], cur_cols,
+                                                    key=f"ins_p_{ds_key}_{ins_choice}_{spec['name']}",
+                                                )
+                                            else:
+                                                st.info("No columns available")
+                                        else:
+                                            param_values[spec["name"]] = st.text_input(
+                                                spec["label"],
+                                                key=f"ins_p_{ds_key}_{ins_choice}_{spec['name']}",
+                                            )
+                            if st.button("Insert substep", key=f"ins_apply_{ds_key}",
+                                         type="primary"):
+                                # Validate required params.
+                                missing = [s["label"] for s in param_specs
+                                           if not str(param_values.get(s["name"], "")).strip()]
+                                if missing:
+                                    st.warning(f"Please provide: {', '.join(missing)}")
+                                else:
+                                    new_entry = {
+                                        "instance_id": _new_instance_id(),
+                                        "key": ins_choice,
+                                        "enabled": True,
+                                        "params": param_values,
+                                    }
+                                    new_plan = list(plan)
+                                    insert_at = ins_pos - 1
+                                    new_plan.insert(insert_at, new_entry)
+                                    _commit_plan(new_plan)
+                                    st.success(f"Inserted `{SUBSTEP_REGISTRY[ins_choice]['label']}` "
+                                               f"at position {ins_pos}")
                                     st.rerun()
 
                     # Resolve the schema for the ACTIVE step first so the

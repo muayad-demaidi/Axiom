@@ -7,7 +7,7 @@ from typing import Tuple, Dict, Any, List, Callable
 # Each substep is a small, named, reversible transformation. They appear as
 # their own entries in the Applied Steps panel and can be toggled on/off.
 
-def remove_duplicates_step(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+def remove_duplicates_step(df: pd.DataFrame, **_params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
     out = df.copy()
     n = int(out.duplicated().sum())
     if n > 0:
@@ -18,7 +18,7 @@ def remove_duplicates_step(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, Dict[st
     return out, summary, {"duplicates_removed": n, "changes": ([summary] if n > 0 else [])}
 
 
-def fill_missing_numeric_step(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+def fill_missing_numeric_step(df: pd.DataFrame, **_params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
     out = df.copy()
     changes: List[str] = []
     numeric_cols = out.select_dtypes(include=[np.number]).columns
@@ -40,7 +40,7 @@ def fill_missing_numeric_step(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, Dict
     return out, summary, {"changes": changes}
 
 
-def fill_missing_categorical_step(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+def fill_missing_categorical_step(df: pd.DataFrame, **_params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
     out = df.copy()
     changes: List[str] = []
     numeric_cols = set(out.select_dtypes(include=[np.number]).columns)
@@ -63,7 +63,7 @@ def fill_missing_categorical_step(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, 
     return out, summary, {"changes": changes}
 
 
-def clip_outliers_step(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+def clip_outliers_step(df: pd.DataFrame, **_params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
     out = df.copy()
     changes: List[str] = []
     clipped_cols = 0
@@ -93,29 +93,136 @@ def clip_outliers_step(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, Dict[str, A
     return out, summary, {"changes": changes}
 
 
-CLEANING_SUBSTEPS: List[Tuple[str, str]] = [
-    ("remove_duplicates", "Remove Duplicates"),
-    ("fill_missing_numeric", "Fill Missing — Numeric"),
-    ("fill_missing_categorical", "Fill Missing — Categorical"),
-    ("clip_outliers", "Clip Outliers"),
+def trim_whitespace_step(df: pd.DataFrame, **_params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+    out = df.copy()
+    changes: List[str] = []
+    for col in out.select_dtypes(include=['object']).columns:
+        before = out[col]
+        trimmed = out[col].apply(lambda v: v.strip() if isinstance(v, str) else v)
+        n = int((before.fillna('__nan__') != trimmed.fillna('__nan__')).sum())
+        if n > 0:
+            out[col] = trimmed
+            changes.append(f"Trimmed whitespace in {n} value(s) of `{col}`")
+    summary = (f"Trimmed whitespace in {len(changes)} text column(s)"
+               if changes else "No whitespace to trim")
+    return out, summary, {"changes": changes}
+
+
+def drop_column_step(df: pd.DataFrame, column: str | None = None,
+                     **_params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+    out = df.copy()
+    if column and column in out.columns:
+        out = out.drop(columns=[column])
+        summary = f"Dropped column `{column}`"
+        return out, summary, {"changes": [summary]}
+    return out, f"Skipped — column `{column}` not present", {"changes": []}
+
+
+def rename_column_step(df: pd.DataFrame, column: str | None = None,
+                       new_name: str | None = None,
+                       **_params) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+    out = df.copy()
+    if column and new_name and column in out.columns:
+        out = out.rename(columns={column: new_name})
+        summary = f"Renamed `{column}` → `{new_name}`"
+        return out, summary, {"changes": [summary]}
+    return out, "Skipped — invalid rename parameters", {"changes": []}
+
+
+# Unified registry. `params` describes user-editable parameters for substeps
+# inserted via the UI. `kind` is one of: "column" (pick from current columns),
+# "text" (free text input).
+SUBSTEP_REGISTRY: Dict[str, Dict[str, Any]] = {
+    "remove_duplicates": {
+        "label": "Remove Duplicates",
+        "fn": remove_duplicates_step,
+        "params": [],
+        "insertable": True,
+    },
+    "fill_missing_numeric": {
+        "label": "Fill Missing — Numeric",
+        "fn": fill_missing_numeric_step,
+        "params": [],
+        "insertable": True,
+    },
+    "fill_missing_categorical": {
+        "label": "Fill Missing — Categorical",
+        "fn": fill_missing_categorical_step,
+        "params": [],
+        "insertable": True,
+    },
+    "clip_outliers": {
+        "label": "Clip Outliers",
+        "fn": clip_outliers_step,
+        "params": [],
+        "insertable": True,
+    },
+    "trim_whitespace": {
+        "label": "Trim Whitespace",
+        "fn": trim_whitespace_step,
+        "params": [],
+        "insertable": True,
+    },
+    "drop_column": {
+        "label": "Drop Column",
+        "fn": drop_column_step,
+        "params": [{"name": "column", "kind": "column", "label": "Column"}],
+        "insertable": True,
+    },
+    "rename_column": {
+        "label": "Rename Column",
+        "fn": rename_column_step,
+        "params": [
+            {"name": "column", "kind": "column", "label": "Column"},
+            {"name": "new_name", "kind": "text", "label": "New name"},
+        ],
+        "insertable": True,
+    },
+}
+
+# Default ordered cleaning plan applied to fresh datasets.
+DEFAULT_CLEANING_PLAN: List[str] = [
+    "remove_duplicates",
+    "fill_missing_numeric",
+    "fill_missing_categorical",
+    "clip_outliers",
 ]
 
-SUBSTEP_FUNCS: Dict[str, Callable[[pd.DataFrame], Tuple[pd.DataFrame, str, Dict[str, Any]]]] = {
-    "remove_duplicates": remove_duplicates_step,
-    "fill_missing_numeric": fill_missing_numeric_step,
-    "fill_missing_categorical": fill_missing_categorical_step,
-    "clip_outliers": clip_outliers_step,
+# Back-compat alias kept for any external readers (label tuples).
+CLEANING_SUBSTEPS: List[Tuple[str, str]] = [
+    (k, SUBSTEP_REGISTRY[k]["label"]) for k in DEFAULT_CLEANING_PLAN
+]
+
+SUBSTEP_FUNCS: Dict[str, Callable[..., Tuple[pd.DataFrame, str, Dict[str, Any]]]] = {
+    k: v["fn"] for k, v in SUBSTEP_REGISTRY.items()
 }
+
+
+def substep_label(key: str, params: Dict[str, Any] | None = None) -> str:
+    """Human-readable label for a (possibly parameterized) substep."""
+    base = SUBSTEP_REGISTRY.get(key, {}).get("label", key)
+    params = params or {}
+    if key == "drop_column" and params.get("column"):
+        return f"Drop Column · {params['column']}"
+    if key == "rename_column" and params.get("column"):
+        return f"Rename · {params['column']} → {params.get('new_name', '?')}"
+    return base
+
+
+def run_substep(key: str, df: pd.DataFrame,
+                params: Dict[str, Any] | None = None
+                ) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+    fn = SUBSTEP_REGISTRY[key]["fn"]
+    return fn(df, **(params or {}))
 
 
 def clean_data(df: pd.DataFrame,
                enabled: Dict[str, bool] | None = None
                ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
-    """Run the full cleaning pipeline as a sequence of named substeps.
+    """Run the default cleaning pipeline as a sequence of named substeps.
 
     `enabled` optionally maps substep keys to bool toggles; missing keys
-    default to True. Disabled substeps are pass-through. Returns the final
-    cleaned dataframe and a report aggregated across all enabled substeps.
+    default to True. Disabled substeps are pass-through.
     """
     enabled = enabled or {}
     report: Dict[str, Any] = {
@@ -125,10 +232,11 @@ def clean_data(df: pd.DataFrame,
         'substeps': [],
     }
     current = df.copy()
-    for key, label in CLEANING_SUBSTEPS:
+    for key in DEFAULT_CLEANING_PLAN:
+        label = SUBSTEP_REGISTRY[key]["label"]
         on = enabled.get(key, True)
         if on:
-            current, summary, details = SUBSTEP_FUNCS[key](current)
+            current, summary, details = run_substep(key, current)
             report['changes'].extend(details.get('changes', []))
         else:
             summary, details = "Disabled — pass through", {}
