@@ -48,7 +48,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd marketing-site && npm ci && ASTRO_TELEMETRY_DISABLED=1 npx astro dev --host 0.0.0.0 --port 8000"
+args = "cd marketing-site && npm ci && ASTRO_TELEMETRY_DISABLED=1 npm run build && ASTRO_TELEMETRY_DISABLED=1 npx astro preview --host 0.0.0.0 --port 8000"
 waitForPort = 8000
 
 [[ports]]
