@@ -10,7 +10,11 @@ import csv as _csv
 from context.type_inference import (
     infer_schema, apply_schema, schema_to_dataframe, cast_column, ColumnType
 )
-from context.step_history import StepHistory, Step
+from context.step_history import (
+    StepHistory, Step,
+    serialize_source_df, deserialize_source_df,
+    rebuild_history_from_recipes,
+)
 
 
 def _column_config_from_schema(schema_iter, df=None):
@@ -60,7 +64,9 @@ from models import (
     create_user, authenticate_user, get_user_by_id, get_all_users,
     get_all_datasets, get_admin_stats, increment_analysis_count, User,
     update_user_subscription, save_support_message, check_trial_active,
-    issue_session_token, get_user_by_session_token, clear_session_token
+    issue_session_token, get_user_by_session_token, clear_session_token,
+    update_dataset_steps, get_dataset_record, set_user_last_dataset,
+    get_user_datasets,
 )
 from data_cleaner import (
     clean_data, detect_column_types, get_data_quality_score,
@@ -1451,6 +1457,125 @@ def _rebuild_cleaning_substeps(sh: StepHistory, enabled_map: dict):
     return final_df, report
 
 
+def _persist_step_history():
+    """Save the current dataset's step recipes + active pointer to the DB.
+
+    Called after any user-driven mutation (manual override, navigation,
+    drop/redo) so the history survives sign-out and refresh.
+    """
+    ds_id = st.session_state.get('current_dataset_id')
+    if not ds_id or not isinstance(ds_id, int):
+        return
+    sh = st.session_state.step_histories.get(ds_id)
+    if sh is None:
+        return
+    db = get_db()
+    try:
+        update_dataset_steps(db, ds_id, sh.to_recipes(), sh.active_index)
+        uid = (st.session_state.user or {}).get('id')
+        if uid:
+            set_user_last_dataset(db, uid, ds_id)
+    except Exception:
+        pass
+    finally:
+        db.close()
+
+
+def _hydrate_dataset_from_db(dataset_id):
+    """Rebuild session_state for a previously persisted dataset.
+
+    Returns True on success. Used both for auto-resume on session restore
+    and for the user-facing 'Reopen' action.
+    """
+    if not dataset_id:
+        return False
+    uid = (st.session_state.user or {}).get('id')
+    db = get_db()
+    try:
+        rec = get_dataset_record(db, dataset_id, user_id=uid)
+        if not rec or not rec.source_parquet or not rec.step_recipes:
+            return False
+        try:
+            source_df = deserialize_source_df(rec.source_parquet)
+        except Exception:
+            return False
+        history = rebuild_history_from_recipes(
+            source_df, rec.step_recipes, rec.active_step_index
+        )
+        st.session_state.current_dataset_id = rec.id
+        st.session_state.step_histories[rec.id] = history
+
+        # Restore the dataframes the rest of the dashboard reads from.
+        # Prefer a manual override step over the auto Changed Type so the
+        # restored baseline matches the user's most recent typing decision.
+        typed_step = history.find_last("Changed Type (manual)") or history.find_last("Changed Type")
+        st.session_state.df = (typed_step.df if typed_step else source_df)
+
+        # The cleaned dataframe lives at the last cleaning substep (or the
+        # legacy single "Cleaning" step on older records). Walk the steps in
+        # order so the most-recent cleaning tail wins.
+        clean_step = None
+        substep_states = {}
+        substep_reports = []
+        for s in history.steps:
+            sm = s.meta or {}
+            sk = sm.get('substep_key')
+            if sk:
+                clean_step = s
+                substep_states[sk] = bool(sm.get('enabled', True))
+                substep_reports.append({
+                    'key': sk,
+                    'label': s.name,
+                    'enabled': bool(sm.get('enabled', True)),
+                    'summary': s.summary,
+                    'details': sm.get('details') or {},
+                })
+        legacy_clean = history.find_last("Cleaning")
+        if clean_step is None and legacy_clean is not None:
+            clean_step = legacy_clean
+        st.session_state.df_cleaned = (clean_step.df if clean_step else st.session_state.df)
+
+        # Cleaning report — rebuild from the substep tail, fall back to the
+        # legacy single-step report stored in meta on older records.
+        if substep_reports:
+            base_rows = (typed_step.df if typed_step else source_df)
+            final_rows = clean_step.df if clean_step is not None else base_rows
+            st.session_state.cleaning_report = {
+                'original_rows': len(base_rows),
+                'original_columns': len(base_rows.columns),
+                'final_rows': len(final_rows),
+                'final_columns': len(final_rows.columns),
+                'rows_removed': len(base_rows) - len(final_rows),
+                'changes': [c for r in substep_reports
+                            for c in (r['details'].get('changes') or [])],
+                'substeps': substep_reports,
+            }
+        elif legacy_clean is not None:
+            st.session_state.cleaning_report = (legacy_clean.meta or {}).get('report')
+
+        if substep_states and 'cleaning_substep_states' in st.session_state:
+            st.session_state.cleaning_substep_states[rec.id] = substep_states
+
+        # Schema metadata used by the UI panels.
+        change_step = history.find_last("Changed Type (manual)") or history.find_last("Changed Type")
+        if change_step and (change_step.meta or {}).get('schema'):
+            st.session_state.inferred_schema[rec.id] = change_step.meta.get('schema')
+        # Re-derive overrides from any manual steps so the UI mirrors them.
+        overrides = {}
+        for s in history.steps:
+            if s.name == "Changed Type (manual)":
+                overrides.update((s.meta or {}).get('override') or {})
+        st.session_state.type_overrides[rec.id] = overrides
+
+        st.session_state.analysis_results = generate_summary_report(st.session_state.df_cleaned)
+
+        if uid:
+            set_user_last_dataset(db, uid, rec.id)
+        return True
+    finally:
+        db.close()
+
+
 def _active_df():
     """Return the dataframe at the currently active pipeline step.
     Falls back to df_cleaned -> df when no step history exists."""
@@ -1581,6 +1706,15 @@ if not st.session_state.session_hydrated and st.session_state.user is None:
                 st.session_state.user = user_to_dict(_db_user)
                 if st.session_state.page in ('home', 'login', 'register'):
                     st.session_state.page = 'dashboard'
+                # Auto-resume the dataset the user was last working on so the
+                # Applied Steps panel and dashboard render exactly where they
+                # left off — even after a sign-out or browser refresh.
+                _last_ds = getattr(_db_user, 'last_dataset_id', None)
+                if _last_ds and st.session_state.df is None:
+                    try:
+                        _hydrate_dataset_from_db(_last_ds)
+                    except Exception:
+                        pass
             else:
                 # Stale or unknown token — strip it so we don't keep retrying.
                 try:
@@ -2957,20 +3091,32 @@ def show_dashboard():
                 st.session_state.analysis_results = analysis_results
                 data_hash = calculate_data_hash(df_typed)
                 columns_info = {col: str(df_typed[col].dtype) for col in df_typed.columns}
+                try:
+                    source_blob = serialize_source_df(df_raw)
+                except Exception:
+                    source_blob = None
                 db = get_db()
                 try:
+                    uid = (st.session_state.user or {}).get('id')
                     record = save_dataset_record(
                         db, filename=file_obj.name, dataset_name=ds_name,
                         period_month=p_month, period_year=p_year,
                         row_count=len(df_typed), column_count=len(df_typed.columns),
                         columns_info=columns_info, data_hash=data_hash,
-                        summary_stats=sanitize_for_json(analysis_results.get('numeric_summary', {}))
+                        summary_stats=sanitize_for_json(analysis_results.get('numeric_summary', {})),
+                        user_id=uid,
+                        source_parquet=source_blob,
+                        parse_meta=parse_meta if isinstance(parse_meta, dict) else None,
+                        step_recipes=history.to_recipes(),
+                        active_step_index=history.active_index,
                     )
                     st.session_state.current_dataset_id = record.id
                     st.session_state.step_histories[record.id] = history
                     st.session_state.inferred_schema[record.id] = [s.to_dict() for s in schema]
                     st.session_state.type_overrides[record.id] = {}
                     st.session_state.cleaning_substep_states[record.id] = substep_states
+                    if uid:
+                        set_user_last_dataset(db, uid, record.id)
                     similar = find_similar_datasets(db, columns_info)
                     similar = [s for s in similar if s['record']['id'] != record.id]
                     st.session_state.similar_datasets = similar
@@ -3017,7 +3163,36 @@ def show_dashboard():
                         if st.button("Start Analysis", type="primary", use_container_width=True):
                             run_analysis(uploaded_file, dataset_name, period_month, period_year,
                                          limits, delimiter=csv_delim, has_header=csv_hdr)
-    
+
+                # ── Recent datasets ─ reopen a previously analysed file with
+                # its full Applied Steps history rebuilt from the database.
+                _u = st.session_state.user or {}
+                _uid = _u.get('id')
+                if _uid:
+                    _rdb = get_db()
+                    try:
+                        _recent = get_user_datasets(_rdb, _uid)
+                        _recent = [r for r in _recent if r.source_parquet and r.step_recipes][:5]
+                    finally:
+                        _rdb.close()
+                    if _recent:
+                        st.markdown("---")
+                        st.markdown("##### Recent datasets")
+                        st.caption("Reopen a previously analysed dataset and resume from its last Applied Step.")
+                        for _rec in _recent:
+                            _meta = f"{_rec.row_count:,} rows × {_rec.column_count} cols · {_rec.upload_date.strftime('%Y-%m-%d')}"
+                            _rl, _rr = st.columns([0.72, 0.28])
+                            with _rl:
+                                st.markdown(f"**{_rec.dataset_name}**  \n<span style='color:#94a3b8;font-size:0.8rem;'>{_meta}</span>",
+                                            unsafe_allow_html=True)
+                            with _rr:
+                                if st.button("Reopen", key=f"reopen_{_rec.id}",
+                                             use_container_width=True):
+                                    if _hydrate_dataset_from_db(_rec.id):
+                                        st.rerun()
+                                    else:
+                                        st.error("Could not rebuild this dataset's history.")
+
         if st.session_state.df is not None:
             with st.expander("Upload New Data", expanded=False):
                 file_limit_mb = limits['max_file_size_mb']
@@ -3261,6 +3436,7 @@ def show_dashboard():
                                         if st.button("Go to", key=f"goto_step_{i}_{sig}",
                                                      use_container_width=True):
                                             sh.go_to(i)
+                                            _persist_step_history()
                                             st.rerun()
                         with ctrl_col:
                             st.markdown(f"**Active:** `{sh.current().name}`")
@@ -3268,10 +3444,12 @@ def show_dashboard():
                                 if st.button("Redo to latest", use_container_width=True,
                                              key=f"redo_latest_{sig}"):
                                     sh.redo_latest()
+                                    _persist_step_history()
                                     st.rerun()
                                 if st.button("Drop later steps", use_container_width=True,
                                              key=f"drop_later_{sig}"):
                                     sh.drop_later()
+                                    _persist_step_history()
                                     st.rerun()
 
                     # Resolve the schema for the ACTIVE step first so the
@@ -3355,6 +3533,7 @@ def show_dashboard():
                                     st.session_state.inferred_schema[_ds_key()] = new_schema
                                     overrides = st.session_state.type_overrides.setdefault(_ds_key(), {})
                                     overrides[ovr_col] = ovr_type
+                                    _persist_step_history()
                                     st.success(f"Set {ovr_col} → {ovr_type}")
                                     st.rerun()
             

@@ -3,7 +3,7 @@ import hashlib
 import secrets
 import bcrypt
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Float, JSON, Boolean, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Float, JSON, Boolean, ForeignKey, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
@@ -43,6 +43,7 @@ class User(Base):
     trial_end = Column(DateTime, nullable=True)
     session_token = Column(String(128), nullable=True, index=True)
     session_expires = Column(DateTime, nullable=True)
+    last_dataset_id = Column(Integer, nullable=True)
 
 
 class SupportMessage(Base):
@@ -88,6 +89,10 @@ class DatasetRecord(Base):
     data_hash = Column(String(64), nullable=False)
     summary_stats = Column(JSON, nullable=True)
     file_size = Column(Float, nullable=True)
+    source_parquet = Column(LargeBinary, nullable=True)
+    parse_meta = Column(JSON, nullable=True)
+    step_recipes = Column(JSON, nullable=True)
+    active_step_index = Column(Integer, nullable=True)
     
 
 class AnalysisHistory(Base):
@@ -114,8 +119,32 @@ class ChatHistory(Base):
 
 
 def init_db():
-    """Initialize database tables"""
+    """Initialize database tables and apply lightweight in-place migrations.
+
+    SQLAlchemy's `create_all` only creates missing tables — it never ALTERs
+    existing ones. To keep older deployments compatible when we add columns
+    (e.g. the persisted step-history fields), we run idempotent
+    `ADD COLUMN IF NOT EXISTS` statements right after table creation.
+    """
+    from sqlalchemy import text
+
     Base.metadata.create_all(bind=engine)
+
+    _migrations = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_dataset_id INTEGER",
+        "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS source_parquet BYTEA",
+        "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS parse_meta JSON",
+        "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS step_recipes JSON",
+        "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS active_step_index INTEGER",
+    ]
+    with engine.begin() as conn:
+        for stmt in _migrations:
+            try:
+                conn.execute(text(stmt))
+            except Exception:
+                # Older Postgres versions without IF NOT EXISTS support, or
+                # races between workers, shouldn't block app startup.
+                pass
 
 
 def get_db():
@@ -128,9 +157,12 @@ def get_db():
 
 
 def save_dataset_record(db, filename, dataset_name, period_month, period_year, 
-                        row_count, column_count, columns_info, data_hash, summary_stats=None):
+                        row_count, column_count, columns_info, data_hash, summary_stats=None,
+                        user_id=None, source_parquet=None, parse_meta=None,
+                        step_recipes=None, active_step_index=None):
     """Save a dataset record to the database"""
     record = DatasetRecord(
+        user_id=user_id,
         filename=filename,
         dataset_name=dataset_name,
         period_month=period_month,
@@ -139,12 +171,45 @@ def save_dataset_record(db, filename, dataset_name, period_month, period_year,
         column_count=column_count,
         columns_info=columns_info,
         data_hash=data_hash,
-        summary_stats=summary_stats
+        summary_stats=summary_stats,
+        source_parquet=source_parquet,
+        parse_meta=parse_meta,
+        step_recipes=step_recipes,
+        active_step_index=active_step_index,
     )
     db.add(record)
     db.commit()
     db.refresh(record)
     return record
+
+
+def update_dataset_steps(db, dataset_id, step_recipes, active_step_index):
+    """Persist updated step recipes / active pointer for a dataset."""
+    rec = db.query(DatasetRecord).filter(DatasetRecord.id == dataset_id).first()
+    if not rec:
+        return None
+    rec.step_recipes = step_recipes
+    rec.active_step_index = active_step_index
+    db.commit()
+    return rec
+
+
+def get_dataset_record(db, dataset_id, user_id=None):
+    """Look up a single dataset record (optionally scoped to a user)."""
+    q = db.query(DatasetRecord).filter(DatasetRecord.id == dataset_id)
+    if user_id is not None:
+        q = q.filter((DatasetRecord.user_id == user_id) | (DatasetRecord.user_id.is_(None)))
+    return q.first()
+
+
+def set_user_last_dataset(db, user_id, dataset_id):
+    """Remember the dataset the user was last working on."""
+    if user_id is None:
+        return
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.last_dataset_id = dataset_id
+        db.commit()
 
 
 def find_similar_datasets(db, columns_info):

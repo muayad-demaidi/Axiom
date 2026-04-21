@@ -5,10 +5,17 @@ point so the user can navigate back and forth without re-running anything.
 """
 from __future__ import annotations
 
+import io
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import pandas as pd
+
+from context.type_inference import (
+    ColumnType,
+    apply_schema,
+    cast_column,
+)
 
 
 @dataclass
@@ -88,3 +95,126 @@ class StepHistory:
 
     def __len__(self) -> int:
         return len(self.steps)
+
+    # ---- serialization --------------------------------------------------
+
+    _STEP_TYPE_MAP = {
+        "Source": "source",
+        "Promoted Headers": "promoted_headers",
+        "Changed Type": "changed_type",
+        "Cleaning": "cleaning",
+        "Changed Type (manual)": "manual_type",
+    }
+
+    def to_recipes(self) -> list[dict]:
+        """Serialize steps (without dataframes) for DB persistence."""
+        out: list[dict] = []
+        for s in self.steps:
+            meta = s.meta or {}
+            # Cleaning substeps are emitted by _apply_cleaning_substeps
+            # with their substep_key in meta — keep them as a distinct
+            # recipe type so rebuild knows to call the substep function.
+            if meta.get("substep_key"):
+                rtype = "cleaning_substep"
+            else:
+                rtype = self._STEP_TYPE_MAP.get(s.name, "custom")
+            out.append({
+                "type": rtype,
+                "name": s.name,
+                "summary": s.summary,
+                "meta": _json_safe(meta),
+            })
+        return out
+
+
+def _json_safe(obj: Any) -> Any:
+    """Best-effort conversion of pipeline meta to JSON-friendly primitives."""
+    if obj is None or isinstance(obj, (bool, int, float, str)):
+        return obj
+    if isinstance(obj, dict):
+        return {str(k): _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, set)):
+        return [_json_safe(v) for v in obj]
+    try:
+        import numpy as np  # local import keeps module light
+        if isinstance(obj, np.generic):
+            return obj.item()
+    except Exception:
+        pass
+    return str(obj)
+
+
+def serialize_source_df(df: pd.DataFrame) -> bytes:
+    """Encode the source dataframe as parquet bytes for storage."""
+    buf = io.BytesIO()
+    safe = df.copy()
+    safe.columns = [str(c) for c in safe.columns]
+    safe.to_parquet(buf, engine="pyarrow", index=False)
+    return buf.getvalue()
+
+
+def deserialize_source_df(blob: bytes) -> pd.DataFrame:
+    return pd.read_parquet(io.BytesIO(blob), engine="pyarrow")
+
+
+def rebuild_history_from_recipes(
+    source_df: pd.DataFrame,
+    recipes: list[dict],
+    active_index: Optional[int] = None,
+) -> "StepHistory":
+    """Replay stored recipes against the source dataframe to rebuild a StepHistory.
+
+    Each recipe drives a deterministic transform; we re-execute them so the
+    snapshot dataframes match what the user last saw.
+    """
+    from data_cleaner import clean_data  # avoid circular import at module load
+
+    history = StepHistory()
+    current = source_df
+
+    for recipe in recipes or []:
+        rtype = recipe.get("type")
+        name = recipe.get("name") or rtype or "Step"
+        summary = recipe.get("summary") or ""
+        meta = recipe.get("meta") or {}
+
+        if rtype == "source":
+            current = source_df
+            history.add(name, summary, current, meta=meta)
+        elif rtype == "promoted_headers":
+            history.add(name, summary, current, meta=meta)
+        elif rtype == "changed_type":
+            schema_dicts = meta.get("schema") or []
+            schema = [ColumnType(**{
+                "column": d.get("column"),
+                "inferred_type": d.get("inferred_type", "text"),
+                "confidence": float(d.get("confidence", 0.0)),
+                "sample_values": list(d.get("sample_values") or []),
+                "notes": d.get("notes", "") or "",
+            }) for d in schema_dicts if d.get("column") is not None]
+            current = apply_schema(current, schema) if schema else current.copy()
+            history.add(name, summary, current, meta=meta)
+        elif rtype == "cleaning":
+            current, _report = clean_data(current)
+            history.add(name, summary, current, meta=meta)
+        elif rtype == "cleaning_substep":
+            from data_cleaner import SUBSTEP_FUNCS
+            key = meta.get("substep_key")
+            enabled = bool(meta.get("enabled", True))
+            if enabled and key in SUBSTEP_FUNCS:
+                current, _summary, _details = SUBSTEP_FUNCS[key](current)
+            history.add(name, summary, current, meta=meta)
+        elif rtype == "manual_type":
+            override = meta.get("override") or {}
+            base = current.copy()
+            for col, t in override.items():
+                if col in base.columns:
+                    base[col] = cast_column(base[col], t)
+            current = base
+            history.add(name, summary, current, meta=meta)
+        else:
+            history.add(name, summary, current, meta=meta)
+
+    if active_index is not None and 0 <= active_index < len(history.steps):
+        history.active_index = active_index
+    return history
