@@ -31,6 +31,9 @@ _JUNK_TOKENS = {"", "nan", "na", "n/a", "null", "none", "-", "--", "?",
 _CURRENCY_SYMBOLS = "$€£¥₪₺₩₽﷼"
 _CURRENCY_CODES = {"USD", "EUR", "GBP", "SAR", "AED", "JPY", "CNY",
                    "KWD", "QAR", "BHD", "OMR", "JOD", "EGP", "ILS", "TRY"}
+_RE_CURRENCY_TOKEN = re.compile(
+    rf"(?P<sym>[{re.escape(_CURRENCY_SYMBOLS)}])|(?P<code>\b[A-Z]{{3}}\b)"
+)
 
 _RE_INT = re.compile(r"^[+-]?\d{1,3}(?:[,\s]?\d{3})*$|^[+-]?\d+$")
 _RE_DEC = re.compile(r"^[+-]?\d{1,3}(?:[,\s]?\d{3})*(?:\.\d+)?$|^[+-]?\d+\.\d+$|^[+-]?\.\d+$")
@@ -64,6 +67,7 @@ class ColumnType:
     confidence: float
     sample_values: list
     notes: str = ""
+    currency_code: Optional[str] = None
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -146,6 +150,33 @@ def _is_junk(v) -> bool:
         return False
 
 
+def _dominant_currency_token(values) -> Optional[str]:
+    """Return the most common currency symbol or ISO code seen in the values.
+    Symbols (e.g. '$', '€') are preferred when present; otherwise an ISO code
+    such as 'USD' is returned. Returns ``None`` when no marker is detected."""
+    from collections import Counter
+    counts: Counter = Counter()
+    for v in values:
+        s = str(v)
+        for m in _RE_CURRENCY_TOKEN.finditer(s):
+            tok = m.group("sym")
+            if tok:
+                counts[tok] += 1
+            else:
+                code = m.group("code")
+                if code and code in _CURRENCY_CODES:
+                    counts[code] += 1
+    if not counts:
+        return None
+    # Prefer a symbol over an ISO code when both occur: symbols render more
+    # compactly in the preview ("€ 1234.50" vs "1234.50 EUR"). Within each
+    # group we still pick the most frequent token.
+    sym_counts = {k: v for k, v in counts.items() if k in _CURRENCY_SYMBOLS}
+    if sym_counts:
+        return max(sym_counts, key=sym_counts.get)
+    return counts.most_common(1)[0][0]
+
+
 def infer_column_type(series: pd.Series, name_hint: str = "") -> ColumnType:
     """Infer the most likely Power Query-style type for a single column."""
     name_l = (name_hint or series.name or "").lower() if hasattr(series, "name") else ""
@@ -172,7 +203,9 @@ def infer_column_type(series: pd.Series, name_hint: str = "") -> ColumnType:
         if any(h in name_l for h in _NAME_HINTS_PCT):
             return ColumnType(str(series.name), "percentage", 0.95, sample_values, "Float + name hint")
         if any(h in name_l for h in _NAME_HINTS_CURR):
-            return ColumnType(str(series.name), "currency", 0.9, sample_values, "Float + name hint")
+            return ColumnType(str(series.name), "currency", 0.9, sample_values,
+                              "Float + name hint",
+                              currency_code=_dominant_currency_token(sample_values))
         return ColumnType(str(series.name), "decimal", 1.0, sample_values, "Native float dtype")
 
     # Object / string columns — score against each candidate
@@ -220,7 +253,9 @@ def infer_column_type(series: pd.Series, name_hint: str = "") -> ColumnType:
             return ColumnType(str(series.name), "id", 0.9, sample_values, "High-cardinality identifier")
         return ColumnType(str(series.name), "text", 1.0, sample_values, "Free-form text")
 
-    return ColumnType(str(series.name), best, best_score, sample_values, "Pattern match")
+    cur = _dominant_currency_token(str_vals) if best == "currency" else None
+    return ColumnType(str(series.name), best, best_score, sample_values,
+                      "Pattern match", currency_code=cur)
 
 
 def infer_schema(df: pd.DataFrame) -> list[ColumnType]:

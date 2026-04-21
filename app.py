@@ -33,9 +33,11 @@ def _column_config_from_schema(schema_iter, df=None):
         if isinstance(s, dict):
             col = s.get("column")
             t = (s.get("inferred_type") or "").lower()
+            cur_code = s.get("currency_code")
         else:
             col = getattr(s, "column", None)
             t = (getattr(s, "inferred_type", "") or "").lower()
+            cur_code = getattr(s, "currency_code", None)
         if not col:
             continue
         if cols_in_df is not None and col not in cols_in_df:
@@ -46,7 +48,15 @@ def _column_config_from_schema(schema_iter, df=None):
             elif t == "decimal":
                 cfg[col] = st.column_config.NumberColumn(format="localized")
             elif t == "currency":
-                cfg[col] = st.column_config.NumberColumn(format="accounting")
+                if cur_code:
+                    # ISO code → suffix ("1234.50 USD"); symbol → prefix ("€ 1234.50").
+                    if len(cur_code) == 3 and cur_code.isalpha():
+                        fmt = f"%.2f {cur_code}"
+                    else:
+                        fmt = f"{cur_code} %.2f"
+                    cfg[col] = st.column_config.NumberColumn(format=fmt)
+                else:
+                    cfg[col] = st.column_config.NumberColumn(format="accounting")
             elif t == "percentage":
                 cfg[col] = st.column_config.NumberColumn(format="percent")
             elif t == "date":
