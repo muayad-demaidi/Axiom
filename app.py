@@ -5960,11 +5960,18 @@ def show_dashboard():
                                 response = chat_about_data(prompt, df_info)
                                 st.session_state.chat_messages.append({"role": "assistant", "content": response})
                             
-                                db = get_db()
-                                try:
-                                    save_chat_message(db, st.session_state.current_dataset_id, prompt, response)
-                                finally:
-                                    db.close()
+                                # `chat_history.dataset_id` is an Integer column, but
+                                # virtual joined-view datasets carry a synthetic
+                                # string id (`joined_<ts>`). Skip persistence in
+                                # that case so the chat tab never raises on a
+                                # type-mismatched insert.
+                                _cur_id = st.session_state.current_dataset_id
+                                if isinstance(_cur_id, int):
+                                    db = get_db()
+                                    try:
+                                        save_chat_message(db, _cur_id, prompt, response)
+                                    finally:
+                                        db.close()
                         
                             st.rerun()
             
