@@ -5844,86 +5844,101 @@ def _projects_page_css():
     letter-spacing: 0.14em; margin-top: 0.35rem;
 }
 .proj-section-head {
-    display: flex; align-items: baseline; justify-content: space-between;
-    margin: 0.5rem 0 1rem 0;
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 1.4rem 0 0.4rem 0;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid rgba(148,163,184,0.10);
 }
 .proj-section-title {
     font-family: 'Syne', sans-serif; font-weight: 700;
     font-size: 1.05rem; color: #cbd5e1; letter-spacing: 0.02em;
+    display: flex; align-items: baseline; gap: 0.7rem;
+}
+.proj-section-title .count-pill {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.68rem;
+    color: #94a3b8; letter-spacing: 0.10em;
+    background: rgba(148,163,184,0.08);
+    border: 1px solid rgba(148,163,184,0.14);
+    padding: 0.18rem 0.55rem; border-radius: 999px;
+    font-variant-numeric: tabular-nums;
 }
 .proj-section-meta {
-    font-family: 'JetBrains Mono', monospace; font-size: 0.74rem;
-    color: #64748b; letter-spacing: 0.08em;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+    color: #475569; letter-spacing: 0.14em;
 }
-.proj-card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 16px; padding: 1.4rem 1.45rem 1.2rem 1.45rem;
-    height: 100%; display: flex; flex-direction: column;
-    transition: border-color 200ms ease, transform 180ms ease,
-                box-shadow 220ms ease;
-    position: relative; overflow: hidden;
+/* === LIST-MENU rows (replaces bento card grid) ====================== */
+.proj-list { margin: 0.2rem 0 0 0; }
+.proj-row {
+    position: relative;
+    padding: 1.05rem 1.1rem 1.05rem 1.25rem;
+    border-bottom: 1px solid rgba(148,163,184,0.07);
+    transition: background 180ms ease;
+    overflow: hidden;
+    min-height: 76px;
+    display: flex; flex-direction: column; justify-content: center;
 }
-.proj-card::before {
-    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-    background: linear-gradient(180deg, var(--teal) 0%, transparent 100%);
-    opacity: 0; transition: opacity 200ms ease;
+.proj-row::before {
+    content: ""; position: absolute; left: 0; top: 14%; bottom: 14%;
+    width: 2px; background: var(--teal);
+    transform: scaleY(0); transform-origin: center;
+    transition: transform 220ms ease;
+    border-radius: 2px;
 }
-.proj-card:hover {
-    border-color: rgba(45,212,191,0.42);
-    transform: translateY(-2px);
-    box-shadow: 0 14px 40px -22px rgba(45,212,191,0.45);
+.proj-row:hover {
+    background: linear-gradient(90deg,
+        rgba(45,212,191,0.04) 0%, rgba(45,212,191,0) 80%);
 }
-.proj-card:hover::before { opacity: 1; }
-.proj-card-title {
+.proj-row:hover::before { transform: scaleY(1); }
+.proj-row-title {
     font-family: 'Syne', sans-serif; font-weight: 700;
-    font-size: 1.18rem; color: #e2e8f0; margin: 0 0 0.5rem 0;
+    font-size: 1.05rem; color: #e2e8f0; margin: 0;
     line-height: 1.25; letter-spacing: -0.005em;
-    overflow: hidden; text-overflow: ellipsis;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.proj-card-desc {
-    color: #94a3b8; font-size: 0.86rem; line-height: 1.5;
-    margin: 0 0 1.1rem 0; flex-grow: 1; min-height: 2.6em;
-    overflow: hidden; text-overflow: ellipsis;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+.proj-row-desc {
+    color: #94a3b8; font-size: 0.82rem; line-height: 1.45;
+    margin: 0.25rem 0 0 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: 56ch;
 }
-.proj-card-desc.empty { color: #475569; font-style: italic; }
-.proj-card-meta {
-    display: flex; gap: 1.1rem; align-items: center;
-    padding-top: 0.85rem;
-    border-top: 1px solid rgba(148,163,184,0.08);
+.proj-row-desc.empty { color: #475569; font-style: italic; }
+.proj-row-meta {
+    display: flex; gap: 1.4rem; align-items: center;
+    justify-content: flex-end; height: 100%;
     font-family: 'JetBrains Mono', monospace; font-size: 0.74rem;
     color: #64748b; letter-spacing: 0.04em;
     font-variant-numeric: tabular-nums;
 }
-.proj-card-meta .dot { width: 4px; height: 4px; border-radius: 50%;
-    background: #475569; display: inline-block; margin: 0 0.1rem; }
-.proj-new-card {
-    background: transparent;
-    border: 1.5px dashed rgba(45,212,191,0.32);
-    border-radius: 16px; padding: 1.4rem 1.45rem;
-    height: 100%; display: flex; flex-direction: column;
-    justify-content: center; align-items: flex-start;
-    transition: border-color 180ms ease, background 180ms ease;
+.proj-row-meta .stat { display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; }
+.proj-row-meta .stat .v { color: #cbd5e1; font-size: 0.86rem; font-weight: 500; }
+.proj-row-meta .stat .l { color: #475569; font-size: 0.62rem;
+    letter-spacing: 0.14em; text-transform: uppercase; }
+.proj-row-meta .when {
+    color: #64748b; font-size: 0.74rem; letter-spacing: 0.06em;
+    border-left: 1px solid rgba(148,163,184,0.12);
+    padding-left: 1.4rem;
 }
-.proj-new-card:hover {
-    border-color: var(--teal);
-    background: rgba(45,212,191,0.04);
+/* Small "+ New project" ghost pill in the section header.
+   Targets the 2nd column of the section-head row. */
+.proj-newpill-slot [data-testid="stButton"] > button {
+    background: transparent !important;
+    border: 1px solid rgba(45,212,191,0.40) !important;
+    color: var(--teal) !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 600 !important; font-size: 0.82rem !important;
+    padding: 0.35rem 0.95rem !important;
+    border-radius: 999px !important;
+    letter-spacing: 0.02em !important;
+    transition: background 180ms ease, border-color 180ms ease, transform 160ms ease !important;
+    min-height: 34px !important; height: 34px !important;
+    width: auto !important;
 }
-.proj-new-icon {
-    width: 38px; height: 38px; border-radius: 10px;
-    background: rgba(45,212,191,0.12);
-    color: var(--teal);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.4rem; font-weight: 300; line-height: 1;
-    margin-bottom: 0.85rem;
-    border: 1px solid rgba(45,212,191,0.25);
+.proj-newpill-slot [data-testid="stButton"] > button:hover {
+    background: rgba(45,212,191,0.10) !important;
+    border-color: var(--teal) !important;
+    transform: translateY(-1px);
 }
-.proj-new-title {
-    font-family: 'Syne', sans-serif; font-weight: 700;
-    color: #e2e8f0; font-size: 1.08rem; margin-bottom: 0.4rem;
-}
-.proj-new-sub { color: #94a3b8; font-size: 0.84rem; line-height: 1.45; }
+.proj-newpill-slot [data-testid="stButton"] { display: flex; justify-content: flex-end; }
 .proj-empty {
     text-align: center; padding: 4rem 2rem;
     background: var(--surface); border: 1px dashed var(--border);
@@ -6148,109 +6163,114 @@ sheets, building models, and chatting with the data.</p>
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
-    # ── Section heading + grid ────────────────────────────────────────
-    st.markdown(f'''
-<div class="proj-section-head">
-  <div class="proj-section-title">Your projects</div>
-  <div class="proj-section-meta">{total_projects} TOTAL</div>
-</div>
-''', unsafe_allow_html=True)
-
-    # Bento grid: "+ New" tile first, then projects, 3 per row on desktop.
-    items = [{"new": True}] + [{"new": False, "p": p} for p in projects]
-    cols_per_row = 3
-    for row_start in range(0, len(items), cols_per_row):
-        row = items[row_start:row_start + cols_per_row]
-        cols = st.columns(cols_per_row, gap="medium")
-        for i, item in enumerate(row):
-            with cols[i]:
-                if item["new"]:
-                    st.markdown('''
-<div class="proj-new-card">
-  <div class="proj-new-icon">+</div>
-  <div class="proj-new-title">New project</div>
-  <div class="proj-new-sub">Start a fresh analysis with its own sheets and history.</div>
-</div>
-''', unsafe_allow_html=True)
-                    if st.button("Create", use_container_width=True,
-                                 key="proj_new_btn", type="primary"):
-                        st.session_state.proj_show_create = True
-                        st.rerun()
-                else:
-                    p = item["p"]
-                    desc = (p["description"] or "").strip()
-                    desc_html = (f'<div class="proj-card-desc">{desc}</div>'
-                                 if desc else
-                                 '<div class="proj-card-desc empty">No description</div>')
-                    sheets_label = f"{p['sheet_count']} sheet{'s' if p['sheet_count'] != 1 else ''}"
-                    rel = _format_relative_time(p['last_opened_at'] or p['created_at'])
-                    rows_label = (f"{p['total_rows']:,} rows" if p['total_rows']
-                                  else "no rows yet")
-                    st.markdown(f'''
-<div class="proj-card">
-  <div class="proj-card-title">{p["name"]}</div>
-  {desc_html}
-  <div class="proj-card-meta">
-    <span>{sheets_label}</span><span class="dot"></span>
-    <span>{rows_label}</span><span class="dot"></span>
-    <span>{rel}</span>
+    # ── Section heading: title + count + small "+ New project" pill ──
+    sh_title, sh_action = st.columns([5, 1.2], gap="small")
+    with sh_title:
+        st.markdown(f'''
+<div class="proj-section-head" style="border:none;padding-bottom:0;margin-bottom:0;">
+  <div class="proj-section-title">
+    Your projects <span class="count-pill">{total_projects:02d}</span>
   </div>
 </div>
 ''', unsafe_allow_html=True)
-                    btn_open, btn_more = st.columns([3, 1])
-                    with btn_open:
-                        if st.button("Open", key=f"proj_open_{p['id']}",
-                                     use_container_width=True, type="primary"):
-                            _open_project(p['id'], p['name'])
-                            st.rerun()
-                    with btn_more:
-                        with st.popover("•••", use_container_width=True):
-                            st.caption("Manage project")
-                            new_label = st.text_input(
-                                "Rename", value=p['name'],
-                                key=f"proj_rename_{p['id']}",
-                                label_visibility="collapsed",
-                                placeholder="New name")
-                            if st.button("Save name", use_container_width=True,
-                                         key=f"proj_save_{p['id']}"):
-                                _db = get_db()
-                                try:
-                                    update_project(_db, p['id'], user_id,
-                                                   name=new_label)
-                                finally:
-                                    _db.close()
-                                st.rerun()
-                            st.markdown("---")
-                            confirm_key = f"proj_del_confirm_{p['id']}"
-                            if st.session_state.get(confirm_key):
-                                st.caption(f"This deletes **{p['name']}** and "
-                                           f"all {p['sheet_count']} sheet(s).")
-                                cc1, cc2 = st.columns(2)
-                                with cc1:
-                                    if st.button("Yes, delete",
-                                                 use_container_width=True,
-                                                 key=f"proj_del_yes_{p['id']}"):
-                                        _db = get_db()
-                                        try:
-                                            delete_project(_db, p['id'], user_id)
-                                        finally:
-                                            _db.close()
-                                        st.session_state.pop(confirm_key, None)
-                                        st.rerun()
-                                with cc2:
-                                    if st.button("Cancel",
-                                                 use_container_width=True,
-                                                 key=f"proj_del_no_{p['id']}"):
-                                        st.session_state.pop(confirm_key, None)
-                                        st.rerun()
-                            else:
-                                if st.button("Delete project",
-                                             use_container_width=True,
-                                             key=f"proj_del_{p['id']}"):
-                                    st.session_state[confirm_key] = True
-                                    st.rerun()
+    with sh_action:
+        st.markdown('<div class="proj-newpill-slot">', unsafe_allow_html=True)
+        if st.button("+  New project", key="proj_new_pill_btn"):
+            st.session_state.proj_show_create = True
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div style="border-bottom:1px solid rgba(148,163,184,0.10);'
+        'margin:0.4rem 0 0.2rem 0;"></div>',
+        unsafe_allow_html=True)
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    # ── Project list-menu (one row per project) ───────────────────────
+    st.markdown('<div class="proj-list">', unsafe_allow_html=True)
+    for p in projects:
+        desc = (p["description"] or "").strip()
+        desc_html = (f'<div class="proj-row-desc">{desc}</div>'
+                     if desc else
+                     '<div class="proj-row-desc empty">No description</div>')
+        sheets_n = p['sheet_count']
+        rows_n = p['total_rows'] or 0
+        rel = _format_relative_time(p['last_opened_at'] or p['created_at'])
+
+        row_main, row_meta, row_open, row_more = st.columns(
+            [3.6, 2.6, 0.95, 0.55], gap="small")
+        with row_main:
+            st.markdown(f'''
+<div class="proj-row">
+  <div class="proj-row-title">{p["name"]}</div>
+  {desc_html}
+</div>
+''', unsafe_allow_html=True)
+        with row_meta:
+            st.markdown(f'''
+<div class="proj-row" style="padding-top:1.05rem;padding-bottom:1.05rem;">
+  <div class="proj-row-meta">
+    <div class="stat"><span class="v">{sheets_n}</span><span class="l">sheets</span></div>
+    <div class="stat"><span class="v">{rows_n:,}</span><span class="l">rows</span></div>
+    <span class="when">{rel}</span>
+  </div>
+</div>
+''', unsafe_allow_html=True)
+        with row_open:
+            st.markdown('<div style="padding-top:1.15rem;">', unsafe_allow_html=True)
+            if st.button("Open  →", key=f"proj_open_{p['id']}",
+                         use_container_width=True, type="primary"):
+                _open_project(p['id'], p['name'])
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+        with row_more:
+            st.markdown('<div style="padding-top:1.15rem;">', unsafe_allow_html=True)
+            with st.popover("•••", use_container_width=True):
+                st.caption("Manage project")
+                new_label = st.text_input(
+                    "Rename", value=p['name'],
+                    key=f"proj_rename_{p['id']}",
+                    label_visibility="collapsed",
+                    placeholder="New name")
+                if st.button("Save name", use_container_width=True,
+                             key=f"proj_save_{p['id']}"):
+                    _db = get_db()
+                    try:
+                        update_project(_db, p['id'], user_id, name=new_label)
+                    finally:
+                        _db.close()
+                    st.rerun()
+                st.markdown("---")
+                confirm_key = f"proj_del_confirm_{p['id']}"
+                if st.session_state.get(confirm_key):
+                    st.caption(f"This deletes **{p['name']}** and "
+                               f"all {p['sheet_count']} sheet(s).")
+                    cc1, cc2 = st.columns(2)
+                    with cc1:
+                        if st.button("Yes, delete",
+                                     use_container_width=True,
+                                     key=f"proj_del_yes_{p['id']}"):
+                            _db = get_db()
+                            try:
+                                delete_project(_db, p['id'], user_id)
+                            finally:
+                                _db.close()
+                            st.session_state.pop(confirm_key, None)
+                            st.rerun()
+                    with cc2:
+                        if st.button("Cancel",
+                                     use_container_width=True,
+                                     key=f"proj_del_no_{p['id']}"):
+                            st.session_state.pop(confirm_key, None)
+                            st.rerun()
+                else:
+                    if st.button("Delete project",
+                                 use_container_width=True,
+                                 key=f"proj_del_{p['id']}"):
+                        st.session_state[confirm_key] = True
+                        st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)  # close .proj-list
+
+    st.markdown('</div>', unsafe_allow_html=True)  # close .proj-shell
 
 
 def show_dashboard():
