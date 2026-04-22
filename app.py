@@ -5604,6 +5604,340 @@ def _recipe_signature(rec) -> str:
     return f"{rec.id}:{n}:{rec.active_step_index or -1}"
 
 
+_DM_CSS = """<style>
+/* === Data Modeling section — Data Noir aesthetic ============== */
+
+/* Numbered step header */
+.dm-step-head {
+  display: flex; align-items: baseline; gap: 0.85rem;
+  margin: 1.6rem 0 0.85rem 0;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid rgba(148,163,184,0.08);
+  flex-wrap: wrap;
+}
+.dm-step-num {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.66rem;
+  letter-spacing: 0.22em; color: var(--teal); opacity: 0.85;
+  text-transform: uppercase;
+}
+.dm-step-title {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 1.12rem; color: #e2e8f0; letter-spacing: -0.005em;
+  margin: 0;
+}
+.dm-step-hint {
+  font-family: 'DM Sans', sans-serif; font-size: 0.78rem;
+  color: #64748b; margin-left: auto; max-width: 60ch;
+  text-align: right;
+}
+
+/* Dataset card */
+.dm-card {
+  background: linear-gradient(180deg, rgba(17,31,53,0.55), rgba(12,24,41,0.45));
+  border: 1px solid rgba(148,163,184,0.10);
+  border-radius: 12px;
+  padding: 0.85rem 1rem 0.7rem 1rem;
+  margin-bottom: 0.45rem;
+  position: relative;
+  transition: border-color 180ms ease;
+  min-height: 76px;
+}
+.dm-card.in-canvas {
+  border-color: rgba(45,212,191,0.45);
+  background: linear-gradient(180deg, rgba(45,212,191,0.07), rgba(12,24,41,0.55));
+}
+.dm-card.in-canvas::before {
+  content: ''; position: absolute; left: 0; top: 14%; bottom: 14%;
+  width: 2px; background: var(--teal); border-radius: 2px;
+}
+.dm-card-name {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 1.0rem; color: #e2e8f0; line-height: 1.2;
+  margin: 0 0 0.3rem 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dm-card-meta {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.66rem;
+  color: #64748b; letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+.dm-card-meta .dot { color: #334155; margin: 0 0.35rem; }
+
+/* Dataset card buttons (toggle + delete) — scoped via marker */
+.dm-card-btn-marker { display: none; }
+[data-testid="stColumn"]:has(.dm-card-btn-marker) [data-testid="stButton"] > button,
+[data-testid="stColumn"]:has(.dm-card-btn-marker) .stButton > button {
+  background: transparent !important;
+  border: 1px solid rgba(148,163,184,0.18) !important;
+  color: #94a3b8 !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.64rem !important; font-weight: 600 !important;
+  letter-spacing: 0.14em !important; text-transform: uppercase !important;
+  padding: 0.28rem 0.55rem !important; min-height: 30px !important;
+  border-radius: 8px !important;
+  transition: all 160ms ease !important;
+}
+[data-testid="stColumn"]:has(.dm-card-btn-marker) [data-testid="stButton"] > button p,
+[data-testid="stColumn"]:has(.dm-card-btn-marker) .stButton > button p {
+  font-family: inherit !important; font-size: inherit !important;
+  font-weight: inherit !important; letter-spacing: inherit !important;
+  text-transform: inherit !important; color: inherit !important;
+  margin: 0 !important;
+}
+[data-testid="stColumn"]:has(.dm-card-btn-marker) [data-testid="stButton"] > button:hover {
+  border-color: rgba(45,212,191,0.45) !important;
+  color: var(--teal) !important;
+  background: rgba(45,212,191,0.06) !important;
+}
+[data-testid="stColumn"]:has(.dm-card-btn-marker.on) [data-testid="stButton"] > button {
+  border-color: rgba(45,212,191,0.55) !important;
+  background: rgba(45,212,191,0.10) !important;
+  color: var(--teal) !important;
+}
+[data-testid="stColumn"]:has(.dm-card-btn-marker.danger) [data-testid="stButton"] > button {
+  border-color: rgba(251,113,133,0.18) !important;
+  color: #94a3b8 !important;
+  font-size: 0.95rem !important;
+  letter-spacing: 0 !important; text-transform: none !important;
+  padding: 0.28rem 0.4rem !important;
+}
+[data-testid="stColumn"]:has(.dm-card-btn-marker.danger) [data-testid="stButton"] > button:hover {
+  border-color: rgba(251,113,133,0.55) !important;
+  color: #fb7185 !important;
+  background: rgba(251,113,133,0.07) !important;
+}
+[data-testid="stColumn"]:has(.dm-card-btn-marker.confirm) [data-testid="stButton"] > button {
+  border-color: rgba(251,113,133,0.55) !important;
+  color: #fb7185 !important;
+  background: rgba(251,113,133,0.10) !important;
+}
+
+/* Canvas chip strip */
+.dm-canvas-strip {
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  background: rgba(12,24,41,0.40);
+  border: 1px dashed rgba(148,163,184,0.18);
+  border-radius: 12px;
+  margin: 0.4rem 0 0.4rem 0;
+  align-items: center;
+}
+.dm-canvas-strip.empty {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+  color: #64748b; letter-spacing: 0.08em;
+}
+.dm-chip {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.35rem 0.75rem; border-radius: 999px;
+  background: rgba(45,212,191,0.10);
+  border: 1px solid rgba(45,212,191,0.30);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem; color: var(--teal);
+  letter-spacing: 0.04em;
+}
+.dm-chip .num {
+  color: #64748b; font-size: 0.6rem; letter-spacing: 0.10em;
+}
+
+/* On-brand info card (replaces st.info / bare st.caption) */
+.dm-info {
+  padding: 0.8rem 1rem;
+  background: rgba(17,31,53,0.40);
+  border: 1px solid rgba(148,163,184,0.10);
+  border-left: 2px solid rgba(45,212,191,0.55);
+  border-radius: 10px;
+  font-family: 'DM Sans', sans-serif; font-size: 0.86rem;
+  color: #94a3b8; line-height: 1.5;
+  margin: 0.45rem 0 0.6rem 0;
+}
+.dm-info .lbl {
+  display: block; font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem; letter-spacing: 0.22em;
+  color: var(--teal); opacity: 0.85;
+  text-transform: uppercase; margin-bottom: 0.3rem;
+}
+
+/* Relationship row card (suggestions + saved) */
+.dm-row {
+  background: linear-gradient(180deg, rgba(17,31,53,0.55), rgba(12,24,41,0.45));
+  border: 1px solid rgba(148,163,184,0.10);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.5rem;
+}
+.dm-pair {
+  display: flex; align-items: center; gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.dm-pair-side {
+  display: inline-flex; align-items: baseline; gap: 0.35rem;
+  padding: 0.3rem 0.6rem; border-radius: 8px;
+  background: rgba(45,212,191,0.06);
+  border: 1px solid rgba(45,212,191,0.18);
+  font-family: 'JetBrains Mono', monospace; font-size: 0.74rem;
+}
+.dm-pair-side .ds { color: #64748b; font-size: 0.64rem; letter-spacing: 0.06em; }
+.dm-pair-side .dot { color: #334155; }
+.dm-pair-side .col { color: #e2e8f0; font-weight: 600; }
+.dm-pair-arrow { color: var(--teal); opacity: 0.75; font-size: 0.95rem; }
+.dm-pair-scores {
+  margin-top: 0.5rem;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.6rem;
+  color: #475569; letter-spacing: 0.16em; text-transform: uppercase;
+  display: flex; gap: 1rem; flex-wrap: wrap;
+}
+.dm-pair-scores .v { color: #94a3b8; margin-left: 0.35rem; }
+
+/* Confidence bar */
+.dm-conf { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.15rem; }
+.dm-conf-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.62rem;
+  color: #64748b; letter-spacing: 0.16em; text-transform: uppercase;
+}
+.dm-conf-row .num {
+  color: #cbd5e1; font-size: 0.78rem; letter-spacing: 0;
+  font-variant-numeric: tabular-nums; text-transform: none;
+}
+.dm-conf-bar {
+  position: relative; height: 6px; border-radius: 3px;
+  background: rgba(148,163,184,0.10); overflow: hidden;
+}
+.dm-conf-fill {
+  position: absolute; top: 0; left: 0; bottom: 0;
+  background: linear-gradient(90deg, var(--teal-mid), var(--teal));
+  border-radius: 3px;
+}
+
+/* Tag (cardinality / join type) */
+.dm-tag {
+  display: inline-block; padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.66rem;
+  letter-spacing: 0.10em;
+  background: rgba(148,163,184,0.10);
+  border: 1px solid rgba(148,163,184,0.18);
+  color: #cbd5e1;
+}
+.dm-tag.card {
+  color: var(--teal); border-color: rgba(45,212,191,0.30);
+  background: rgba(45,212,191,0.07);
+}
+.dm-tag-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.4rem; }
+
+/* Stat chips for diagnostics */
+.dm-stat-chips {
+  display: flex; flex-wrap: wrap; gap: 0.45rem;
+  margin: 0.45rem 0 0.4rem 0;
+}
+.dm-stat-chip {
+  padding: 0.35rem 0.7rem; border-radius: 8px;
+  background: rgba(17,31,53,0.55);
+  border: 1px solid rgba(148,163,184,0.12);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem; color: #cbd5e1;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex; align-items: baseline; gap: 0.45rem;
+}
+.dm-stat-chip .l {
+  color: #64748b; font-size: 0.58rem;
+  letter-spacing: 0.18em; text-transform: uppercase;
+}
+
+/* Surface card header */
+.dm-surface-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 0.85rem; margin: 0.6rem 0 0.55rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(148,163,184,0.10);
+}
+.dm-surface-title {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 1.0rem; color: #e2e8f0; letter-spacing: -0.005em;
+  margin: 0;
+}
+.dm-surface-eyebrow {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.6rem;
+  letter-spacing: 0.22em; color: var(--teal); opacity: 0.85;
+  text-transform: uppercase;
+}
+
+/* Joined view results header */
+.dm-jv-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 0.85rem; flex-wrap: wrap; margin: 0.4rem 0 0.5rem 0;
+}
+.dm-jv-count {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 1.05rem; color: var(--teal);
+  font-variant-numeric: tabular-nums;
+}
+.dm-jv-count .unit {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+  color: #64748b; letter-spacing: 0.10em; margin-left: 0.4rem;
+  text-transform: uppercase;
+}
+.dm-jv-expr {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+  color: #94a3b8; letter-spacing: 0.04em;
+}
+.dm-jv-expr .op { color: var(--teal); }
+
+/* Pair-row layout: pair + tags on left, confidence+button on right */
+.dm-suggest-row {
+  background: linear-gradient(180deg, rgba(17,31,53,0.55), rgba(12,24,41,0.45));
+  border: 1px solid rgba(148,163,184,0.10);
+  border-radius: 12px;
+  padding: 0.85rem 1rem 0.6rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Saved-relationship remove icon-button — scoped */
+.dm-rm-marker { display: none; }
+[data-testid="stColumn"]:has(.dm-rm-marker) [data-testid="stButton"] > button {
+  background: transparent !important;
+  border: 1px solid rgba(148,163,184,0.14) !important;
+  color: #64748b !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 1.05rem !important; font-weight: 500 !important;
+  letter-spacing: 0 !important; text-transform: none !important;
+  padding: 0.28rem 0.4rem !important; min-height: 32px !important;
+  border-radius: 8px !important;
+  transition: all 160ms ease !important;
+}
+[data-testid="stColumn"]:has(.dm-rm-marker) [data-testid="stButton"] > button p {
+  font-family: inherit !important; font-size: inherit !important;
+  font-weight: inherit !important; color: inherit !important;
+  margin: 0 !important; line-height: 1 !important;
+}
+[data-testid="stColumn"]:has(.dm-rm-marker) [data-testid="stButton"] > button:hover {
+  border-color: rgba(251,113,133,0.55) !important;
+  color: #fb7185 !important;
+  background: rgba(251,113,133,0.07) !important;
+}
+</style>"""
+
+
+def _dm_step(num, title, hint=None):
+    """Numbered step subheader for the Data Modeling section."""
+    hint_html = f"<span class='dm-step-hint'>{hint}</span>" if hint else ""
+    st.markdown(
+        f"<div class='dm-step-head'>"
+        f"<span class='dm-step-num'>STEP {num}</span>"
+        f"<span class='dm-step-title'>{title}</span>"
+        f"{hint_html}</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _dm_info(title, body):
+    """On-brand info/empty-state card for the Data Modeling section."""
+    st.markdown(
+        f"<div class='dm-info'><span class='lbl'>{title}</span>{body}</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def _render_model_section(uid, run_analysis_cb=None, limits=None):
     """Power BI-style relationship modelling tab.
 
@@ -5614,6 +5948,7 @@ def _render_model_section(uid, run_analysis_cb=None, limits=None):
     so the rest of the dashboard tabs render against it without any
     special cases."""
     from datetime import datetime
+    import html as _html
     from data_modelling import (
         suggest_relationships, materialize_join, validate_relationship,
         VALID_JOINS,
@@ -5630,9 +5965,11 @@ def _render_model_section(uid, run_analysis_cb=None, limits=None):
         "tabs will render against the joined view.",
         "03 — Data Modeling",
     )
+    st.markdown(_DM_CSS, unsafe_allow_html=True)
 
     if uid is None:
-        st.info("Sign in to model relationships across your datasets.")
+        _dm_info("Sign-in required",
+                 "Sign in to model relationships across your datasets.")
         return
 
     # ----- 0. Add tables to the project --------------------------------
@@ -5668,39 +6005,58 @@ def _render_model_section(uid, run_analysis_cb=None, limits=None):
         db.close()
 
     if not datasets:
-        st.info("Upload at least two datasets to start modelling relationships.")
+        _dm_info("Empty project",
+                 "Upload at least two datasets to start modelling relationships.")
         return
 
-    # ----- 1. Dataset cards / canvas ------------------------------------
+    # ----- 1. Pick tables for the canvas --------------------------------
     canvas_key = f"model_canvas_{uid}"
     st.session_state.setdefault(canvas_key, set())
     canvas_ids: set = st.session_state[canvas_key]
 
-    st.markdown("**Your datasets** — click a card to add/remove from the canvas, or × to delete.")
+    _dm_step(
+        "01", "Pick tables for the canvas",
+        "Toggle a dataset to add it to the modelling canvas. Pick at least two.",
+    )
     cols = st.columns(min(3, max(1, len(datasets))))
     for i, ds in enumerate(datasets):
         col = cols[i % len(cols)]
         with col:
             in_canvas = ds.id in canvas_ids
-            label_prefix = "✓ " if in_canvas else "+ "
-            card_col, rm_col = st.columns([5, 1])
-            with card_col:
+            klass = "dm-card in-canvas" if in_canvas else "dm-card"
+            st.markdown(
+                f"<div class='{klass}'>"
+                f"<div class='dm-card-name'>{_html.escape(ds.dataset_name)}</div>"
+                f"<div class='dm-card-meta'>"
+                f"{ds.row_count:,} rows"
+                f"<span class='dot'>·</span>{ds.column_count} cols"
+                f"<span class='dot'>·</span>{ds.upload_date.strftime('%Y-%m-%d')}"
+                f"</div></div>",
+                unsafe_allow_html=True,
+            )
+            tcol, dcol = st.columns([4, 1])
+            with tcol:
+                marker_cls = "dm-card-btn-marker on" if in_canvas else "dm-card-btn-marker"
+                st.markdown(f"<div class='{marker_cls}'></div>",
+                            unsafe_allow_html=True)
+                btn_label = "✓ In canvas" if in_canvas else "+ Add to canvas"
                 if st.button(
-                    f"{label_prefix}{ds.dataset_name}",
+                    btn_label,
                     key=f"model_card_{ds.id}",
-                    help=f"{ds.row_count:,} rows · {ds.column_count} cols · "
-                         f"updated {ds.upload_date.strftime('%Y-%m-%d')}",
                     use_container_width=True,
-                    type=("primary" if in_canvas else "secondary"),
                 ):
                     if in_canvas:
                         canvas_ids.discard(ds.id)
                     else:
                         canvas_ids.add(ds.id)
                     st.rerun()
-            with rm_col:
+            with dcol:
                 confirm_key = f"model_rm_confirm_{ds.id}"
-                if st.session_state.get(confirm_key):
+                pending = bool(st.session_state.get(confirm_key))
+                marker_cls = "dm-card-btn-marker danger confirm" if pending else "dm-card-btn-marker danger"
+                st.markdown(f"<div class='{marker_cls}'></div>",
+                            unsafe_allow_html=True)
+                if pending:
                     if st.button("✓", key=f"model_rm_yes_{ds.id}",
                                  help="Confirm delete", use_container_width=True):
                         db2 = get_db()
@@ -5718,37 +6074,40 @@ def _render_model_section(uid, run_analysis_cb=None, limits=None):
                                  use_container_width=True):
                         st.session_state[confirm_key] = True
                         st.rerun()
-            st.caption(
-                f"{ds.row_count:,} rows · {ds.column_count} cols · "
-                f"updated {ds.upload_date.strftime('%Y-%m-%d')}"
+
+    # Canvas chip strip — always rendered so the user sees current selection
+    if canvas_ids:
+        chips_html = "<div class='dm-canvas-strip'>"
+        for ds in [d for d in datasets if d.id in canvas_ids]:
+            chips_html += (
+                f"<span class='dm-chip'>{_html.escape(ds.dataset_name)}"
+                f" <span class='num'>#{ds.id}</span></span>"
             )
+        chips_html += "</div>"
+        st.markdown(chips_html, unsafe_allow_html=True)
+    else:
+        st.markdown(
+            "<div class='dm-canvas-strip empty'>"
+            "Canvas is empty — toggle a dataset above to add it."
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
     if len(canvas_ids) < 2:
-        st.markdown("---")
-        st.info("Pick at least two datasets to see suggested relationships.")
+        _dm_info(
+            "One more to go",
+            "Pick at least two datasets to see suggested relationships.",
+        )
         return
 
-    # ----- 2. Relationship canvas (chosen datasets) ---------------------
     canvas_records = [d for d in datasets if d.id in canvas_ids]
-    canvas_lookup = {d.id: d for d in canvas_records}
 
-    st.markdown("---")
-    st.markdown("**Model canvas** — datasets currently in scope:")
-    chip_cols = st.columns(min(4, len(canvas_records)))
-    for i, ds in enumerate(canvas_records):
-        with chip_cols[i % len(chip_cols)]:
-            st.markdown(
-                f'<div style="padding:0.55rem 0.85rem;border-radius:10px;'
-                f'background:rgba(45,212,191,0.10);border:1px solid '
-                f'rgba(45,212,191,0.30);font-family:JetBrains Mono,monospace;'
-                f'font-size:0.78rem;color:#2dd4bf;letter-spacing:0.05em;">'
-                f'{ds.dataset_name}</div>',
-                unsafe_allow_html=True,
-            )
+    # ----- 2. Confirm relationships ------------------------------------
+    _dm_step(
+        "02", "Confirm relationships",
+        "Pick a pair to inspect. Confirm a suggested join key or define one manually.",
+    )
 
-    # ----- 3. Pair picker + auto-suggestions ----------------------------
-    st.markdown("---")
-    st.markdown("**Pick a pair to inspect**")
     pc1, pc2 = st.columns(2)
     label_for = lambda d: f"{d.dataset_name} (#{d.id})"
     with pc1:
@@ -5759,7 +6118,7 @@ def _render_model_section(uid, run_analysis_cb=None, limits=None):
     with pc2:
         right_choices = [d for d in canvas_records if d.id != left_ds.id]
         if not right_choices:
-            st.info("Add a second dataset to the canvas.")
+            _dm_info("Pair incomplete", "Add a second dataset to the canvas.")
             return
         right_ds = st.selectbox(
             "Right dataset", right_choices,
@@ -5773,29 +6132,59 @@ def _render_model_section(uid, run_analysis_cb=None, limits=None):
         return
 
     suggestions = suggest_relationships(left_df, right_df)
-    st.markdown("**Suggested relationships**")
+
+    st.markdown(
+        "<div class='dm-surface-head' style='margin-top:1rem;'>"
+        "<span class='dm-surface-title'>Suggested relationships</span>"
+        "<span class='dm-surface-eyebrow'>Auto-detected</span>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
     if suggestions:
         for s in suggestions:
-            row_l, row_m, row_r = st.columns([3, 2, 1])
+            row_l, row_r = st.columns([3, 1])
             with row_l:
-                st.markdown(
-                    f"`{left_ds.dataset_name}.{s.left_column}` ↔ "
-                    f"`{right_ds.dataset_name}.{s.right_column}`"
+                conf_pct = max(0, min(100, int(round(s.confidence * 100))))
+                pair_html = (
+                    "<div class='dm-suggest-row'>"
+                    "<div class='dm-pair'>"
+                    "<span class='dm-pair-side'>"
+                    f"<span class='ds'>{_html.escape(left_ds.dataset_name)}</span>"
+                    f"<span class='dot'>·</span>"
+                    f"<span class='col'>{_html.escape(str(s.left_column))}</span>"
+                    "</span>"
+                    "<span class='dm-pair-arrow'>↔</span>"
+                    "<span class='dm-pair-side'>"
+                    f"<span class='ds'>{_html.escape(right_ds.dataset_name)}</span>"
+                    f"<span class='dot'>·</span>"
+                    f"<span class='col'>{_html.escape(str(s.right_column))}</span>"
+                    "</span>"
+                    f"<span class='dm-tag card'>{s.cardinality}</span>"
+                    "</div>"
+                    "<div class='dm-pair-scores'>"
+                    f"<span>NAME<span class='v'>{s.name_score:.2f}</span></span>"
+                    f"<span>DTYPE<span class='v'>{s.dtype_score:.2f}</span></span>"
+                    f"<span>OVERLAP<span class='v'>{s.overlap_score:.2f}</span></span>"
+                    "</div>"
+                    "<div class='dm-conf'>"
+                    "<div class='dm-conf-row'>"
+                    "<span>Confidence</span>"
+                    f"<span class='num'>{conf_pct}%</span>"
+                    "</div>"
+                    "<div class='dm-conf-bar'>"
+                    f"<div class='dm-conf-fill' style='width:{conf_pct}%;'></div>"
+                    "</div></div></div>"
                 )
-                st.caption(
-                    f"name {s.name_score:.2f} · dtype {s.dtype_score:.2f} · "
-                    f"overlap {s.overlap_score:.2f}"
-                )
-            with row_m:
-                st.markdown(
-                    f"**{s.cardinality}** · {int(s.confidence * 100)}% confidence"
-                )
+                st.markdown(pair_html, unsafe_allow_html=True)
             with row_r:
+                st.markdown("<div style='height:0.4rem;'></div>",
+                            unsafe_allow_html=True)
                 if st.button(
                     "Confirm",
                     key=f"model_confirm_{left_ds.id}_{right_ds.id}_"
                         f"{s.left_column}_{s.right_column}",
                     type="primary",
+                    use_container_width=True,
                 ):
                     db = get_db()
                     try:
@@ -5810,11 +6199,21 @@ def _render_model_section(uid, run_analysis_cb=None, limits=None):
                     st.success("Relationship saved.")
                     st.rerun()
     else:
-        st.caption("No automatic suggestions reached the confidence threshold "
-                   "for this pair — define one manually below.")
+        _dm_info(
+            "No automatic suggestions",
+            "No pairs reached the confidence threshold for this pair — "
+            "define one manually below.",
+        )
 
-    # ----- 4. Manual relationship form ----------------------------------
-    with st.expander("Define a relationship manually", expanded=not suggestions):
+    # Manual relationship form — surface card
+    st.markdown(
+        "<div class='dm-surface-head' style='margin-top:1.4rem;'>"
+        "<span class='dm-surface-title'>Define manually</span>"
+        "<span class='dm-surface-eyebrow'>Optional</span>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+    with st.container(border=True):
         m1, m2 = st.columns(2)
         with m1:
             l_col = st.selectbox(
@@ -5843,12 +6242,19 @@ def _render_model_section(uid, run_analysis_cb=None, limits=None):
         elif diag.get("warning"):
             st.warning(diag["warning"])
         else:
-            st.caption(
-                f"{diag['matching_keys']} matching key value(s) — "
-                f"left distinct: {diag['left_distinct_keys']}, "
-                f"right distinct: {diag['right_distinct_keys']}, "
-                f"cardinality: {diag['cardinality']}"
+            chips_html = (
+                "<div class='dm-stat-chips'>"
+                f"<span class='dm-stat-chip'><span class='l'>Match keys</span>"
+                f"{diag['matching_keys']:,}</span>"
+                f"<span class='dm-stat-chip'><span class='l'>Left distinct</span>"
+                f"{diag['left_distinct_keys']:,}</span>"
+                f"<span class='dm-stat-chip'><span class='l'>Right distinct</span>"
+                f"{diag['right_distinct_keys']:,}</span>"
+                f"<span class='dm-stat-chip'><span class='l'>Cardinality</span>"
+                f"{diag['cardinality']}</span>"
+                "</div>"
             )
+            st.markdown(chips_html, unsafe_allow_html=True)
         if st.button("Save manual relationship", key=f"model_man_save_{uid}"):
             db = get_db()
             try:
@@ -5866,54 +6272,18 @@ def _render_model_section(uid, run_analysis_cb=None, limits=None):
                 st.success("Relationship saved.")
                 st.rerun()
 
-    # ----- 5. Saved relationships --------------------------------------
+    # ----- 3. Joined view ----------------------------------------------
     db = get_db()
     try:
         rels = list_relationships(db, uid)
     finally:
         db.close()
 
-    st.markdown("---")
-    st.markdown("**Saved relationships**")
-    if not rels:
-        st.caption("No relationships saved yet.")
-    else:
-        ds_name = {d.id: d.dataset_name for d in datasets}
-        for rel in rels:
-            r_l, r_r = st.columns([6, 1])
-            with r_l:
-                left_name = ds_name.get(rel.left_dataset_id,
-                                        f"#{rel.left_dataset_id}")
-                right_name = ds_name.get(rel.right_dataset_id,
-                                         f"#{rel.right_dataset_id}")
-                st.markdown(
-                    f"`{left_name}.{rel.left_column}` → "
-                    f"`{right_name}.{rel.right_column}` · "
-                    f"{rel.cardinality} · {rel.join_type} join"
-                )
-            with r_r:
-                if st.button("Remove", key=f"model_del_{rel.id}"):
-                    db = get_db()
-                    try:
-                        delete_relationship(db, uid, rel.id)
-                    finally:
-                        db.close()
-                    st.rerun()
-
-    # ----- 6. Joined View preview & promotion ---------------------------
-    st.markdown("---")
-    st.markdown("**Joined view**")
-    jv1, jv2 = st.columns([3, 1])
-    with jv1:
-        st.caption(
-            f"Materialise `{left_ds.dataset_name}` joined with "
-            f"`{right_ds.dataset_name}` using the matching saved "
-            "relationship (or the manual form above if you haven't saved one)."
-        )
-    with jv2:
-        join_pick = st.selectbox(
-            "Join", list(VALID_JOINS), index=1, key=f"model_jv_join_{uid}",
-        )
+    _dm_step(
+        "03", "Build joined view",
+        "Materialise the chosen pair and promote the result as the active "
+        "dataset for every other dashboard tab.",
+    )
 
     # Find the most recent saved relationship for this pair, fall back
     # to the manual form's current selection.
@@ -5930,60 +6300,149 @@ def _render_model_section(uid, run_analysis_cb=None, limits=None):
     else:
         eff_lcol, eff_rcol = l_col, r_col
 
-    if st.button("Build joined view", key=f"model_build_jv_{uid}",
-                 type="primary"):
-        try:
-            joined = materialize_join(
-                left_df, right_df, eff_lcol, eff_rcol,
-                join_type=join_pick,
-                left_label=left_ds.dataset_name[:12].replace(" ", "_") or "left",
-                right_label=right_ds.dataset_name[:12].replace(" ", "_") or "right",
-            )
-        except Exception as e:
-            st.error(f"Join failed: {e}")
-            joined = None
-        if joined is not None:
-            st.session_state[f"model_jv_df_{uid}"] = joined
-            st.session_state[f"model_jv_meta_{uid}"] = {
-                "left": left_ds.dataset_name, "right": right_ds.dataset_name,
-                "left_col": eff_lcol, "right_col": eff_rcol,
-                "join": join_pick,
-            }
-
-    jv_df = st.session_state.get(f"model_jv_df_{uid}")
-    jv_meta = st.session_state.get(f"model_jv_meta_{uid}")
-    if jv_df is not None and jv_meta is not None:
-        st.success(
-            f"Joined view ready — {len(jv_df):,} rows × {len(jv_df.columns)} cols "
-            f"({jv_meta['left']} ⋈ {jv_meta['right']} on "
-            f"{jv_meta['left_col']} = {jv_meta['right_col']}, {jv_meta['join']} join)"
+    with st.container(border=True):
+        st.markdown(
+            f"<div class='dm-info' style='margin:0 0 0.6rem 0;'>"
+            f"<span class='lbl'>Recipe</span>"
+            f"Materialise <b>{_html.escape(left_ds.dataset_name)}</b> joined "
+            f"with <b>{_html.escape(right_ds.dataset_name)}</b> using "
+            f"<code style='color:var(--teal);'>{_html.escape(str(eff_lcol))} "
+            f"= {_html.escape(str(eff_rcol))}</code>"
+            f"{' (saved relationship)' if saved else ' (from manual form above)'}."
+            f"</div>",
+            unsafe_allow_html=True,
         )
-        st.dataframe(jv_df.head(20), use_container_width=True)
-        if st.button(
-            "Use joined view as active dataset",
-            key=f"model_promote_jv_{uid}",
-            type="primary",
-        ):
-            # Synthesise a fresh dataset id + step history holding the
-            # joined frame as a single Source step. Existing tabs read
-            # from `current_dataset_id` + `step_histories`, so once we
-            # flip those they pick the joined view up automatically.
-            from datetime import datetime as _dt
-            jv_id = f"joined_{_dt.utcnow().strftime('%Y%m%d_%H%M%S')}"
-            jv_history = StepHistory()
-            jv_history.add(
-                "Source",
-                f"Joined view: {jv_meta['left']} ⋈ {jv_meta['right']}",
-                jv_df, meta={"is_joined_view": True, **jv_meta},
+        jv1, jv2 = st.columns([1, 2])
+        with jv1:
+            join_pick = st.selectbox(
+                "Join type", list(VALID_JOINS), index=1,
+                key=f"model_jv_join_{uid}",
             )
-            st.session_state.current_dataset_id = jv_id
-            st.session_state.step_histories[jv_id] = jv_history
-            st.session_state.df = jv_df
-            st.session_state.df_cleaned = jv_df
-            st.session_state.cleaning_report = None
-            st.session_state.dashboard_section = _TAB_LABELS[0]
-            st.success("Switched to the joined view — open Overview to start analysing it.")
-            st.rerun()
+        with jv2:
+            st.markdown("<div style='height:1.7rem;'></div>",
+                        unsafe_allow_html=True)
+            build_clicked = st.button(
+                "Build joined view", key=f"model_build_jv_{uid}",
+                type="primary", use_container_width=True,
+            )
+
+        if build_clicked:
+            try:
+                joined = materialize_join(
+                    left_df, right_df, eff_lcol, eff_rcol,
+                    join_type=join_pick,
+                    left_label=left_ds.dataset_name[:12].replace(" ", "_") or "left",
+                    right_label=right_ds.dataset_name[:12].replace(" ", "_") or "right",
+                )
+            except Exception as e:
+                st.error(f"Join failed: {e}")
+                joined = None
+            if joined is not None:
+                st.session_state[f"model_jv_df_{uid}"] = joined
+                st.session_state[f"model_jv_meta_{uid}"] = {
+                    "left": left_ds.dataset_name, "right": right_ds.dataset_name,
+                    "left_col": eff_lcol, "right_col": eff_rcol,
+                    "join": join_pick,
+                }
+
+        jv_df = st.session_state.get(f"model_jv_df_{uid}")
+        jv_meta = st.session_state.get(f"model_jv_meta_{uid}")
+        if jv_df is not None and jv_meta is not None:
+            st.markdown(
+                "<div class='dm-jv-head'>"
+                f"<div class='dm-jv-count'>{len(jv_df):,} × {len(jv_df.columns)}"
+                "<span class='unit'>rows × cols</span></div>"
+                "<div class='dm-jv-expr'>"
+                f"{_html.escape(jv_meta['left'])} "
+                "<span class='op'>⋈</span> "
+                f"{_html.escape(jv_meta['right'])} "
+                f"<span class='op'>ON</span> "
+                f"{_html.escape(str(jv_meta['left_col']))} = "
+                f"{_html.escape(str(jv_meta['right_col']))} "
+                f"<span class='op'>·</span> {jv_meta['join']} join"
+                "</div></div>",
+                unsafe_allow_html=True,
+            )
+            st.dataframe(jv_df.head(20), use_container_width=True)
+            if st.button(
+                "Use joined view as active dataset",
+                key=f"model_promote_jv_{uid}",
+                type="primary",
+            ):
+                # Synthesise a fresh dataset id + step history holding the
+                # joined frame as a single Source step. Existing tabs read
+                # from `current_dataset_id` + `step_histories`, so once we
+                # flip those they pick the joined view up automatically.
+                from datetime import datetime as _dt
+                jv_id = f"joined_{_dt.utcnow().strftime('%Y%m%d_%H%M%S')}"
+                jv_history = StepHistory()
+                jv_history.add(
+                    "Source",
+                    f"Joined view: {jv_meta['left']} ⋈ {jv_meta['right']}",
+                    jv_df, meta={"is_joined_view": True, **jv_meta},
+                )
+                st.session_state.current_dataset_id = jv_id
+                st.session_state.step_histories[jv_id] = jv_history
+                st.session_state.df = jv_df
+                st.session_state.df_cleaned = jv_df
+                st.session_state.cleaning_report = None
+                st.session_state.dashboard_section = _TAB_LABELS[0]
+                st.success("Switched to the joined view — open Overview to start analysing it.")
+                st.rerun()
+
+    # ----- 4. Saved relationships --------------------------------------
+    _dm_step(
+        "04", "Saved relationships",
+        "Every relationship you've confirmed across this project's tables.",
+    )
+    if not rels:
+        _dm_info(
+            "Nothing saved yet",
+            "Confirm a suggestion above or save a manual relationship to "
+            "see it listed here.",
+        )
+    else:
+        ds_name = {d.id: d.dataset_name for d in datasets}
+        for rel in rels:
+            r_l, r_r = st.columns([6, 1])
+            with r_l:
+                left_name = ds_name.get(rel.left_dataset_id,
+                                        f"#{rel.left_dataset_id}")
+                right_name = ds_name.get(rel.right_dataset_id,
+                                         f"#{rel.right_dataset_id}")
+                st.markdown(
+                    "<div class='dm-row'>"
+                    "<div class='dm-pair'>"
+                    "<span class='dm-pair-side'>"
+                    f"<span class='ds'>{_html.escape(left_name)}</span>"
+                    "<span class='dot'>·</span>"
+                    f"<span class='col'>{_html.escape(str(rel.left_column))}</span>"
+                    "</span>"
+                    "<span class='dm-pair-arrow'>→</span>"
+                    "<span class='dm-pair-side'>"
+                    f"<span class='ds'>{_html.escape(right_name)}</span>"
+                    "<span class='dot'>·</span>"
+                    f"<span class='col'>{_html.escape(str(rel.right_column))}</span>"
+                    "</span>"
+                    f"<span class='dm-tag card'>{rel.cardinality}</span>"
+                    f"<span class='dm-tag'>{rel.join_type} join</span>"
+                    "</div></div>",
+                    unsafe_allow_html=True,
+                )
+            with r_r:
+                st.markdown("<div class='dm-rm-marker'></div>",
+                            unsafe_allow_html=True)
+                st.markdown("<div style='height:0.85rem;'></div>",
+                            unsafe_allow_html=True)
+                if st.button("×", key=f"model_del_{rel.id}",
+                             help="Remove this saved relationship",
+                             use_container_width=True):
+                    db = get_db()
+                    try:
+                        delete_relationship(db, uid, rel.id)
+                    finally:
+                        db.close()
+                    st.rerun()
 
 
 def _clear_workspace_state():
