@@ -84,12 +84,32 @@ class Subscription(Base):
     amount = Column(Float, nullable=True)
 
 
+class Project(Base):
+    """A user-owned analysis project that groups one or more datasets ('sheets').
+
+    Replaces the old "single bag of datasets per user" model so the post-login
+    landing page can offer a real Projects browser. A project is the unit users
+    actually think in: a folder for a piece of analysis work that may pull
+    together several CSV/Excel files.
+    """
+    __tablename__ = "projects"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    last_opened_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 class DatasetRecord(Base):
     """Model to store uploaded dataset records for historical tracking"""
     __tablename__ = "dataset_records"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True, index=True)
     filename = Column(String(255), nullable=False)
     dataset_name = Column(String(255), nullable=False)
     upload_date = Column(DateTime, default=datetime.utcnow)
@@ -170,6 +190,8 @@ def init_db():
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS parse_meta JSON",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS step_recipes JSON",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS active_step_index INTEGER",
+        "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id)",
+        "CREATE INDEX IF NOT EXISTS ix_dataset_records_project_id ON dataset_records(project_id)",
         """CREATE TABLE IF NOT EXISTS password_reset_tokens (
             id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL REFERENCES users(id),
@@ -208,13 +230,14 @@ def get_db():
         pass
 
 
-def save_dataset_record(db, filename, dataset_name, period_month, period_year, 
+def save_dataset_record(db, filename, dataset_name, period_month, period_year,
                         row_count, column_count, columns_info, data_hash, summary_stats=None,
                         user_id=None, source_parquet=None, parse_meta=None,
-                        step_recipes=None, active_step_index=None):
+                        step_recipes=None, active_step_index=None, project_id=None):
     """Save a dataset record to the database"""
     record = DatasetRecord(
         user_id=user_id,
+        project_id=project_id,
         filename=filename,
         dataset_name=dataset_name,
         period_month=period_month,
@@ -232,6 +255,13 @@ def save_dataset_record(db, filename, dataset_name, period_month, period_year,
     db.add(record)
     db.commit()
     db.refresh(record)
+    # Touch the parent project so it bubbles to the top of the projects grid.
+    if project_id is not None:
+        proj = db.query(Project).filter(Project.id == project_id).first()
+        if proj is not None:
+            proj.updated_at = datetime.utcnow()
+            proj.last_opened_at = datetime.utcnow()
+            db.commit()
     return record
 
 
@@ -437,9 +467,170 @@ def get_all_datasets(db):
     return db.query(DatasetRecord).order_by(DatasetRecord.upload_date.desc()).all()
 
 
-def get_user_datasets(db, user_id):
-    """Get datasets for a specific user"""
-    return db.query(DatasetRecord).filter(DatasetRecord.user_id == user_id).order_by(DatasetRecord.upload_date.desc()).all()
+def get_user_datasets(db, user_id, project_id=None):
+    """Get datasets for a specific user, optionally scoped to one project.
+
+    When ``project_id`` is supplied, only datasets explicitly attached to that
+    project are returned. When omitted, every dataset owned by the user is
+    returned (used by admin / cross-project flows like the build queue).
+    """
+    q = db.query(DatasetRecord).filter(DatasetRecord.user_id == user_id)
+    if project_id is not None:
+        q = q.filter(DatasetRecord.project_id == project_id)
+    return q.order_by(DatasetRecord.upload_date.desc()).all()
+
+
+# ─── Project helpers ─────────────────────────────────────────────────────
+# A project is a user-owned folder of related datasets ("sheets"). The
+# post-login landing page shows a grid of these and the dashboard always
+# operates inside one. All queries are scoped by user_id defensively to
+# avoid one user reaching another's data via a forged id.
+
+def create_project(db, user_id, name, description=None):
+    """Create a new project for ``user_id``. Name is trimmed and required."""
+    name = (name or "").strip()
+    if not name:
+        return None
+    proj = Project(user_id=user_id, name=name[:255],
+                   description=(description or "").strip() or None)
+    db.add(proj)
+    db.commit()
+    db.refresh(proj)
+    return proj
+
+
+def list_user_projects(db, user_id):
+    """All projects a user owns, newest activity first, with a sheet count.
+
+    Returns a list of dicts (not ORM objects) so downstream UI code is
+    decoupled from SQLAlchemy and the dataset count comes back in a single
+    query rather than N+1.
+    """
+    if user_id is None:
+        return []
+    from sqlalchemy import func
+    rows = (db.query(Project,
+                     func.count(DatasetRecord.id).label("sheet_count"),
+                     func.coalesce(func.sum(DatasetRecord.row_count), 0).label("total_rows"))
+              .outerjoin(DatasetRecord, DatasetRecord.project_id == Project.id)
+              .filter(Project.user_id == user_id)
+              .group_by(Project.id)
+              .order_by(Project.last_opened_at.desc().nullslast(),
+                        Project.created_at.desc())
+              .all())
+    out = []
+    for proj, sheet_count, total_rows in rows:
+        out.append({
+            "id": proj.id,
+            "name": proj.name,
+            "description": proj.description,
+            "created_at": proj.created_at,
+            "updated_at": proj.updated_at,
+            "last_opened_at": proj.last_opened_at,
+            "sheet_count": int(sheet_count or 0),
+            "total_rows": int(total_rows or 0),
+        })
+    return out
+
+
+def get_project(db, project_id, user_id):
+    """Fetch a project iff it belongs to ``user_id``; otherwise None."""
+    if project_id is None or user_id is None:
+        return None
+    return (db.query(Project)
+              .filter(Project.id == project_id, Project.user_id == user_id)
+              .first())
+
+
+def update_project(db, project_id, user_id, name=None, description=None):
+    """Rename / re-describe a project. Returns the project or None."""
+    proj = get_project(db, project_id, user_id)
+    if proj is None:
+        return None
+    if name is not None:
+        name = name.strip()
+        if name:
+            proj.name = name[:255]
+    if description is not None:
+        proj.description = (description or "").strip() or None
+    proj.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(proj)
+    return proj
+
+
+def touch_project(db, project_id, user_id=None):
+    """Bump ``last_opened_at`` so the card floats to the top of the grid."""
+    q = db.query(Project).filter(Project.id == project_id)
+    if user_id is not None:
+        q = q.filter(Project.user_id == user_id)
+    proj = q.first()
+    if proj is None:
+        return None
+    proj.last_opened_at = datetime.utcnow()
+    db.commit()
+    return proj
+
+
+def delete_project(db, project_id, user_id):
+    """Delete a project + every dataset and relationship inside it.
+
+    Cascades manually because ``DatasetRecord.project_id`` is intentionally
+    nullable (so legacy datasets without a project keep working) — we can't
+    rely on ON DELETE CASCADE for that. Returns True on success.
+    """
+    proj = get_project(db, project_id, user_id)
+    if proj is None:
+        return False
+    ds_ids = [r.id for r in db.query(DatasetRecord.id)
+                                .filter(DatasetRecord.project_id == project_id,
+                                        DatasetRecord.user_id == user_id)
+                                .all()]
+    if ds_ids:
+        (db.query(DatasetRelationship)
+           .filter(DatasetRelationship.user_id == user_id,
+                   (DatasetRelationship.left_dataset_id.in_(ds_ids))
+                   | (DatasetRelationship.right_dataset_id.in_(ds_ids)))
+           .delete(synchronize_session=False))
+        (db.query(DatasetRecord)
+           .filter(DatasetRecord.id.in_(ds_ids))
+           .delete(synchronize_session=False))
+    db.delete(proj)
+    db.commit()
+    return True
+
+
+def ensure_default_project_for_user(db, user_id):
+    """One-shot back-fill: if a user has datasets but no projects, drop them
+    all into a single "My First Project" so existing accounts aren't left
+    looking at an empty Projects page after the migration. Idempotent — runs
+    cheaply on every login.
+    """
+    if user_id is None:
+        return None
+    has_project = (db.query(Project.id)
+                     .filter(Project.user_id == user_id)
+                     .first() is not None)
+    if has_project:
+        return None
+    orphan_count = (db.query(DatasetRecord.id)
+                      .filter(DatasetRecord.user_id == user_id,
+                              DatasetRecord.project_id.is_(None))
+                      .count())
+    if orphan_count == 0:
+        return None
+    proj = Project(user_id=user_id, name="My First Project",
+                   description="Datasets imported before projects existed.")
+    db.add(proj)
+    db.commit()
+    db.refresh(proj)
+    (db.query(DatasetRecord)
+       .filter(DatasetRecord.user_id == user_id,
+               DatasetRecord.project_id.is_(None))
+       .update({DatasetRecord.project_id: proj.id},
+               synchronize_session=False))
+    db.commit()
+    return proj
 
 
 def increment_analysis_count(db, user_id):

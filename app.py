@@ -140,6 +140,8 @@ from models import (
     get_user_datasets, get_user_by_email,
     create_password_reset_token, get_valid_password_reset_token,
     consume_password_reset_token, purge_expired_password_reset_tokens,
+    create_project, list_user_projects, get_project, update_project,
+    delete_project, touch_project, ensure_default_project_for_user,
 )
 from data_cleaner import (
     clean_data, detect_column_types, get_data_quality_score,
@@ -1470,6 +1472,13 @@ if 'chat_messages' not in st.session_state:
     st.session_state.chat_messages = []
 if 'current_dataset_id' not in st.session_state:
     st.session_state.current_dataset_id = None
+if 'current_project_id' not in st.session_state:
+    # The active project a user has opened from the Projects landing page.
+    # show_dashboard() refuses to render unless this is set, bouncing the
+    # user back to the Projects page so dataset listings stay scoped.
+    st.session_state.current_project_id = None
+if 'current_project_name' not in st.session_state:
+    st.session_state.current_project_name = None
 if 'step_histories' not in st.session_state:
     st.session_state.step_histories = {}
 if 'inferred_schema' not in st.session_state:
@@ -3299,7 +3308,7 @@ if not st.session_state.session_hydrated and st.session_state.user is None:
             if _db_user:
                 st.session_state.user = user_to_dict(_db_user)
                 if st.session_state.page in ('home', 'login', 'register'):
-                    st.session_state.page = 'dashboard'
+                    st.session_state.page = 'projects'
                 # Auto-resume the dataset the user was last working on so the
                 # Applied Steps panel and dashboard render exactly where they
                 # left off — even after a sign-out or browser refresh.
@@ -3760,7 +3769,7 @@ def _render_auth_chrome(logo_b64, action_label="Home", action_href="/"):
 
 def show_login_page():
     if st.session_state.user:
-        st.session_state.page = 'dashboard'
+        st.session_state.page = 'projects'
         st.rerun()
         return
 
@@ -3820,7 +3829,7 @@ def show_login_page():
                         if user:
                             _tok = issue_session_token(db, user, days=30)
                             st.session_state.user = user_to_dict(user)
-                            st.session_state.page = 'dashboard'
+                            st.session_state.page = 'projects'
                             st.query_params[SESSION_QP_NAME] = _tok
                         else:
                             st.error("Invalid email or password")
@@ -3829,7 +3838,7 @@ def show_login_page():
                 else:
                     st.warning("Please enter both email and password")
 
-        if st.session_state.user and st.session_state.page == 'dashboard':
+        if st.session_state.user and st.session_state.page == 'projects':
             st.rerun()
 
         st.markdown('<div class="auth-divider">NEW HERE</div>', unsafe_allow_html=True)
@@ -3892,7 +3901,7 @@ def show_login_page():
 
 def show_register_page():
     if st.session_state.user:
-        st.session_state.page = 'dashboard'
+        st.session_state.page = 'projects'
         st.rerun()
         return
 
@@ -4160,7 +4169,7 @@ def show_register_page():
                         if user:
                             _tok = issue_session_token(db, user, days=30)
                             st.session_state.user = user_to_dict(user)
-                            st.session_state.page = 'dashboard'
+                            st.session_state.page = 'projects'
                             st.query_params[SESSION_QP_NAME] = _tok
                             try:
                                 send_welcome_email(email, full_name, user.trial_end)
@@ -5443,7 +5452,8 @@ def _render_model_section(uid, run_analysis_cb=None, limits=None):
 
     db = get_db()
     try:
-        datasets = get_user_datasets(db, uid)
+        datasets = get_user_datasets(db, uid,
+                                     project_id=st.session_state.get('current_project_id'))
     finally:
         db.close()
 
@@ -5766,12 +5776,512 @@ def _render_model_section(uid, run_analysis_cb=None, limits=None):
             st.rerun()
 
 
+def _clear_workspace_state():
+    """Wipe per-dataset state when leaving a project so the next project starts clean."""
+    for k in ('df', 'df_cleaned', 'analysis_results', 'ai_insights',
+              'cleaning_report', 'inferred_schema_obj', 'similar_datasets',
+              '_auto_analyzed_sig'):
+        if k in st.session_state:
+            st.session_state[k] = None if k != 'similar_datasets' else []
+    st.session_state.chat_messages = []
+    st.session_state.current_dataset_id = None
+    # Per-dataset dicts can stay (they're keyed by dataset id) but the
+    # active pointer is cleared so the dashboard re-prompts for an upload.
+
+
+def _open_project(project_id, project_name):
+    """Set the active project and route into the dashboard."""
+    _clear_workspace_state()
+    st.session_state.current_project_id = project_id
+    st.session_state.current_project_name = project_name
+    db = get_db()
+    try:
+        touch_project(db, project_id, st.session_state.user.get('id'))
+    finally:
+        db.close()
+    st.session_state.page = 'dashboard'
+
+
+def _projects_page_css():
+    """CSS for the Projects landing page — bento grid, Data Noir aesthetic."""
+    return """
+<style>
+.proj-shell { max-width: 1240px; margin: 0 auto; padding: 1.25rem 0 4rem; }
+.proj-eyebrow {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--teal); opacity: 0.85; margin-bottom: 0.55rem;
+}
+.proj-h1 {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 2.6rem; line-height: 1.05; color: #e2e8f0;
+    margin: 0 0 0.6rem 0; letter-spacing: -0.015em;
+}
+.proj-h1 .accent {
+    background: linear-gradient(120deg, var(--teal) 0%, #94f0e2 60%, #cbd5e1 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.proj-sub {
+    color: #94a3b8; font-size: 1.02rem; max-width: 640px;
+    line-height: 1.55; margin: 0 0 2.2rem 0;
+}
+.proj-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    margin: 0 0 2rem 0;
+}
+.proj-stat {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.15rem 1.3rem;
+}
+.proj-stat-num {
+    font-family: 'JetBrains Mono', monospace; font-size: 1.65rem;
+    color: #e2e8f0; font-weight: 600; letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+}
+.proj-stat-label {
+    font-size: 0.74rem; color: #64748b; text-transform: uppercase;
+    letter-spacing: 0.14em; margin-top: 0.35rem;
+}
+.proj-section-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin: 0.5rem 0 1rem 0;
+}
+.proj-section-title {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 1.05rem; color: #cbd5e1; letter-spacing: 0.02em;
+}
+.proj-section-meta {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.74rem;
+    color: #64748b; letter-spacing: 0.08em;
+}
+.proj-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 1.4rem 1.45rem 1.2rem 1.45rem;
+    height: 100%; display: flex; flex-direction: column;
+    transition: border-color 200ms ease, transform 180ms ease,
+                box-shadow 220ms ease;
+    position: relative; overflow: hidden;
+}
+.proj-card::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(180deg, var(--teal) 0%, transparent 100%);
+    opacity: 0; transition: opacity 200ms ease;
+}
+.proj-card:hover {
+    border-color: rgba(45,212,191,0.42);
+    transform: translateY(-2px);
+    box-shadow: 0 14px 40px -22px rgba(45,212,191,0.45);
+}
+.proj-card:hover::before { opacity: 1; }
+.proj-card-title {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 1.18rem; color: #e2e8f0; margin: 0 0 0.5rem 0;
+    line-height: 1.25; letter-spacing: -0.005em;
+    overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.proj-card-desc {
+    color: #94a3b8; font-size: 0.86rem; line-height: 1.5;
+    margin: 0 0 1.1rem 0; flex-grow: 1; min-height: 2.6em;
+    overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.proj-card-desc.empty { color: #475569; font-style: italic; }
+.proj-card-meta {
+    display: flex; gap: 1.1rem; align-items: center;
+    padding-top: 0.85rem;
+    border-top: 1px solid rgba(148,163,184,0.08);
+    font-family: 'JetBrains Mono', monospace; font-size: 0.74rem;
+    color: #64748b; letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+}
+.proj-card-meta .dot { width: 4px; height: 4px; border-radius: 50%;
+    background: #475569; display: inline-block; margin: 0 0.1rem; }
+.proj-new-card {
+    background: transparent;
+    border: 1.5px dashed rgba(45,212,191,0.32);
+    border-radius: 16px; padding: 1.4rem 1.45rem;
+    height: 100%; display: flex; flex-direction: column;
+    justify-content: center; align-items: flex-start;
+    transition: border-color 180ms ease, background 180ms ease;
+}
+.proj-new-card:hover {
+    border-color: var(--teal);
+    background: rgba(45,212,191,0.04);
+}
+.proj-new-icon {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: rgba(45,212,191,0.12);
+    color: var(--teal);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; font-weight: 300; line-height: 1;
+    margin-bottom: 0.85rem;
+    border: 1px solid rgba(45,212,191,0.25);
+}
+.proj-new-title {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    color: #e2e8f0; font-size: 1.08rem; margin-bottom: 0.4rem;
+}
+.proj-new-sub { color: #94a3b8; font-size: 0.84rem; line-height: 1.45; }
+.proj-empty {
+    text-align: center; padding: 4rem 2rem;
+    background: var(--surface); border: 1px dashed var(--border);
+    border-radius: 18px;
+}
+.proj-empty-icon {
+    width: 64px; height: 64px; border-radius: 16px; margin: 0 auto 1.2rem;
+    background: rgba(45,212,191,0.10); color: var(--teal);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; font-weight: 300;
+    border: 1px solid rgba(45,212,191,0.25);
+}
+.proj-empty-title {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    color: #e2e8f0; font-size: 1.45rem; margin: 0 0 0.5rem;
+}
+.proj-empty-sub { color: #94a3b8; max-width: 420px; margin: 0 auto 1.5rem;
+    line-height: 1.55; font-size: 0.95rem; }
+
+/* The Open / Rename / Delete row that sits under each card uses default
+   Streamlit buttons — restyled so they match the card aesthetic. */
+[data-testid="stButton"] > button[kind="primary"].proj-open {
+    background: var(--teal); color: #0c1829; border: none; font-weight: 600;
+}
+.proj-create-form {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.4rem 1.4rem 0.6rem;
+    margin-bottom: 1.5rem;
+}
+</style>
+"""
+
+
+def _format_relative_time(dt):
+    """Compact human-readable 'last opened' string."""
+    if dt is None:
+        return "just now"
+    delta = datetime.utcnow() - dt
+    secs = int(delta.total_seconds())
+    if secs < 60: return "just now"
+    if secs < 3600: return f"{secs // 60}m ago"
+    if secs < 86400: return f"{secs // 3600}h ago"
+    if secs < 86400 * 7: return f"{secs // 86400}d ago"
+    if secs < 86400 * 30: return f"{secs // (86400 * 7)}w ago"
+    return dt.strftime("%b %-d, %Y") if hasattr(dt, 'strftime') else "a while ago"
+
+
+def show_projects_page():
+    """Post-login landing page: a grid of the user's projects."""
+    if not st.session_state.user:
+        st.session_state.page = 'login'
+        st.rerun()
+        return
+
+    user = st.session_state.user
+    user_id = user.get('id')
+
+    # Trial gate — same logic as the dashboard.
+    db = get_db()
+    try:
+        user_obj = get_user_by_id(db, user_id)
+        if user_obj and not check_trial_active(user_obj):
+            st.markdown('''
+            <div style="text-align: center; padding: 3rem;">
+                <h2 style="color: #e2e8f0;">Your Free Trial Has Ended</h2>
+                <p style="color: #94a3b8; max-width: 520px; margin: 1rem auto;">
+                    Your 60-day trial period has expired. Contact our team for activation.
+                </p>
+                <p style="color: var(--teal);">muayad.demaidi.work@gmail.com</p>
+            </div>
+            ''', unsafe_allow_html=True)
+            show_support_section()
+            return
+        # One-shot back-fill for users who had datasets before projects existed.
+        ensure_default_project_for_user(db, user_id)
+        projects = list_user_projects(db, user_id)
+    finally:
+        db.close()
+
+    st.markdown(_projects_page_css(), unsafe_allow_html=True)
+
+    display_name = user.get('full_name') or user.get('username') or 'Analyst'
+    avatar_letter = (display_name[:1] or 'A').upper()
+    first_name = display_name.split()[0] if display_name else 'Analyst'
+
+    # ── Top bar: brand + account popover (mirrors dashboard chrome) ──────
+    nav_brand_col, _, nav_user_col = st.columns([5, 0.3, 1.6], gap="small")
+    with nav_brand_col:
+        st.markdown(
+            '<div class="dn-topbar">'
+            '<span class="dn-topbar-brand">DataVision <span style="color:var(--teal);">Pro</span></span>'
+            '<span class="dn-topbar-eyebrow">Projects</span>'
+            '</div>', unsafe_allow_html=True)
+    with nav_user_col:
+        with st.popover(f"{avatar_letter}   {first_name}   ▾", use_container_width=True):
+            tier_label = {"tier1": "Tier 01 · Starter", "tier2": "Tier 02 · Growth",
+                          "tier3": "Tier 03 · Full Access"}.get(
+                user.get('subscription_type', 'tier3'), "Tier 03 · Full Access")
+            st.markdown(f'''
+<div class="dn-pop-head">
+  <div class="dn-pop-avatar">{avatar_letter}</div>
+  <div>
+    <div class="dn-pop-name">{display_name}</div>
+    <div class="dn-pop-tier">{tier_label}</div>
+  </div>
+</div>
+<div class="dn-pop-divider"></div>
+''', unsafe_allow_html=True)
+            if user.get('is_admin'):
+                if st.button("  Admin Panel", use_container_width=True, key="proj_pop_admin"):
+                    st.session_state.page = 'admin'; st.rerun()
+            if st.button("→   Sign Out", use_container_width=True, key="proj_pop_signout"):
+                _uid = user_id
+                if _uid:
+                    _db = get_db()
+                    try:
+                        _u = get_user_by_id(_db, _uid)
+                        clear_session_token(_db, _u)
+                    finally:
+                        _db.close()
+                try:
+                    if SESSION_QP_NAME in st.query_params:
+                        del st.query_params[SESSION_QP_NAME]
+                except Exception:
+                    pass
+                _clear_workspace_state()
+                st.session_state.current_project_id = None
+                st.session_state.current_project_name = None
+                st.session_state.user = None
+                st.session_state.page = 'home'
+                st.rerun()
+
+    st.markdown('<div class="proj-shell">', unsafe_allow_html=True)
+
+    # ── Hero header ────────────────────────────────────────────────────
+    st.markdown(f'''
+<div class="proj-eyebrow">Workspace</div>
+<h1 class="proj-h1">Welcome back, <span class="accent">{first_name}</span>.</h1>
+<p class="proj-sub">Each project is a folder for the sheets, models, and chats
+that belong to one analysis. Open one to keep going, or start a fresh one.</p>
+''', unsafe_allow_html=True)
+
+    # ── Quick stats ────────────────────────────────────────────────────
+    total_projects = len(projects)
+    total_sheets = sum(p['sheet_count'] for p in projects)
+    total_rows = sum(p['total_rows'] for p in projects)
+    st.markdown(f'''
+<div class="proj-stats">
+  <div class="proj-stat">
+    <div class="proj-stat-num">{total_projects}</div>
+    <div class="proj-stat-label">Projects</div>
+  </div>
+  <div class="proj-stat">
+    <div class="proj-stat-num">{total_sheets}</div>
+    <div class="proj-stat-label">Sheets</div>
+  </div>
+  <div class="proj-stat">
+    <div class="proj-stat-num">{total_rows:,}</div>
+    <div class="proj-stat-label">Rows analysed</div>
+  </div>
+</div>
+''', unsafe_allow_html=True)
+
+    # ── Inline create form (toggled, single primary CTA) ──────────────
+    st.session_state.setdefault('proj_show_create', False)
+    if st.session_state.proj_show_create:
+        st.markdown('<div class="proj-create-form">', unsafe_allow_html=True)
+        st.markdown('<div class="proj-section-title" style="margin-bottom:1rem;">Create a new project</div>',
+                    unsafe_allow_html=True)
+        with st.form("proj_create_form", clear_on_submit=True):
+            new_name = st.text_input("Project name *",
+                                     placeholder="e.g. Q2 Sales Review",
+                                     max_chars=120, key="proj_new_name")
+            new_desc = st.text_area("Description (optional)",
+                                    placeholder="What is this project about?",
+                                    max_chars=500, height=80, key="proj_new_desc")
+            f1, f2 = st.columns([1, 1])
+            with f1:
+                submitted = st.form_submit_button("Create project",
+                                                  use_container_width=True,
+                                                  type="primary")
+            with f2:
+                cancelled = st.form_submit_button("Cancel",
+                                                  use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        if submitted:
+            if not (new_name or "").strip():
+                st.error("Please enter a project name.")
+            else:
+                _db = get_db()
+                try:
+                    proj = create_project(_db, user_id, new_name, new_desc)
+                finally:
+                    _db.close()
+                if proj is None:
+                    st.error("Could not create project. Please try again.")
+                else:
+                    st.session_state.proj_show_create = False
+                    _open_project(proj.id, proj.name)
+                    st.rerun()
+        elif cancelled:
+            st.session_state.proj_show_create = False
+            st.rerun()
+
+    # ── Empty state ────────────────────────────────────────────────────
+    if not projects:
+        st.markdown('''
+<div class="proj-empty">
+  <div class="proj-empty-icon">+</div>
+  <div class="proj-empty-title">No projects yet</div>
+  <p class="proj-empty-sub">Spin up your first project to start uploading
+sheets, building models, and chatting with the data.</p>
+</div>
+''', unsafe_allow_html=True)
+        c1, c2, c3 = st.columns([1, 1.2, 1])
+        with c2:
+            if st.button("Create your first project",
+                         use_container_width=True, type="primary",
+                         key="proj_empty_create"):
+                st.session_state.proj_show_create = True
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+        return
+
+    # ── Section heading + grid ────────────────────────────────────────
+    st.markdown(f'''
+<div class="proj-section-head">
+  <div class="proj-section-title">Your projects</div>
+  <div class="proj-section-meta">{total_projects} TOTAL</div>
+</div>
+''', unsafe_allow_html=True)
+
+    # Bento grid: "+ New" tile first, then projects, 3 per row on desktop.
+    items = [{"new": True}] + [{"new": False, "p": p} for p in projects]
+    cols_per_row = 3
+    for row_start in range(0, len(items), cols_per_row):
+        row = items[row_start:row_start + cols_per_row]
+        cols = st.columns(cols_per_row, gap="medium")
+        for i, item in enumerate(row):
+            with cols[i]:
+                if item["new"]:
+                    st.markdown('''
+<div class="proj-new-card">
+  <div class="proj-new-icon">+</div>
+  <div class="proj-new-title">New project</div>
+  <div class="proj-new-sub">Start a fresh analysis with its own sheets and history.</div>
+</div>
+''', unsafe_allow_html=True)
+                    if st.button("Create", use_container_width=True,
+                                 key="proj_new_btn", type="primary"):
+                        st.session_state.proj_show_create = True
+                        st.rerun()
+                else:
+                    p = item["p"]
+                    desc = (p["description"] or "").strip()
+                    desc_html = (f'<div class="proj-card-desc">{desc}</div>'
+                                 if desc else
+                                 '<div class="proj-card-desc empty">No description</div>')
+                    sheets_label = f"{p['sheet_count']} sheet{'s' if p['sheet_count'] != 1 else ''}"
+                    rel = _format_relative_time(p['last_opened_at'] or p['created_at'])
+                    rows_label = (f"{p['total_rows']:,} rows" if p['total_rows']
+                                  else "no rows yet")
+                    st.markdown(f'''
+<div class="proj-card">
+  <div class="proj-card-title">{p["name"]}</div>
+  {desc_html}
+  <div class="proj-card-meta">
+    <span>{sheets_label}</span><span class="dot"></span>
+    <span>{rows_label}</span><span class="dot"></span>
+    <span>{rel}</span>
+  </div>
+</div>
+''', unsafe_allow_html=True)
+                    btn_open, btn_more = st.columns([3, 1])
+                    with btn_open:
+                        if st.button("Open", key=f"proj_open_{p['id']}",
+                                     use_container_width=True, type="primary"):
+                            _open_project(p['id'], p['name'])
+                            st.rerun()
+                    with btn_more:
+                        with st.popover("•••", use_container_width=True):
+                            st.caption("Manage project")
+                            new_label = st.text_input(
+                                "Rename", value=p['name'],
+                                key=f"proj_rename_{p['id']}",
+                                label_visibility="collapsed",
+                                placeholder="New name")
+                            if st.button("Save name", use_container_width=True,
+                                         key=f"proj_save_{p['id']}"):
+                                _db = get_db()
+                                try:
+                                    update_project(_db, p['id'], user_id,
+                                                   name=new_label)
+                                finally:
+                                    _db.close()
+                                st.rerun()
+                            st.markdown("---")
+                            confirm_key = f"proj_del_confirm_{p['id']}"
+                            if st.session_state.get(confirm_key):
+                                st.caption(f"This deletes **{p['name']}** and "
+                                           f"all {p['sheet_count']} sheet(s).")
+                                cc1, cc2 = st.columns(2)
+                                with cc1:
+                                    if st.button("Yes, delete",
+                                                 use_container_width=True,
+                                                 key=f"proj_del_yes_{p['id']}"):
+                                        _db = get_db()
+                                        try:
+                                            delete_project(_db, p['id'], user_id)
+                                        finally:
+                                            _db.close()
+                                        st.session_state.pop(confirm_key, None)
+                                        st.rerun()
+                                with cc2:
+                                    if st.button("Cancel",
+                                                 use_container_width=True,
+                                                 key=f"proj_del_no_{p['id']}"):
+                                        st.session_state.pop(confirm_key, None)
+                                        st.rerun()
+                            else:
+                                if st.button("Delete project",
+                                             use_container_width=True,
+                                             key=f"proj_del_{p['id']}"):
+                                    st.session_state[confirm_key] = True
+                                    st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
 def show_dashboard():
     limits = get_user_limits()
     logo_b64 = get_logo_base64()
-    
+
+    # Hard gate: dashboard only renders inside an open project. If the user
+    # arrived here without one (e.g. deep-link refresh, or after sign-out),
+    # bounce back to the Projects page so dataset queries stay scoped.
+    if st.session_state.user and not st.session_state.get('current_project_id'):
+        st.session_state.page = 'projects'
+        st.rerun()
+        return
+
     if st.session_state.user:
         user_id = st.session_state.user.get('id')
+        # Re-validate that the project still belongs to this user.
+        _pdb = get_db()
+        try:
+            _proj = get_project(_pdb, st.session_state.current_project_id, user_id)
+            if _proj is None:
+                st.session_state.current_project_id = None
+                st.session_state.current_project_name = None
+                st.session_state.page = 'projects'
+                _pdb.close()
+                st.rerun()
+                return
+            st.session_state.current_project_name = _proj.name
+            touch_project(_pdb, _proj.id, user_id)
+        finally:
+            _pdb.close()
         db = get_db()
         try:
             user_obj = get_user_by_id(db, user_id)
@@ -5809,12 +6319,24 @@ def show_dashboard():
     if 'show_contact_panel' not in st.session_state:
         st.session_state.show_contact_panel = False
 
-    nav_brand_col, _, nav_user_col = st.columns([5, 0.3, 1.6], gap="small")
+    _proj_name = (st.session_state.get('current_project_name') or 'Project').strip()
+    _proj_name_safe = (_proj_name[:48] + '…') if len(_proj_name) > 48 else _proj_name
+    nav_back_col, nav_brand_col, _, nav_user_col = st.columns(
+        [1.2, 4.0, 0.3, 1.6], gap="small")
+    with nav_back_col:
+        if st.button("← Projects", key="dash_back_projects",
+                     use_container_width=True,
+                     help="Back to your projects"):
+            _clear_workspace_state()
+            st.session_state.current_project_id = None
+            st.session_state.current_project_name = None
+            st.session_state.page = 'projects'
+            st.rerun()
     with nav_brand_col:
         st.markdown(f'''
 <div class="dn-topbar">
   <span class="dn-topbar-brand">DataVision <span style="color:var(--teal);">Pro</span></span>
-  <span class="dn-topbar-eyebrow">Workspace · Live</span>
+  <span class="dn-topbar-eyebrow">Project · {_proj_name_safe}</span>
 </div>
 ''', unsafe_allow_html=True)
     with nav_user_col:
@@ -5852,10 +6374,11 @@ def show_dashboard():
                         del st.query_params[SESSION_QP_NAME]
                 except Exception as _e:
                     print(f"Query param clear failed: {_e}")
+                _clear_workspace_state()
+                st.session_state.current_project_id = None
+                st.session_state.current_project_name = None
                 st.session_state.user = None
                 st.session_state.page = 'home'
-                st.session_state.df = None
-                st.session_state.df_cleaned = None
                 st.session_state.session_hydrated = True
                 st.rerun()
 
@@ -6045,6 +6568,7 @@ def show_dashboard():
                         columns_info=columns_info, data_hash=data_hash,
                         summary_stats=sanitize_for_json(analysis_results.get('numeric_summary', {})),
                         user_id=uid,
+                        project_id=st.session_state.get('current_project_id'),
                         source_parquet=source_blob,
                         parse_meta=parse_meta if isinstance(parse_meta, dict) else None,
                         step_recipes=history.to_recipes(),
@@ -6117,7 +6641,9 @@ def show_dashboard():
                                 if _uid_now:
                                     _hdb = get_db()
                                     try:
-                                        _existing = get_user_datasets(_hdb, _uid_now)
+                                        _existing = get_user_datasets(
+                                            _hdb, _uid_now,
+                                            project_id=st.session_state.get('current_project_id'))
                                     except Exception:
                                         _existing = []
                                     finally:
@@ -6155,7 +6681,9 @@ def show_dashboard():
                 if _uid:
                     _rdb = get_db()
                     try:
-                        _recent = get_user_datasets(_rdb, _uid)
+                        _recent = get_user_datasets(
+                            _rdb, _uid,
+                            project_id=st.session_state.get('current_project_id'))
                         _recent = [r for r in _recent if r.source_parquet and r.step_recipes][:5]
                     finally:
                         _rdb.close()
@@ -6217,7 +6745,9 @@ def show_dashboard():
                                 if _uid_now:
                                     _hdb = get_db()
                                     try:
-                                        _existing = get_user_datasets(_hdb, _uid_now)
+                                        _existing = get_user_datasets(
+                                            _hdb, _uid_now,
+                                            project_id=st.session_state.get('current_project_id'))
                                     except Exception:
                                         _existing = []
                                     finally:
@@ -8183,6 +8713,12 @@ elif st.session_state.page == 'admin':
     else:
         st.error("Access denied. Admin privileges required.")
         st.session_state.page = 'dashboard'
+        st.rerun()
+elif st.session_state.page == 'projects':
+    if st.session_state.user:
+        show_projects_page()
+    else:
+        st.session_state.page = 'login'
         st.rerun()
 elif st.session_state.page == 'dashboard':
     show_dashboard()
