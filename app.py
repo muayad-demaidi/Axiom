@@ -8904,135 +8904,372 @@ def show_dashboard():
                                             st.markdown(f'<div class="insight-box">**Analysis:** {trend_analysis}</div>', unsafe_allow_html=True)
             
                 elif active_tab == _TAB_LABELS[6]:
-                    _section_head("ML & Clustering", "Categorical analysis, ML models, clusters, and outliers.", "07 — Machine Learning")
+                    _section_head(
+                        "ML & Clustering",
+                        "Explore categorical fields, train a quick prediction model, segment rows into risk clusters, and inspect outliers — all from one place.",
+                        "07 — Machine Learning",
+                    )
 
                     _render_phase1_dock("ml", limits)
 
                     df_ml = _active_df()
                     numeric_cols_ml = df_ml.select_dtypes(include=[np.number]).columns.tolist()
                     cat_cols_ml = df_ml.select_dtypes(include=['object', 'category']).columns.tolist()
-                
+
                     _ML_SUBTABS = ["Categorical Analysis", "ML Prediction", "Risk Clustering", "Outlier Detection"]
                     ml_active = st.radio(
                         "ML Section", _ML_SUBTABS, horizontal=True,
-                        label_visibility="collapsed", key="ml_subsection"
+                        label_visibility="collapsed", key="ml_subsection",
                     )
                     _ds_id_ml = _active_step_signature()
-                
+
+                    def _ml_guidance(message: str) -> None:
+                        st.markdown(
+                            f'<div class="insight-box">{message}</div>',
+                            unsafe_allow_html=True,
+                        )
+
                     if ml_active == _ML_SUBTABS[0]:
-                        _section_head("Categorical Data Analysis", "Distribution and balance of every non-numeric field. Pick a column to explore.")
+                        _section_head(
+                            "Categorical Data Analysis",
+                            "See how a non-numeric column is distributed and whether its categories are well balanced.",
+                        )
                         if cat_cols_ml:
                             cat_insights = _c_categorical_insights(df_ml, _ds_id_ml)
-                            sel_col1, sel_col2 = st.columns([3, 2])
-                            with sel_col1:
-                                cat_pick = st.selectbox("Column", cat_cols_ml, key="cat_pick")
-                            with sel_col2:
-                                chart_type = st.radio("View as", ["Pie", "Bar"], key="cat_chart_type", horizontal=True)
+                            with st.container(border=True):
+                                st.markdown("**Settings**")
+                                sel_col1, sel_col2 = st.columns([3, 2])
+                                with sel_col1:
+                                    cat_pick = st.selectbox(
+                                        "Column to explore", cat_cols_ml, key="cat_pick",
+                                    )
+                                with sel_col2:
+                                    chart_type = st.radio(
+                                        "View as", ["Pie", "Bar"],
+                                        key="cat_chart_type", horizontal=True,
+                                    )
                             if cat_pick in cat_insights:
                                 insight = cat_insights[cat_pick]
                                 m1, m2, m3 = st.columns(3)
-                                with m1: st.metric("Unique Values", insight['unique_values'])
-                                with m2: st.metric("Missing", f"{insight['missing_pct']}%")
-                                with m3: st.metric("Balance Ratio", f"{insight['balance_ratio']:.2f}")
-                            fig = _c_categorical_pie(df_ml, _ds_id_ml, cat_pick) if chart_type == "Pie" else _c_categorical_bar(df_ml, _ds_id_ml, cat_pick)
+                                with m1:
+                                    st.metric("Unique values", insight['unique_values'])
+                                with m2:
+                                    st.metric("Missing", f"{insight['missing_pct']}%")
+                                with m3:
+                                    st.metric("Balance ratio", f"{insight['balance_ratio']:.2f}")
+                                balance_hint = (
+                                    "Categories are reasonably balanced."
+                                    if insight.get('is_balanced')
+                                    else "Categories are imbalanced — a few values dominate."
+                                )
+                                st.markdown(
+                                    f'<div class="dn-meta">{balance_hint} '
+                                    f'Most common: <b>{insight.get("top_category")}</b>.</div>',
+                                    unsafe_allow_html=True,
+                                )
+                            fig = (
+                                _c_categorical_pie(df_ml, _ds_id_ml, cat_pick)
+                                if chart_type == "Pie"
+                                else _c_categorical_bar(df_ml, _ds_id_ml, cat_pick)
+                            )
                             st.plotly_chart(fig, use_container_width=True)
+                            st.caption(
+                                "Each slice or bar represents the share of rows for that category."
+                            )
                         else:
-                            st.info("No categorical columns found in the dataset.")
-                
+                            _ml_guidance(
+                                "No categorical columns in this dataset yet — add or keep a text/category field to explore here."
+                            )
+
                     elif ml_active == _ML_SUBTABS[1]:
-                        st.subheader("ML Prediction Model")
-                        st.markdown("Build a machine learning model to predict any target variable in your data.")
-                    
+                        _section_head(
+                            "ML Prediction Model",
+                            "Train a quick model to predict any numeric column from the rest of your numeric features.",
+                        )
+
                         if len(numeric_cols_ml) >= 3:
-                            target_col_ml = st.selectbox("Select Target Variable to Predict", numeric_cols_ml, key="ml_target")
-                        
-                            if st.button("Build Prediction Model", use_container_width=True):
-                                with st.spinner("Training ML model..."):
+                            with st.container(border=True):
+                                st.markdown("**Settings**")
+                                target_col_ml = st.selectbox(
+                                    "Target variable to predict",
+                                    numeric_cols_ml,
+                                    key="ml_target",
+                                    help="The column the model will learn to predict using the others as features.",
+                                )
+                                build_clicked = st.button(
+                                    "Build prediction model",
+                                    use_container_width=True,
+                                    type="primary",
+                                    key="ml_build_btn",
+                                )
+
+                            if build_clicked:
+                                with st.spinner("Training model — this usually takes a few seconds…"):
                                     result = build_ml_prediction_model(df_ml, target_col_ml)
-                                
-                                    if 'error' in result:
-                                        st.error(result['error'])
-                                    else:
-                                        st.success(f"Model trained successfully!")
-                                    
-                                        col1, col2, col3 = st.columns(3)
-                                        with col1:
-                                            st.metric("Model Type", result['model_type'].title())
-                                        with col2:
-                                            if result['model_type'] == 'classification':
-                                                st.metric("Accuracy", f"{result['accuracy']}%")
-                                            else:
-                                                st.metric("R² Score", f"{result['r2_score']}%")
-                                        with col3:
-                                            st.metric("Training Size", f"{result['train_size']:,}")
-                                    
-                                        if 'feature_importance' in result:
-                                            st.subheader("Feature Importance")
-                                            fig = create_feature_importance_chart(result['feature_importance'])
-                                            st.plotly_chart(fig, use_container_width=True)
-                                    
-                                        st.subheader("Model Details")
+                                st.session_state['ml_pred_result'] = result
+                                st.session_state['ml_pred_target'] = target_col_ml
+                                st.session_state['ml_pred_sig'] = _ds_id_ml
+
+                            cached_pred_sig = st.session_state.get('ml_pred_sig')
+                            cached_pred_target = st.session_state.get('ml_pred_target')
+                            if cached_pred_sig != _ds_id_ml:
+                                st.session_state.pop('ml_pred_result', None)
+                                st.session_state.pop('ml_pred_target', None)
+                                st.session_state.pop('ml_pred_sig', None)
+                            elif (
+                                cached_pred_target is not None
+                                and cached_pred_target != target_col_ml
+                                and st.session_state.get('ml_pred_result') is not None
+                            ):
+                                _ml_guidance(
+                                    "Target changed — click <b>Build prediction model</b> to retrain for the new target."
+                                )
+
+                            result = st.session_state.get('ml_pred_result')
+                            if result is not None:
+                                if 'error' in result:
+                                    _ml_guidance(result['error'])
+                                else:
+                                    target_label = st.session_state.get(
+                                        'ml_pred_target', result.get('target', '')
+                                    )
+                                    st.markdown(
+                                        f'<div class="success-box">Trained a '
+                                        f'<b>{result["model_type"]}</b> model for '
+                                        f'<b>{target_label}</b>.</div>',
+                                        unsafe_allow_html=True,
+                                    )
+                                    m1, m2, m3, m4 = st.columns(4)
+                                    with m1:
+                                        st.metric("Model type", result['model_type'].title())
+                                    with m2:
+                                        if result['model_type'] == 'classification':
+                                            st.metric("Accuracy", f"{result['accuracy']}%")
+                                        else:
+                                            st.metric("R² Score", f"{result['r2_score']}%")
+                                    with m3:
+                                        st.metric("Training rows", f"{result['train_size']:,}")
+                                    with m4:
+                                        st.metric("Test rows", f"{result['test_size']:,}")
+
+                                    if 'feature_importance' in result and result['feature_importance']:
+                                        st.markdown("**Feature importance**")
+                                        fig = create_feature_importance_chart(result['feature_importance'])
+                                        st.plotly_chart(fig, use_container_width=True)
+                                        st.caption(
+                                            "Bars show how much each feature contributed to the model's predictions."
+                                        )
+
+                                    with st.expander("Model details (advanced)", expanded=False):
                                         st.json(result)
                         else:
-                            st.warning("Need at least 3 numeric columns for ML prediction.")
-                
+                            _ml_guidance(
+                                "Need at least 3 numeric columns to train a model. Add or keep more numeric fields and try again."
+                            )
+
                     elif ml_active == _ML_SUBTABS[2]:
-                        st.subheader("Customer/Data Clustering")
-                        st.markdown("Segment your data into risk-based clusters using K-Means algorithm.")
-                    
+                        _section_head(
+                            "Risk Clustering",
+                            "Group rows with similar numeric profiles into risk-based clusters using K-Means.",
+                        )
+
                         if len(numeric_cols_ml) >= 2:
-                            n_clusters = st.slider("Number of Clusters", 2, 6, 4, key="n_clusters")
-                        
-                            if st.button("Create Clusters", use_container_width=True):
-                                with st.spinner("Creating clusters..."):
+                            cached = st.session_state.get('ml_cluster_result')
+                            cached_sig = st.session_state.get('ml_cluster_sig')
+                            cached_k = st.session_state.get('ml_cluster_k')
+
+                            with st.container(border=True):
+                                st.markdown("**Settings**")
+                                n_clusters = st.slider(
+                                    "Number of clusters", 2, 6, cached_k or 4, key="n_clusters"
+                                )
+                                stale = (
+                                    cached is None
+                                    or cached_sig != _ds_id_ml
+                                    or cached_k != n_clusters
+                                )
+                                btn_label = (
+                                    "Create clusters" if cached is None
+                                    else ("Re-create clusters" if stale else "Clusters are up to date")
+                                )
+                                helper = (
+                                    "Pick a cluster count and run K-Means on every numeric column."
+                                    if cached is None
+                                    else (
+                                        "Cluster count changed — click to re-run K-Means with the new setting."
+                                        if stale
+                                        else "Change the axis pickers below to explore the same clusters from different angles."
+                                    )
+                                )
+                                st.caption(helper)
+                                run_clicked = st.button(
+                                    btn_label,
+                                    use_container_width=True,
+                                    type="primary",
+                                    disabled=(not stale),
+                                    key="cluster_run_btn",
+                                )
+
+                            if run_clicked:
+                                with st.spinner("Creating clusters…"):
                                     result = create_risk_clusters(df_ml, n_clusters)
-                                
-                                    if 'error' in result:
-                                        st.error(result['error'])
-                                    else:
-                                        st.success(f"Created {n_clusters} clusters successfully!")
-                                    
-                                        st.subheader("Cluster Distribution")
-                                        for cluster_name, stats in result['cluster_stats'].items():
-                                            with st.expander(f"{cluster_name} ({stats['size']:,} records - {stats['percentage']}%)"):
-                                                st.write("**Characteristics:**")
-                                                for col, char in stats['characteristics'].items():
-                                                    st.write(f"- {col}: Mean = {char['mean']}, Std = {char['std']}")
-                                    
-                                        st.subheader("Cluster Visualization")
-                                        if len(numeric_cols_ml) >= 2:
-                                            col1, col2 = st.columns(2)
-                                            with col1:
-                                                x_col = st.selectbox("X Axis", numeric_cols_ml, key="cluster_x")
-                                            with col2:
-                                                y_col = st.selectbox("Y Axis", [c for c in numeric_cols_ml if c != x_col], key="cluster_y")
-                                        
-                                            df_cluster_viz = df_ml[numeric_cols_ml].dropna()
-                                            if len(df_cluster_viz) == len(result['cluster_labels']):
-                                                fig = create_cluster_scatter(df_cluster_viz, x_col, y_col, result['cluster_labels'])
-                                                st.plotly_chart(fig, use_container_width=True)
+                                if 'error' in result:
+                                    _ml_guidance(result['error'])
+                                    st.session_state.pop('ml_cluster_result', None)
+                                    st.session_state.pop('ml_cluster_sig', None)
+                                    st.session_state.pop('ml_cluster_k', None)
+                                    cached = None
+                                else:
+                                    st.session_state['ml_cluster_result'] = result
+                                    st.session_state['ml_cluster_sig'] = _ds_id_ml
+                                    st.session_state['ml_cluster_k'] = n_clusters
+                                    cached = result
+
+                            if cached is not None and st.session_state.get('ml_cluster_sig') != _ds_id_ml:
+                                st.session_state.pop('ml_cluster_result', None)
+                                st.session_state.pop('ml_cluster_sig', None)
+                                st.session_state.pop('ml_cluster_k', None)
+                                cached = None
+
+                            if cached is not None and 'error' not in cached:
+                                cluster_count = cached.get('n_clusters', len(cached.get('cluster_stats', {})))
+                                largest = max(
+                                    cached['cluster_stats'].values(),
+                                    key=lambda s: s['size'],
+                                ) if cached['cluster_stats'] else {'percentage': 0}
+                                m1, m2, m3 = st.columns(3)
+                                with m1:
+                                    st.metric("Clusters", cluster_count)
+                                with m2:
+                                    st.metric("Rows used", f"{sum(s['size'] for s in cached['cluster_stats'].values()):,}")
+                                with m3:
+                                    st.metric("Largest cluster", f"{largest['percentage']:.1f}%")
+
+                                st.markdown("**Cluster characteristics**")
+                                risk_map = cached.get('risk_mapping', {})
+                                for idx, (cluster_name, stats) in enumerate(cached['cluster_stats'].items()):
+                                    risk_label = risk_map.get(idx, '')
+                                    header = (
+                                        f"{cluster_name} — {stats['size']:,} rows "
+                                        f"({stats['percentage']:.1f}%)"
+                                    )
+                                    if risk_label:
+                                        header += f" · {risk_label}"
+                                    with st.expander(header):
+                                        char_rows = [
+                                            {
+                                                "Feature": col,
+                                                "Mean": char['mean'],
+                                                "Std dev": char['std'],
+                                            }
+                                            for col, char in stats['characteristics'].items()
+                                        ]
+                                        if char_rows:
+                                            st.dataframe(
+                                                pd.DataFrame(char_rows),
+                                                hide_index=True,
+                                                use_container_width=True,
+                                            )
+                                        else:
+                                            st.caption("No numeric features available for this cluster.")
+
+                                st.markdown("**Cluster visualization**")
+                                axis_c1, axis_c2 = st.columns(2)
+                                with axis_c1:
+                                    x_col = st.selectbox(
+                                        "X axis", numeric_cols_ml, key="cluster_x",
+                                    )
+                                y_options = [c for c in numeric_cols_ml if c != x_col]
+                                with axis_c2:
+                                    y_col = st.selectbox(
+                                        "Y axis", y_options, key="cluster_y",
+                                    )
+                                df_cluster_viz = df_ml[numeric_cols_ml].dropna()
+                                if len(df_cluster_viz) == len(cached['cluster_labels']):
+                                    fig = create_cluster_scatter(
+                                        df_cluster_viz, x_col, y_col, cached['cluster_labels']
+                                    )
+                                    st.plotly_chart(fig, use_container_width=True)
+                                    st.caption(
+                                        "Each colour is a cluster. Pick different axes to see how clusters separate across features."
+                                    )
+                                else:
+                                    _ml_guidance(
+                                        "Data has changed since the last clustering run — re-create clusters to refresh the chart."
+                                    )
                         else:
-                            st.warning("Need at least 2 numeric columns for clustering.")
-                
+                            _ml_guidance(
+                                "Need at least 2 numeric columns for clustering. Add or keep more numeric fields and try again."
+                            )
+
                     elif ml_active == _ML_SUBTABS[3]:
-                        _section_head("Outlier Detection", "Values outside the inter-quartile range. Pick a column to inspect.")
-                        outliers = _c_outliers(df_ml, _ds_id_ml)
-                        if outliers:
-                            st.markdown(f'<div class="dn-meta">Outliers found in <b>{len(outliers)}</b> column(s).</div>', unsafe_allow_html=True)
-                            out_cols = list(outliers.keys())
-                            out_pick = st.selectbox("Column", out_cols, key="outlier_pick")
-                            info = outliers[out_pick]
-                            m1, m2, m3 = st.columns(3)
-                            with m1: st.metric("Outlier Count", info['count'])
-                            with m2: st.metric("Lower Bound", f"{info['lower_bound']:.2f}")
-                            with m3: st.metric("Upper Bound", f"{info['upper_bound']:.2f}")
-                            if info.get('min_outlier') and info.get('max_outlier'):
-                                st.markdown(f'<div class="dn-meta">Range of outliers: <b>{info["min_outlier"]:.2f}</b> → <b>{info["max_outlier"]:.2f}</b></div>', unsafe_allow_html=True)
-                            info_tuple = tuple(sorted((k, v) for k, v in info.items() if isinstance(v, (int, float, str, bool))))
-                            fig = _c_outlier_viz(df_ml, _ds_id_ml, out_pick, info_tuple)
-                            st.plotly_chart(fig, use_container_width=True)
+                        _section_head(
+                            "Outlier Detection",
+                            "Spot values that fall outside the inter-quartile range and inspect them column by column.",
+                        )
+                        if not numeric_cols_ml:
+                            _ml_guidance(
+                                "No numeric columns to scan — outlier detection needs at least one numeric field."
+                            )
                         else:
-                            st.success("No significant outliers detected in the numeric columns.")
+                            outliers = _c_outliers(df_ml, _ds_id_ml)
+                            scanned = len(numeric_cols_ml)
+                            flagged = len(outliers)
+                            o1, o2, o3 = st.columns(3)
+                            with o1:
+                                st.metric("Columns scanned", scanned)
+                            with o2:
+                                st.metric("Columns with outliers", flagged)
+                            with o3:
+                                total_out = sum(info['count'] for info in outliers.values()) if outliers else 0
+                                st.metric("Outliers found", f"{total_out:,}")
+
+                            if not outliers:
+                                st.markdown(
+                                    '<div class="success-box">All clear — no values fall outside the IQR range in any numeric column.</div>',
+                                    unsafe_allow_html=True,
+                                )
+                            else:
+                                st.markdown(
+                                    f'<div class="dn-meta">Outliers were flagged in '
+                                    f'<b>{flagged}</b> of <b>{scanned}</b> numeric columns. '
+                                    f'Pick one below to inspect.</div>',
+                                    unsafe_allow_html=True,
+                                )
+                                with st.container(border=True):
+                                    out_cols = list(outliers.keys())
+                                    out_pick = st.selectbox(
+                                        "Column to inspect", out_cols, key="outlier_pick",
+                                    )
+                                    info = outliers[out_pick]
+                                    cm1, cm2, cm3 = st.columns(3)
+                                    with cm1:
+                                        st.metric("Outlier count", info['count'])
+                                    with cm2:
+                                        st.metric("Share of rows", f"{info['percentage']}%")
+                                    with cm3:
+                                        st.metric(
+                                            "IQR bounds",
+                                            f"{info['lower_bound']:.2f} → {info['upper_bound']:.2f}",
+                                        )
+                                    if info.get('min_outlier') is not None and info.get('max_outlier') is not None:
+                                        st.markdown(
+                                            f'<div class="dn-meta">Outlier value range: '
+                                            f'<b>{info["min_outlier"]:.2f}</b> → '
+                                            f'<b>{info["max_outlier"]:.2f}</b></div>',
+                                            unsafe_allow_html=True,
+                                        )
+                                    info_tuple = tuple(
+                                        sorted(
+                                            (k, v) for k, v in info.items()
+                                            if isinstance(v, (int, float, str, bool))
+                                        )
+                                    )
+                                    fig = _c_outlier_viz(df_ml, _ds_id_ml, out_pick, info_tuple)
+                                    st.plotly_chart(fig, use_container_width=True)
+                                    st.caption(
+                                        "Dashed lines mark the IQR bounds; points outside them are flagged as outliers."
+                                    )
             
                 elif active_tab == _TAB_LABELS[2]:
                     _render_model_section(uid, run_analysis_cb=run_analysis, limits=limits)
