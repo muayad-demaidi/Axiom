@@ -3377,6 +3377,70 @@ def _section_head(title, subtitle=None, eyebrow="Section"):
         unsafe_allow_html=True,
     )
 
+
+def _block_head(label, caption=None):
+    """Cluster divider used inside a long tab body (e.g. PIPELINE vs
+    DATA SNAPSHOT in Overview). Mono uppercase label between two thin
+    teal-tinted rules so related blocks read as one logical unit."""
+    cap_html = f'<span class="dn-block-cap">{caption}</span>' if caption else ''
+    st.markdown(
+        f'<div class="dn-block-head">'
+        f'<span class="dn-block-rule"></span>'
+        f'<span class="dn-block-label">{label}</span>'
+        f'{cap_html}'
+        f'<span class="dn-block-rule grow"></span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _sub_head(title, hint=None):
+    """Tighter inline subhead used inside a block. Teal vertical bullet +
+    Syne title + optional muted hint pushed to the right edge. Replaces
+    flat `st.subheader` calls so the typographic rhythm matches the
+    section head register at a smaller scale."""
+    hint_html = f'<span class="dn-sub-hint">{hint}</span>' if hint else ''
+    st.markdown(
+        f'<div class="dn-sub-head">'
+        f'<span class="dn-sub-bullet"></span>'
+        f'<span class="dn-sub-title">{title}</span>'
+        f'{hint_html}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _stat_strip(cells, context=None):
+    """Custom 4-up stat strip with optional context cell on the right.
+    Each cell is a dict: {label, value, unit, aux, tone}. Tone in
+    {None,'good','warn','bad'} controls value color. Context dict:
+    {label, value, aux}. Replaces 4 stacked st.metric boxes with a
+    single denser HTML grid that follows the Data Noir register."""
+    cell_html = []
+    for c in cells:
+        tone_cls = f" {c['tone']}" if c.get('tone') else ""
+        unit_html = f"<span class='unit'>{c['unit']}</span>" if c.get('unit') else ""
+        aux_html = f"<span class='dn-stat-aux'>{c['aux']}</span>" if c.get('aux') else ""
+        cell_html.append(
+            f"<div class='dn-stat-cell{tone_cls}'>"
+            f"<span class='dn-stat-label'>{c['label']}</span>"
+            f"<span class='dn-stat-value'>{c['value']}{unit_html}</span>"
+            f"{aux_html}</div>"
+        )
+    ctx_html = ""
+    if context:
+        ctx_html = (
+            f"<div class='dn-stat-context'>"
+            f"<span class='dn-stat-label'>{context['label']}</span>"
+            f"<span class='dn-stat-value'>{context['value']}</span>"
+            f"<span class='dn-stat-aux'>{context.get('aux','')}</span>"
+            f"</div>"
+        )
+    st.markdown(
+        f"<div class='dn-stat-strip'>{''.join(cell_html)}{ctx_html}</div>",
+        unsafe_allow_html=True,
+    )
+
 if 'similar_datasets' not in st.session_state:
     st.session_state.similar_datasets = []
 if 'comparison_data' not in st.session_state:
@@ -7516,6 +7580,109 @@ def show_dashboard():
   font-family: "DM Sans", sans-serif; font-size: 0.92rem;
   color: #94a3b8; margin-top: 0.45rem; max-width: 60ch;
 }
+/* Cluster divider — groups related blocks inside a long tab body. */
+.dn-block-head {
+  display: flex; align-items: center; gap: 0.85rem;
+  margin: 2.4rem 0 1.1rem 0;
+}
+.dn-block-rule {
+  height: 1px; width: 28px; flex-shrink: 0;
+  background: linear-gradient(90deg, transparent, rgba(45,212,191,0.35));
+}
+.dn-block-rule.grow {
+  flex: 1; background: linear-gradient(90deg, rgba(45,212,191,0.18), transparent);
+}
+.dn-block-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem; letter-spacing: 0.32em;
+  text-transform: uppercase; color: #cbd5e1; font-weight: 600;
+  flex-shrink: 0;
+}
+.dn-block-cap {
+  font-family: "DM Sans", sans-serif; font-size: 0.78rem;
+  color: #64748b; flex-shrink: 0;
+}
+/* Inline subhead — quieter than st.subheader, matches section register. */
+.dn-sub-head {
+  display: flex; align-items: center; gap: 0.7rem;
+  margin: 1.5rem 0 0.7rem 0; flex-wrap: wrap;
+}
+.dn-sub-bullet {
+  display: inline-block; width: 3px; height: 16px;
+  background: var(--teal); border-radius: 2px; opacity: 0.75;
+  flex-shrink: 0;
+}
+.dn-sub-title {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1.08rem; color: #e2e8f0; letter-spacing: -0.005em;
+}
+.dn-sub-hint {
+  font-family: "DM Sans", sans-serif; font-size: 0.8rem;
+  color: #64748b; margin-left: auto;
+}
+/* Stat strip — replaces the 4 stacked st.metric boxes on Overview. */
+.dn-stat-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr) auto;
+  gap: 0; align-items: stretch;
+  background: linear-gradient(180deg, rgba(17,31,53,0.55), rgba(12,24,41,0.45));
+  border: 1px solid rgba(45,212,191,0.14);
+  border-radius: 14px; overflow: hidden;
+  margin: 0.4rem 0 0.6rem 0;
+}
+.dn-stat-cell {
+  padding: 1rem 1.2rem;
+  border-right: 1px solid rgba(148,163,184,0.07);
+  display: flex; flex-direction: column; gap: 0.4rem;
+  min-width: 0;
+}
+.dn-stat-cell:last-child { border-right: none; }
+.dn-stat-label {
+  font-family: "JetBrains Mono", monospace; font-size: 0.62rem;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: #64748b;
+}
+.dn-stat-value {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1.65rem; color: #e2e8f0; line-height: 1;
+  letter-spacing: -0.01em; white-space: nowrap;
+}
+.dn-stat-value .unit {
+  font-family: "JetBrains Mono", monospace; font-size: 0.7rem;
+  color: #64748b; margin-left: 0.3rem; font-weight: 500;
+  letter-spacing: 0.06em;
+}
+.dn-stat-aux {
+  font-family: "DM Sans", sans-serif; font-size: 0.74rem;
+  color: #94a3b8;
+}
+.dn-stat-cell.good .dn-stat-value { color: #2dd4bf; }
+.dn-stat-cell.warn .dn-stat-value { color: #f59e0b; }
+.dn-stat-cell.bad  .dn-stat-value { color: #fb7185; }
+.dn-stat-context {
+  display: flex; flex-direction: column; gap: 0.4rem;
+  padding: 1rem 1.3rem;
+  background: rgba(45,212,191,0.04);
+  border-left: 1px solid rgba(45,212,191,0.16);
+  min-width: 220px;
+}
+.dn-stat-context .dn-stat-label { color: var(--teal); opacity: 0.85; }
+.dn-stat-context .dn-stat-value {
+  font-family: "DM Sans", sans-serif; font-size: 0.95rem;
+  font-weight: 600; color: #e2e8f0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 28ch;
+}
+.dn-stat-context .dn-stat-aux {
+  font-family: "JetBrains Mono", monospace; font-size: 0.66rem;
+  letter-spacing: 0.18em; color: #64748b; text-transform: uppercase;
+}
+@media (max-width: 1100px) {
+  .dn-stat-strip { grid-template-columns: repeat(2, 1fr); }
+  .dn-stat-context { grid-column: 1 / -1; border-left: none;
+                     border-top: 1px solid rgba(45,212,191,0.16); }
+  .dn-stat-cell { border-right: none;
+                  border-bottom: 1px solid rgba(148,163,184,0.07); }
+}
 .dn-meta {
   font-family: "DM Sans", sans-serif; font-size: 0.88rem;
   color: #94a3b8; margin: 0.4rem 0 0.85rem 0;
@@ -7573,23 +7740,51 @@ def show_dashboard():
                     view_df = _active_df()
                     sig = _active_step_signature()
 
-                    col1, col2, col3, col4 = st.columns(4)
-                    with col1:
-                        st.metric("Total Rows", f"{len(view_df):,}")
-                    with col2:
-                        st.metric("Total Columns", len(view_df.columns))
-                    with col3:
-                        quality = _c_quality_score(view_df, sig)
-                        st.metric("Data Quality", f"{quality['overall_score']}%")
-                    with col4:
-                        missing_pct = _c_missing_pct(view_df, sig)
-                        st.metric("Missing Values", f"{missing_pct:.1f}%")
+                    # ── Stat strip (replaces 4 generic st.metric boxes) ──
+                    quality = _c_quality_score(view_df, sig)
+                    missing_pct = _c_missing_pct(view_df, sig)
+                    q_score = quality['overall_score']
+                    q_tone = "good" if q_score >= 85 else ("warn" if q_score >= 60 else "bad")
+                    m_tone = "good" if missing_pct < 5 else ("warn" if missing_pct < 20 else "bad")
+
+                    if sh and sh.steps:
+                        _step_total = len(sh.steps)
+                        _step_active = sh.active_index + 1
+                        _step_name = sh.current().name
+                        _ctx = {
+                            "label": "Active step",
+                            "value": _step_name,
+                            "aux": f"STEP {_step_active:02d} / {_step_total:02d}",
+                        }
+                    else:
+                        _ctx = {
+                            "label": "Active step",
+                            "value": "Source",
+                            "aux": "STEP 01 / 01",
+                        }
+
+                    _stat_strip(
+                        cells=[
+                            {"label": "Rows", "value": f"{len(view_df):,}",
+                             "aux": "observations in active step"},
+                            {"label": "Columns", "value": f"{len(view_df.columns)}",
+                             "aux": "fields after transforms"},
+                            {"label": "Quality", "value": f"{q_score}", "unit": "/100",
+                             "aux": "completeness × uniqueness", "tone": q_tone},
+                            {"label": "Missing", "value": f"{missing_pct:.1f}", "unit": "%",
+                             "aux": "across all cells", "tone": m_tone},
+                        ],
+                        context=_ctx,
+                    )
 
                     # ── Applied Steps panel (Power Query-style) ──
                     if sh and not sh.is_empty():
-                        st.subheader("Applied Steps")
-                        st.caption("Click any step to view the dataset at that point. "
-                                   "Every step (except Source) can be toggled on/off, "
+                        _block_head("Pipeline", "applied steps · transforms · cleaning")
+                        _sub_head(
+                            "Applied Steps",
+                            f"{len(sh.steps)} step{'s' if len(sh.steps) != 1 else ''} · click to view at that point",
+                        )
+                        st.caption("Every step (except Source) can be toggled on/off, "
                                    "reordered, or removed — and the chain is recomputed "
                                    "live. Cleaning substeps also expose threshold params "
                                    "under Parameters.")
@@ -8026,6 +8221,9 @@ def show_dashboard():
                     else:
                         schema_for_format = infer_schema(view_df)
 
+                    # ── DATA SNAPSHOT cluster ──
+                    _block_head("Data snapshot", "preview · column types · format")
+
                     # ── Display preferences ──
                     with st.expander("Display preferences", expanded=False):
                         st.caption(
@@ -8069,7 +8267,10 @@ def show_dashboard():
 
                     active_prefs = _get_display_prefs()
 
-                    st.subheader("Data Preview")
+                    _sub_head(
+                        "Data preview",
+                        f"first 10 of {len(view_df):,} rows · active step output",
+                    )
                     st.dataframe(
                         view_df.head(10),
                         use_container_width=True,
@@ -8077,7 +8278,10 @@ def show_dashboard():
                             schema_for_format, view_df, prefs=active_prefs),
                     )
 
-                    st.subheader("Column Types")
+                    _sub_head(
+                        "Column types",
+                        f"{len(view_df.columns)} fields · inferred + confidence scored",
+                    )
                     # Always derive Column Types from the ACTIVE step. If the
                     # active step carries pre-computed schema metadata (e.g.
                     # "Changed Type" or "Changed Type (manual)"), use it for
