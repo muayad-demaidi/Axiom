@@ -6445,7 +6445,6 @@ sheets, building models, and chatting with the data.</p>
         st.markdown('<div class="proj-newpill-slot">', unsafe_allow_html=True)
         if st.button("+  New project", key="proj_new_pill_btn"):
             _show_new_project_dialog(user_id)
-            return
         st.markdown('</div>', unsafe_allow_html=True)
     st.markdown(
         '<div style="border-bottom:1px solid rgba(148,163,184,0.10);'
