@@ -6867,6 +6867,23 @@ def show_dashboard():
     if 'show_contact_panel' not in st.session_state:
         st.session_state.show_contact_panel = False
 
+    # Back-to-projects via query param — bypasses Streamlit's button cascade
+    # entirely so the pill can be a pure-HTML anchor inside the breadcrumb.
+    try:
+        if st.query_params.get('nav') == 'back_to_projects':
+            try:
+                st.query_params.clear()
+            except Exception:
+                pass
+            _clear_workspace_state()
+            st.session_state.current_project_id = None
+            st.session_state.current_project_name = None
+            st.session_state.page = 'projects'
+            st.rerun()
+            return
+    except Exception:
+        pass
+
     _proj_name = (st.session_state.get('current_project_name') or 'Project').strip()
     _proj_name_safe = (_proj_name[:42] + '…') if len(_proj_name) > 42 else _proj_name
 
@@ -6886,21 +6903,54 @@ def show_dashboard():
     elif isinstance(_active_ds_id, str):
         _active_ds_name = _active_ds_id  # joined-view temp id
 
-    # Tight breadcrumb topbar styling — back-pill marker scopes the button
+    # Tight breadcrumb topbar styling — pure HTML, no Streamlit button cascade
     st.markdown('''
 <style>
 .dn-crumb-bar {
-  display: flex; align-items: center; gap: 0.7rem;
-  padding: 0.35rem 0; min-height: 38px; flex-wrap: nowrap;
+  display: flex; align-items: center; gap: 0.85rem;
+  padding: 0.4rem 0; min-height: 44px; flex-wrap: nowrap;
   overflow: hidden;
+}
+.dn-back-pill {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  height: 32px; padding: 0 0.95rem;
+  background: rgba(15,23,42,0.55);
+  border: 1px solid rgba(148,163,184,0.16);
+  border-radius: 999px;
+  color: #94a3b8 !important;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500; font-size: 0.78rem;
+  letter-spacing: 0.01em; line-height: 1;
+  text-decoration: none !important;
+  cursor: pointer; user-select: none;
+  transition: color 160ms ease, border-color 160ms ease,
+              background 160ms ease, transform 160ms ease;
+  flex-shrink: 0;
+}
+.dn-back-pill .dn-back-arrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.95rem; line-height: 1; transition: transform 160ms ease;
+  display: inline-block;
+}
+.dn-back-pill:hover {
+  color: var(--teal) !important;
+  border-color: rgba(45,212,191,0.45);
+  background: rgba(45,212,191,0.08);
+}
+.dn-back-pill:hover .dn-back-arrow { transform: translateX(-2px); }
+.dn-back-pill:active { transform: translateY(1px); }
+.dn-back-pill:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(45,212,191,0.35);
 }
 .dn-crumb-sep {
   color: #334155; font-family: 'JetBrains Mono', monospace;
   font-size: 0.95rem; font-weight: 300; user-select: none;
+  flex-shrink: 0;
 }
 .dn-crumb-proj {
   font-family: 'Syne', sans-serif; font-weight: 700;
-  font-size: 0.98rem; color: #e2e8f0; letter-spacing: -0.005em;
+  font-size: 1rem; color: #e2e8f0; letter-spacing: -0.005em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 32ch;
 }
@@ -6911,67 +6961,11 @@ def show_dashboard():
   max-width: 36ch;
 }
 .dn-crumb-ds.empty { color: #475569; font-style: italic; }
-/* Back-button pill — scoped via marker. Selectors duplicated with
-   [kind="secondary"] to defeat the global `.stButton > button[kind="secondary"]`
-   rule defined earlier in NEON_CSS. */
-.dn-back-marker { display: none; }
-[data-testid="stColumn"]:has(.dn-back-marker) .stButton > button,
-[data-testid="stColumn"]:has(.dn-back-marker) .stButton > button[kind="secondary"],
-[data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"] > button,
-[data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"] > button[kind="secondary"] {
-  background: transparent !important;
-  background-color: transparent !important;
-  color: #94a3b8 !important;
-  border: 1px solid rgba(148,163,184,0.20) !important;
-  border-radius: 999px !important;
-  font-family: 'DM Sans', sans-serif !important;
-  font-weight: 500 !important;
-  font-size: 0.8rem !important;
-  letter-spacing: 0.01em !important;
-  padding: 0.45rem 1.05rem !important;
-  min-height: 36px !important; height: 36px !important;
-  line-height: 1 !important;
-  width: auto !important;
-  box-shadow: none !important;
-  transition: color 160ms ease, border-color 160ms ease, background 160ms ease !important;
-}
-[data-testid="stColumn"]:has(.dn-back-marker) .stButton > button:hover,
-[data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"] > button:hover {
-  color: var(--teal) !important;
-  border-color: rgba(45,212,191,0.45) !important;
-  background: rgba(45,212,191,0.07) !important;
-  background-color: rgba(45,212,191,0.07) !important;
-  transform: none !important;
-}
-[data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"] > button p,
-[data-testid="stColumn"]:has(.dn-back-marker) .stButton > button p {
-  color: inherit !important;
-  font-size: 0.8rem !important;
-  font-weight: 500 !important;
-  margin: 0 !important;
-  line-height: 1 !important;
-}
-[data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"],
-[data-testid="stColumn"]:has(.dn-back-marker) .stButton {
-  display: flex !important;
-  justify-content: flex-start !important;
-  align-items: center !important;
-  width: auto !important;
-}
 </style>
 ''', unsafe_allow_html=True)
 
-    nav_back_col, nav_crumb_col, nav_user_col = st.columns(
-        [1.1, 4.3, 1.6], gap="small", vertical_alignment="center")
-    with nav_back_col:
-        st.markdown('<div class="dn-back-marker"></div>', unsafe_allow_html=True)
-        if st.button("← Projects", key="dash_back_projects",
-                     help="Back to your projects"):
-            _clear_workspace_state()
-            st.session_state.current_project_id = None
-            st.session_state.current_project_name = None
-            st.session_state.page = 'projects'
-            st.rerun()
+    nav_crumb_col, nav_user_col = st.columns(
+        [5.4, 1.6], gap="small", vertical_alignment="center")
     with nav_crumb_col:
         if _active_ds_name:
             _ds_html = f'<span class="dn-crumb-ds">{_active_ds_name}</span>'
@@ -6979,6 +6973,9 @@ def show_dashboard():
             _ds_html = '<span class="dn-crumb-ds empty">no sheet open</span>'
         st.markdown(f'''
 <div class="dn-crumb-bar">
+  <a class="dn-back-pill" href="?nav=back_to_projects" target="_self" title="Back to your projects">
+    <span class="dn-back-arrow">←</span><span>Projects</span>
+  </a>
   <span class="dn-crumb-sep">/</span>
   <span class="dn-crumb-proj">{_proj_name_safe}</span>
   <span class="dn-crumb-sep">/</span>
