@@ -103,6 +103,46 @@ class Project(Base):
     last_opened_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
+class ProjectKnowledgeBase(Base):
+    """Optional reference attached to a project that biases AI answers.
+
+    One row per project (uniqueness enforced via the unique constraint on
+    ``project_id``). Stores extracted plain text plus metadata about the
+    source so the panel can render "PDF · brief.pdf · 12,034 chars · added
+    Apr 22". The extracted text is injected into the AI assistant's system
+    prompt whenever any sheet in the project is being analysed.
+    """
+    __tablename__ = "project_knowledge_base"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"),
+                        nullable=False, unique=True, index=True)
+    source_kind = Column(String(16), nullable=False)  # 'text' | 'pdf' | 'url'
+    source_label = Column(String(512), nullable=False)
+    content_text = Column(Text, nullable=False)
+    char_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ProjectLearnedNote(Base):
+    """An auto-appended record of an AI exchange inside a project.
+
+    Every successful chat reply or AI-generated insight inside an open
+    project is stamped here so the assistant's context grows over time.
+    Notes are scoped strictly to the owning project — we never leak one
+    project's history into another.
+    """
+    __tablename__ = "project_learned_notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"),
+                        nullable=False, index=True)
+    kind = Column(String(16), nullable=False)  # 'chat' | 'insight'
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 class DatasetRecord(Base):
     """Model to store uploaded dataset records for historical tracking"""
     __tablename__ = "dataset_records"
@@ -211,6 +251,13 @@ def init_db():
         DatasetRelationship.__table__.create(bind=engine, checkfirst=True)
     except Exception:
         pass
+    # New tables for the per-project knowledge base. Created explicitly so
+    # older deployments pick them up without needing a migration tool.
+    for _t in (ProjectKnowledgeBase.__table__, ProjectLearnedNote.__table__):
+        try:
+            _t.create(bind=engine, checkfirst=True)
+        except Exception:
+            pass
     with engine.begin() as conn:
         for stmt in _migrations:
             try:
@@ -595,9 +642,159 @@ def delete_project(db, project_id, user_id):
         (db.query(DatasetRecord)
            .filter(DatasetRecord.id.in_(ds_ids))
            .delete(synchronize_session=False))
+    # Knowledge-base and learned-notes for this project must be cleared
+    # explicitly — there's no ON DELETE CASCADE on those FK columns.
+    (db.query(ProjectLearnedNote)
+       .filter(ProjectLearnedNote.project_id == project_id)
+       .delete(synchronize_session=False))
+    (db.query(ProjectKnowledgeBase)
+       .filter(ProjectKnowledgeBase.project_id == project_id)
+       .delete(synchronize_session=False))
     db.delete(proj)
     db.commit()
     return True
+
+
+# ─── Project Knowledge Base helpers ──────────────────────────────────────
+# Each project optionally has one knowledge-base reference (PDF, text file,
+# or URL) plus a growing list of "learned notes" appended on every AI
+# exchange. Both tables are scoped strictly by project_id; callers should
+# verify project ownership via ``get_project`` before invoking these.
+
+KB_MAX_CHARS = 200_000  # hard cap per project; older content is truncated.
+
+
+def get_project_knowledge_base(db, project_id):
+    """Return the single KB row for a project, or None if not set."""
+    if project_id is None:
+        return None
+    return (db.query(ProjectKnowledgeBase)
+              .filter(ProjectKnowledgeBase.project_id == project_id)
+              .first())
+
+
+def set_project_knowledge_base(db, project_id, source_kind, source_label,
+                               content_text):
+    """Upsert the KB row for a project. Truncates to ``KB_MAX_CHARS``."""
+    if project_id is None or not source_kind:
+        return None
+    text_val = (content_text or "").strip()
+    if len(text_val) > KB_MAX_CHARS:
+        text_val = text_val[:KB_MAX_CHARS]
+    row = get_project_knowledge_base(db, project_id)
+    now = datetime.utcnow()
+    if row is None:
+        row = ProjectKnowledgeBase(
+            project_id=project_id,
+            source_kind=source_kind,
+            source_label=(source_label or "")[:512],
+            content_text=text_val,
+            char_count=len(text_val),
+            created_at=now, updated_at=now,
+        )
+        db.add(row)
+    else:
+        row.source_kind = source_kind
+        row.source_label = (source_label or "")[:512]
+        row.content_text = text_val
+        row.char_count = len(text_val)
+        row.updated_at = now
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def clear_project_knowledge_base(db, project_id):
+    """Drop the KB row for a project (no-op if there isn't one)."""
+    row = get_project_knowledge_base(db, project_id)
+    if row is None:
+        return False
+    db.delete(row)
+    db.commit()
+    return True
+
+
+def append_learned_note(db, project_id, kind, content):
+    """Best-effort append of an AI-exchange note. Returns the row or None.
+
+    Failures here must not propagate — the calling chat/insight flow has
+    already produced its result and the user shouldn't see an error just
+    because the audit trail couldn't write.
+    """
+    if project_id is None or not kind or not content:
+        return None
+    text_val = str(content).strip()
+    if not text_val:
+        return None
+    # Cap a single note's length to avoid one massive insight crowding
+    # the context window when we read it back later.
+    if len(text_val) > 4000:
+        text_val = text_val[:4000] + "…"
+    try:
+        row = ProjectLearnedNote(
+            project_id=project_id, kind=kind[:16],
+            content=text_val, created_at=datetime.utcnow(),
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return row
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return None
+
+
+def list_learned_notes(db, project_id, limit=20):
+    """Most recent learned notes for a project (newest first)."""
+    if project_id is None:
+        return []
+    return (db.query(ProjectLearnedNote)
+              .filter(ProjectLearnedNote.project_id == project_id)
+              .order_by(ProjectLearnedNote.created_at.desc())
+              .limit(limit)
+              .all())
+
+
+def clear_learned_notes(db, project_id):
+    """Wipe every learned note for a project. Returns the row count."""
+    if project_id is None:
+        return 0
+    n = (db.query(ProjectLearnedNote)
+           .filter(ProjectLearnedNote.project_id == project_id)
+           .delete(synchronize_session=False))
+    db.commit()
+    return int(n or 0)
+
+
+def get_project_ai_context(db, project_id, recent_notes=10):
+    """Return a dict bundle the AI assistant can drop into its prompt.
+
+    Shape:
+        {
+          'kb': {'kind': 'pdf', 'label': 'brief.pdf',
+                 'text': '<truncated>', 'char_count': 12034},
+          'notes': [{'kind': 'chat', 'content': '...',
+                     'created_at': '2026-04-22T13:01:00'}],
+        }
+    Either side can be empty; the assistant just skips empty pieces.
+    """
+    out = {'kb': None, 'notes': []}
+    kb = get_project_knowledge_base(db, project_id)
+    if kb is not None:
+        out['kb'] = {
+            'kind': kb.source_kind, 'label': kb.source_label,
+            'text': kb.content_text or '',
+            'char_count': int(kb.char_count or 0),
+        }
+    notes = list_learned_notes(db, project_id, limit=recent_notes)
+    out['notes'] = [{
+        'kind': n.kind, 'content': n.content,
+        'created_at': n.created_at.isoformat() if n.created_at else None,
+    } for n in notes]
+    return out
 
 
 def ensure_default_project_for_user(db, user_id):

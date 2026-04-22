@@ -145,6 +145,13 @@ from models import (
     consume_password_reset_token, purge_expired_password_reset_tokens,
     create_project, list_user_projects, get_project, update_project,
     delete_project, touch_project, ensure_default_project_for_user,
+    get_project_knowledge_base, set_project_knowledge_base,
+    clear_project_knowledge_base, append_learned_note, list_learned_notes,
+    clear_learned_notes, get_project_ai_context,
+)
+from knowledge_base import (
+    KnowledgeBaseError, extract_text_upload, extract_pdf_upload, extract_url,
+    build_context_block,
 )
 from data_cleaner import (
     clean_data, detect_column_types, get_data_quality_score,
@@ -1624,6 +1631,13 @@ if 'current_project_id' not in st.session_state:
     # show_dashboard() refuses to render unless this is set, bouncing the
     # user back to the Projects page so dataset listings stay scoped.
     st.session_state.current_project_id = None
+if 'project_ai_context' not in st.session_state:
+    # Cached bundle of the current project's knowledge base + recent
+    # learned notes. Populated on project open so the dashboard and AI
+    # assistant don't re-query on every Streamlit rerun.
+    st.session_state.project_ai_context = None
+if 'project_ai_context_text' not in st.session_state:
+    st.session_state.project_ai_context_text = ""
 if 'current_project_name' not in st.session_state:
     st.session_state.current_project_name = None
 if 'step_histories' not in st.session_state:
@@ -2228,7 +2242,9 @@ def _render_chat_dock(tab_id, limits, doubts):
                         else {}),
                 }
                 with st.spinner("Thinking..."):
-                    response = chat_about_data(prompt, df_info)
+                    response = chat_about_data(
+                        prompt, df_info,
+                        project_context=_project_ctx_text())
             st.session_state.chat_messages.append(
                 {"role": "assistant", "content": response})
             try:
@@ -2238,6 +2254,12 @@ def _render_chat_dock(tab_id, limits, doubts):
                 db.close()
             except Exception:
                 pass
+            # Append a chat learned-note for the current project so future
+            # AI calls in this project can reference what's already been
+            # asked. Best-effort — never breaks the chat flow.
+            _record_learned_note(
+                "chat",
+                f"Q: {prompt}\nA: {response}")
             st.rerun()
 
 
@@ -6530,8 +6552,276 @@ def _clear_workspace_state():
             st.session_state[k] = None if k != 'similar_datasets' else []
     st.session_state.chat_messages = []
     st.session_state.current_dataset_id = None
+    # Per-project knowledge-base bundle is dropped along with the workspace
+    # so the next project starts with a clean AI context.
+    st.session_state.project_ai_context = None
+    st.session_state.project_ai_context_text = ""
     # Per-dataset dicts can stay (they're keyed by dataset id) but the
     # active pointer is cleared so the dashboard re-prompts for an upload.
+
+
+def _refresh_project_ai_context(project_id):
+    """Re-load the KB + recent learned notes for ``project_id`` into session.
+
+    Cheap to call after any AI exchange — one short query each. Stored in
+    session_state so the dashboard doesn't re-query on every render.
+    """
+    if not project_id:
+        st.session_state.project_ai_context = None
+        st.session_state.project_ai_context_text = ""
+        return
+    db = get_db()
+    try:
+        bundle = get_project_ai_context(db, project_id, recent_notes=12)
+    except Exception:
+        bundle = {'kb': None, 'notes': []}
+    finally:
+        db.close()
+    st.session_state.project_ai_context = bundle
+    try:
+        st.session_state.project_ai_context_text = build_context_block(bundle)
+    except Exception:
+        st.session_state.project_ai_context_text = ""
+
+
+def _project_ctx_text():
+    """Return the rendered project context fragment (cached in session)."""
+    return st.session_state.get('project_ai_context_text') or ""
+
+
+def _render_project_shell(limits=None):
+    """Render the sheet switcher + Knowledge Base panel above the dashboard.
+
+    Wires three pieces of UI:
+
+    1. **Sheet switcher** — a row of pills listing every sheet in the
+       current project; clicking one hydrates that sheet into session
+       state. With only one sheet, the switcher collapses to the sheet
+       name plus an "Add sheet" button. With zero sheets, it renders
+       nothing (the existing upload prompt below handles that case).
+    2. **Add sheet** — clears the active workspace (keeping the project
+       open) so the upload prompt re-appears; the new dataset is saved
+       with the current project_id, joining this same project.
+    3. **Knowledge Base** — collapsible panel for attaching one PDF /
+       text file / URL to the project, plus a view of the auto-collected
+       learned-notes log with a clear-all action.
+
+    All actions persist via the project-knowledge-base helpers; nothing
+    here mutates schema or per-sheet state.
+    """
+    project_id = st.session_state.get('current_project_id')
+    if not project_id:
+        return
+    user = st.session_state.user or {}
+    uid = user.get('id')
+    if not uid:
+        return
+
+    # Resolve current sheets list once. Empty projects skip the switcher
+    # entirely (the upload prompt below already covers that path).
+    db = get_db()
+    try:
+        sheets = get_user_datasets(db, uid, project_id=project_id)
+    finally:
+        db.close()
+
+    active_ds_id = st.session_state.get('current_dataset_id')
+
+    if sheets:
+        st.markdown(
+            '<div style="margin: 0.4rem 0 0.5rem 0; '
+            'font-family:\'JetBrains Mono\', monospace; font-size:0.62rem; '
+            'letter-spacing:0.22em; color:#64748b; text-transform:uppercase;">'
+            f'Sheets · {len(sheets):02d}'
+            '</div>', unsafe_allow_html=True)
+        # One row of pills + a trailing "+ Add sheet" pill, laid out as a
+        # column grid so long sheet names wrap rather than overflow.
+        cols = st.columns(min(len(sheets) + 1, 6))
+        for i, s in enumerate(sheets):
+            col = cols[i % len(cols)]
+            with col:
+                is_active = (s.id == active_ds_id)
+                label = ("● " if is_active else "○ ") + (s.dataset_name or s.filename or f"Sheet {s.id}")
+                if st.button(label, key=f"sheet_pill_{s.id}",
+                             use_container_width=True,
+                             disabled=is_active,
+                             help=("Currently open" if is_active
+                                   else f"Switch to {s.dataset_name}")):
+                    if _hydrate_dataset_from_db(s.id):
+                        st.rerun()
+                    else:
+                        st.error("Could not open that sheet — its saved recipe is missing.")
+        with cols[len(sheets) % len(cols)]:
+            if st.button("+ Add sheet", key="sheet_add_new",
+                         use_container_width=True,
+                         help="Upload another file into this project"):
+                # Clear the active sheet so the upload prompt re-appears,
+                # but keep the project context — the new dataset will be
+                # saved with the same project_id.
+                _clear_workspace_state()
+                st.session_state.current_project_id = project_id
+                st.rerun()
+
+    _render_knowledge_base_panel(project_id)
+
+
+def _render_knowledge_base_panel(project_id):
+    """Knowledge Base attachment + learned-notes log for the current project."""
+    db = get_db()
+    try:
+        kb = get_project_knowledge_base(db, project_id)
+        notes = list_learned_notes(db, project_id, limit=50)
+    finally:
+        db.close()
+
+    has_kb = kb is not None
+    note_count = len(notes)
+    badge = []
+    if has_kb:
+        badge.append(f"{(kb.source_kind or '').upper()} · {kb.char_count:,} chars")
+    if note_count:
+        badge.append(f"{note_count} learned note{'s' if note_count != 1 else ''}")
+    suffix = f"  ({' · '.join(badge)})" if badge else ""
+    expanded_default = not has_kb and note_count == 0  # nudge new projects
+
+    with st.expander(f"Knowledge Base{suffix}", expanded=False):
+        st.caption(
+            "Attach one PDF, text file, or public URL as background context. "
+            "The AI assistant will treat it as authoritative for every "
+            "answer about any sheet in this project. Auto-collected learned "
+            "notes from past AI exchanges are added below.")
+
+        # ── Currently attached ─────────────────────────────────────────
+        if has_kb:
+            kb_added = (kb.created_at.strftime('%Y-%m-%d')
+                        if kb.created_at else "—")
+            kb_updated = (kb.updated_at.strftime('%Y-%m-%d')
+                          if kb.updated_at else "—")
+            st.markdown(
+                f"**Attached:** `{kb.source_kind.upper()}` · "
+                f"`{kb.source_label}` · {kb.char_count:,} chars · "
+                f"added {kb_added} · updated {kb_updated}")
+            if st.button("Remove attachment", key="kb_clear",
+                         help="Detach this knowledge base from the project"):
+                db = get_db()
+                try:
+                    clear_project_knowledge_base(db, project_id)
+                finally:
+                    db.close()
+                _refresh_project_ai_context(project_id)
+                st.success("Knowledge base cleared.")
+                st.rerun()
+        else:
+            st.markdown("_No knowledge base attached yet._")
+
+        st.markdown("---")
+        st.markdown("**Replace / attach**")
+        kb_tabs = st.tabs(["Upload file", "Paste URL"])
+        with kb_tabs[0]:
+            up = st.file_uploader(
+                "Upload .txt, .md, or .pdf",
+                type=["txt", "md", "pdf"],
+                key="kb_uploader",
+                help="Plain text and PDF files are extracted and used as project context.",
+            )
+            if up is not None and st.button("Attach this file",
+                                            key="kb_upload_attach"):
+                try:
+                    fname = (up.name or "").lower()
+                    if fname.endswith(".pdf"):
+                        text, label = extract_pdf_upload(up)
+                        kind = "pdf"
+                    else:
+                        text, label = extract_text_upload(up)
+                        kind = "text"
+                except KnowledgeBaseError as e:
+                    st.error(str(e))
+                else:
+                    db = get_db()
+                    try:
+                        set_project_knowledge_base(db, project_id, kind, label, text)
+                    finally:
+                        db.close()
+                    _refresh_project_ai_context(project_id)
+                    st.success(
+                        f"Attached `{label}` · {len(text):,} chars extracted.")
+                    st.rerun()
+        with kb_tabs[1]:
+            url_val = st.text_input(
+                "Public page URL",
+                key="kb_url_input",
+                placeholder="https://example.com/brief",
+                help="One page only; we don't crawl beyond the URL you paste.")
+            if st.button("Fetch and attach", key="kb_url_attach"):
+                try:
+                    text, label = extract_url(url_val)
+                except KnowledgeBaseError as e:
+                    st.error(str(e))
+                else:
+                    db = get_db()
+                    try:
+                        set_project_knowledge_base(db, project_id, "url", label, text)
+                    finally:
+                        db.close()
+                    _refresh_project_ai_context(project_id)
+                    st.success(
+                        f"Fetched `{label}` · {len(text):,} chars extracted.")
+                    st.rerun()
+
+        # ── Learned notes log ──────────────────────────────────────────
+        st.markdown("---")
+        notes_left, notes_right = st.columns([0.7, 0.3])
+        with notes_left:
+            st.markdown(f"**Learned notes** · {note_count} total")
+            st.caption("Auto-appended after every AI chat reply or insight.")
+        with notes_right:
+            if note_count and st.button("Clear log", key="kb_clear_notes",
+                                        use_container_width=True,
+                                        help="Wipe every learned note for this project"):
+                db = get_db()
+                try:
+                    clear_learned_notes(db, project_id)
+                finally:
+                    db.close()
+                _refresh_project_ai_context(project_id)
+                st.success("Learned notes cleared.")
+                st.rerun()
+        if note_count == 0:
+            st.caption("_No notes yet — chat with the assistant to start learning._")
+        else:
+            for n in notes[:10]:
+                stamp = n.created_at.strftime('%Y-%m-%d %H:%M') if n.created_at else ''
+                preview = (n.content or '').strip()
+                if len(preview) > 320:
+                    preview = preview[:320] + "…"
+                st.markdown(
+                    f"<div style='padding:0.45rem 0.7rem;margin:0.25rem 0;"
+                    f"background:rgba(15,23,42,0.45);border-left:2px solid "
+                    f"rgba(45,212,191,0.35);border-radius:6px;'>"
+                    f"<div style='font-family:\"JetBrains Mono\", monospace;"
+                    f"font-size:0.62rem;letter-spacing:0.18em;color:#64748b;"
+                    f"text-transform:uppercase;margin-bottom:0.25rem;'>"
+                    f"{n.kind} · {stamp}</div>"
+                    f"<div style='color:#cbd5e1;font-size:0.82rem;'>"
+                    f"{preview}</div></div>",
+                    unsafe_allow_html=True)
+            if note_count > 10:
+                st.caption(f"…and {note_count - 10} older note(s).")
+
+
+def _record_learned_note(kind, content):
+    """Best-effort append of a learned note + refresh the in-session bundle."""
+    pid = st.session_state.get('current_project_id')
+    if not pid or not content:
+        return
+    db = get_db()
+    try:
+        append_learned_note(db, pid, kind, content)
+    except Exception:
+        pass
+    finally:
+        db.close()
+    _refresh_project_ai_context(pid)
 
 
 def _open_project(project_id, project_name):
@@ -6567,6 +6857,11 @@ def _open_project(project_id, project_name):
         # current_dataset_id) from the persisted recipe so the dashboard
         # opens straight onto the sheet's last view.
         _hydrate_dataset_from_db(target_ds_id)
+
+    # Pre-load the project's knowledge base + recent learned notes so the
+    # AI assistant has authoritative project context on the very first
+    # question without an extra DB round-trip per render.
+    _refresh_project_ai_context(project_id)
 
     st.session_state.page = 'dashboard'
 
@@ -7871,6 +8166,12 @@ def show_dashboard():
                 st.success("Analysis completed!")
                 st.rerun()
     
+        # ── Project shell: sheet switcher + Knowledge Base ─────────────
+        # Rendered above the per-sheet content so users can jump between
+        # sheets in a multi-sheet project, add another sheet, or attach
+        # background context that biases every AI answer in this project.
+        _render_project_shell(limits)
+
         if st.session_state.df is None:
             upload_col1, upload_col2, upload_col3 = st.columns([1, 2, 1])
             with upload_col2:
@@ -11163,9 +11464,12 @@ def show_dashboard():
                                     'columns': df_report.columns.tolist(),
                                 }
                                 analysis_results = st.session_state.analysis_results or {}
-                                st.session_state.ai_insights = generate_data_insights(
-                                    df_summary, analysis_results
+                                insights = generate_data_insights(
+                                    df_summary, analysis_results,
+                                    project_context=_project_ctx_text(),
                                 )
+                                st.session_state.ai_insights = insights
+                                _record_learned_note("insight", insights)
                             st.rerun()
                         if st.session_state.ai_insights:
                             st.markdown(
@@ -11559,8 +11863,11 @@ def _render_ai_rail(limits):
                 'numeric_summary': df_chat.describe().to_dict()
                     if not df_chat.select_dtypes(include=[np.number]).empty else {}
             }
-            response = chat_about_data(prompt, df_info)
+            response = chat_about_data(
+                prompt, df_info,
+                project_context=_project_ctx_text())
             st.session_state.chat_messages.append({"role": "assistant", "content": response})
+            _record_learned_note("chat", f"Q: {prompt}\nA: {response}")
 
             # `chat_history.dataset_id` is an Integer column; virtual joined
             # views carry a synthetic string id (`joined_<ts>`). Skip

@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "arabic-reshaper>=3.0.0",
     "bcrypt>=5.0.0",
+    "beautifulsoup4>=4.14.3",
     "bleach>=6.3.0",
     "extra-streamlit-components>=0.1.81",
     "matplotlib>=3.10.8",
@@ -15,6 +16,7 @@ dependencies = [
     "pandas>=2.3.3",
     "plotly>=6.5.2",
     "psycopg2-binary>=2.9.11",
+    "pypdf>=6.10.2",
     "python-bidi>=0.6.7",
     "pyyaml>=6.0.3",
     "replit>=4.1.2",
