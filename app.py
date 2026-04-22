@@ -1327,15 +1327,36 @@ html { scroll-behavior: smooth; }
 }
 .dn-topbar-eyebrow::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 6px var(--teal); }
 
-/* Popover trigger button — styled as avatar pill */
+/* Popover trigger button — styled as a compact, right-anchored avatar
+   pill. The hosting column gets flex-end alignment so the pill sits
+   tight against the right edge instead of spanning the full column
+   width (which made it visually read as a horizontal panel/expander
+   header below the breadcrumb). */
+[data-testid="stColumn"]:has(.dn-pop-trigger-marker) {
+    display: flex !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    min-height: 44px !important;
+}
+[data-testid="stColumn"]:has(.dn-pop-trigger-marker) [data-testid="stPopover"] {
+    width: auto !important;
+    min-width: 0 !important;
+    flex: 0 0 auto !important;
+}
+[data-testid="stColumn"]:has(.dn-pop-trigger-marker) [data-testid="stPopover"] > div {
+    width: auto !important;
+}
 [data-testid="stColumn"]:has(.dn-pop-trigger-marker) [data-testid="stPopover"] > div > button {
     background: linear-gradient(135deg, rgba(45,212,191,0.12), rgba(13,148,136,0.06)) !important;
     border: 1px solid rgba(45,212,191,0.22) !important;
     color: #e2e8f0 !important;
     font-family: 'DM Sans', sans-serif !important; font-weight: 600 !important;
-    font-size: 0.88rem !important; letter-spacing: 0.01em !important;
-    padding: 0.55rem 1rem !important; height: auto !important;
+    font-size: 0.85rem !important; letter-spacing: 0.01em !important;
+    padding: 0.42rem 0.95rem !important;
+    height: 36px !important; min-height: 36px !important;
+    width: auto !important; min-width: 0 !important;
     border-radius: 100px !important; box-shadow: none !important;
+    white-space: nowrap !important;
     transition: all 0.18s ease !important;
 }
 [data-testid="stColumn"]:has(.dn-pop-trigger-marker) [data-testid="stPopover"] > div > button:hover {
@@ -1344,7 +1365,9 @@ html { scroll-behavior: smooth; }
     box-shadow: 0 0 0 3px rgba(45,212,191,0.10) !important;
 }
 [data-testid="stColumn"]:has(.dn-pop-trigger-marker) [data-testid="stPopover"] > div > button p {
-    color: inherit !important; font-size: inherit !important; font-weight: inherit !important; margin: 0 !important;
+    color: inherit !important; font-size: inherit !important;
+    font-weight: inherit !important; margin: 0 !important;
+    white-space: nowrap !important;
 }
 
 /* Popover dropdown content (rendered at body level).
@@ -6610,7 +6633,7 @@ def show_projects_page():
             '</div>', unsafe_allow_html=True)
     with nav_user_col:
         st.markdown('<div class="dn-pop-trigger-marker"></div>', unsafe_allow_html=True)
-        with st.popover(f"{avatar_letter}   {first_name}   ▾", use_container_width=True):
+        with st.popover(f"{avatar_letter}   {first_name}   ▾", use_container_width=False):
             tier_label = {"tier1": "Tier 01 · Starter", "tier2": "Tier 02 · Growth",
                           "tier3": "Tier 03 · Full Access"}.get(
                 user.get('subscription_type', 'tier3'), "Tier 03 · Full Access")
@@ -7048,7 +7071,7 @@ def show_dashboard():
 ''', unsafe_allow_html=True)
     with nav_user_col:
         st.markdown('<div class="dn-pop-trigger-marker"></div>', unsafe_allow_html=True)
-        with st.popover(f"{avatar_letter}   {first_name}   ▾", use_container_width=True):
+        with st.popover(f"{avatar_letter}   {first_name}   ▾", use_container_width=False):
             st.markdown(f'''
 <div class="dn-pop-head">
   <div class="dn-pop-avatar">{avatar_letter}</div>
