@@ -268,35 +268,47 @@ NEON_CSS = """
     }
 }
 
-/* ── Bounded "working space" for each dashboard section ─────────────────────
-   The content column itself becomes the scroll viewport, so each section
-   renders into a fixed-height card whose height roughly matches the
-   viewport. The page never grows taller than the screen — long sections
-   scroll INSIDE this card, not against the page.
+/* ── Cockpit dashboard layout ────────────────────────────────────────────────
+   Inside an open project, the dashboard is a single-viewport "cockpit":
+   three side-by-side panels that each fill the full screen height.
+   No page scroll — only internal scroll inside each panel when the
+   content overflows. Outer padding is tightened so the panels claim
+   most of the screen.
 
-   The matching rail column becomes a flex column with the same bounded
-   height: header + chat history (its own internal scroll) + chat input
-   pinned at the bottom of the rail card.
-
-   `--dn-workspace-h` makes the height tunable in one place; the calc
-   subtracts the page chrome (topbar + breadcrumb + outer padding).
-   Marker-class scoping (already used widely) keeps this from leaking
-   into the projects list, login, landing, marketing, or admin pages. */
-:root { --dn-workspace-h: calc(100vh - 220px); }
+   `--dn-workspace-h` is the shared panel height. It's tuned tight so
+   the working space feels like the whole screen, with just enough
+   chrome above for the topbar/breadcrumb and a hairline below.
+   Marker-class scoping (`:has(.dn-workspace-marker)`) keeps this from
+   leaking into the projects list, login, landing, marketing or admin
+   pages — those keep their original padded layout. */
+:root { --dn-workspace-h: calc(100vh - 130px); }
 @media (max-height: 760px) {
-    :root { --dn-workspace-h: 540px; }
+    :root { --dn-workspace-h: calc(100vh - 100px); }
 }
 
+/* Tight padding + wide canvas while inside a workspace (rail open or closed). */
+[data-testid="stMainBlockContainer"]:has(.dn-workspace-marker) {
+    max-width: min(1880px, 98vw) !important;
+    padding: 0.6rem 1rem 0.6rem 1rem !important;
+}
+[data-testid="stMainBlockContainer"]:has(.dn-workspace-marker .dn-ai-rail-marker.open),
+[data-testid="stMainBlockContainer"]:has(.dn-ai-rail-marker.open) {
+    max-width: min(1880px, 98vw) !important;
+}
+/* Body never scrolls in the workspace — the panels do. */
+body:has(.dn-workspace-marker) { overflow: hidden !important; }
+
+/* ── Working space (middle column) ──────────────────────────────────────── */
 [data-testid="stColumn"]:has(.dn-workspace-marker) {
     height: var(--dn-workspace-h) !important;
     max-height: var(--dn-workspace-h) !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    padding-right: 0.75rem !important;
+    padding: 0.2rem 0.6rem 0.4rem 0.4rem !important;
     scrollbar-gutter: stable;
     scroll-behavior: smooth;
 }
-/* Slim, on-brand scrollbar for the bounded workspace */
+/* Slim, on-brand scrollbar for the bounded working space */
 [data-testid="stColumn"]:has(.dn-workspace-marker)::-webkit-scrollbar { width: 8px; }
 [data-testid="stColumn"]:has(.dn-workspace-marker)::-webkit-scrollbar-track { background: transparent; }
 [data-testid="stColumn"]:has(.dn-workspace-marker)::-webkit-scrollbar-thumb {
@@ -306,9 +318,35 @@ NEON_CSS = """
     background: rgba(45,212,191,0.32);
 }
 
-/* Rail column matches the working space height. Open state becomes a
-   flex column so the chat input naturally pins to the bottom. Collapsed
-   state stretches the strip so both columns visually align. */
+/* ── Left nav column: fills the full panel height, sections distributed
+       evenly so the menu reads as one tall sidebar instead of a short stack. */
+[data-testid="stColumn"]:has(.dn-side-nav) {
+    height: var(--dn-workspace-h) !important;
+    max-height: var(--dn-workspace-h) !important;
+    overflow: hidden !important;
+}
+[data-testid="stColumn"]:has(.dn-side-nav) > div:first-child {
+    height: 100% !important;
+}
+.dn-side-nav {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+}
+/* Radio (the section list) takes ALL available vertical space and
+   spreads its labels across that space — no big empty area below. */
+.dn-side-nav .stRadio { flex: 1 1 auto; min-height: 0; display: flex; }
+.dn-side-nav .stRadio > div {
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    justify-content: space-around !important;
+    align-content: stretch !important;
+}
+.dn-side-nav .stRadio > div > label { flex: 1 1 0 !important; }
+.dn-side-nav .dn-side-foot { margin-top: auto; }
+
+/* ── Right rail column: same fixed height as the working space.
+       Open state is a flex column with chat input pinned at the bottom. */
 [data-testid="stColumn"]:has(.dn-ai-rail-marker) {
     height: var(--dn-workspace-h) !important;
     max-height: var(--dn-workspace-h) !important;
@@ -326,7 +364,7 @@ NEON_CSS = """
     height: 100% !important;
 }
 /* The rail's chat history grows to fill the leftover vertical space
-   between the header (rail card) and the chat input pinned at the bottom. */
+   between the header and the chat input pinned at the bottom. */
 [data-testid="stColumn"]:has(.dn-ai-rail-marker.open) [data-testid="stVerticalBlockBorderWrapper"]:has(.dn-rail-chatbox-marker) {
     flex: 1 1 auto !important;
     min-height: 0 !important;
@@ -338,10 +376,14 @@ NEON_CSS = """
     margin-top: auto !important;
     flex: 0 0 auto !important;
 }
-/* When the rail is closed, let the slim collapsed strip + button overlay
-   fill the bounded column so it visually aligns with the working space. */
+/* Collapsed rail strip fills the panel — no scroll. */
 [data-testid="stColumn"]:has(.dn-ai-rail-marker.closed) {
     overflow: hidden !important;
+}
+/* The horizontal block hosting the 3 columns shouldn't grow taller
+   than the panels — keeps the page within one viewport. */
+[data-testid="stHorizontalBlock"]:has(.dn-workspace-marker) {
+    align-items: stretch !important;
 }
 
 .stApp {
