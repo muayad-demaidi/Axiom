@@ -6868,23 +6868,99 @@ def show_dashboard():
         st.session_state.show_contact_panel = False
 
     _proj_name = (st.session_state.get('current_project_name') or 'Project').strip()
-    _proj_name_safe = (_proj_name[:48] + '…') if len(_proj_name) > 48 else _proj_name
-    nav_back_col, nav_brand_col, _, nav_user_col = st.columns(
-        [1.2, 4.0, 0.3, 1.6], gap="small")
+    _proj_name_safe = (_proj_name[:42] + '…') if len(_proj_name) > 42 else _proj_name
+
+    # Active dataset name (if any) — shown as the second breadcrumb crumb
+    _active_ds_name = None
+    _active_ds_id = st.session_state.get('current_dataset_id')
+    if _active_ds_id and isinstance(_active_ds_id, int):
+        _ddb = get_db()
+        try:
+            _ds_rec = get_dataset_record(_ddb, _active_ds_id, user_id=user_id)
+            if _ds_rec:
+                _active_ds_name = _ds_rec.dataset_name
+        except Exception:
+            pass
+        finally:
+            _ddb.close()
+    elif isinstance(_active_ds_id, str):
+        _active_ds_name = _active_ds_id  # joined-view temp id
+
+    # Tight breadcrumb topbar styling — back-pill marker scopes the button
+    st.markdown('''
+<style>
+.dn-crumb-bar {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.35rem 0; min-height: 38px; flex-wrap: nowrap;
+  overflow: hidden;
+}
+.dn-crumb-sep {
+  color: #334155; font-family: 'JetBrains Mono', monospace;
+  font-size: 0.95rem; font-weight: 300; user-select: none;
+}
+.dn-crumb-proj {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 0.98rem; color: #e2e8f0; letter-spacing: -0.005em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 32ch;
+}
+.dn-crumb-ds {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.78rem;
+  color: #64748b; letter-spacing: 0.02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 36ch;
+}
+.dn-crumb-ds.empty { color: #475569; font-style: italic; }
+/* Back-button pill — scoped via marker so we don't restyle other buttons */
+.dn-back-marker { display: none; }
+[data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"] > button {
+  background: transparent !important;
+  color: #94a3b8 !important;
+  border: 1px solid rgba(148,163,184,0.18) !important;
+  border-radius: 999px !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 0.78rem !important;
+  letter-spacing: 0.02em !important;
+  padding: 0.32rem 0.85rem !important;
+  min-height: 32px !important; height: 32px !important;
+  width: auto !important;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease !important;
+}
+[data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"] > button:hover {
+  color: var(--teal) !important;
+  border-color: rgba(45,212,191,0.40) !important;
+  background: rgba(45,212,191,0.06) !important;
+  transform: none !important;
+}
+[data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"] {
+  display: flex; justify-content: flex-start; padding-top: 0.25rem;
+}
+</style>
+''', unsafe_allow_html=True)
+
+    nav_back_col, nav_crumb_col, nav_user_col = st.columns(
+        [0.95, 4.45, 1.6], gap="small", vertical_alignment="center")
     with nav_back_col:
+        st.markdown('<div class="dn-back-marker"></div>', unsafe_allow_html=True)
         if st.button("← Projects", key="dash_back_projects",
-                     use_container_width=True,
                      help="Back to your projects"):
             _clear_workspace_state()
             st.session_state.current_project_id = None
             st.session_state.current_project_name = None
             st.session_state.page = 'projects'
             st.rerun()
-    with nav_brand_col:
+    with nav_crumb_col:
+        if _active_ds_name:
+            _ds_html = f'<span class="dn-crumb-ds">{_active_ds_name}</span>'
+        else:
+            _ds_html = '<span class="dn-crumb-ds empty">no sheet open</span>'
         st.markdown(f'''
-<div class="dn-topbar">
-  <span class="dn-topbar-brand">DataVision <span style="color:var(--teal);">Pro</span></span>
-  <span class="dn-topbar-eyebrow">Project · {_proj_name_safe}</span>
+<div class="dn-crumb-bar">
+  <span class="dn-crumb-sep">/</span>
+  <span class="dn-crumb-proj">{_proj_name_safe}</span>
+  <span class="dn-crumb-sep">/</span>
+  {_ds_html}
 </div>
 ''', unsafe_allow_html=True)
     with nav_user_col:
@@ -6930,18 +7006,16 @@ def show_dashboard():
                 st.session_state.session_hydrated = True
                 st.rerun()
 
-    st.markdown('<div style="height:0.75rem;"></div>', unsafe_allow_html=True)
+    # Slim hairline below topbar (replaces the giant greeting hero —
+    # the user is already inside an open project, so a personal greeting
+    # is noise; the breadcrumb above carries the context they need).
+    st.markdown(
+        '<div style="border-bottom: 1px solid rgba(148,163,184,0.06); '
+        'margin: 0.4rem 0 1.2rem 0;"></div>',
+        unsafe_allow_html=True)
     main_col = st.container()
 
     with main_col:
-        # Greeting hero
-        st.markdown(f'''
-<div class="dn-greeting">
-  <div class="dn-greeting-eyebrow">— Welcome back · {tier_label}</div>
-  <h1>Hello, {first_name}.</h1>
-  <p class="dn-greeting-sub">Upload a dataset to start analysing — or pick up where you left off. Auto-cleaning, deep statistics, charts, and AI insights are one click away.</p>
-</div>
-''', unsafe_allow_html=True)
 
         if st.session_state.show_contact_panel:
             st.markdown('''
@@ -7335,76 +7409,76 @@ def show_dashboard():
                 "Report",
             ]
             st.markdown('''<style>
-.dn-side-nav .stRadio > div { gap: 0.45rem !important; flex-direction: column !important; }
+/* ============================================================
+   SIDEBAR — tightened, grouped, numbered
+   Three logical clusters surfaced via ::before pseudo-headers
+   on rows 1 (DATA), 4 (ANALYSIS), 8 (INSIGHT).
+   ============================================================ */
+.dn-side-nav .stRadio > div { gap: 0.30rem !important; flex-direction: column !important; }
 .dn-side-nav .stRadio > div > label {
-  display: flex !important; align-items: center !important; gap: 0.7rem !important;
-  width: 100% !important; padding: 0.85rem 1rem !important; margin: 0 !important;
-  border: 1px solid rgba(45,212,191,0.10) !important; border-radius: 12px !important;
-  background: linear-gradient(180deg, rgba(17,31,53,0.55), rgba(12,24,41,0.55)) !important;
+  position: relative;
+  display: flex !important; align-items: center !important; gap: 0.6rem !important;
+  width: 100% !important; padding: 0.55rem 0.85rem !important; margin: 0 !important;
+  border: 1px solid transparent !important; border-radius: 8px !important;
+  background: transparent !important;
   color: #94a3b8 !important; font-family: "DM Sans", sans-serif !important;
-  font-size: 0.92rem !important; font-weight: 500 !important; letter-spacing: 0.01em !important;
-  cursor: pointer !important; transition: all 0.18s ease !important;
+  font-size: 0.86rem !important; font-weight: 500 !important; letter-spacing: 0.005em !important;
+  cursor: pointer !important; transition: color 160ms ease, background 160ms ease, border-color 160ms ease !important;
+  min-height: 32px !important;
 }
 .dn-side-nav .stRadio > div > label:hover {
-  border-color: rgba(45,212,191,0.30) !important; color: #e2e8f0 !important;
-  background: linear-gradient(180deg, rgba(45,212,191,0.08), rgba(12,24,41,0.55)) !important;
-  transform: translateX(2px);
+  color: #e2e8f0 !important;
+  background: rgba(45,212,191,0.05) !important;
 }
 .dn-side-nav .stRadio > div > label > div:first-child { display: none !important; }
 .dn-side-nav .stRadio > div > label[data-checked="true"],
 .dn-side-nav .stRadio > div > label:has(input:checked) {
-  border-color: rgba(45,212,191,0.55) !important;
-  background: linear-gradient(180deg, rgba(45,212,191,0.18), rgba(45,212,191,0.04)) !important;
+  border-color: rgba(45,212,191,0.30) !important;
+  background: linear-gradient(90deg, rgba(45,212,191,0.14) 0%, rgba(45,212,191,0.02) 100%) !important;
   color: #2dd4bf !important; font-weight: 600 !important;
-  box-shadow: 0 0 0 1px rgba(45,212,191,0.20), 0 8px 24px -10px rgba(45,212,191,0.30);
+  box-shadow: inset 2px 0 0 var(--teal);
+}
+/* Group section headers injected before specific rows */
+.dn-side-nav .stRadio > div > label:nth-child(1)::before,
+.dn-side-nav .stRadio > div > label:nth-child(4)::before,
+.dn-side-nav .stRadio > div > label:nth-child(8)::before {
+  position: absolute; left: 0.25rem; top: -1.55rem;
+  font-family: "JetBrains Mono", monospace; font-size: 0.6rem;
+  letter-spacing: 0.20em; color: #475569; text-transform: uppercase;
+  font-weight: 500; pointer-events: none;
+}
+.dn-side-nav .stRadio > div > label:nth-child(1)::before { content: "Data"; }
+.dn-side-nav .stRadio > div > label:nth-child(4)::before { content: "Analysis"; margin-top: 0.4rem; }
+.dn-side-nav .stRadio > div > label:nth-child(8)::before { content: "Insight"; margin-top: 0.4rem; }
+.dn-side-nav .stRadio > div > label:nth-child(4),
+.dn-side-nav .stRadio > div > label:nth-child(8) {
+  margin-top: 1.6rem !important;
+}
+.dn-side-nav .stRadio > div > label:nth-child(1) {
+  margin-top: 1.45rem !important;
 }
 .dn-side-nav .dn-side-title {
-  font-family: "Syne", sans-serif; font-weight: 800; font-size: 0.72rem;
-  letter-spacing: 0.18em; color: #2dd4bf; text-transform: uppercase;
-  padding: 0 0.25rem 0.85rem 0.25rem; opacity: 0.85;
+  font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 0.62rem;
+  letter-spacing: 0.22em; color: var(--teal); text-transform: uppercase;
+  padding: 0 0.25rem 0.4rem 0.25rem; opacity: 0.85;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.dn-side-nav .dn-side-title::after {
+  content: ""; flex: 1; height: 1px; background: rgba(45,212,191,0.12);
 }
 .dn-side-card {
   position: sticky; top: 1rem;
-  background:
-    radial-gradient(120% 80% at 0% 0%, rgba(45,212,191,0.10), transparent 55%),
-    linear-gradient(180deg, rgba(12,24,41,0.92), rgba(7,16,31,0.92));
-  border: 1px solid rgba(45,212,191,0.18); border-radius: 22px;
-  padding: 1.4rem 1.05rem 1.1rem 1.05rem;
-  backdrop-filter: blur(18px) saturate(140%);
-  box-shadow:
-    0 1px 0 rgba(255,255,255,0.04) inset,
-    0 24px 60px -28px rgba(0,0,0,0.65),
-    0 0 0 1px rgba(45,212,191,0.04);
-  position: sticky; top: 1rem;
+  background: linear-gradient(180deg, rgba(12,24,41,0.55), rgba(7,16,31,0.55));
+  border: 1px solid rgba(148,163,184,0.10); border-radius: 14px;
+  padding: 1rem 0.75rem 0.85rem 0.75rem;
   overflow: hidden;
 }
-.dn-side-card::before {
-  content: ""; position: absolute; left: 0; top: 18%; bottom: 18%; width: 2px;
-  background: linear-gradient(180deg, transparent, rgba(45,212,191,0.55), transparent);
-  border-radius: 2px;
-}
-.dn-side-brand {
-  display: flex; align-items: center; gap: 0.55rem;
-  padding: 0 0.25rem 0.6rem 0.25rem; margin-bottom: 0.85rem;
-  border-bottom: 1px solid rgba(45,212,191,0.10);
-}
-.dn-side-brand-mark {
-  width: 28px; height: 28px; border-radius: 8px;
-  background: linear-gradient(135deg, rgba(45,212,191,0.85), rgba(20,184,166,0.45));
-  display: grid; place-items: center; color: #07101f;
-  font-family: "Syne", sans-serif; font-weight: 800; font-size: 0.85rem;
-  box-shadow: 0 6px 16px -6px rgba(45,212,191,0.55);
-}
-.dn-side-brand-text {
-  font-family: "Syne", sans-serif; font-weight: 700; font-size: 0.95rem;
-  color: #e2e8f0; letter-spacing: 0.01em;
-}
 .dn-side-foot {
-  margin-top: 1rem; padding-top: 0.85rem;
-  border-top: 1px solid rgba(45,212,191,0.10);
-  font-family: "JetBrains Mono", monospace; font-size: 0.68rem;
-  letter-spacing: 0.14em; text-transform: uppercase;
-  color: rgba(148,163,184,0.55); text-align: center;
+  margin-top: 1.1rem; padding-top: 0.75rem;
+  border-top: 1px solid rgba(148,163,184,0.08);
+  font-family: "JetBrains Mono", monospace; font-size: 0.6rem;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: #475569; text-align: left; padding-left: 0.25rem;
 }
 .dn-section-head {
   margin: 0.25rem 0 1.1rem 0; padding-bottom: 0.85rem;
@@ -7449,17 +7523,28 @@ def show_dashboard():
             with nav_col:
                 st.markdown('''
 <div class="dn-side-card dn-side-nav">
-  <div class="dn-side-brand">
-    <div class="dn-side-brand-mark">DV</div>
-    <div class="dn-side-brand-text">DataVision</div>
-  </div>
-  <div class="dn-side-title">Workspace</div>
+  <div class="dn-side-title">Workspace · 09</div>
 ''', unsafe_allow_html=True)
+
+                def _fmt_section(label):
+                    """Prefix each section name with a 2-digit index — keeps
+                    the radio's underlying value as the original label so
+                    `if active_tab == _TAB_LABELS[i]` checks still match."""
+                    try:
+                        idx = _TAB_LABELS.index(label)
+                    except ValueError:
+                        return label
+                    return f"{idx + 1:02d}   {label}"
+
                 active_tab = st.radio(
                     "Section", _TAB_LABELS,
-                    label_visibility="collapsed", key="dashboard_section"
+                    label_visibility="collapsed",
+                    key="dashboard_section",
+                    format_func=_fmt_section,
                 )
-                st.markdown('<div class="dn-side-foot">v · Data Noir</div></div>', unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="dn-side-foot">DataVision Pro · Data Noir</div></div>',
+                    unsafe_allow_html=True)
 
             with content_col:
                 if active_tab == _TAB_LABELS[0]:
