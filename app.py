@@ -7683,6 +7683,245 @@ def show_dashboard():
   .dn-stat-cell { border-right: none;
                   border-bottom: 1px solid rgba(148,163,184,0.07); }
 }
+/* ── Applied Steps — Power Query-style step cards ────────────── */
+.dn-pipe-toolbar {
+  display: flex; align-items: center; gap: 0.85rem;
+  padding: 0.55rem 0.95rem; margin: 0 0 0.85rem 0;
+  background: linear-gradient(180deg, rgba(17,31,53,0.45), rgba(12,24,41,0.35));
+  border: 1px solid rgba(148,163,184,0.10);
+  border-radius: 10px; flex-wrap: wrap;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+  color: #94a3b8; letter-spacing: 0.06em;
+}
+.dn-pipe-toolbar .lbl {
+  color: #64748b; text-transform: uppercase;
+  letter-spacing: 0.18em; font-size: 0.62rem;
+}
+.dn-pipe-toolbar .val {
+  color: #e2e8f0; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.dn-pipe-toolbar .val.teal { color: var(--teal); }
+.dn-pipe-toolbar .val.warn { color: #f59e0b; }
+.dn-pipe-toolbar .sep { color: #334155; }
+.dn-pipe-toolbar .grow { flex: 1; }
+/* Toolbar buttons (Redo / Drop later) — scoped via marker */
+.dn-pipe-btn-marker { display: none; }
+[data-testid="stColumn"]:has(.dn-pipe-btn-marker) [data-testid="stButton"] > button,
+[data-testid="stColumn"]:has(.dn-pipe-btn-marker) .stButton > button {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 1px solid rgba(148,163,184,0.20) !important;
+  border-radius: 999px !important;
+  color: #94a3b8 !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-weight: 500 !important; font-size: 0.78rem !important;
+  padding: 0.4rem 0.95rem !important;
+  min-height: 32px !important; height: 32px !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+  letter-spacing: 0.01em !important;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease !important;
+}
+[data-testid="stColumn"]:has(.dn-pipe-btn-marker) [data-testid="stButton"] > button:hover,
+[data-testid="stColumn"]:has(.dn-pipe-btn-marker) .stButton > button:hover {
+  color: var(--teal) !important;
+  border-color: rgba(45,212,191,0.45) !important;
+  background: rgba(45,212,191,0.07) !important;
+  background-color: rgba(45,212,191,0.07) !important;
+  transform: none !important;
+}
+[data-testid="stColumn"]:has(.dn-pipe-btn-marker) [data-testid="stButton"] > button p {
+  color: inherit !important; font-size: 0.78rem !important;
+  margin: 0 !important; line-height: 1 !important;
+}
+[data-testid="stColumn"]:has(.dn-pipe-btn-marker) .dn-pipe-btn-marker.warn ~ div [data-testid="stButton"] > button:hover {
+  color: #fb7185 !important; border-color: rgba(251,113,133,0.45) !important;
+  background: rgba(251,113,133,0.07) !important;
+}
+/* Step card */
+.dn-step-card {
+  position: relative;
+  padding: 0.85rem 1rem 0.85rem 1.1rem;
+  margin: 0; min-height: 78px;
+  background: rgba(15,23,42,0.32);
+  border: 1px solid rgba(148,163,184,0.08);
+  border-left: 3px solid rgba(148,163,184,0.22);
+  border-radius: 8px;
+  transition: border-color 180ms ease, background 180ms ease,
+              border-left-color 180ms ease, transform 160ms ease;
+}
+.dn-step-card:hover {
+  border-color: rgba(148,163,184,0.18);
+  border-left-color: rgba(45,212,191,0.55);
+  background: rgba(15,23,42,0.50);
+}
+.dn-step-card.active {
+  background: linear-gradient(90deg, rgba(45,212,191,0.10),
+                              rgba(45,212,191,0.02) 60%, transparent);
+  border-color: rgba(45,212,191,0.32);
+  border-left: 4px solid var(--teal);
+  box-shadow: inset 0 0 0 1px rgba(45,212,191,0.06);
+  padding-left: 1.05rem;
+}
+.dn-step-card.future {
+  opacity: 0.55; border-left-color: rgba(100,116,139,0.32);
+}
+.dn-step-card.disabled {
+  opacity: 0.7;
+  border-left: 3px dashed rgba(245,158,11,0.6);
+  background: rgba(245,158,11,0.025);
+}
+.dn-step-card.locked {
+  border-left-color: rgba(100,116,139,0.45);
+}
+.dn-step-head {
+  display: flex; align-items: center; gap: 0.55rem;
+  flex-wrap: wrap; margin: 0 0 0.4rem 0;
+}
+.dn-step-tag {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.6rem;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: #64748b; font-weight: 600;
+  padding: 0.2rem 0.42rem;
+  border: 1px solid rgba(148,163,184,0.18);
+  border-radius: 4px; line-height: 1; flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.dn-step-card.active .dn-step-tag {
+  color: var(--teal); border-color: rgba(45,212,191,0.45);
+  background: rgba(45,212,191,0.08);
+}
+.dn-step-card.future .dn-step-tag {
+  color: #475569; border-color: rgba(100,116,139,0.20);
+}
+.dn-step-name {
+  font-family: 'DM Sans', sans-serif; font-weight: 600;
+  font-size: 0.95rem; color: #e2e8f0; line-height: 1.25;
+  word-break: break-word; flex: 1; min-width: 0;
+}
+.dn-step-card.active .dn-step-name { color: #f1f5f9; font-weight: 700; }
+.dn-step-flag {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.58rem;
+  letter-spacing: 0.20em; text-transform: uppercase;
+  padding: 0.18rem 0.42rem; border-radius: 3px; line-height: 1;
+  font-weight: 700; flex-shrink: 0;
+}
+.dn-step-flag.disabled {
+  color: #f59e0b; background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.30);
+}
+.dn-step-flag.locked {
+  color: #94a3b8; background: rgba(148,163,184,0.08);
+  border: 1px solid rgba(148,163,184,0.18);
+}
+.dn-step-flag.active-now {
+  color: var(--teal); background: rgba(45,212,191,0.10);
+  border: 1px solid rgba(45,212,191,0.40);
+}
+.dn-step-summary {
+  font-family: 'DM Sans', sans-serif; font-size: 0.83rem;
+  color: #94a3b8; margin: 0 0 0.4rem 0; line-height: 1.4;
+  word-break: break-word;
+}
+.dn-step-meta {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.68rem;
+  color: #64748b; letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.dn-step-meta b { color: #94a3b8; font-weight: 600; }
+.dn-step-meta .dot { color: #334155; }
+/* Per-row control buttons — scoped via marker so the standard
+   teal-gradient .stButton style doesn't bleed onto these icon
+   buttons. Sized to meet the 44px touch-target rule. */
+.dn-step-ctrl-marker { display: none; }
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker) [data-testid="stButton"] > button,
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker) .stButton > button {
+  background: rgba(15,23,42,0.45) !important;
+  background-color: rgba(15,23,42,0.45) !important;
+  border: 1px solid rgba(148,163,184,0.18) !important;
+  border-radius: 8px !important;
+  color: #cbd5e1 !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-weight: 500 !important; font-size: 0.85rem !important;
+  padding: 0 !important;
+  min-height: 36px !important; height: 36px !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+  transition: color 160ms ease, border-color 160ms ease,
+              background 160ms ease, transform 100ms ease !important;
+}
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker) [data-testid="stButton"] > button:hover,
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker) .stButton > button:hover {
+  color: var(--teal) !important;
+  border-color: rgba(45,212,191,0.45) !important;
+  background: rgba(45,212,191,0.07) !important;
+  transform: none !important;
+}
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker) [data-testid="stButton"] > button:active,
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker) .stButton > button:active {
+  transform: scale(0.96) !important;
+}
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker) [data-testid="stButton"] > button:disabled,
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker) .stButton > button:disabled {
+  opacity: 0.35 !important; cursor: not-allowed !important;
+  color: #475569 !important; border-color: rgba(148,163,184,0.10) !important;
+}
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker) [data-testid="stButton"] > button p {
+  color: inherit !important; font-size: 0.85rem !important;
+  margin: 0 !important; line-height: 1 !important;
+}
+/* Remove (✕) — danger affordance on hover */
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker.danger) [data-testid="stButton"] > button:hover,
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker.danger) .stButton > button:hover {
+  color: #fb7185 !important;
+  border-color: rgba(251,113,133,0.45) !important;
+  background: rgba(251,113,133,0.07) !important;
+}
+/* Toggle button — distinct visual when step is currently disabled */
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker.toggle-off) [data-testid="stButton"] > button,
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker.toggle-off) .stButton > button {
+  color: #f59e0b !important;
+  border-color: rgba(245,158,11,0.30) !important;
+  background: rgba(245,158,11,0.05) !important;
+}
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker.toggle-off) [data-testid="stButton"] > button:hover,
+[data-testid="stColumn"]:has(.dn-step-ctrl-marker.toggle-off) .stButton > button:hover {
+  color: var(--teal) !important;
+  border-color: rgba(45,212,191,0.45) !important;
+  background: rgba(45,212,191,0.08) !important;
+}
+/* "Go to" button — tertiary action on each non-active row */
+.dn-goto-marker { display: none; }
+[data-testid="stColumn"]:has(.dn-goto-marker) [data-testid="stButton"] > button,
+[data-testid="stColumn"]:has(.dn-goto-marker) .stButton > button {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 1px solid rgba(45,212,191,0.25) !important;
+  border-radius: 8px !important;
+  color: var(--teal) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-weight: 500 !important; font-size: 0.78rem !important;
+  letter-spacing: 0.02em !important;
+  padding: 0 0.6rem !important;
+  min-height: 36px !important; height: 36px !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease !important;
+}
+[data-testid="stColumn"]:has(.dn-goto-marker) [data-testid="stButton"] > button:hover,
+[data-testid="stColumn"]:has(.dn-goto-marker) .stButton > button:hover {
+  background: rgba(45,212,191,0.10) !important;
+  background-color: rgba(45,212,191,0.10) !important;
+  border-color: rgba(45,212,191,0.55) !important;
+  color: #5eead4 !important;
+  transform: none !important;
+}
+[data-testid="stColumn"]:has(.dn-goto-marker) [data-testid="stButton"] > button p {
+  color: inherit !important; font-size: 0.78rem !important;
+  margin: 0 !important; line-height: 1 !important;
+}
 .dn-meta {
   font-family: "DM Sans", sans-serif; font-size: 0.88rem;
   color: #94a3b8; margin: 0.4rem 0 0.85rem 0;
@@ -7798,109 +8037,217 @@ def show_dashboard():
                         def _commit_unified(new_plan):
                             _commit_unified_plan(sh, new_plan, ds_key)
 
-                        steps_col, ctrl_col = st.columns([3, 1])
-                        with steps_col:
-                            for i, step in enumerate(sh.steps):
-                                is_source = (i == 0)
-                                is_active = (i == sh.active_index)
-                                is_future = (i > sh.active_index)
-                                meta = step.meta or {}
-                                substep_key = meta.get('substep_key')
-                                step_inst = meta.get('substep_instance') or meta.get('step_instance')
-                                kind = _step_kind(step)
-                                enabled = bool(meta.get('enabled', True))
-                                pidx = u_idx_by_inst.get(step_inst) if not is_source else None
+                        # ── Pipeline toolbar (replaces disconnected right
+                        # ctrl_col): shows step count, active step, and
+                        # branch-state actions when navigating mid-history.
+                        total_steps = len(sh.steps)
+                        active_no = sh.active_index + 1
+                        active_name = sh.current().name
+                        has_later = sh.has_later_steps()
+                        # Compose toolbar info line
+                        toolbar_html = (
+                            "<div class='dn-pipe-toolbar'>"
+                            "<span class='lbl'>PIPELINE</span>"
+                            f"<span class='val'>{total_steps:02d}</span>"
+                            "<span class='lbl'>STEPS</span>"
+                            "<span class='sep'>·</span>"
+                            "<span class='lbl'>ACTIVE</span>"
+                            f"<span class='val teal'>{active_no:02d} / {total_steps:02d}</span>"
+                            "<span class='sep'>·</span>"
+                            f"<span class='val' style='font-family:DM Sans,sans-serif;"
+                            f"font-size:0.78rem;letter-spacing:0.01em;'>{active_name}</span>"
+                        )
+                        if has_later:
+                            later_n = total_steps - active_no
+                            toolbar_html += (
+                                "<span class='sep'>·</span>"
+                                f"<span class='val warn'>+{later_n:02d}</span>"
+                                "<span class='lbl'>AHEAD</span>"
+                            )
+                        toolbar_html += "<span class='grow'></span></div>"
+                        if has_later:
+                            tb_info, tb_redo, tb_drop = st.columns([0.62, 0.20, 0.18])
+                            with tb_info:
+                                st.markdown(toolbar_html, unsafe_allow_html=True)
+                            with tb_redo:
+                                st.markdown(
+                                    "<div class='dn-pipe-btn-marker'></div>",
+                                    unsafe_allow_html=True,
+                                )
+                                if st.button(
+                                    "Redo to latest",
+                                    use_container_width=True,
+                                    key=f"redo_latest_{sig}",
+                                    help="Jump to the last applied step",
+                                ):
+                                    sh.redo_latest()
+                                    _persist_step_history()
+                                    st.rerun()
+                            with tb_drop:
+                                st.markdown(
+                                    "<div class='dn-pipe-btn-marker warn'></div>",
+                                    unsafe_allow_html=True,
+                                )
+                                if st.button(
+                                    "Drop later",
+                                    use_container_width=True,
+                                    key=f"drop_later_{sig}",
+                                    help="Discard all steps after the current one",
+                                ):
+                                    sh.drop_later()
+                                    _persist_step_history()
+                                    st.rerun()
+                        else:
+                            st.markdown(toolbar_html, unsafe_allow_html=True)
 
-                                badge = "▶" if is_active else ("◌" if is_future else "✓")
-                                color = "#2dd4bf" if is_active else ("#64748b" if is_future else "#94a3b8")
-                                weight = "700" if is_active else "500"
-                                opacity = "0.55" if is_future else (
-                                    "0.55" if (not is_source and not enabled) else "1")
-                                # Active row gets a subtle teal-tinted background +
-                                # thicker rail so it reads like a selected tab.
-                                bg = "rgba(45,212,191,0.08)" if is_active else "transparent"
-                                rail = "4px" if is_active else "3px"
-                                disabled_tag = (" <span style='color:#f59e0b;font-size:0.7rem;"
-                                                "letter-spacing:0.08em;'>· DISABLED</span>"
-                                                if not is_source and not enabled else "")
-                                locked_tag = (" <span style='color:#64748b;font-size:0.7rem;"
-                                              "letter-spacing:0.08em;'>· LOCKED</span>"
-                                              if is_source else "")
-                                # Source has no controls; everything else gets
-                                # ↑ / ↓ / toggle / ✕ in a single layout so the
-                                # panel reads as one unified editor.
-                                if is_source:
-                                    row_l, row_btn = st.columns([0.78, 0.22])
-                                    row_ctrls = None
-                                else:
-                                    row_l, row_ctrls, row_btn = st.columns([0.55, 0.27, 0.18])
-                                with row_l:
+                        for i, step in enumerate(sh.steps):
+                            is_source = (i == 0)
+                            is_active = (i == sh.active_index)
+                            is_future = (i > sh.active_index)
+                            meta = step.meta or {}
+                            substep_key = meta.get('substep_key')
+                            step_inst = meta.get('substep_instance') or meta.get('step_instance')
+                            kind = _step_kind(step)
+                            enabled = bool(meta.get('enabled', True))
+                            pidx = u_idx_by_inst.get(step_inst) if not is_source else None
+
+                            # Card state class — drives rail color, opacity,
+                            # and hover lift via the .dn-step-card CSS.
+                            if is_source:
+                                state_cls = "locked active" if is_active else "locked"
+                            elif not enabled:
+                                state_cls = "disabled active" if is_active else "disabled"
+                            elif is_active:
+                                state_cls = "active"
+                            elif is_future:
+                                state_cls = "future"
+                            else:
+                                state_cls = "done"
+
+                            flags_html = ""
+                            if is_active:
+                                flags_html += "<span class='dn-step-flag active-now'>Active</span>"
+                            if is_source:
+                                flags_html += "<span class='dn-step-flag locked'>Locked</span>"
+                            if not is_source and not enabled:
+                                flags_html += "<span class='dn-step-flag disabled'>Disabled</span>"
+
+                            card_html = (
+                                f"<div class='dn-step-card {state_cls}'>"
+                                "<div class='dn-step-head'>"
+                                f"<span class='dn-step-tag'>STEP {i+1:02d}</span>"
+                                f"<span class='dn-step-name'>{step.name}</span>"
+                                f"{flags_html}"
+                                "</div>"
+                                f"<div class='dn-step-summary'>{step.summary}</div>"
+                                "<div class='dn-step-meta'>"
+                                f"<b>{step.rows:,}</b> rows"
+                                "<span class='dot'>·</span>"
+                                f"<b>{step.cols}</b> cols"
+                                "</div>"
+                                "</div>"
+                            )
+
+                            # Source row: card + (optional) Go-to.
+                            # Editable row: card + 4 icon controls + Go-to.
+                            if is_source:
+                                row_card, row_action = st.columns([0.85, 0.15])
+                                row_ctrls = None
+                            else:
+                                row_card, row_ctrls, row_action = st.columns([0.58, 0.27, 0.15])
+                            with row_card:
+                                st.markdown(card_html, unsafe_allow_html=True)
+                            if row_ctrls is not None and pidx is not None:
+                                with row_ctrls:
+                                    c_up, c_dn, c_tg, c_rm = st.columns(4)
+                                    with c_up:
+                                        st.markdown(
+                                            "<div class='dn-step-ctrl-marker'></div>",
+                                            unsafe_allow_html=True,
+                                        )
+                                        if st.button(
+                                            "↑", key=f"u_up_{ds_key}_{step_inst}",
+                                            help="Move step up",
+                                            disabled=(pidx == 0),
+                                            use_container_width=True,
+                                        ) and pidx > 0:
+                                            np_ = list(u_plan)
+                                            np_[pidx - 1], np_[pidx] = np_[pidx], np_[pidx - 1]
+                                            _commit_unified(np_)
+                                            st.rerun()
+                                    with c_dn:
+                                        st.markdown(
+                                            "<div class='dn-step-ctrl-marker'></div>",
+                                            unsafe_allow_html=True,
+                                        )
+                                        if st.button(
+                                            "↓", key=f"u_dn_{ds_key}_{step_inst}",
+                                            help="Move step down",
+                                            disabled=(pidx >= len(u_plan) - 1),
+                                            use_container_width=True,
+                                        ) and pidx < len(u_plan) - 1:
+                                            np_ = list(u_plan)
+                                            np_[pidx + 1], np_[pidx] = np_[pidx], np_[pidx + 1]
+                                            _commit_unified(np_)
+                                            st.rerun()
+                                    with c_tg:
+                                        # Toggle button replaces the awkward
+                                        # st.checkbox("On"). Label is the
+                                        # action verb, current state is shown
+                                        # by the card flag + amber tint via
+                                        # the .toggle-off marker.
+                                        toggle_marker = (
+                                            "dn-step-ctrl-marker toggle-off"
+                                            if not enabled else "dn-step-ctrl-marker"
+                                        )
+                                        st.markdown(
+                                            f"<div class='{toggle_marker}'></div>",
+                                            unsafe_allow_html=True,
+                                        )
+                                        toggle_label = "⏻" if enabled else "⊘"
+                                        toggle_help = (
+                                            "Disable this step (pass-through)"
+                                            if enabled else
+                                            "Enable this step"
+                                        )
+                                        if st.button(
+                                            toggle_label,
+                                            key=f"u_toggle_{ds_key}_{step_inst}",
+                                            help=toggle_help,
+                                            use_container_width=True,
+                                        ):
+                                            np_ = list(u_plan)
+                                            np_[pidx] = {**np_[pidx], "enabled": not enabled}
+                                            _commit_unified(np_)
+                                            st.rerun()
+                                    with c_rm:
+                                        st.markdown(
+                                            "<div class='dn-step-ctrl-marker danger'></div>",
+                                            unsafe_allow_html=True,
+                                        )
+                                        if st.button(
+                                            "✕", key=f"u_rm_{ds_key}_{step_inst}",
+                                            help="Remove step from plan",
+                                            use_container_width=True,
+                                        ):
+                                            np_ = [e for j, e in enumerate(u_plan) if j != pidx]
+                                            _commit_unified(np_)
+                                            st.rerun()
+                            with row_action:
+                                if not is_active:
                                     st.markdown(
-                                        f"<div style='padding:0.45rem 0.6rem;border-left:{rail} solid {color};"
-                                        f"background:{bg};border-radius:0 6px 6px 0;"
-                                        f"opacity:{opacity};font-weight:{weight};color:#e2e8f0;'>"
-                                        f"<span style='color:{color};font-family:JetBrains Mono,monospace;"
-                                        f"font-size:0.78rem;letter-spacing:0.1em;'>{badge} STEP {i+1}</span>"
-                                        f"{locked_tag}{disabled_tag}<br>"
-                                        f"<b>{step.name}</b> · <span style='color:#94a3b8;font-size:0.85rem;'>"
-                                        f"{step.summary}</span><br>"
-                                        f"<span style='color:#64748b;font-size:0.75rem;'>{step.rows:,} rows × {step.cols} cols</span>"
-                                        f"</div>",
+                                        "<div class='dn-goto-marker'></div>",
                                         unsafe_allow_html=True,
                                     )
-                                if row_ctrls is not None and pidx is not None:
-                                    with row_ctrls:
-                                        c_up, c_dn, c_chk, c_rm = st.columns(4)
-                                        with c_up:
-                                            if st.button(
-                                                "↑", key=f"u_up_{ds_key}_{step_inst}",
-                                                help="Move this step up",
-                                                disabled=(pidx == 0),
-                                                use_container_width=True,
-                                            ) and pidx > 0:
-                                                np_ = list(u_plan)
-                                                np_[pidx - 1], np_[pidx] = np_[pidx], np_[pidx - 1]
-                                                _commit_unified(np_)
-                                                st.rerun()
-                                        with c_dn:
-                                            if st.button(
-                                                "↓", key=f"u_dn_{ds_key}_{step_inst}",
-                                                help="Move this step down",
-                                                disabled=(pidx >= len(u_plan) - 1),
-                                                use_container_width=True,
-                                            ) and pidx < len(u_plan) - 1:
-                                                np_ = list(u_plan)
-                                                np_[pidx + 1], np_[pidx] = np_[pidx], np_[pidx + 1]
-                                                _commit_unified(np_)
-                                                st.rerun()
-                                        with c_chk:
-                                            new_enabled = st.checkbox(
-                                                "On", value=enabled,
-                                                key=f"u_toggle_{ds_key}_{step_inst}",
-                                                help="Toggle this step on/off (pass through when off)",
-                                                label_visibility="collapsed",
-                                            )
-                                            if new_enabled != enabled:
-                                                np_ = list(u_plan)
-                                                np_[pidx] = {**np_[pidx], "enabled": new_enabled}
-                                                _commit_unified(np_)
-                                                st.rerun()
-                                        with c_rm:
-                                            if st.button(
-                                                "✕", key=f"u_rm_{ds_key}_{step_inst}",
-                                                help="Remove this step from the plan",
-                                                use_container_width=True,
-                                            ):
-                                                np_ = [e for j, e in enumerate(u_plan) if j != pidx]
-                                                _commit_unified(np_)
-                                                st.rerun()
-                                with row_btn:
-                                    if not is_active:
-                                        if st.button("Go to", key=f"goto_step_{i}_{sig}",
-                                                     use_container_width=True):
-                                            sh.go_to(i)
-                                            _persist_step_history()
-                                            st.rerun()
+                                    if st.button(
+                                        "Jump",
+                                        key=f"goto_step_{i}_{sig}",
+                                        help=f"Jump to step {i+1}: {step.name}",
+                                        use_container_width=True,
+                                    ):
+                                        sh.go_to(i)
+                                        _persist_step_history()
+                                        st.rerun()
                                 # Per-substep parameter controls.
                                 # Transforms (Add Column from Examples,
                                 # Merge, Split, Replace, Conditional, Group
@@ -8049,20 +8396,6 @@ def show_dashboard():
                             if not inserted:
                                 merged.extend(new_cleaning_entries)
                             _commit_unified_plan(sh, merged, ds_key)
-
-                        with ctrl_col:
-                            st.markdown(f"**Active:** `{sh.current().name}`")
-                            if sh.has_later_steps():
-                                if st.button("Redo to latest", use_container_width=True,
-                                             key=f"redo_latest_{sig}"):
-                                    sh.redo_latest()
-                                    _persist_step_history()
-                                    st.rerun()
-                                if st.button("Drop later steps", use_container_width=True,
-                                             key=f"drop_later_{sig}"):
-                                    sh.drop_later()
-                                    _persist_step_history()
-                                    st.rerun()
 
                         # ── Insert step affordance ──
                         with st.expander("➕ Insert step", expanded=False):
