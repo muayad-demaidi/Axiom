@@ -1387,6 +1387,79 @@ html { scroll-behavior: smooth; }
     color: inherit !important; font-weight: inherit !important; font-size: inherit !important; margin: 0 !important;
 }
 
+/* === Project-row "•••" overflow trigger ============================
+   Without this, the row's popover button is the default (invisible)
+   Streamlit button and only appears on hover. */
+[data-testid="stColumn"]:has(.proj-row-more-marker) [data-testid="stPopover"] > div > button {
+    background: rgba(148,163,184,0.06) !important;
+    border: 1px solid rgba(148,163,184,0.18) !important;
+    color: #cbd5e1 !important;
+    font-weight: 700 !important; font-size: 1rem !important;
+    letter-spacing: 0.06em !important;
+    padding: 0.35rem 0.6rem !important; height: 38px !important;
+    min-height: 38px !important;
+    border-radius: 10px !important; box-shadow: none !important;
+    transition: background 160ms ease, border-color 160ms ease, color 160ms ease !important;
+}
+[data-testid="stColumn"]:has(.proj-row-more-marker) [data-testid="stPopover"] > div > button:hover {
+    background: rgba(45,212,191,0.10) !important;
+    border-color: rgba(45,212,191,0.40) !important;
+    color: var(--teal) !important;
+}
+[data-testid="stColumn"]:has(.proj-row-more-marker) [data-testid="stPopover"] > div > button p {
+    color: inherit !important; margin: 0 !important; font-size: inherit !important;
+}
+
+/* === Popover-panel content readability ============================
+   Captions, inputs, dividers and separator inside any popover. */
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-testid="stCaptionContainer"],
+[data-baseweb="popover"] [data-testid="stPopoverBody"] .st-emotion-cache-* small,
+[data-baseweb="popover"] [data-testid="stPopoverBody"] p {
+    color: #cbd5e1 !important;
+}
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-testid="stCaption"],
+[data-baseweb="popover"] [data-testid="stPopoverBody"] small {
+    color: #94a3b8 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.7rem !important; letter-spacing: 0.10em !important;
+    text-transform: uppercase !important;
+}
+[data-baseweb="popover"] [data-testid="stPopoverBody"] hr,
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-testid="stMarkdown"] hr {
+    border: none !important;
+    border-top: 1px solid rgba(148,163,184,0.14) !important;
+    margin: 0.65rem 0 !important;
+}
+[data-baseweb="popover"] [data-testid="stPopoverBody"] input[type="text"],
+[data-baseweb="popover"] [data-testid="stPopoverBody"] input[type="password"],
+[data-baseweb="popover"] [data-testid="stPopoverBody"] textarea {
+    background: rgba(7,16,31,0.65) !important;
+    color: #f1f5f9 !important;
+    border: 1px solid rgba(148,163,184,0.20) !important;
+    border-radius: 9px !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.9rem !important;
+    padding: 0.55rem 0.75rem !important;
+    caret-color: var(--teal) !important;
+}
+[data-baseweb="popover"] [data-testid="stPopoverBody"] input[type="text"]::placeholder,
+[data-baseweb="popover"] [data-testid="stPopoverBody"] textarea::placeholder {
+    color: #64748b !important;
+}
+[data-baseweb="popover"] [data-testid="stPopoverBody"] input[type="text"]:focus,
+[data-baseweb="popover"] [data-testid="stPopoverBody"] textarea:focus {
+    border-color: rgba(45,212,191,0.55) !important;
+    box-shadow: 0 0 0 3px rgba(45,212,191,0.12) !important;
+    outline: none !important;
+}
+/* Make destructive "Yes, delete" stand out without screaming */
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-testid="stButton"] > button[kind="primary"] {
+    background: var(--teal) !important;
+    color: #07101f !important;
+    border: 1px solid var(--teal) !important;
+    font-weight: 700 !important;
+}
+
 </style>
 
 """
@@ -6033,6 +6106,7 @@ def show_projects_page():
             '<span class="dn-topbar-eyebrow">Projects</span>'
             '</div>', unsafe_allow_html=True)
     with nav_user_col:
+        st.markdown('<div class="dn-pop-trigger-marker"></div>', unsafe_allow_html=True)
         with st.popover(f"{avatar_letter}   {first_name}   ▾", use_container_width=True):
             tier_label = {"tier1": "Tier 01 · Starter", "tier2": "Tier 02 · Growth",
                           "tier3": "Tier 03 · Full Access"}.get(
@@ -6222,7 +6296,9 @@ sheets, building models, and chatting with the data.</p>
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
         with row_more:
-            st.markdown('<div style="padding-top:1.15rem;">', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="proj-row-more-marker" style="padding-top:1.15rem;">',
+                unsafe_allow_html=True)
             with st.popover("•••", use_container_width=True):
                 st.caption("Manage project")
                 new_label = st.text_input(
