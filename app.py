@@ -6072,6 +6072,186 @@ def _projects_page_css():
     transform: translateY(-1px);
 }
 .proj-newpill-slot [data-testid="stButton"] { display: flex; justify-content: flex-end; }
+
+/* ============================================================
+   REDESIGN — Editorial × Industrial workspace surface
+   ============================================================ */
+
+/* Workspace strip: replaces the giant hero + 3-card stat grid.
+   One band: greeting on left, mono vitals on right. */
+.proj-strip {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 2rem; padding: 0.4rem 0 1.4rem 0;
+    border-bottom: 1px solid rgba(148,163,184,0.08);
+    margin: 0.2rem 0 1.6rem 0;
+}
+.proj-strip-left { min-width: 0; }
+.proj-strip-meta {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.66rem;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--teal); opacity: 0.85; margin-bottom: 0.55rem;
+    display: flex; gap: 0.7rem; align-items: center;
+}
+.proj-strip-meta .dot {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--teal); opacity: 0.55; display: inline-block;
+}
+.proj-strip-meta .muted { color: #64748b; opacity: 1; }
+.proj-strip-greeting {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 1.85rem; line-height: 1.1; color: #e2e8f0;
+    margin: 0; letter-spacing: -0.012em;
+}
+.proj-strip-greeting .accent {
+    background: linear-gradient(120deg, var(--teal) 0%, #94f0e2 60%, #cbd5e1 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.proj-strip-vitals {
+    display: flex; gap: 1.6rem; align-items: baseline;
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.proj-strip-vitals .v {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem;
+}
+.proj-strip-vitals .v .num {
+    color: #e2e8f0; font-size: 1.25rem; font-weight: 500;
+    letter-spacing: -0.01em; line-height: 1;
+}
+.proj-strip-vitals .v .lab {
+    color: #475569; font-size: 0.6rem; letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+.proj-strip-vitals .sep {
+    width: 1px; align-self: stretch;
+    background: rgba(148,163,184,0.12);
+}
+
+/* Toolbar: title+count (left) · search (center) · +New pill (right) */
+.proj-toolbar-wrap {
+    margin: 0 0 0.55rem 0;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid rgba(148,163,184,0.08);
+}
+.proj-toolbar-title {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 1rem; color: #cbd5e1; letter-spacing: 0.02em;
+    display: flex; align-items: baseline; gap: 0.7rem;
+    padding-top: 0.35rem;
+}
+.proj-toolbar-title .count-pill {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.66rem;
+    color: #94a3b8; letter-spacing: 0.10em;
+    background: rgba(148,163,184,0.08);
+    border: 1px solid rgba(148,163,184,0.14);
+    padding: 0.16rem 0.55rem; border-radius: 999px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Search input — scoped via marker so we don't bleed to other inputs */
+.proj-search-marker { display: none; }
+[data-testid="stColumn"]:has(.proj-search-marker) [data-testid="stTextInput"] input {
+    background: rgba(7,16,31,0.55) !important;
+    background-color: rgba(7,16,31,0.55) !important;
+    color: #e2e8f0 !important;
+    -webkit-text-fill-color: #e2e8f0 !important;
+    border: 1px solid rgba(148,163,184,0.14) !important;
+    border-radius: 999px !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.84rem !important;
+    padding: 0.45rem 0.95rem 0.45rem 2.2rem !important;
+    height: 36px !important; min-height: 36px !important;
+    transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease !important;
+}
+[data-testid="stColumn"]:has(.proj-search-marker) [data-testid="stTextInput"] input::placeholder {
+    color: #475569 !important; font-style: normal;
+}
+[data-testid="stColumn"]:has(.proj-search-marker) [data-testid="stTextInput"] input:focus {
+    border-color: rgba(45,212,191,0.45) !important;
+    background-color: rgba(7,16,31,0.85) !important;
+    box-shadow: 0 0 0 3px rgba(45,212,191,0.10) !important;
+    outline: none !important;
+}
+[data-testid="stColumn"]:has(.proj-search-marker) [data-baseweb="input"],
+[data-testid="stColumn"]:has(.proj-search-marker) [data-baseweb="base-input"] {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+}
+/* search "/" key hint pseudo — purely decorative */
+.proj-search-wrap {
+    position: relative;
+}
+.proj-search-wrap::before {
+    content: "⌕"; position: absolute; left: 0.85rem; top: 50%;
+    transform: translateY(-50%); color: #475569; font-size: 0.95rem;
+    pointer-events: none; z-index: 5;
+}
+
+/* Project monogram tile (leading visual ID per row) */
+.proj-row-flex {
+    display: flex; align-items: center; gap: 0.95rem;
+    min-width: 0;
+}
+.proj-row-mono {
+    flex-shrink: 0;
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg,
+        rgba(45,212,191,0.10) 0%, rgba(45,212,191,0.02) 100%);
+    border: 1px solid rgba(45,212,191,0.22);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem; font-weight: 600;
+    color: var(--teal); letter-spacing: 0.04em;
+    text-transform: uppercase;
+    transition: background 220ms ease, border-color 220ms ease, transform 220ms ease;
+}
+.proj-row:hover .proj-row-mono {
+    background: linear-gradient(135deg,
+        rgba(45,212,191,0.18) 0%, rgba(45,212,191,0.06) 100%);
+    border-color: rgba(45,212,191,0.40);
+    transform: scale(1.04);
+}
+.proj-row-text { min-width: 0; flex: 1; }
+
+/* Result-count chip shown above list when searching */
+.proj-search-result {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem; color: #64748b;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    padding: 0.4rem 0 0.3rem 0;
+}
+
+/* Empty-state when search yields nothing */
+.proj-noresults {
+    text-align: center; padding: 2.5rem 1rem;
+    color: #64748b; font-family: 'DM Sans', sans-serif;
+    font-size: 0.92rem;
+    border: 1px dashed rgba(148,163,184,0.10);
+    border-radius: 14px; margin: 0.4rem 0;
+}
+.proj-noresults strong { color: #cbd5e1; font-weight: 600; }
+
+/* Foothint below list — quiet operator tip */
+.proj-foothint {
+    margin-top: 1.6rem;
+    padding: 0.85rem 1.1rem;
+    border-top: 1px solid rgba(148,163,184,0.08);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem; letter-spacing: 0.10em;
+    color: #475569; text-transform: uppercase;
+    display: flex; gap: 1.2rem; flex-wrap: wrap;
+}
+.proj-foothint .key {
+    color: #94a3b8;
+    background: rgba(148,163,184,0.06);
+    border: 1px solid rgba(148,163,184,0.12);
+    padding: 0.05rem 0.4rem; border-radius: 4px;
+    margin-right: 0.4rem;
+}
+
 .proj-empty {
     text-align: center; padding: 4rem 2rem;
     background: var(--surface); border: 1px dashed var(--border);
@@ -6406,31 +6586,33 @@ def show_projects_page():
 
     st.markdown('<div class="proj-shell">', unsafe_allow_html=True)
 
-    # ── Hero header ────────────────────────────────────────────────────
-    st.markdown(f'''
-<div class="proj-eyebrow">Workspace</div>
-<h1 class="proj-h1">Welcome back, <span class="accent">{first_name}</span>.</h1>
-<p class="proj-sub">Each project is a folder for the sheets, models, and chats
-that belong to one analysis. Open one to keep going, or start a fresh one.</p>
-''', unsafe_allow_html=True)
-
-    # ── Quick stats ────────────────────────────────────────────────────
+    # ── Workspace strip: greeting (left) · vitals (right) ─────────────
     total_projects = len(projects)
     total_sheets = sum(p['sheet_count'] for p in projects)
     total_rows = sum(p['total_rows'] for p in projects)
+    today_str = datetime.utcnow().strftime("%b %d, %Y").upper()
+
+    def _fmt_compact(n):
+        if n >= 1_000_000: return f"{n/1_000_000:.1f}M".replace(".0M", "M")
+        if n >= 1_000:     return f"{n/1_000:.1f}K".replace(".0K", "K")
+        return f"{n:,}"
+
     st.markdown(f'''
-<div class="proj-stats">
-  <div class="proj-stat">
-    <div class="proj-stat-num">{total_projects}</div>
-    <div class="proj-stat-label">Projects</div>
+<div class="proj-strip">
+  <div class="proj-strip-left">
+    <div class="proj-strip-meta">
+      <span>Workspace</span>
+      <span class="dot"></span>
+      <span class="muted">{today_str}</span>
+    </div>
+    <h1 class="proj-strip-greeting">Welcome back, <span class="accent">{first_name}</span>.</h1>
   </div>
-  <div class="proj-stat">
-    <div class="proj-stat-num">{total_sheets}</div>
-    <div class="proj-stat-label">Sheets</div>
-  </div>
-  <div class="proj-stat">
-    <div class="proj-stat-num">{total_rows:,}</div>
-    <div class="proj-stat-label">Rows analysed</div>
+  <div class="proj-strip-vitals">
+    <div class="v"><span class="num">{total_projects:02d}</span><span class="lab">Projects</span></div>
+    <div class="sep"></div>
+    <div class="v"><span class="num">{total_sheets:02d}</span><span class="lab">Sheets</span></div>
+    <div class="sep"></div>
+    <div class="v"><span class="num">{_fmt_compact(total_rows)}</span><span class="lab">Rows</span></div>
   </div>
 </div>
 ''', unsafe_allow_html=True)
@@ -6455,29 +6637,67 @@ sheets, building models, and chatting with the data.</p>
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
-    # ── Section heading: title + count + small "+ New project" pill ──
-    sh_title, sh_action = st.columns([5, 1.2], gap="small")
-    with sh_title:
+    # ── Toolbar: title+count · search · "+ New project" pill ─────────
+    st.markdown('<div class="proj-toolbar-wrap">', unsafe_allow_html=True)
+    tb_title, tb_search, tb_action = st.columns(
+        [2.4, 3.2, 1.2], gap="small", vertical_alignment="center")
+    with tb_title:
         st.markdown(f'''
-<div class="proj-section-head" style="border:none;padding-bottom:0;margin-bottom:0;">
-  <div class="proj-section-title">
-    Your projects <span class="count-pill">{total_projects:02d}</span>
-  </div>
+<div class="proj-toolbar-title">
+  Your projects <span class="count-pill">{total_projects:02d}</span>
 </div>
 ''', unsafe_allow_html=True)
-    with sh_action:
+    with tb_search:
+        st.markdown(
+            '<div class="proj-search-marker"></div>'
+            '<div class="proj-search-wrap">', unsafe_allow_html=True)
+        search_q = st.text_input(
+            "Filter projects",
+            key="proj_search_q",
+            placeholder="     Filter by name or description…",
+            label_visibility="collapsed")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with tb_action:
         st.markdown('<div class="proj-newpill-slot">', unsafe_allow_html=True)
         if st.button("+  New project", key="proj_new_pill_btn"):
             _show_new_project_dialog(user_id)
         st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div style="border-bottom:1px solid rgba(148,163,184,0.10);'
-        'margin:0.4rem 0 0.2rem 0;"></div>',
-        unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)  # close .proj-toolbar-wrap
+
+    # ── Filter projects by search query ──────────────────────────────
+    if search_q and search_q.strip():
+        q = search_q.strip().lower()
+        visible = [p for p in projects
+                   if q in (p['name'] or '').lower()
+                   or q in (p['description'] or '').lower()]
+        st.markdown(
+            f'<div class="proj-search-result">'
+            f'{len(visible):02d} of {total_projects:02d} matching “{search_q.strip()}”'
+            f'</div>', unsafe_allow_html=True)
+    else:
+        visible = projects
+
+    if not visible:
+        st.markdown(
+            '<div class="proj-noresults">'
+            'No projects match that search. '
+            '<strong>Try a different name</strong> '
+            'or clear the filter.'
+            '</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)  # close .proj-shell
+        return
+
+    def _monogram(name: str) -> str:
+        parts = [w for w in (name or "").split() if w]
+        if not parts:
+            return "··"
+        if len(parts) == 1:
+            return parts[0][:2].upper()
+        return (parts[0][:1] + parts[1][:1]).upper()
 
     # ── Project list-menu (one row per project) ───────────────────────
     st.markdown('<div class="proj-list">', unsafe_allow_html=True)
-    for p in projects:
+    for p in visible:
         desc = (p["description"] or "").strip()
         desc_html = (f'<div class="proj-row-desc">{desc}</div>'
                      if desc else
@@ -6485,14 +6705,20 @@ sheets, building models, and chatting with the data.</p>
         sheets_n = p['sheet_count']
         rows_n = p['total_rows'] or 0
         rel = _format_relative_time(p['last_opened_at'] or p['created_at'])
+        mono = _monogram(p["name"])
 
         row_main, row_meta, row_open, row_more = st.columns(
             [3.6, 2.6, 0.95, 0.55], gap="small")
         with row_main:
             st.markdown(f'''
 <div class="proj-row">
-  <div class="proj-row-title">{p["name"]}</div>
-  {desc_html}
+  <div class="proj-row-flex">
+    <div class="proj-row-mono">{mono}</div>
+    <div class="proj-row-text">
+      <div class="proj-row-title">{p["name"]}</div>
+      {desc_html}
+    </div>
+  </div>
 </div>
 ''', unsafe_allow_html=True)
         with row_meta:
@@ -6562,6 +6788,15 @@ sheets, building models, and chatting with the data.</p>
                         st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)  # close .proj-list
+
+    # ── Foothint: quiet operator tip ─────────────────────────────────
+    st.markdown('''
+<div class="proj-foothint">
+  <span><span class="key">Open</span> resumes the sheet you last worked on</span>
+  <span><span class="key">Filter</span> searches name &amp; description</span>
+  <span><span class="key">···</span> rename or delete a project</span>
+</div>
+''', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)  # close .proj-shell
 
