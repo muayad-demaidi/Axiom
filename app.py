@@ -2279,11 +2279,9 @@ def _render_phase1_dock(tab_id, limits):
     strip_l, strip_r = st.columns([0.78, 0.22])
     with strip_l:
         st.markdown(
-            "<div style='padding:0.5rem 0.85rem;border:1px solid rgba(45,212,191,0.18);"
-            "border-radius:10px;background:rgba(45,212,191,0.04);color:#cbd5e1;"
-            "font-size:0.88rem;'>"
-            "<span style='color:#2dd4bf;font-family:JetBrains Mono,monospace;"
-            f"font-size:0.72rem;letter-spacing:0.16em;'>AUTO-APPLIED</span> · {summary}"
+            "<div class='dn-dock-strip'>"
+            "<span class='dn-dock-eyebrow'>Auto-applied</span>"
+            f"<span class='dn-dock-summary'>{summary}</span>"
             "</div>",
             unsafe_allow_html=True,
         )
@@ -2302,11 +2300,10 @@ def _render_phase1_dock(tab_id, limits):
         cta = ("confirm in chat below" if limits.get('ai_chat_enabled')
                else "open Review to confirm")
         st.markdown(
-            "<div style='padding:0.5rem 0.85rem;margin-top:0.4rem;"
-            "border-left:3px solid #f59e0b;background:rgba(245,158,11,0.06);"
-            "border-radius:0 6px 6px 0;color:#e2e8f0;font-size:0.85rem;'>"
-            f"<b style='color:#f59e0b;'>DataVision wasn't sure:</b> "
-            f"{d['message']} — {cta}.</div>",
+            "<div class='dn-doubt-note'>"
+            "<span class='dn-doubt-tag'>DataVision wasn't sure</span>"
+            f"<span class='dn-doubt-body'>{_html.escape(str(d.get('message','')))} — {cta}.</span>"
+            "</div>",
             unsafe_allow_html=True,
         )
 
@@ -2910,13 +2907,21 @@ def _render_questions_panel(ds_key: str, sh: StepHistory,
         return
 
     st.markdown(
-        f"**Questions from DataVision** · {len(open_qs)} open"
+        '<div class="dn-questions-head">'
+        '<span class="dn-questions-eyebrow">Questions from DataVision</span>'
+        f'<span class="dn-questions-count">{len(open_qs)} open</span>'
+        '</div>'
+        '<div class="dn-questions-cap">Pick an answer to record the decision as a step. '
+        'Skip to dismiss for this session.</div>',
+        unsafe_allow_html=True,
     )
-    st.caption("Pick an answer to record the decision as a step. "
-               "Skip to dismiss for this session.")
     for q in open_qs:
         with st.container(border=True):
-            st.markdown(f"**{q.prompt}**")
+            st.markdown(
+                '<span class="dn-question-card-marker"></span>'
+                f'<div class="dn-question-prompt">{_html.escape(q.prompt)}</div>',
+                unsafe_allow_html=True,
+            )
             st.caption(q.context)
             cols = st.columns(max(1, len(q.options)))
             for i, opt in enumerate(q.options):
@@ -9647,6 +9652,114 @@ def show_dashboard():
   font-family: "DM Sans", sans-serif; font-size: 0.88rem;
   color: #94a3b8; line-height: 1.5;
 }
+
+/* Missing-values chart card — heading lives in its own markdown block,
+   the chart in the next element-container. We draw a single visual card
+   across both via an adjacent-sibling rule. */
+.dn-clean-chart-head {
+  background: linear-gradient(180deg, rgba(17,31,53,0.55), rgba(12,24,41,0.45));
+  border: 1px solid rgba(148,163,184,0.10);
+  border-bottom: none;
+  border-radius: 14px 14px 0 0;
+  padding: 1.1rem 1.25rem 0.75rem;
+  margin: 0;
+}
+.dn-clean-chart-head .dn-clean-card-title { margin-bottom: 0.15rem; }
+[data-testid="stElementContainer"]:has(> div > [data-testid="stMarkdownContainer"] .dn-clean-chart-head)
+  + [data-testid="stElementContainer"]:has([data-testid="stPlotlyChart"]) {
+  background: linear-gradient(180deg, rgba(17,31,53,0.55), rgba(12,24,41,0.45));
+  border: 1px solid rgba(148,163,184,0.10);
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  padding: 0.2rem 1rem 1rem;
+  margin: 0 0 1.2rem 0;
+}
+
+/* Phase 1 dock strip — auto-applied summary above the cleaning hero.
+   Styled to share chrome with .dn-clean-card so it doesn't read as a
+   separate widget bolted on top. */
+.dn-dock-strip {
+  display: flex; align-items: center; gap: 0.85rem;
+  padding: 0.65rem 1rem;
+  background: linear-gradient(180deg, rgba(17,31,53,0.55), rgba(12,24,41,0.45));
+  border: 1px solid rgba(45,212,191,0.18);
+  border-radius: 12px;
+  color: #cbd5e1;
+  min-height: 38px;
+}
+.dn-dock-eyebrow {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.62rem; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--teal);
+  padding: 0.18rem 0.55rem;
+  background: rgba(45,212,191,0.08);
+  border: 1px solid rgba(45,212,191,0.22);
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.dn-dock-summary {
+  font-family: "DM Sans", sans-serif; font-size: 0.88rem;
+  color: #cbd5e1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Doubt notes shown beneath the dock strip. */
+.dn-doubt-note {
+  display: flex; align-items: baseline; gap: 0.7rem;
+  padding: 0.6rem 0.9rem;
+  margin-top: 0.45rem;
+  background: linear-gradient(180deg, rgba(245,158,11,0.07), rgba(12,24,41,0.45));
+  border: 1px solid rgba(245,158,11,0.20);
+  border-left: 3px solid #f59e0b;
+  border-radius: 0 10px 10px 0;
+  color: #e2e8f0;
+}
+.dn-doubt-tag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase;
+  color: #f59e0b; flex-shrink: 0;
+}
+.dn-doubt-body {
+  font-family: "DM Sans", sans-serif; font-size: 0.86rem;
+  color: #e2e8f0; line-height: 1.5;
+}
+
+/* Proactive question panel — heading + per-question cards. The cards
+   are Streamlit's native bordered containers; we upgrade them via a
+   marker so they share the cleaning tab's visual language. */
+.dn-questions-head {
+  display: flex; align-items: baseline; gap: 0.7rem;
+  margin: 1.1rem 0 0.2rem;
+}
+.dn-questions-eyebrow {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1rem; color: #e2e8f0;
+}
+.dn-questions-count {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--teal);
+  padding: 0.12rem 0.55rem;
+  background: rgba(45,212,191,0.08);
+  border: 1px solid rgba(45,212,191,0.22);
+  border-radius: 999px;
+}
+.dn-questions-cap {
+  font-family: "DM Sans", sans-serif; font-size: 0.82rem;
+  color: #64748b; margin-bottom: 0.6rem;
+}
+.dn-question-card-marker { display: none; }
+[data-testid="stVerticalBlockBorderWrapper"]:has(.dn-question-card-marker) {
+  background: linear-gradient(180deg, rgba(17,31,53,0.55), rgba(12,24,41,0.45)) !important;
+  border: 1px solid rgba(148,163,184,0.12) !important;
+  border-radius: 12px !important;
+  margin-bottom: 0.55rem !important;
+}
+.dn-question-prompt {
+  font-family: "DM Sans", sans-serif; font-weight: 600;
+  font-size: 0.95rem; color: #e2e8f0; line-height: 1.45;
+  margin-bottom: 0.15rem;
+}
 </style>''', unsafe_allow_html=True)
 
             _ai_open = st.session_state.get('ai_panel_open', False)
@@ -10621,11 +10734,14 @@ def show_dashboard():
                         )
 
                         # ── Missing-values chart in a framed card ──
+                        # The chart and its heading are separate Streamlit
+                        # blocks, so we use a marker on the heading and a
+                        # CSS adjacent-sibling rule to draw a single card
+                        # frame across both element-containers.
                         missing_chart = _c_missing_values_chart(view_df, sig)
                         if missing_chart:
                             st.markdown(
-                                '<div class="dn-clean-card" style="padding-bottom:0.4rem;">'
-                                '<div class="dn-clean-card-head">'
+                                '<div class="dn-clean-chart-head">'
                                 '<div class="dn-clean-card-title">Missing values by column</div>'
                                 '<div class="dn-clean-card-cap">'
                                 'Where gaps remain after cleaning — taller bars mean more rows still empty.'
@@ -10633,7 +10749,6 @@ def show_dashboard():
                                 unsafe_allow_html=True,
                             )
                             st.plotly_chart(missing_chart, use_container_width=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
             
                 elif active_tab == _TAB_LABELS[3]:
                     _section_head("Statistical Analysis", "Descriptive statistics, correlations, and outlier signals.", "04 — Statistics")
