@@ -139,7 +139,8 @@ from models import (
     get_all_datasets, get_admin_stats, increment_analysis_count, User,
     update_user_subscription, save_support_message, check_trial_active,
     issue_session_token, get_user_by_session_token, clear_session_token,
-    update_dataset_steps, update_dataset_name, get_dataset_record, set_user_last_dataset,
+    update_dataset_steps, update_dataset_name, dataset_name_exists_in_project,
+    get_dataset_record, set_user_last_dataset,
     get_user_datasets, get_user_by_email,
     create_password_reset_token, get_valid_password_reset_token,
     consume_password_reset_token, purge_expired_password_reset_tokens,
@@ -6827,10 +6828,19 @@ def _render_project_shell(limits=None):
                         key=f"sheet_rename_input_{s.id}",
                         max_chars=255,
                     )
-                    if st.button("Save name",
-                                 key=f"sheet_rename_save_{s.id}",
-                                 use_container_width=True):
-                        proposed = (new_name or "").strip()
+                    pending_dup_key = f"sheet_rename_dup_pending_{s.id}"
+                    save_clicked = st.button(
+                        "Save name",
+                        key=f"sheet_rename_save_{s.id}",
+                        use_container_width=True)
+                    proposed = (new_name or "").strip()
+                    # If the proposed name has changed since the last
+                    # duplicate prompt, drop the pending confirmation so
+                    # the user gets a fresh check.
+                    if (st.session_state.get(pending_dup_key)
+                            and st.session_state.get(pending_dup_key) != proposed):
+                        st.session_state.pop(pending_dup_key, None)
+                    if save_clicked:
                         if not proposed:
                             st.error("Sheet name can't be empty.")
                         elif proposed == current_name:
@@ -6838,17 +6848,36 @@ def _render_project_shell(limits=None):
                         else:
                             db = get_db()
                             try:
-                                rec = update_dataset_name(
-                                    db, s.id, uid, proposed)
+                                is_dup = dataset_name_exists_in_project(
+                                    db, project_id, proposed,
+                                    exclude_dataset_id=s.id, user_id=uid)
+                                already_confirmed = (
+                                    st.session_state.get(pending_dup_key)
+                                    == proposed)
+                                if is_dup and not already_confirmed:
+                                    st.session_state[pending_dup_key] = proposed
+                                    st.warning(
+                                        f"Another sheet in this project is "
+                                        f"already called \"{proposed}\". "
+                                        "Press \"Save name\" again to keep "
+                                        "the duplicate, or pick a different "
+                                        "name.")
+                                else:
+                                    rec = update_dataset_name(
+                                        db, s.id, uid, proposed)
+                                    if rec is None:
+                                        st.error(
+                                            "Couldn't rename that sheet.")
+                                    else:
+                                        st.session_state.pop(
+                                            pending_dup_key, None)
+                                        # The pill label and any DB-driven
+                                        # labels re-fetch on rerun, so no
+                                        # per-sheet session keys need
+                                        # patching here.
+                                        st.rerun()
                             finally:
                                 db.close()
-                            if rec is None:
-                                st.error("Couldn't rename that sheet.")
-                            else:
-                                # The pill label and any DB-driven labels
-                                # re-fetch on rerun, so no per-sheet
-                                # session keys need patching here.
-                                st.rerun()
         with cols[len(sheets) % len(cols)]:
             if st.button("+ Add sheet", key="sheet_add_new",
                          use_container_width=True,

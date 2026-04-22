@@ -312,6 +312,32 @@ def save_dataset_record(db, filename, dataset_name, period_month, period_year,
     return record
 
 
+def dataset_name_exists_in_project(db, project_id, name, exclude_dataset_id=None,
+                                    user_id=None):
+    """Return True if another sheet in ``project_id`` already uses ``name``.
+
+    Comparison is case-insensitive and trims whitespace to match how the
+    rename UI normalises input. ``exclude_dataset_id`` lets callers ignore
+    the sheet currently being renamed. When ``project_id`` is None (a
+    legacy unattached sheet) this always returns False — there is no
+    project scope to collide within.
+    """
+    if project_id is None:
+        return False
+    cleaned = (name or "").strip()
+    if not cleaned:
+        return False
+    from sqlalchemy import func
+    q = (db.query(DatasetRecord)
+           .filter(DatasetRecord.project_id == project_id,
+                   func.lower(DatasetRecord.dataset_name) == cleaned.lower()))
+    if exclude_dataset_id is not None:
+        q = q.filter(DatasetRecord.id != exclude_dataset_id)
+    if user_id is not None:
+        q = q.filter(DatasetRecord.user_id == user_id)
+    return db.query(q.exists()).scalar()
+
+
 def update_dataset_name(db, dataset_id, user_id, name):
     """Rename a dataset (sheet). Returns the record or None.
 
