@@ -6072,10 +6072,160 @@ def _projects_page_css():
 [data-testid="stButton"] > button[kind="primary"].proj-open {
     background: var(--teal); color: #0c1829; border: none; font-weight: 600;
 }
-.proj-create-form {
-    background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: 14px; padding: 1.4rem 1.4rem 0.6rem;
-    margin-bottom: 1.5rem;
+/* === New Project Dialog (st.dialog modal) ============================ */
+/* Backdrop dim */
+[data-testid="stDialog"] > div:first-child,
+div[role="dialog"] > div:first-child {
+    background: rgba(2, 8, 18, 0.72) !important;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+/* Modal panel */
+[data-testid="stDialog"] [role="dialog"],
+div[role="dialog"][aria-modal="true"] {
+    background: linear-gradient(180deg, #0c1829 0%, #07101f 100%) !important;
+    background-color: #0c1829 !important;
+    border: 1px solid rgba(45,212,191,0.28) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.6),
+                0 0 0 1px rgba(45,212,191,0.06),
+                inset 0 1px 0 rgba(255,255,255,0.02) !important;
+    padding: 1.4rem 1.6rem 1.4rem !important;
+    color: #cbd5e1 !important;
+}
+/* Modal title row (Streamlit shows the dialog title at the top) */
+[data-testid="stDialog"] h1,
+[data-testid="stDialog"] h2,
+[data-testid="stDialog"] h3,
+div[role="dialog"] h1,
+div[role="dialog"] h2,
+div[role="dialog"] h3 {
+    font-family: 'Syne', sans-serif !important;
+    font-weight: 800 !important;
+    color: #f1f5f9 !important;
+    font-size: 1.55rem !important;
+    letter-spacing: -0.01em !important;
+    margin: 0 0 0.85rem 0 !important;
+}
+/* Cascade transparent on inner Streamlit containers */
+[data-testid="stDialog"] [data-testid="stVerticalBlock"],
+[data-testid="stDialog"] [data-testid="stHorizontalBlock"],
+[data-testid="stDialog"] [data-testid="stColumn"],
+[data-testid="stDialog"] [data-testid="stForm"],
+[data-testid="stDialog"] [data-testid="stMarkdownContainer"] {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #cbd5e1 !important;
+}
+/* Eyebrow + helper microcopy in our dialog header */
+.proj-dialog-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.66rem; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--teal);
+    margin-bottom: 0.5rem; opacity: 0.9;
+}
+.proj-dialog-sub {
+    color: #94a3b8; font-size: 0.88rem; line-height: 1.55;
+    margin-bottom: 1.25rem;
+}
+.proj-dialog-actions { margin-top: 0.4rem; }
+/* Field labels inside dialog */
+[data-testid="stDialog"] label,
+[data-testid="stDialog"] [data-testid="stWidgetLabel"] p {
+    color: #cbd5e1 !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.82rem !important; font-weight: 600 !important;
+    letter-spacing: 0.01em !important;
+}
+/* Neutralize BaseWeb input wrappers inside dialog */
+[data-testid="stDialog"] [data-baseweb="input"],
+[data-testid="stDialog"] [data-baseweb="base-input"],
+[data-testid="stDialog"] [data-baseweb="textarea"] {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+}
+/* Inputs */
+[data-testid="stDialog"] input[type="text"],
+[data-testid="stDialog"] textarea {
+    background: rgba(7,16,31,0.85) !important;
+    background-color: rgba(7,16,31,0.85) !important;
+    color: #f1f5f9 !important;
+    -webkit-text-fill-color: #f1f5f9 !important;
+    border: 1px solid rgba(148,163,184,0.22) !important;
+    border-radius: 10px !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.95rem !important;
+    padding: 0.7rem 0.85rem !important;
+    caret-color: var(--teal) !important;
+    transition: border-color 160ms ease, box-shadow 160ms ease !important;
+}
+[data-testid="stDialog"] input[type="text"]::placeholder,
+[data-testid="stDialog"] textarea::placeholder {
+    color: #64748b !important;
+}
+[data-testid="stDialog"] input[type="text"]:focus,
+[data-testid="stDialog"] textarea:focus {
+    border-color: rgba(45,212,191,0.55) !important;
+    box-shadow: 0 0 0 3px rgba(45,212,191,0.14) !important;
+    outline: none !important;
+}
+/* Character counter */
+[data-testid="stDialog"] [data-testid="InputInstructions"] {
+    color: #475569 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.68rem !important;
+}
+/* Footer button row */
+[data-testid="stDialog"] [data-testid="stForm"] [data-testid="stHorizontalBlock"] {
+    gap: 0.65rem !important;
+    padding-top: 0.6rem !important;
+    border-top: 1px solid rgba(148,163,184,0.10) !important;
+    margin-top: 0.85rem !important;
+}
+[data-testid="stDialog"] button[kind="primary"],
+[data-testid="stDialog"] button[kind="primaryFormSubmit"] {
+    background: var(--teal) !important;
+    color: #07101f !important;
+    border: 1px solid var(--teal) !important;
+    font-weight: 700 !important;
+    font-family: 'DM Sans', sans-serif !important;
+    border-radius: 10px !important;
+    padding: 0.65rem 1.1rem !important;
+    box-shadow: 0 8px 24px -8px rgba(45,212,191,0.4) !important;
+    transition: transform 140ms ease, box-shadow 140ms ease !important;
+}
+[data-testid="stDialog"] button[kind="primary"]:hover,
+[data-testid="stDialog"] button[kind="primaryFormSubmit"]:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 30px -8px rgba(45,212,191,0.55) !important;
+}
+[data-testid="stDialog"] button[kind="secondary"],
+[data-testid="stDialog"] button[kind="secondaryFormSubmit"] {
+    background: transparent !important;
+    color: #94a3b8 !important;
+    border: 1px solid rgba(148,163,184,0.22) !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 600 !important;
+    border-radius: 10px !important;
+    padding: 0.65rem 1.1rem !important;
+    transition: color 140ms ease, border-color 140ms ease !important;
+}
+[data-testid="stDialog"] button[kind="secondary"]:hover,
+[data-testid="stDialog"] button[kind="secondaryFormSubmit"]:hover {
+    color: #f1f5f9 !important;
+    border-color: rgba(148,163,184,0.40) !important;
+    background: transparent !important;
+}
+/* Streamlit's built-in dialog close (X) — make it visible on dark */
+[data-testid="stDialog"] button[aria-label="Close"],
+div[role="dialog"] button[aria-label="Close"] {
+    color: #94a3b8 !important;
+    background: transparent !important;
+}
+[data-testid="stDialog"] button[aria-label="Close"]:hover,
+div[role="dialog"] button[aria-label="Close"]:hover {
+    color: var(--teal) !important;
 }
 </style>
 """
@@ -6093,6 +6243,55 @@ def _format_relative_time(dt):
     if secs < 86400 * 7: return f"{secs // 86400}d ago"
     if secs < 86400 * 30: return f"{secs // (86400 * 7)}w ago"
     return dt.strftime("%b %-d, %Y") if hasattr(dt, 'strftime') else "a while ago"
+
+
+@st.dialog("New project", width="small")
+def _show_new_project_dialog(user_id: int):
+    """Modal dialog for creating a new project (Data Noir styled)."""
+    st.markdown('''
+<div class="proj-dialog-head">
+  <div class="proj-dialog-eyebrow">Workspace · New</div>
+  <div class="proj-dialog-sub">A project is a folder for the sheets, models,
+  and chats that belong to one analysis.</div>
+</div>
+''', unsafe_allow_html=True)
+
+    with st.form("proj_create_dlg_form", clear_on_submit=False):
+        new_name = st.text_input(
+            "Project name",
+            placeholder="e.g. Q2 Sales Review",
+            max_chars=120, key="proj_dlg_name")
+        new_desc = st.text_area(
+            "Description (optional)",
+            placeholder="What is this project about?",
+            max_chars=500, height=88, key="proj_dlg_desc")
+        st.markdown('<div class="proj-dialog-actions">', unsafe_allow_html=True)
+        f1, f2 = st.columns([1, 1.4])
+        with f1:
+            cancelled = st.form_submit_button("Cancel",
+                                              use_container_width=True)
+        with f2:
+            submitted = st.form_submit_button("Create project",
+                                              use_container_width=True,
+                                              type="primary")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    if cancelled:
+        st.rerun()
+    if submitted:
+        if not (new_name or "").strip():
+            st.error("Please enter a project name.")
+            return
+        _db = get_db()
+        try:
+            proj = create_project(_db, user_id, new_name, new_desc)
+        finally:
+            _db.close()
+        if proj is None:
+            st.error("Could not create project. Please try again.")
+            return
+        _open_project(proj.id, proj.name)
+        st.rerun()
 
 
 def show_projects_page():
@@ -6212,47 +6411,6 @@ that belong to one analysis. Open one to keep going, or start a fresh one.</p>
 </div>
 ''', unsafe_allow_html=True)
 
-    # ── Inline create form (toggled, single primary CTA) ──────────────
-    st.session_state.setdefault('proj_show_create', False)
-    if st.session_state.proj_show_create:
-        st.markdown('<div class="proj-create-form">', unsafe_allow_html=True)
-        st.markdown('<div class="proj-section-title" style="margin-bottom:1rem;">Create a new project</div>',
-                    unsafe_allow_html=True)
-        with st.form("proj_create_form", clear_on_submit=True):
-            new_name = st.text_input("Project name *",
-                                     placeholder="e.g. Q2 Sales Review",
-                                     max_chars=120, key="proj_new_name")
-            new_desc = st.text_area("Description (optional)",
-                                    placeholder="What is this project about?",
-                                    max_chars=500, height=80, key="proj_new_desc")
-            f1, f2 = st.columns([1, 1])
-            with f1:
-                submitted = st.form_submit_button("Create project",
-                                                  use_container_width=True,
-                                                  type="primary")
-            with f2:
-                cancelled = st.form_submit_button("Cancel",
-                                                  use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-        if submitted:
-            if not (new_name or "").strip():
-                st.error("Please enter a project name.")
-            else:
-                _db = get_db()
-                try:
-                    proj = create_project(_db, user_id, new_name, new_desc)
-                finally:
-                    _db.close()
-                if proj is None:
-                    st.error("Could not create project. Please try again.")
-                else:
-                    st.session_state.proj_show_create = False
-                    _open_project(proj.id, proj.name)
-                    st.rerun()
-        elif cancelled:
-            st.session_state.proj_show_create = False
-            st.rerun()
-
     # ── Empty state ────────────────────────────────────────────────────
     if not projects:
         st.markdown('''
@@ -6268,8 +6426,8 @@ sheets, building models, and chatting with the data.</p>
             if st.button("Create your first project",
                          use_container_width=True, type="primary",
                          key="proj_empty_create"):
-                st.session_state.proj_show_create = True
-                st.rerun()
+                _show_new_project_dialog(user_id)
+                return
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
@@ -6286,8 +6444,8 @@ sheets, building models, and chatting with the data.</p>
     with sh_action:
         st.markdown('<div class="proj-newpill-slot">', unsafe_allow_html=True)
         if st.button("+  New project", key="proj_new_pill_btn"):
-            st.session_state.proj_show_create = True
-            st.rerun()
+            _show_new_project_dialog(user_id)
+            return
         st.markdown('</div>', unsafe_allow_html=True)
     st.markdown(
         '<div style="border-bottom:1px solid rgba(148,163,184,0.10);'
