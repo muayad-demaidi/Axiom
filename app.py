@@ -268,6 +268,82 @@ NEON_CSS = """
     }
 }
 
+/* ── Bounded "working space" for each dashboard section ─────────────────────
+   The content column itself becomes the scroll viewport, so each section
+   renders into a fixed-height card whose height roughly matches the
+   viewport. The page never grows taller than the screen — long sections
+   scroll INSIDE this card, not against the page.
+
+   The matching rail column becomes a flex column with the same bounded
+   height: header + chat history (its own internal scroll) + chat input
+   pinned at the bottom of the rail card.
+
+   `--dn-workspace-h` makes the height tunable in one place; the calc
+   subtracts the page chrome (topbar + breadcrumb + outer padding).
+   Marker-class scoping (already used widely) keeps this from leaking
+   into the projects list, login, landing, marketing, or admin pages. */
+:root { --dn-workspace-h: calc(100vh - 220px); }
+@media (max-height: 760px) {
+    :root { --dn-workspace-h: 540px; }
+}
+
+[data-testid="stColumn"]:has(.dn-workspace-marker) {
+    height: var(--dn-workspace-h) !important;
+    max-height: var(--dn-workspace-h) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-right: 0.75rem !important;
+    scrollbar-gutter: stable;
+    scroll-behavior: smooth;
+}
+/* Slim, on-brand scrollbar for the bounded workspace */
+[data-testid="stColumn"]:has(.dn-workspace-marker)::-webkit-scrollbar { width: 8px; }
+[data-testid="stColumn"]:has(.dn-workspace-marker)::-webkit-scrollbar-track { background: transparent; }
+[data-testid="stColumn"]:has(.dn-workspace-marker)::-webkit-scrollbar-thumb {
+    background: rgba(45,212,191,0.18); border-radius: 8px;
+}
+[data-testid="stColumn"]:has(.dn-workspace-marker)::-webkit-scrollbar-thumb:hover {
+    background: rgba(45,212,191,0.32);
+}
+
+/* Rail column matches the working space height. Open state becomes a
+   flex column so the chat input naturally pins to the bottom. Collapsed
+   state stretches the strip so both columns visually align. */
+[data-testid="stColumn"]:has(.dn-ai-rail-marker) {
+    height: var(--dn-workspace-h) !important;
+    max-height: var(--dn-workspace-h) !important;
+}
+[data-testid="stColumn"]:has(.dn-ai-rail-marker.open) {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+[data-testid="stColumn"]:has(.dn-ai-rail-marker.open) > div:first-child {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100% !important;
+}
+/* The rail's chat history grows to fill the leftover vertical space
+   between the header (rail card) and the chat input pinned at the bottom. */
+[data-testid="stColumn"]:has(.dn-ai-rail-marker.open) [data-testid="stVerticalBlockBorderWrapper"]:has(.dn-rail-chatbox-marker) {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+}
+/* Chat input nailed to the bottom of the rail column. */
+[data-testid="stColumn"]:has(.dn-ai-rail-marker.open) [data-testid="stChatInput"] {
+    margin-top: auto !important;
+    flex: 0 0 auto !important;
+}
+/* When the rail is closed, let the slim collapsed strip + button overlay
+   fill the bounded column so it visually aligns with the working space. */
+[data-testid="stColumn"]:has(.dn-ai-rail-marker.closed) {
+    overflow: hidden !important;
+}
+
 .stApp {
     background: radial-gradient(ellipse 120% 80% at 50% -20%, #0d2240 0%, #07101f 55%, #020b18 100%);
 }
@@ -9486,6 +9562,14 @@ def show_dashboard():
                     unsafe_allow_html=True)
 
             with content_col:
+                # Marker turns this column into a bounded scroll viewport
+                # via the CSS rule scoped to .dn-workspace-marker. Each
+                # section's body still renders exactly as before — but the
+                # page itself no longer grows with the content.
+                st.markdown(
+                    '<div class="dn-workspace-marker"></div>',
+                    unsafe_allow_html=True,
+                )
                 if active_tab == _TAB_LABELS[0]:
                     _section_head("Data Overview", "A snapshot of the dataset — size, integrity, and field types.", "01 — Overview")
 
@@ -11987,6 +12071,9 @@ def _render_ai_rail(limits):
 .dn-rail-wrap.collapsed {
   padding: 1.1rem 0.25rem 1.2rem 0.25rem;
   text-align: center;
+  /* Stretch to the bounded rail column so the collapsed strip visually
+     aligns with the working space card on the left. */
+  height: 100%;
   min-height: 280px;
   display: flex; flex-direction: column;
   align-items: center; justify-content: space-between;
@@ -12177,8 +12264,15 @@ def _render_ai_rail(limits):
             st.rerun()
         return
 
-    chat_box = st.container(height=420)
+    chat_box = st.container(height=520)
     with chat_box:
+        # Marker lets the bounded-rail CSS stretch this internal scroll
+        # viewport to fill the leftover vertical space between the rail
+        # header and the chat input pinned at the column's bottom edge.
+        st.markdown(
+            '<div class="dn-rail-chatbox-marker"></div>',
+            unsafe_allow_html=True,
+        )
         if not st.session_state.chat_messages:
             st.markdown(
                 '<div class="dn-rail-empty">'
