@@ -1,4 +1,5 @@
 import os
+import html as _html
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -3412,6 +3413,81 @@ def _section_head(title, subtitle=None, eyebrow="Section"):
         f'<h2 class="dn-section-title">{title}</h2>{sub_html}'
         f'</div>',
         unsafe_allow_html=True,
+    )
+
+
+_CLEAN_CATEGORIES = [
+    ("missing",     "Missing values"),
+    ("duplicates",  "Duplicates"),
+    ("outliers",    "Outliers"),
+    ("formatting",  "Formatting"),
+    ("schema",      "Type & schema fixes"),
+    ("other",       "Other adjustments"),
+]
+
+
+def _categorize_cleaning_changes(changes):
+    """Bucket free-text cleaning report lines into display categories
+    so the Cleaning tab can render them as collapsible groups instead
+    of a flat green-box stack. Categorisation is heuristic on the
+    summary string — the underlying pipeline is untouched."""
+    buckets = {k: [] for k, _ in _CLEAN_CATEGORIES}
+    for raw in changes or []:
+        line = (raw or "").strip()
+        if not line:
+            continue
+        low = line.lower()
+        if "duplicate" in low:
+            key = "duplicates"
+        elif "outlier" in low or low.startswith("clipped") or low.startswith("detected "):
+            key = "outliers"
+        elif ("missing" in low or low.startswith("filled ")
+              or low.startswith("skipped ")):
+            key = "missing"
+        elif "whitespace" in low or low.startswith("trimmed"):
+            key = "formatting"
+        elif (low.startswith("dropped column") or low.startswith("renamed")
+              or "retyped" in low or "→" in line):
+            key = "schema"
+        else:
+            key = "other"
+        buckets[key].append(line)
+    return buckets
+
+
+def _columns_in_changes(changes):
+    """Best-effort count of distinct column names referenced in change
+    lines (anything wrapped in backticks). Used by the impact strip."""
+    import re
+    seen = set()
+    for line in changes or []:
+        for m in re.findall(r"`([^`]+)`", line or ""):
+            seen.add(m)
+    return seen
+
+
+def _render_quality_ring(score, cap_label="Quality", size=132):
+    """Render an SVG progress ring for a 0-100 score, in the dashboard
+    teal palette. Falls back to warn/bad styling at <80 / <60."""
+    try:
+        s = max(0.0, min(100.0, float(score)))
+    except Exception:
+        s = 0.0
+    cls = "" if s >= 80 else ("warn" if s >= 60 else "bad")
+    r = 56
+    circ = 2 * 3.14159265 * r
+    offset = circ * (1 - s / 100.0)
+    return (
+        f'<div class="dn-quality-ring" style="width:{size}px;height:{size}px;">'
+        f'<svg viewBox="0 0 132 132">'
+        f'<circle class="ring-track" cx="66" cy="66" r="{r}"/>'
+        f'<circle class="ring-fill {cls}" cx="66" cy="66" r="{r}" '
+        f'stroke-dasharray="{circ:.2f}" stroke-dashoffset="{offset:.2f}"/>'
+        f'</svg>'
+        f'<div class="ring-center">'
+        f'<div class="ring-num">{s:.0f}<span class="pct">%</span></div>'
+        f'<div class="ring-cap">{cap_label}</div>'
+        f'</div></div>'
     )
 
 
@@ -8616,6 +8692,236 @@ def show_dashboard():
   margin: 0.5rem 0 0 0; padding: 0 0 0 1.1rem;
   color: #94a3b8; font-size: 0.86rem; line-height: 1.55;
 }
+/* ============================================================
+   CLEANING TAB — hero, impact strip, grouped changes,
+   quality block, framed chart card, empty state.
+   All scoped to .dn-clean-* so they don't leak elsewhere.
+   ============================================================ */
+.dn-clean-hero {
+  display: grid; grid-template-columns: minmax(0,1fr) auto;
+  gap: 1.6rem; align-items: center;
+  padding: 1.4rem 1.6rem;
+  background: linear-gradient(135deg, rgba(13,148,136,0.08), rgba(12,24,41,0.55) 60%);
+  border: 1px solid rgba(45,212,191,0.18);
+  border-radius: 16px; margin: 0.6rem 0 1.2rem 0;
+  position: relative; overflow: hidden;
+}
+.dn-clean-hero::before {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(circle at 88% 18%, rgba(45,212,191,0.10), transparent 55%);
+  pointer-events: none;
+}
+.dn-clean-hero-body { position: relative; min-width: 0; }
+.dn-clean-hero-eyebrow {
+  font-family: "JetBrains Mono", monospace; font-size: 0.62rem;
+  letter-spacing: 0.24em; text-transform: uppercase;
+  color: var(--teal); opacity: 0.85; margin-bottom: 0.45rem;
+}
+.dn-clean-hero-title {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1.4rem; color: #e2e8f0; line-height: 1.2;
+  margin: 0 0 0.6rem 0; word-break: break-word;
+}
+.dn-clean-hero-sentence {
+  font-family: "DM Sans", sans-serif; font-size: 0.96rem;
+  color: #cbd5e1; line-height: 1.55; max-width: 56ch;
+}
+.dn-clean-hero-sentence b { color: #e2e8f0; font-weight: 600; }
+.dn-quality-ring { position: relative; width: 132px; height: 132px; flex-shrink: 0; }
+.dn-quality-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.dn-quality-ring .ring-track { fill: none; stroke: rgba(148,163,184,0.14); stroke-width: 10; }
+.dn-quality-ring .ring-fill {
+  fill: none; stroke: var(--teal); stroke-width: 10;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px rgba(45,212,191,0.35));
+  transition: stroke-dashoffset 0.6s ease;
+}
+.dn-quality-ring .ring-fill.warn { stroke: #f59e0b; filter: drop-shadow(0 0 6px rgba(245,158,11,0.35)); }
+.dn-quality-ring .ring-fill.bad  { stroke: #fb7185; filter: drop-shadow(0 0 6px rgba(251,113,133,0.35)); }
+.dn-quality-ring .ring-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 0.1rem;
+}
+.dn-quality-ring .ring-num {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1.85rem; color: #e2e8f0; line-height: 1;
+}
+.dn-quality-ring .ring-num .pct {
+  font-family: "JetBrains Mono", monospace; font-size: 0.7rem;
+  color: #64748b; margin-left: 0.18rem; font-weight: 500;
+}
+.dn-quality-ring .ring-cap {
+  font-family: "JetBrains Mono", monospace; font-size: 0.58rem;
+  letter-spacing: 0.22em; text-transform: uppercase; color: #64748b;
+}
+@media (max-width: 720px) {
+  .dn-clean-hero { grid-template-columns: 1fr; }
+  .dn-quality-ring { margin: 0 auto; }
+}
+
+/* Before / after impact card */
+.dn-clean-impact {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  background: linear-gradient(180deg, rgba(17,31,53,0.55), rgba(12,24,41,0.45));
+  border: 1px solid rgba(148,163,184,0.10);
+  border-radius: 14px; overflow: hidden;
+  margin: 0 0 1.4rem 0;
+}
+.dn-clean-impact-cell {
+  padding: 1rem 1.15rem;
+  border-right: 1px solid rgba(148,163,184,0.08);
+  display: flex; flex-direction: column; gap: 0.4rem;
+  min-width: 0;
+}
+.dn-clean-impact-cell:last-child { border-right: none; }
+.dn-clean-impact-label {
+  font-family: "JetBrains Mono", monospace; font-size: 0.6rem;
+  letter-spacing: 0.22em; text-transform: uppercase; color: #64748b;
+}
+.dn-clean-impact-value {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1.4rem; color: #e2e8f0; line-height: 1;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.dn-clean-impact-aux {
+  font-family: "DM Sans", sans-serif; font-size: 0.74rem;
+  color: #94a3b8;
+}
+.dn-clean-impact-aux.up   { color: #2dd4bf; }
+.dn-clean-impact-aux.down { color: #fb7185; }
+.dn-clean-impact-aux.flat { color: #64748b; }
+@media (max-width: 820px) {
+  .dn-clean-impact { grid-template-columns: repeat(2, 1fr); }
+  .dn-clean-impact-cell { border-bottom: 1px solid rgba(148,163,184,0.07); }
+  .dn-clean-impact-cell:nth-child(2n) { border-right: none; }
+  .dn-clean-impact-cell:nth-last-child(-n+2) { border-bottom: none; }
+}
+
+/* Generic framed card used for the quality block, missing-values
+   chart, and grouped changes wrapper. */
+.dn-clean-card {
+  background: linear-gradient(180deg, rgba(17,31,53,0.55), rgba(12,24,41,0.45));
+  border: 1px solid rgba(148,163,184,0.10);
+  border-radius: 14px; padding: 1.15rem 1.25rem;
+  margin: 0 0 1.2rem 0;
+}
+.dn-clean-card-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 1rem; margin-bottom: 0.85rem; flex-wrap: wrap;
+}
+.dn-clean-card-title {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1.02rem; color: #e2e8f0; letter-spacing: -0.005em;
+}
+.dn-clean-card-cap {
+  font-family: "DM Sans", sans-serif; font-size: 0.8rem;
+  color: #64748b;
+}
+
+/* Quality detail layout — ring on the left, two progress bars right */
+.dn-quality-grid {
+  display: grid; grid-template-columns: auto 1fr;
+  gap: 1.6rem; align-items: center;
+}
+@media (max-width: 720px) {
+  .dn-quality-grid { grid-template-columns: 1fr; }
+  .dn-quality-grid .dn-quality-ring { margin: 0 auto; }
+}
+.dn-quality-bars { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.dn-bar-row { display: flex; flex-direction: column; gap: 0.35rem; }
+.dn-bar-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 0.5rem;
+}
+.dn-bar-label {
+  font-family: "JetBrains Mono", monospace; font-size: 0.62rem;
+  letter-spacing: 0.2em; text-transform: uppercase; color: #94a3b8;
+}
+.dn-bar-value {
+  font-family: "Syne", sans-serif; font-weight: 600;
+  font-size: 1.05rem; color: #e2e8f0;
+  font-variant-numeric: tabular-nums;
+}
+.dn-bar-track {
+  height: 6px; border-radius: 999px;
+  background: rgba(148,163,184,0.12); overflow: hidden;
+}
+.dn-bar-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--teal-mid), var(--teal));
+  box-shadow: 0 0 6px rgba(45,212,191,0.30);
+  transition: width 0.5s ease;
+}
+.dn-bar-fill.warn { background: linear-gradient(90deg, #d97706, #f59e0b); box-shadow: 0 0 6px rgba(245,158,11,0.30); }
+.dn-bar-fill.bad  { background: linear-gradient(90deg, #b91c1c, #fb7185); box-shadow: 0 0 6px rgba(251,113,133,0.30); }
+
+/* Grouped Changes Applied — header strip + list per category */
+.dn-change-group-marker { display: none; }
+/* Style the streamlit expander used inside the grouped changes section
+   so each category reads as a compact card, not a generic expander. */
+[data-testid="stExpander"]:has(.dn-change-group-marker) {
+  background: rgba(12,24,41,0.45);
+  border: 1px solid rgba(148,163,184,0.10) !important;
+  border-radius: 12px !important;
+  margin-bottom: 0.55rem !important;
+  overflow: hidden;
+}
+[data-testid="stExpander"]:has(.dn-change-group-marker) summary {
+  padding: 0.7rem 0.95rem !important;
+  font-family: "DM Sans", sans-serif !important;
+  color: #e2e8f0 !important;
+}
+[data-testid="stExpander"]:has(.dn-change-group-marker) summary p {
+  font-size: 0.92rem !important; font-weight: 600 !important;
+  color: #e2e8f0 !important;
+}
+.dn-change-line {
+  display: flex; gap: 0.6rem; align-items: flex-start;
+  padding: 0.45rem 0.2rem;
+  border-bottom: 1px dashed rgba(148,163,184,0.08);
+  font-family: "DM Sans", sans-serif; font-size: 0.86rem;
+  color: #cbd5e1; line-height: 1.45;
+}
+.dn-change-line:last-child { border-bottom: none; }
+.dn-change-line::before {
+  content: ""; flex-shrink: 0; margin-top: 0.55rem;
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--teal); opacity: 0.75;
+}
+.dn-change-line code,
+.dn-change-line .col {
+  font-family: "JetBrains Mono", monospace; font-size: 0.78rem;
+  color: #2dd4bf; background: rgba(45,212,191,0.06);
+  padding: 0.05rem 0.35rem; border-radius: 4px;
+}
+
+/* Friendly empty / "already clean" state */
+.dn-clean-empty {
+  display: flex; gap: 1.1rem; align-items: center;
+  padding: 1.4rem 1.5rem; margin: 0 0 1.2rem 0;
+  background: linear-gradient(135deg, rgba(45,212,191,0.06), rgba(12,24,41,0.45));
+  border: 1px solid rgba(45,212,191,0.18);
+  border-radius: 14px;
+}
+.dn-clean-empty-icon {
+  flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(45,212,191,0.12); color: var(--teal);
+  font-size: 1.4rem; font-weight: 700;
+  border: 1px solid rgba(45,212,191,0.30);
+}
+.dn-clean-empty-body { min-width: 0; }
+.dn-clean-empty-title {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1.05rem; color: #e2e8f0; margin-bottom: 0.25rem;
+}
+.dn-clean-empty-sub {
+  font-family: "DM Sans", sans-serif; font-size: 0.88rem;
+  color: #94a3b8; line-height: 1.5;
+}
 </style>''', unsafe_allow_html=True)
 
             _ai_open = st.session_state.get('ai_panel_open', False)
@@ -9373,35 +9679,227 @@ def show_dashboard():
                                             view_df, location="cleaning")
                     if st.session_state.cleaning_report:
                         report = st.session_state.cleaning_report
-
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("Original Rows", f"{report['original_rows']:,}")
-                        with col2:
-                            st.metric("Cleaned Rows", f"{report['final_rows']:,}")
-                        with col3:
-                            st.metric("Rows Removed", report['rows_removed'])
-
-                        if report['changes']:
-                            st.subheader("Changes Applied")
-                            for change in report['changes']:
-                                st.markdown(f'<div class="success-box">{change}</div>', unsafe_allow_html=True)
-                        else:
-                            st.success("Data is clean! No modifications needed.")
-
-                        st.subheader("Data Quality Score")
                         quality = _c_quality_score(view_df, sig)
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("Completeness", f"{quality['completeness']}%")
-                        with col2:
-                            st.metric("Uniqueness", f"{quality['uniqueness']}%")
-                        with col3:
-                            st.metric("Overall Score", f"{quality['overall_score']}%")
+                        changes = report.get('changes') or []
+                        buckets = _categorize_cleaning_changes(changes)
+                        cols_touched = _columns_in_changes(changes)
 
+                        # ── Hero: dataset name + quality ring + sentence ──
+                        n_dupes = sum(1 for c in changes if 'duplicate' in c.lower())
+                        n_dupe_rows = max(0, int(report.get('rows_removed', 0)))
+                        n_filled = sum(1 for c in buckets['missing']
+                                       if c.lower().startswith('filled'))
+                        n_outliers = sum(1 for c in buckets['outliers']
+                                         if 'clipped' in c.lower())
+                        sentence_parts = []
+                        if n_dupe_rows:
+                            sentence_parts.append(
+                                f"removed <b>{n_dupe_rows:,}</b> duplicate "
+                                f"row{'s' if n_dupe_rows != 1 else ''}")
+                        elif n_dupes:
+                            sentence_parts.append("flagged duplicates")
+                        if n_filled:
+                            sentence_parts.append(
+                                f"filled <b>{n_filled}</b> missing-value "
+                                f"column{'s' if n_filled != 1 else ''}")
+                        if n_outliers:
+                            sentence_parts.append(
+                                f"clipped outliers in <b>{n_outliers}</b> "
+                                f"column{'s' if n_outliers != 1 else ''}")
+                        if buckets['formatting']:
+                            sentence_parts.append(
+                                f"tidied formatting in "
+                                f"<b>{len(buckets['formatting'])}</b> "
+                                f"column{'s' if len(buckets['formatting']) != 1 else ''}")
+                        if not sentence_parts:
+                            sentence_html = ("Your data was already in good "
+                                             "shape — no cleaning steps were "
+                                             "needed on this run.")
+                        else:
+                            if len(sentence_parts) == 1:
+                                joined = sentence_parts[0]
+                            else:
+                                joined = (", ".join(sentence_parts[:-1])
+                                          + " and " + sentence_parts[-1])
+                            scope = (f" across <b>{len(cols_touched)}</b> "
+                                     f"column{'s' if len(cols_touched) != 1 else ''}"
+                                     if cols_touched else "")
+                            sentence_html = (f"DataVision {joined}{scope}.")
+
+                        ds_name_for_hero = _html.escape(
+                            _active_ds_name
+                            if isinstance(_active_ds_name, str) and _active_ds_name
+                            else "Current dataset"
+                        )
+                        st.markdown(
+                            '<div class="dn-clean-hero">'
+                            '<div class="dn-clean-hero-body">'
+                            '<div class="dn-clean-hero-eyebrow">Cleaning summary</div>'
+                            f'<div class="dn-clean-hero-title">{ds_name_for_hero}</div>'
+                            f'<div class="dn-clean-hero-sentence">{sentence_html}</div>'
+                            '</div>'
+                            + _render_quality_ring(
+                                quality.get('overall_score', 0), "Quality")
+                            + '</div>',
+                            unsafe_allow_html=True,
+                        )
+
+                        # ── Before/after impact strip ──
+                        orig_rows = int(report.get('original_rows', 0))
+                        final_rows = int(report.get('final_rows', 0))
+                        delta = final_rows - orig_rows
+                        pct_cleaner = ((-delta / orig_rows) * 100) if orig_rows else 0
+                        if delta < 0:
+                            delta_cls, delta_txt = "down", f"{delta:,} rows"
+                            delta_aux = f"{pct_cleaner:.1f}% cleaner"
+                        elif delta > 0:
+                            delta_cls, delta_txt = "up", f"+{delta:,} rows"
+                            delta_aux = "rows added"
+                        else:
+                            delta_cls, delta_txt = "flat", "no row change"
+                            delta_aux = "no rows removed"
+                        if orig_rows:
+                            pct_kept = (final_rows / orig_rows) * 100
+                            kept_aux = f"{pct_kept:.1f}% of original kept"
+                        else:
+                            kept_aux = "—"
+                        cols_count = len(cols_touched)
+                        cols_total = report.get('original_columns', 0) or len(view_df.columns)
+                        cols_aux = (f"of {cols_total} total"
+                                    if cols_total else "")
+                        st.markdown(
+                            '<div class="dn-clean-impact">'
+                            '<div class="dn-clean-impact-cell">'
+                            '<div class="dn-clean-impact-label">Original rows</div>'
+                            f'<div class="dn-clean-impact-value">{orig_rows:,}</div>'
+                            '<div class="dn-clean-impact-aux">before cleaning</div>'
+                            '</div>'
+                            '<div class="dn-clean-impact-cell">'
+                            '<div class="dn-clean-impact-label">Cleaned rows</div>'
+                            f'<div class="dn-clean-impact-value">{final_rows:,}</div>'
+                            f'<div class="dn-clean-impact-aux">{kept_aux}</div>'
+                            '</div>'
+                            '<div class="dn-clean-impact-cell">'
+                            '<div class="dn-clean-impact-label">Row delta</div>'
+                            f'<div class="dn-clean-impact-value">{delta_txt}</div>'
+                            f'<div class="dn-clean-impact-aux {delta_cls}">{delta_aux}</div>'
+                            '</div>'
+                            '<div class="dn-clean-impact-cell">'
+                            '<div class="dn-clean-impact-label">Columns affected</div>'
+                            f'<div class="dn-clean-impact-value">{cols_count}</div>'
+                            f'<div class="dn-clean-impact-aux">{cols_aux}</div>'
+                            '</div>'
+                            '</div>',
+                            unsafe_allow_html=True,
+                        )
+
+                        # ── Grouped Changes Applied ──
+                        non_empty = [(k, label) for k, label in _CLEAN_CATEGORIES
+                                     if buckets[k]]
+                        if non_empty:
+                            total = sum(len(buckets[k]) for k, _ in non_empty)
+                            st.markdown(
+                                '<div class="dn-clean-card-head" '
+                                'style="margin-top:0.4rem;">'
+                                '<div class="dn-clean-card-title">Changes Applied</div>'
+                                f'<div class="dn-clean-card-cap">'
+                                f'{total} change{"s" if total != 1 else ""} '
+                                f'across {len(non_empty)} '
+                                f'categor{"ies" if len(non_empty) != 1 else "y"}'
+                                '</div></div>',
+                                unsafe_allow_html=True,
+                            )
+                            for k, label in non_empty:
+                                items = buckets[k]
+                                exp_label = f"{label}  ·  {len(items)}"
+                                with st.expander(exp_label, expanded=(k == "missing")):
+                                    st.markdown(
+                                        '<span class="dn-change-group-marker"></span>',
+                                        unsafe_allow_html=True,
+                                    )
+                                    import re as _re
+                                    parts = []
+                                    for line in items:
+                                        esc = _html.escape(line)
+                                        safe = _re.sub(
+                                            r"`([^`]+)`",
+                                            r'<span class="col">\1</span>',
+                                            esc,
+                                        )
+                                        parts.append(
+                                            f'<div class="dn-change-line">'
+                                            f'<span>{safe}</span></div>'
+                                        )
+                                    st.markdown("".join(parts),
+                                                unsafe_allow_html=True)
+                        else:
+                            st.markdown(
+                                '<div class="dn-clean-empty">'
+                                '<div class="dn-clean-empty-icon">✓</div>'
+                                '<div class="dn-clean-empty-body">'
+                                '<div class="dn-clean-empty-title">'
+                                'Already in great shape</div>'
+                                '<div class="dn-clean-empty-sub">'
+                                'No duplicates, missing values, or outliers '
+                                'needed attention. Your dataset moved through '
+                                'the cleaning pipeline untouched.</div>'
+                                '</div></div>',
+                                unsafe_allow_html=True,
+                            )
+
+                        # ── Data Quality detail card ──
+                        completeness = float(quality.get('completeness', 0) or 0)
+                        uniqueness = float(quality.get('uniqueness', 0) or 0)
+                        comp_cls = "" if completeness >= 80 else ("warn" if completeness >= 60 else "bad")
+                        uniq_cls = "" if uniqueness >= 80 else ("warn" if uniqueness >= 60 else "bad")
+                        ring_html = _render_quality_ring(
+                            quality.get('overall_score', 0), "Overall")
+                        st.markdown(
+                            '<div class="dn-clean-card">'
+                            '<div class="dn-clean-card-head">'
+                            '<div class="dn-clean-card-title">Data quality</div>'
+                            '<div class="dn-clean-card-cap">'
+                            'Completeness weighs missing cells; uniqueness weighs duplicate rows.'
+                            '</div></div>'
+                            '<div class="dn-quality-grid">'
+                            + ring_html +
+                            '<div class="dn-quality-bars">'
+                            '<div class="dn-bar-row">'
+                            '<div class="dn-bar-head">'
+                            '<span class="dn-bar-label">Completeness</span>'
+                            f'<span class="dn-bar-value">{completeness:.1f}%</span>'
+                            '</div>'
+                            '<div class="dn-bar-track">'
+                            f'<div class="dn-bar-fill {comp_cls}" '
+                            f'style="width:{max(0, min(100, completeness)):.1f}%;"></div>'
+                            '</div></div>'
+                            '<div class="dn-bar-row">'
+                            '<div class="dn-bar-head">'
+                            '<span class="dn-bar-label">Uniqueness</span>'
+                            f'<span class="dn-bar-value">{uniqueness:.1f}%</span>'
+                            '</div>'
+                            '<div class="dn-bar-track">'
+                            f'<div class="dn-bar-fill {uniq_cls}" '
+                            f'style="width:{max(0, min(100, uniqueness)):.1f}%;"></div>'
+                            '</div></div>'
+                            '</div></div></div>',
+                            unsafe_allow_html=True,
+                        )
+
+                        # ── Missing-values chart in a framed card ──
                         missing_chart = _c_missing_values_chart(view_df, sig)
                         if missing_chart:
+                            st.markdown(
+                                '<div class="dn-clean-card" style="padding-bottom:0.4rem;">'
+                                '<div class="dn-clean-card-head">'
+                                '<div class="dn-clean-card-title">Missing values by column</div>'
+                                '<div class="dn-clean-card-cap">'
+                                'Where gaps remain after cleaning — taller bars mean more rows still empty.'
+                                '</div></div>',
+                                unsafe_allow_html=True,
+                            )
                             st.plotly_chart(missing_chart, use_container_width=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
             
                 elif active_tab == _TAB_LABELS[3]:
                     _section_head("Statistical Analysis", "Descriptive statistics, correlations, and outlier signals.", "04 — Statistics")
