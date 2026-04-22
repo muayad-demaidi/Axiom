@@ -5899,15 +5899,39 @@ def _clear_workspace_state():
 
 
 def _open_project(project_id, project_name):
-    """Set the active project and route into the dashboard."""
+    """Set the active project and route into the dashboard.
+
+    If the project already contains sheets, auto-resume the most recently
+    worked-on one (preferring the user's globally-tracked last dataset
+    when it belongs to this project, otherwise the most recently uploaded
+    sheet in the project). New / empty projects keep the upload-prompt
+    behavior — the dashboard sees `current_dataset_id is None` and asks
+    the user to upload their first sheet.
+    """
     _clear_workspace_state()
     st.session_state.current_project_id = project_id
     st.session_state.current_project_name = project_name
+
+    uid = st.session_state.user.get('id')
+    target_ds_id = None
     db = get_db()
     try:
-        touch_project(db, project_id, st.session_state.user.get('id'))
+        touch_project(db, project_id, uid)
+        sheets = get_user_datasets(db, uid, project_id=project_id)
+        if sheets:
+            user_obj = get_user_by_id(db, uid)
+            last_id = getattr(user_obj, 'last_dataset_id', None) if user_obj else None
+            sheet_ids = {s.id for s in sheets}
+            target_ds_id = last_id if last_id in sheet_ids else sheets[0].id
     finally:
         db.close()
+
+    if target_ds_id:
+        # Hydrate full session state (df, df_cleaned, step history,
+        # current_dataset_id) from the persisted recipe so the dashboard
+        # opens straight onto the sheet's last view.
+        _hydrate_dataset_from_db(target_ds_id)
+
     st.session_state.page = 'dashboard'
 
 
