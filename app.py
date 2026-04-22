@@ -7560,11 +7560,15 @@ def _show_sheets_dialog(project_id: int, project_name: str):
                     unsafe_allow_html=True)
                 if st.button("Open  →", key=f"sh_dlg_open_{s.id}",
                              use_container_width=True):
-                    if _enter_dashboard_with_sheet(
-                            project_id, project_name, s.id):
-                        st.rerun()
-                    else:
-                        st.error("Couldn't open that sheet — its saved recipe is missing.")
+                    # Two-stage close: stash the action and rerun. The
+                    # rerun closes the dialog cleanly (no ghost overlay
+                    # left behind by Streamlit). The Projects page then
+                    # picks up `_pending_dashboard_open` and routes into
+                    # the dashboard on the next render.
+                    st.session_state['_pending_dashboard_open'] = (
+                        project_id, project_name, s.id)
+                    st.session_state.pop('_pending_sheet_dialog', None)
+                    st.rerun()
     else:
         st.markdown('''
 <div class="sh-empty">
@@ -8167,6 +8171,19 @@ def show_projects_page():
     user = st.session_state.user
     user_id = user.get('id')
 
+    # Two-stage navigation pickup: when the user clicked "Open" on a
+    # sheet inside the modal, the dialog button rerun-closed the modal
+    # and stashed `_pending_dashboard_open`. Here on the *next* render
+    # (with no dialog left on the DOM) we actually navigate. This
+    # avoids the ghost-overlay glitch where Streamlit briefly draws a
+    # faded copy of the dialog on top of the dashboard.
+    pending_open = st.session_state.pop('_pending_dashboard_open', None)
+    if pending_open:
+        if _enter_dashboard_with_sheet(*pending_open):
+            st.rerun()
+        else:
+            st.error("Couldn't open that sheet — its saved recipe is missing.")
+
     # Trigger sheet-picker dialog if the user just clicked "Open" on a
     # project. Setting `_pending_sheet_dialog` from the row button + a
     # rerun lands us here, where we open the modal exactly once per click.
@@ -8545,15 +8562,19 @@ def show_dashboard():
 
     # Back-to-projects via query param — bypasses Streamlit's button cascade
     # entirely so the pill can be a pure-HTML anchor inside the breadcrumb.
+    # IMPORTANT: only delete the `nav` key; clearing all query params
+    # would wipe the session token and sign the user out on the next
+    # browser refresh.
     try:
         if st.query_params.get('nav') == 'back_to_projects':
             try:
-                st.query_params.clear()
+                del st.query_params['nav']
             except Exception:
                 pass
             _clear_workspace_state()
             st.session_state.current_project_id = None
             st.session_state.current_project_name = None
+            st.session_state.pop('_project_validated_id', None)
             st.session_state.page = 'projects'
             st.rerun()
             return
