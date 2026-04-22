@@ -10523,73 +10523,168 @@ def show_dashboard():
                     categorical_cols = df_viz.select_dtypes(include=['object']).columns.tolist()
 
                     _ds_id = _active_step_signature()
-                    st.subheader("Distribution Overview")
                     dist_overview = _c_distribution_overview(df_viz, _ds_id)
-                    if dist_overview:
-                        st.plotly_chart(dist_overview, use_container_width=True)
-                
                     corr_heatmap = _c_correlation_heatmap(df_viz, _ds_id)
+
+                    n_numeric_v = len(numeric_cols)
+                    n_cat_v = len(categorical_cols)
+                    n_charts_v = (1 if dist_overview else 0) + (1 if corr_heatmap else 0) + 1
+
+                    def _viz_kpi_tile(label, value_html, accent="#14b8a6"):
+                        return (
+                            "<div style='background:rgba(15,23,42,0.7);"
+                            "border:1px solid rgba(20,184,166,0.15);border-radius:16px;"
+                            "padding:1.05rem 1.2rem;box-shadow:0 4px 24px rgba(0,0,0,0.3);"
+                            "backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);'>"
+                            "<div style='color:#94a3b8;font-size:0.7rem;letter-spacing:0.16em;"
+                            "text-transform:uppercase;font-family:JetBrains Mono,monospace;'>"
+                            f"{label}</div>"
+                            "<div style='font-size:1.9rem;font-weight:700;"
+                            "font-family:JetBrains Mono,monospace;margin-top:0.3rem;"
+                            f"line-height:1.05;color:{accent};'>{value_html}</div>"
+                            "</div>"
+                        )
+
+                    kv1, kv2, kv3, kv4 = st.columns(4)
+                    with kv1:
+                        st.markdown(_viz_kpi_tile(
+                            "Numeric Cols", f"{n_numeric_v}",
+                            "#14b8a6" if n_numeric_v else "#64748b"),
+                            unsafe_allow_html=True)
+                    with kv2:
+                        st.markdown(_viz_kpi_tile(
+                            "Categorical Cols", f"{n_cat_v}",
+                            "#14b8a6" if n_cat_v else "#64748b"),
+                            unsafe_allow_html=True)
+                    with kv3:
+                        st.markdown(_viz_kpi_tile("Chart Sections", f"{n_charts_v}"),
+                                    unsafe_allow_html=True)
+                    with kv4:
+                        st.markdown(_viz_kpi_tile(
+                            "Rows", f"{len(df_viz):,}"),
+                            unsafe_allow_html=True)
+
+                    st.markdown("<div style='height:0.9rem'></div>", unsafe_allow_html=True)
+
+                    def _viz_card_header(title, caption):
+                        return (
+                            "<div style='background:rgba(15,23,42,0.55);"
+                            "border:1px solid rgba(20,184,166,0.15);border-bottom:none;"
+                            "border-radius:14px 14px 0 0;padding:0.7rem 1rem;'>"
+                            "<div style='color:#e2e8f0;font-size:1rem;font-weight:600;'>"
+                            f"{title}</div>"
+                            "<div style='color:#94a3b8;font-size:0.72rem;letter-spacing:0.14em;"
+                            "text-transform:uppercase;font-family:JetBrains Mono,monospace;"
+                            f"margin-top:0.2rem;'>{caption}</div>"
+                            "</div>"
+                        )
+
+                    if dist_overview:
+                        st.markdown(
+                            _viz_card_header(
+                                "Distribution Overview",
+                                "How values spread across each numeric column",
+                            ),
+                            unsafe_allow_html=True,
+                        )
+                        with st.container(border=True):
+                            st.plotly_chart(dist_overview, use_container_width=True)
+
                     if corr_heatmap:
-                        st.plotly_chart(corr_heatmap, use_container_width=True)
-                
-                    st.subheader("Custom Charts")
-                    chart_type = st.selectbox(
-                        "Chart Type",
-                        ["Bar Chart", "Scatter Plot", "Box Plot", "Pie Chart", "Line Chart", "Histogram"]
+                        st.markdown("<div style='height:0.6rem'></div>", unsafe_allow_html=True)
+                        st.markdown(
+                            _viz_card_header(
+                                "Correlation Heatmap",
+                                "Pairwise relationships between numeric columns",
+                            ),
+                            unsafe_allow_html=True,
+                        )
+                        with st.container(border=True):
+                            st.plotly_chart(corr_heatmap, use_container_width=True)
+
+                    st.markdown("<div style='height:0.6rem'></div>", unsafe_allow_html=True)
+                    st.markdown(
+                        _viz_card_header(
+                            "Custom Charts",
+                            "Pick a chart type and the columns to plot",
+                        ),
+                        unsafe_allow_html=True,
                     )
-                
-                    col1, col2 = st.columns(2)
-                
-                    if chart_type == "Bar Chart" and categorical_cols:
-                        with col1:
-                            x_col = st.selectbox("Category", categorical_cols, key="bar_x")
-                        with col2:
-                            y_col = st.selectbox("Value", numeric_cols if numeric_cols else [None], key="bar_y")
-                        if x_col:
-                            fig = create_bar_chart(df_viz, x_col, y_col)
-                            if fig:
-                                st.plotly_chart(fig, use_container_width=True)
-                
-                    elif chart_type == "Scatter Plot" and len(numeric_cols) >= 2:
-                        with col1:
-                            x_col = st.selectbox("X Axis", numeric_cols, key="scatter_x")
-                        with col2:
-                            y_col = st.selectbox("Y Axis", numeric_cols, key="scatter_y", index=1 if len(numeric_cols) > 1 else 0)
-                        fig = create_scatter_plot(df_viz, x_col, y_col)
-                        if fig:
-                            st.plotly_chart(fig, use_container_width=True)
-                
-                    elif chart_type == "Box Plot" and numeric_cols:
-                        with col1:
-                            y_col = st.selectbox("Numeric Column", numeric_cols, key="box_y")
-                        with col2:
-                            x_col = st.selectbox("Group By", [None] + categorical_cols, key="box_x")
-                        fig = create_box_plot(df_viz, y_col, x_col)
-                        if fig:
-                            st.plotly_chart(fig, use_container_width=True)
-                
-                    elif chart_type == "Pie Chart" and categorical_cols:
-                        with col1:
-                            col_select = st.selectbox("Column", categorical_cols, key="pie_col")
-                        fig = create_pie_chart(df_viz, col_select)
-                        if fig:
-                            st.plotly_chart(fig, use_container_width=True)
-                
-                    elif chart_type == "Line Chart" and numeric_cols:
-                        with col1:
-                            x_col = st.selectbox("X Axis", df_viz.columns.tolist(), key="line_x")
-                        with col2:
-                            y_col = st.selectbox("Y Axis", numeric_cols, key="line_y")
-                        fig = create_line_chart(df_viz, x_col, y_col)
-                        if fig:
-                            st.plotly_chart(fig, use_container_width=True)
-                
-                    elif chart_type == "Histogram" and numeric_cols:
-                        with col1:
-                            col_select = st.selectbox("Column", numeric_cols, key="hist_col")
-                        fig = create_histogram(df_viz, col_select)
-                        if fig:
-                            st.plotly_chart(fig, use_container_width=True)
+                    with st.container(border=True):
+                        chart_type = st.selectbox(
+                            "Chart Type",
+                            ["Bar Chart", "Scatter Plot", "Box Plot", "Pie Chart", "Line Chart", "Histogram"]
+                        )
+
+                        col1, col2 = st.columns(2)
+
+                        custom_fig = None
+                        guidance = None
+
+                        if chart_type == "Bar Chart":
+                            if categorical_cols:
+                                with col1:
+                                    x_col = st.selectbox("Category", categorical_cols, key="bar_x")
+                                with col2:
+                                    y_col = st.selectbox("Value", numeric_cols if numeric_cols else [None], key="bar_y")
+                                if x_col:
+                                    custom_fig = create_bar_chart(df_viz, x_col, y_col)
+                            else:
+                                guidance = "Need at least one categorical column for a bar chart."
+
+                        elif chart_type == "Scatter Plot":
+                            if len(numeric_cols) >= 2:
+                                with col1:
+                                    x_col = st.selectbox("X Axis", numeric_cols, key="scatter_x")
+                                with col2:
+                                    y_col = st.selectbox("Y Axis", numeric_cols, key="scatter_y", index=1 if len(numeric_cols) > 1 else 0)
+                                custom_fig = create_scatter_plot(df_viz, x_col, y_col)
+                            else:
+                                guidance = "Need at least two numeric columns for a scatter plot."
+
+                        elif chart_type == "Box Plot":
+                            if numeric_cols:
+                                with col1:
+                                    y_col = st.selectbox("Numeric Column", numeric_cols, key="box_y")
+                                with col2:
+                                    x_col = st.selectbox("Group By", [None] + categorical_cols, key="box_x")
+                                custom_fig = create_box_plot(df_viz, y_col, x_col)
+                            else:
+                                guidance = "Need at least one numeric column for a box plot."
+
+                        elif chart_type == "Pie Chart":
+                            if categorical_cols:
+                                with col1:
+                                    col_select = st.selectbox("Column", categorical_cols, key="pie_col")
+                                custom_fig = create_pie_chart(df_viz, col_select)
+                            else:
+                                guidance = "Need at least one categorical column for a pie chart."
+
+                        elif chart_type == "Line Chart":
+                            if numeric_cols:
+                                with col1:
+                                    x_col = st.selectbox("X Axis", df_viz.columns.tolist(), key="line_x")
+                                with col2:
+                                    y_col = st.selectbox("Y Axis", numeric_cols, key="line_y")
+                                custom_fig = create_line_chart(df_viz, x_col, y_col)
+                            else:
+                                guidance = "Need at least one numeric column for a line chart."
+
+                        elif chart_type == "Histogram":
+                            if numeric_cols:
+                                with col1:
+                                    col_select = st.selectbox("Column", numeric_cols, key="hist_col")
+                                custom_fig = create_histogram(df_viz, col_select)
+                            else:
+                                guidance = "Need at least one numeric column for a histogram."
+
+                        if custom_fig:
+                            st.plotly_chart(custom_fig, use_container_width=True)
+                        elif guidance:
+                            st.markdown(
+                                f'<div class="insight-box">{guidance}</div>',
+                                unsafe_allow_html=True,
+                            )
             
                 elif active_tab == _TAB_LABELS[5]:
                     _section_head("Predictions & Comparisons", "Forecast a target column and compare against historical periods.", "06 — Predictions")
