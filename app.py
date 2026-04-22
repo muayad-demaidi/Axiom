@@ -9366,6 +9366,57 @@ def show_dashboard():
   margin: 0.5rem 0 0 0; padding: 0 0 0 1.1rem;
   color: #94a3b8; font-size: 0.86rem; line-height: 1.55;
 }
+/* Configure-panel header chip showing available numeric column count */
+.dn-pred-panel-head .chip {
+  margin-left: auto;
+  font-family: "JetBrains Mono", monospace; font-size: 0.62rem;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: #94a3b8; padding: 0.2rem 0.55rem;
+  border: 1px solid rgba(148,163,184,0.18);
+  border-radius: 999px; background: rgba(15,23,42,0.5);
+}
+/* "Best match" badge on the top historical-comparison card */
+.dn-pred-chip.best {
+  color: #0f172a; background: linear-gradient(135deg, #2dd4bf, #14b8a6);
+  border-color: rgba(45,212,191,0.55); font-weight: 700;
+}
+/* Caption beneath the framed forecast chart */
+.dn-pred-chart-cap {
+  font-family: "JetBrains Mono", monospace; font-size: 0.62rem;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: #64748b; padding: 0 0.4rem 0.4rem 0.4rem;
+  display: flex; gap: 1rem; flex-wrap: wrap;
+}
+.dn-pred-chart-cap .swatch {
+  display: inline-block; width: 22px; height: 2px;
+  vertical-align: middle; margin-right: 0.5rem;
+}
+.dn-pred-chart-cap .swatch.hist { background: #3498db; }
+.dn-pred-chart-cap .swatch.proj {
+  background: repeating-linear-gradient(90deg, #e74c3c 0 4px, transparent 4px 8px);
+  height: 2px;
+}
+/* Premium upgrade button inside the Tier 2 upsell — scoped via marker */
+.dn-pred-upsell-btn-marker { display: none; }
+[data-testid="stColumn"]:has(.dn-pred-upsell-btn-marker) [data-testid="stButton"] > button,
+[data-testid="stColumn"]:has(.dn-pred-upsell-btn-marker) .stButton > button {
+  background: linear-gradient(135deg, #14b8a6, #0d9488) !important;
+  background-color: #14b8a6 !important;
+  border: 1px solid rgba(45,212,191,0.55) !important;
+  border-radius: 999px !important;
+  color: #ffffff !important;
+  font-family: "DM Sans", sans-serif !important;
+  font-weight: 600 !important; font-size: 0.92rem !important;
+  letter-spacing: 0.04em !important;
+  padding: 0.7rem 1.4rem !important;
+  box-shadow: 0 10px 28px rgba(20,184,166,0.25) !important;
+  transition: transform 0.15s ease, box-shadow 0.2s ease !important;
+}
+[data-testid="stColumn"]:has(.dn-pred-upsell-btn-marker) [data-testid="stButton"] > button:hover,
+[data-testid="stColumn"]:has(.dn-pred-upsell-btn-marker) .stButton > button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 34px rgba(20,184,166,0.35) !important;
+}
 /* ============================================================
    CLEANING TAB — hero, impact strip, grouped changes,
    quality block, framed chart card, empty state.
@@ -11179,7 +11230,8 @@ def show_dashboard():
                         )
                         u1, u2, u3 = st.columns([1, 1.2, 1])
                         with u2:
-                            if st.button("Upgrade to Tier 2", use_container_width=True, key="upgrade_pred", type="primary"):
+                            st.markdown('<div class="dn-pred-upsell-btn-marker"></div>', unsafe_allow_html=True)
+                            if st.button("Upgrade to Tier 2 →", use_container_width=True, key="upgrade_pred", type="primary"):
                                 st.session_state.page = 'pricing'
                                 st.rerun()
                     else:
@@ -11208,7 +11260,7 @@ def show_dashboard():
                             shown = st.session_state.similar_datasets if collapse else st.session_state.similar_datasets[:3]
 
                             def _render_cmp_cards(items):
-                                for similar in items:
+                                for idx, similar in enumerate(items):
                                     record = similar['record']
                                     sim_pct = similar.get('similarity', 0) * 100
                                     sim_cls = 'sim-hi' if sim_pct >= 75 else ('sim-md' if sim_pct >= 50 else 'sim-lo')
@@ -11237,10 +11289,15 @@ def show_dashboard():
                                         f'<div class="dn-pred-cmp-grid">{"".join(stat_cells)}</div>'
                                         if stat_cells else ''
                                     )
+                                    best_badge = (
+                                        '<span class="dn-pred-chip best">Best match</span>'
+                                        if idx == 0 and sim_pct >= 75 else ''
+                                    )
                                     st.markdown(
                                         f'<div class="dn-pred-cmp-card">'
                                         f'<div class="dn-pred-cmp-top">'
                                         f'<span class="dn-pred-cmp-name">{html.escape(name)}</span>'
+                                        f'{best_badge}'
                                         f'<span class="dn-pred-chip period">{html.escape(period_str)}</span>'
                                         f'<span class="dn-pred-chip {sim_cls}">{sim_pct:.0f}% match</span>'
                                         f'<span class="dn-pred-chip">{rows:,} rows</span>'
@@ -11284,6 +11341,7 @@ def show_dashboard():
                                     '<div class="dn-pred-panel-head">'
                                     '<span class="label">CONFIGURE</span>'
                                     '<span class="title">Forecast setup</span>'
+                                    f'<span class="chip">{len(numeric_cols)} numeric column{"s" if len(numeric_cols) != 1 else ""}</span>'
                                     '</div>',
                                     unsafe_allow_html=True,
                                 )
@@ -11364,6 +11422,7 @@ def show_dashboard():
                                 if isinstance(result, dict) and 'error' in result:
                                     st.warning(result['error'])
                                 elif isinstance(result, dict):
+                                    _block_head("FORECAST RESULT", f"Projection for {target_col_r}")
                                     preds = result.get('predictions', []) or []
                                     slope = result.get('slope', 0) or 0
                                     r2 = result.get('r2_score', 0) or 0
@@ -11375,7 +11434,7 @@ def show_dashboard():
                                     elif slope < -0.01:
                                         trend_label, trend_cls, arrow = "Downward", "down", "▼"
                                     else:
-                                        trend_label, trend_cls, arrow = "Stable", "flat", "▬"
+                                        trend_label, trend_cls, arrow = "Stable", "flat", "→"
 
                                     if r2 >= 0.7:
                                         conf_label, conf_cls = "High", "hi"
@@ -11401,7 +11460,7 @@ def show_dashboard():
                                         f'<div class="dn-pred-metric"><span class="k">Confidence</span>'
                                         f'<span class="v"><span class="dn-pred-pill {conf_cls}">{conf_label} · R² {r2:.2f}</span></span></div>'
                                         f'<div class="dn-pred-metric"><span class="k">Horizon</span>'
-                                        f'<span class="v">{periods_r} pts</span></div>'
+                                        f'<span class="v">+{periods_r} period{"s" if periods_r != 1 else ""}</span></div>'
                                         f'<div class="dn-pred-metric {delta_cls}"><span class="k">Next vs last</span>'
                                         f'<span class="v">{delta_str} {delta_aux}</span></div>'
                                         f'</div>',
@@ -11413,6 +11472,13 @@ def show_dashboard():
                                         with st.container():
                                             st.markdown('<div class="dn-pred-chart-frame-marker"></div>', unsafe_allow_html=True)
                                             st.plotly_chart(chart_payload, use_container_width=True)
+                                            st.markdown(
+                                                '<div class="dn-pred-chart-cap">'
+                                                '<span><span class="swatch hist"></span>Observed history</span>'
+                                                '<span><span class="swatch proj"></span>Projection</span>'
+                                                '</div>',
+                                                unsafe_allow_html=True,
+                                            )
 
                                     analysis = last.get('analysis') or {}
                                     total_growth = analysis.get('total_growth')
