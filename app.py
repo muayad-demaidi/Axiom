@@ -240,6 +240,16 @@ NEON_CSS = """
     max-width: 1320px !important;
     padding: 1rem 3rem 3rem 3rem !important;
     margin: 0 auto !important;
+    transition: max-width 220ms ease;
+}
+/* When the AI rail is open inside a workspace, give the page extra breathing
+   room so the 3-column grid (nav · content · rail) can accommodate the chat
+   panel without squeezing the main content. The :has() selector keys off the
+   marker rendered in the rail column. */
+[data-testid="stMainBlockContainer"]:has(.dn-ai-rail-marker.open) {
+    max-width: 1520px !important;
+    padding-left: 2.25rem !important;
+    padding-right: 2.25rem !important;
 }
 @media (max-width: 1100px) {
     .block-container, [data-testid="stMainBlockContainer"] {
@@ -7900,9 +7910,11 @@ def show_dashboard():
 
             _ai_open = st.session_state.get('ai_panel_open', False)
             if _ai_open:
-                nav_col, content_col, rail_col = st.columns([1, 3.4, 1.4], gap="medium")
+                # Wider page (1520px) + 1·3.55·1.65 split → rail ≈ 380px, plenty
+                # of room for chat bubbles without crushing the main content.
+                nav_col, content_col, rail_col = st.columns([1, 3.55, 1.65], gap="medium")
             else:
-                nav_col, content_col, rail_col = st.columns([1, 4.55, 0.45], gap="small")
+                nav_col, content_col, rail_col = st.columns([1, 4.6, 0.4], gap="small")
             with nav_col:
                 st.markdown('''
 <div class="dn-side-card dn-side-nav">
@@ -9168,6 +9180,10 @@ def _render_ai_rail(limits):
     open_now = st.session_state.get('ai_panel_open', False)
 
     st.markdown('''<style>
+/* Make the rail column itself the positioning context so the
+   collapsed-state click overlay can absolutely cover the visual strip. */
+[data-testid="stColumn"]:has(.dn-ai-rail-marker) { position: relative; }
+
 .dn-rail-wrap {
   position: sticky; top: 1rem;
   background: linear-gradient(180deg, rgba(12,24,41,0.62), rgba(7,16,31,0.62));
@@ -9176,27 +9192,89 @@ def _render_ai_rail(limits):
   overflow: hidden;
 }
 .dn-rail-wrap.collapsed {
-  padding: 0.6rem 0.25rem;
+  padding: 1.1rem 0.25rem 1.2rem 0.25rem;
   text-align: center;
+  min-height: 280px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: space-between;
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(45,212,191,0.10), transparent 70%),
+    linear-gradient(180deg, rgba(12,24,41,0.72), rgba(7,16,31,0.72));
+  transition: border-color 200ms ease, transform 200ms ease,
+              box-shadow 200ms ease;
 }
+.dn-rail-wrap.collapsed::before,
+.dn-rail-wrap.collapsed::after {
+  content: ""; position: absolute; width: 10px; height: 10px;
+  border: 1px solid rgba(45,212,191,0.55);
+}
+.dn-rail-wrap.collapsed::before { top: 6px; right: 6px; border-left: none; border-bottom: none; }
+.dn-rail-wrap.collapsed::after  { bottom: 6px; left: 6px;  border-right: none; border-top: none; }
+
 .dn-rail-wrap.expanded { padding: 0.85rem 0.9rem 0.6rem 0.9rem; }
+
 .dn-rail-collapsed-strip {
   display: flex; flex-direction: column; align-items: center;
-  gap: 0.85rem; padding: 0.7rem 0 0.4rem 0;
+  gap: 1rem; width: 100%;
 }
 .dn-rail-icon {
-  width: 30px; height: 30px; border-radius: 8px;
-  background: rgba(45,212,191,0.12);
-  border: 1px solid rgba(45,212,191,0.32);
+  width: 34px; height: 34px; border-radius: 9px;
+  background: rgba(45,212,191,0.14);
+  border: 1px solid rgba(45,212,191,0.42);
   color: var(--teal);
   display: flex; align-items: center; justify-content: center;
-  font-size: 1rem;
+  font-size: 1.05rem;
+  box-shadow: 0 0 0 0 rgba(45,212,191,0.0);
+  transition: box-shadow 220ms ease, transform 220ms ease;
 }
 .dn-rail-tagline {
   writing-mode: vertical-rl; transform: rotate(180deg);
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.66rem; letter-spacing: 0.28em; text-transform: uppercase;
-  color: #94a3b8; padding: 0.3rem 0;
+  font-size: 0.68rem; letter-spacing: 0.32em; text-transform: uppercase;
+  color: #cbd5e1; padding: 0.4rem 0;
+}
+.dn-rail-pulse {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 0 0 rgba(45,212,191,0.55);
+  animation: dn-rail-pulse 2.4s ease-out infinite;
+}
+@keyframes dn-rail-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(45,212,191,0.55); }
+  70%  { box-shadow: 0 0 0 12px rgba(45,212,191,0.0); }
+  100% { box-shadow: 0 0 0 0 rgba(45,212,191,0.0); }
+}
+
+/* Transparent click overlay — the actual Streamlit button sits on top of
+   the entire collapsed strip so the whole card is the click target. */
+[data-testid="stColumn"]:has(.dn-rail-open-marker) [data-testid="stButton"] {
+  position: absolute !important;
+  top: 0; left: 0; right: 0;
+  height: 100% !important;
+  margin: 0 !important; padding: 0 !important;
+  z-index: 5;
+}
+[data-testid="stColumn"]:has(.dn-rail-open-marker) [data-testid="stButton"] > button {
+  width: 100% !important; height: 100% !important;
+  background: transparent !important;
+  border: none !important; box-shadow: none !important;
+  color: transparent !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+}
+[data-testid="stColumn"]:has(.dn-rail-open-marker) [data-testid="stButton"] > button:hover {
+  background: transparent !important;
+}
+/* Hover affordance — when the button is hovered, light up the strip below it. */
+[data-testid="stColumn"]:has(.dn-rail-open-marker):hover .dn-rail-wrap.collapsed {
+  border-color: rgba(45,212,191,0.55);
+  box-shadow: 0 0 0 1px rgba(45,212,191,0.20),
+              0 18px 38px -22px rgba(45,212,191,0.45);
+  transform: translateY(-1px);
+}
+[data-testid="stColumn"]:has(.dn-rail-open-marker):hover .dn-rail-icon {
+  box-shadow: 0 0 0 4px rgba(45,212,191,0.18);
+  transform: scale(1.04);
 }
 .dn-rail-head {
   display: flex; align-items: center; gap: 0.55rem;
@@ -9257,16 +9335,20 @@ def _render_ai_rail(limits):
 </style>''', unsafe_allow_html=True)
 
     if not open_now:
+        # Marker tells the scoped CSS to overlay the click button on the strip.
         st.markdown(
+            '<div class="dn-rail-open-marker"></div>'
             '<div class="dn-rail-wrap collapsed">'
             '<div class="dn-rail-collapsed-strip">'
             '<div class="dn-rail-icon">✦</div>'
             '<div class="dn-rail-tagline">Talk to your data</div>'
+            '<div class="dn-rail-pulse"></div>'
             '</div></div>',
             unsafe_allow_html=True,
         )
-        if st.button("◂", key="ai_rail_open", use_container_width=True,
-                     help="Open AI Assistant"):
+        # Full-strip click target (label is hidden via CSS, kept for a11y).
+        if st.button("Open AI Assistant", key="ai_rail_open",
+                     use_container_width=True, help="Open AI Assistant"):
             st.session_state.ai_panel_open = True
             st.rerun()
         return
