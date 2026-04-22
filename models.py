@@ -312,6 +312,30 @@ def save_dataset_record(db, filename, dataset_name, period_month, period_year,
     return record
 
 
+def update_dataset_name(db, dataset_id, user_id, name):
+    """Rename a dataset (sheet). Returns the record or None.
+
+    Scoped to ``user_id`` so users cannot rename sheets they don't own.
+    Empty / whitespace-only names are rejected (returns None). The new
+    name is trimmed and capped at 255 chars to match the column width.
+    """
+    if dataset_id is None or user_id is None:
+        return None
+    cleaned = (name or "").strip()
+    if not cleaned:
+        return None
+    rec = (db.query(DatasetRecord)
+             .filter(DatasetRecord.id == dataset_id,
+                     DatasetRecord.user_id == user_id)
+             .first())
+    if not rec:
+        return None
+    rec.dataset_name = cleaned[:255]
+    db.commit()
+    db.refresh(rec)
+    return rec
+
+
 def update_dataset_steps(db, dataset_id, step_recipes, active_step_index):
     """Persist updated step recipes / active pointer for a dataset."""
     rec = db.query(DatasetRecord).filter(DatasetRecord.id == dataset_id).first()

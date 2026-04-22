@@ -139,7 +139,7 @@ from models import (
     get_all_datasets, get_admin_stats, increment_analysis_count, User,
     update_user_subscription, save_support_message, check_trial_active,
     issue_session_token, get_user_by_session_token, clear_session_token,
-    update_dataset_steps, get_dataset_record, set_user_last_dataset,
+    update_dataset_steps, update_dataset_name, get_dataset_record, set_user_last_dataset,
     get_user_datasets, get_user_by_email,
     create_password_reset_token, get_valid_password_reset_token,
     consume_password_reset_token, purge_expired_password_reset_tokens,
@@ -6801,21 +6801,54 @@ def _render_project_shell(limits=None):
             '</div>', unsafe_allow_html=True)
         # One row of pills + a trailing "+ Add sheet" pill, laid out as a
         # column grid so long sheet names wrap rather than overflow.
+        # Each pill is paired with a small "Rename" popover beneath it so
+        # users can edit the sheet's name without leaving the switcher.
         cols = st.columns(min(len(sheets) + 1, 6))
         for i, s in enumerate(sheets):
             col = cols[i % len(cols)]
             with col:
                 is_active = (s.id == active_ds_id)
-                label = ("● " if is_active else "○ ") + (s.dataset_name or s.filename or f"Sheet {s.id}")
+                current_name = s.dataset_name or s.filename or f"Sheet {s.id}"
+                label = ("● " if is_active else "○ ") + current_name
                 if st.button(label, key=f"sheet_pill_{s.id}",
                              use_container_width=True,
                              disabled=is_active,
                              help=("Currently open" if is_active
-                                   else f"Switch to {s.dataset_name}")):
+                                   else f"Switch to {current_name}")):
                     if _hydrate_dataset_from_db(s.id):
                         st.rerun()
                     else:
                         st.error("Could not open that sheet — its saved recipe is missing.")
+                with st.popover("Rename", use_container_width=True,
+                                help=f"Rename '{current_name}'"):
+                    new_name = st.text_input(
+                        "New sheet name",
+                        value=current_name,
+                        key=f"sheet_rename_input_{s.id}",
+                        max_chars=255,
+                    )
+                    if st.button("Save name",
+                                 key=f"sheet_rename_save_{s.id}",
+                                 use_container_width=True):
+                        proposed = (new_name or "").strip()
+                        if not proposed:
+                            st.error("Sheet name can't be empty.")
+                        elif proposed == current_name:
+                            st.info("Name is unchanged.")
+                        else:
+                            db = get_db()
+                            try:
+                                rec = update_dataset_name(
+                                    db, s.id, uid, proposed)
+                            finally:
+                                db.close()
+                            if rec is None:
+                                st.error("Couldn't rename that sheet.")
+                            else:
+                                # The pill label and any DB-driven labels
+                                # re-fetch on rerun, so no per-sheet
+                                # session keys need patching here.
+                                st.rerun()
         with cols[len(sheets) % len(cols)]:
             if st.button("+ Add sheet", key="sheet_add_new",
                          use_container_width=True,
