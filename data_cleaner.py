@@ -107,8 +107,14 @@ def clip_outliers_step(df: pd.DataFrame, **params) -> Tuple[pd.DataFrame, str, D
             continue
         pct = (n / len(out)) * 100 if len(out) else 0
         if pct < clip_cap:
-            out.loc[out[col] < lower, col] = lower
-            out.loc[out[col] > upper, col] = upper
+            if pd.api.types.is_integer_dtype(out[col]):
+                lo_assign = int(np.ceil(lower))
+                hi_assign = int(np.floor(upper))
+            else:
+                lo_assign = lower
+                hi_assign = upper
+            out.loc[out[col] < lower, col] = lo_assign
+            out.loc[out[col] > upper, col] = hi_assign
             changes.append(f"Clipped {n} outlier(s) in `{col}` to [{lower:.2f}, {upper:.2f}]")
             clipped_cols += 1
         else:
