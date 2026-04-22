@@ -381,9 +381,34 @@ body:has(.dn-workspace-marker) { overflow: hidden !important; }
     overflow: hidden !important;
 }
 /* The horizontal block hosting the 3 columns shouldn't grow taller
-   than the panels — keeps the page within one viewport. */
+   than the panels — keeps the page within one viewport, and forces
+   all three columns to share the exact same row height. */
 [data-testid="stHorizontalBlock"]:has(.dn-workspace-marker) {
     align-items: stretch !important;
+    height: var(--dn-workspace-h) !important;
+    min-height: var(--dn-workspace-h) !important;
+}
+/* Each column's inner card visually fills its panel so the three
+   panels read as a balanced row of equal-height cards. */
+[data-testid="stColumn"]:has(.dn-side-nav) .dn-side-card {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box;
+}
+[data-testid="stColumn"]:has(.dn-ai-rail-marker.open) .dn-rail-wrap.expanded {
+    position: relative !important;
+    top: 0 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box;
+}
+[data-testid="stColumn"]:has(.dn-ai-rail-marker.closed) .dn-rail-wrap.collapsed {
+    position: relative !important;
+    top: 0 !important;
+    height: 100% !important;
+    box-sizing: border-box;
 }
 
 .stApp {
@@ -1742,7 +1767,10 @@ if 'ai_insights' not in st.session_state:
 if 'chat_messages' not in st.session_state:
     st.session_state.chat_messages = []
 if 'ai_panel_open' not in st.session_state:
-    st.session_state.ai_panel_open = False
+    # Default to OPEN — the AI assistant is a primary surface of the
+    # dashboard, not an opt-in panel. Users can still collapse it
+    # mid-session via the Collapse button on the rail.
+    st.session_state.ai_panel_open = True
 if 'current_dataset_id' not in st.session_state:
     st.session_state.current_dataset_id = None
 if 'current_project_id' not in st.session_state:
@@ -9599,9 +9627,10 @@ def show_dashboard():
                     key="dashboard_section",
                     format_func=_fmt_section,
                 )
-                st.markdown(
-                    '<div class="dn-side-foot">DataVision Pro · Data Noir</div></div>',
-                    unsafe_allow_html=True)
+                # Close the .dn-side-card wrapper (the bottom "DataVision Pro
+                # · Data Noir" footer label was removed — the nav now ends
+                # cleanly at the last section, with no extra chrome below).
+                st.markdown('</div>', unsafe_allow_html=True)
 
             with content_col:
                 # Marker turns this column into a bounded scroll viewport
