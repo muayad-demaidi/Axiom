@@ -6907,24 +6907,13 @@ def _project_ctx_text():
 
 
 def _render_project_shell(limits=None):
-    """Render the sheet switcher + Knowledge Base panel above the dashboard.
+    """Render the project's Knowledge Base panel above the dashboard.
 
-    Wires three pieces of UI:
-
-    1. **Sheet switcher** — a row of pills listing every sheet in the
-       current project; clicking one hydrates that sheet into session
-       state. With only one sheet, the switcher collapses to the sheet
-       name plus an "Add sheet" button. With zero sheets, it renders
-       nothing (the existing upload prompt below handles that case).
-    2. **Add sheet** — clears the active workspace (keeping the project
-       open) so the upload prompt re-appears; the new dataset is saved
-       with the current project_id, joining this same project.
-    3. **Knowledge Base** — collapsible panel for attaching one PDF /
-       text file / URL to the project, plus a view of the auto-collected
-       learned-notes log with a clear-all action.
-
-    All actions persist via the project-knowledge-base helpers; nothing
-    here mutates schema or per-sheet state.
+    Sheet management (switching between sheets, adding a new sheet,
+    renaming) has moved to the sheet-picker dialog on the Projects
+    page — clicking "Open" on a project there opens a modal listing
+    every sheet plus an "Add new sheet" CTA. This function now only
+    renders the Knowledge Base panel.
     """
     project_id = st.session_state.get('current_project_id')
     if not project_id:
@@ -6934,8 +6923,19 @@ def _render_project_shell(limits=None):
     if not uid:
         return
 
-    # Resolve current sheets list once. Empty projects skip the switcher
-    # entirely (the upload prompt below already covers that path).
+    _render_knowledge_base_panel(project_id)
+
+
+def _render_project_shell_legacy_unused(limits=None):
+    """Deprecated — preserved only for historical reference."""
+    project_id = st.session_state.get('current_project_id')
+    if not project_id:
+        return
+    user = st.session_state.user or {}
+    uid = user.get('id')
+    if not uid:
+        return
+
     db = get_db()
     try:
         sheets = get_user_datasets(db, uid, project_id=project_id)
@@ -7203,45 +7203,326 @@ def _record_learned_note(kind, content):
 
 
 def _open_project(project_id, project_name):
-    """Set the active project and route into the dashboard.
+    """Mark a project as active and trigger the sheet-picker dialog.
 
-    If the project already contains sheets, auto-resume the most recently
-    worked-on one (preferring the user's globally-tracked last dataset
-    when it belongs to this project, otherwise the most recently uploaded
-    sheet in the project). New / empty projects keep the upload-prompt
-    behavior — the dashboard sees `current_dataset_id is None` and asks
-    the user to upload their first sheet.
+    Sheet selection is now an explicit step that happens BEFORE the
+    dashboard loads — clicking "Open" on a project from the projects
+    list opens a modal listing every sheet in the project plus an
+    "Add new sheet" CTA. Picking a sheet (or adding one) is what
+    actually routes into the dashboard.
     """
-    _clear_workspace_state()
-    st.session_state.current_project_id = project_id
-    st.session_state.current_project_name = project_name
-
     uid = st.session_state.user.get('id')
-    target_ds_id = None
     db = get_db()
     try:
         touch_project(db, project_id, uid)
+    finally:
+        db.close()
+    # Stash the project for the dialog to pick up; rerun then triggers it.
+    st.session_state.current_project_name = project_name
+    st.session_state['_pending_sheet_dialog'] = (project_id, project_name)
+
+
+def _enter_dashboard_with_sheet(project_id, project_name, dataset_id):
+    """Hydrate a sheet and route into the dashboard (called from dialog)."""
+    _clear_workspace_state()
+    st.session_state.current_project_id = project_id
+    st.session_state.current_project_name = project_name
+    _hydrate_dataset_from_db(dataset_id)
+    _refresh_project_ai_context(project_id)
+    st.session_state.page = 'dashboard'
+    st.session_state.pop('_pending_sheet_dialog', None)
+
+
+def _enter_dashboard_for_upload(project_id, project_name):
+    """Route into the dashboard with no active sheet so the upload
+    prompt is shown — used by the dialog's "Add new sheet" CTA."""
+    _clear_workspace_state()
+    st.session_state.current_project_id = project_id
+    st.session_state.current_project_name = project_name
+    _refresh_project_ai_context(project_id)
+    st.session_state.page = 'dashboard'
+    st.session_state.pop('_pending_sheet_dialog', None)
+
+
+def _sheets_dialog_css():
+    """Scoped CSS for the sheet-picker dialog. Data Noir aesthetic:
+    deep navy gradient, gradient-teal monograms, glass tiles, JetBrains
+    Mono eyebrow chrome, Syne titles, staggered card reveal."""
+    return """
+<style>
+.sh-modal { padding: 0.2rem 0.1rem 0.4rem 0.1rem; }
+.sh-modal-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem; letter-spacing: 0.28em;
+  text-transform: uppercase; color: var(--teal);
+  margin-bottom: 0.55rem; opacity: 0.85;
+  display: flex; align-items: center; gap: 0.55rem;
+}
+.sh-modal-eyebrow::before {
+  content: ""; width: 22px; height: 1px;
+  background: linear-gradient(90deg, var(--teal), transparent);
+}
+.sh-modal-title {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 1.55rem; color: #e2e8f0; line-height: 1.15;
+  letter-spacing: -0.01em; margin: 0 0 0.45rem 0;
+}
+.sh-modal-title .accent {
+  background: linear-gradient(135deg, #2dd4bf, #5eead4);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.sh-modal-sub {
+  font-family: 'DM Sans', sans-serif; font-size: 0.88rem;
+  color: #94a3b8; line-height: 1.55; max-width: 56ch;
+  margin: 0 0 1.1rem 0;
+}
+.sh-modal-rule {
+  height: 1px; width: 100%; margin: 0.3rem 0 0.85rem 0;
+  background: linear-gradient(90deg,
+    transparent, rgba(45,212,191,0.28), transparent);
+}
+.sh-modal-counter {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem; letter-spacing: 0.22em; color: #64748b;
+  text-transform: uppercase; margin-bottom: 0.5rem;
+}
+.sh-modal-counter b { color: #cbd5e1; font-weight: 600; }
+
+/* Sheet tile */
+.sh-tile {
+  display: flex; align-items: center; gap: 0.95rem;
+  padding: 0.85rem 1rem;
+  background: linear-gradient(135deg, rgba(13,148,136,0.06), rgba(15,23,42,0.55) 60%);
+  border: 1px solid rgba(45,212,191,0.16);
+  border-radius: 12px;
+  position: relative; overflow: hidden;
+  animation: sh-tile-in 360ms cubic-bezier(.2,.7,.2,1) both;
+  transition: border-color 180ms ease, transform 180ms ease,
+              box-shadow 180ms ease;
+}
+.sh-tile::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; background: var(--teal); opacity: 0; transition: opacity 200ms ease;
+}
+.sh-tile:hover {
+  border-color: rgba(45,212,191,0.42);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px -12px rgba(45,212,191,0.30);
+}
+.sh-tile:hover::before { opacity: 1; }
+@keyframes sh-tile-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.sh-tile-mono {
+  flex: 0 0 auto;
+  width: 46px; height: 46px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 1.05rem; letter-spacing: 0.02em;
+  color: #07101f;
+  background: linear-gradient(135deg, #5eead4 0%, #2dd4bf 55%, #14b8a6 100%);
+  box-shadow:
+    0 0 0 1px rgba(45,212,191,0.42),
+    0 6px 14px -6px rgba(45,212,191,0.45);
+}
+.sh-tile-body { min-width: 0; flex: 1 1 auto; }
+.sh-tile-name {
+  font-family: 'Syne', sans-serif; font-weight: 600;
+  font-size: 1rem; color: #e2e8f0; letter-spacing: -0.005em;
+  margin: 0 0 0.22rem 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sh-tile-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem; letter-spacing: 0.12em;
+  color: #94a3b8; text-transform: uppercase;
+  display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap;
+}
+.sh-tile-meta b { color: #cbd5e1; font-weight: 600; }
+.sh-tile-meta .dot {
+  width: 3px; height: 3px; border-radius: 50%;
+  background: rgba(148,163,184,0.55);
+}
+.sh-tile-meta .muted { color: #64748b; text-transform: none; letter-spacing: 0.04em; }
+
+/* Tile-row "Open" button — scoped via marker */
+.sh-tile-btn-marker { display: none; }
+[data-testid="stColumn"]:has(> div > div > .sh-tile-btn-marker) [data-testid="stButton"] > button {
+  background: linear-gradient(135deg, rgba(45,212,191,0.18), rgba(13,148,136,0.10)) !important;
+  border: 1px solid rgba(45,212,191,0.45) !important;
+  color: #5eead4 !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.72rem !important; letter-spacing: 0.16em !important;
+  text-transform: uppercase !important;
+  padding: 0.55rem 0.6rem !important;
+  border-radius: 9px !important;
+  transition: transform 160ms ease, border-color 160ms ease,
+              background 160ms ease !important;
+}
+[data-testid="stColumn"]:has(> div > div > .sh-tile-btn-marker) [data-testid="stButton"] > button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(94,234,212,0.65) !important;
+  background: linear-gradient(135deg, rgba(45,212,191,0.28), rgba(13,148,136,0.18)) !important;
+  color: #ecfeff !important;
+}
+
+/* "Add new sheet" CTA — dashed border, distinct from existing sheets */
+.sh-add-marker { display: none; }
+[data-testid="stButton"]:has(> button[data-testid="stBaseButton-secondary"]):has(.sh-add-marker),
+div:has(> .sh-add-marker) + [data-testid="stButton"] > button {
+  background: transparent !important;
+  border: 1px dashed rgba(45,212,191,0.45) !important;
+  color: #5eead4 !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.78rem !important; letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  padding: 0.95rem 1rem !important;
+  border-radius: 12px !important;
+  transition: background 180ms ease, border-color 180ms ease,
+              transform 180ms ease !important;
+}
+div:has(> .sh-add-marker) + [data-testid="stButton"] > button:hover {
+  background: rgba(45,212,191,0.08) !important;
+  border-color: rgba(94,234,212,0.75) !important;
+  transform: translateY(-1px);
+}
+
+/* Empty state */
+.sh-empty {
+  text-align: center; padding: 1.6rem 0.8rem;
+  border: 1px dashed rgba(148,163,184,0.18);
+  border-radius: 12px;
+  background: rgba(15,23,42,0.45);
+  margin-bottom: 1rem;
+}
+.sh-empty-icon {
+  width: 44px; height: 44px; margin: 0 auto 0.55rem auto;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(45,212,191,0.35);
+  color: var(--teal); font-family: 'Syne', sans-serif;
+  font-size: 1.4rem; font-weight: 700;
+}
+.sh-empty-title {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 1.05rem; color: #e2e8f0; margin-bottom: 0.3rem;
+}
+.sh-empty-sub {
+  font-family: 'DM Sans', sans-serif; font-size: 0.84rem;
+  color: #94a3b8;
+}
+
+/* Stagger reveal — first 6 sheets get progressive delays */
+.sh-tile { animation-delay: 0ms; }
+[data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:nth-of-type(1) .sh-tile { animation-delay: 40ms; }
+[data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:nth-of-type(2) .sh-tile { animation-delay: 80ms; }
+[data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:nth-of-type(3) .sh-tile { animation-delay: 120ms; }
+[data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:nth-of-type(4) .sh-tile { animation-delay: 160ms; }
+[data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:nth-of-type(5) .sh-tile { animation-delay: 200ms; }
+[data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:nth-of-type(6) .sh-tile { animation-delay: 240ms; }
+</style>
+"""
+
+
+@st.dialog("Sheets", width="large")
+def _show_sheets_dialog(project_id: int, project_name: str):
+    """Modal sheet picker, shown after clicking "Open" on a project.
+
+    Lists every sheet in the project as a glass tile (monogram + name +
+    row/col count + uploaded date) with a one-click "Open" CTA, plus an
+    "Add new sheet" CTA at the bottom that routes to the dashboard's
+    upload prompt with the project context preserved.
+    """
+    user = st.session_state.user or {}
+    uid = user.get('id')
+    if not uid:
+        return
+
+    db = get_db()
+    try:
         sheets = get_user_datasets(db, uid, project_id=project_id)
-        if sheets:
-            user_obj = get_user_by_id(db, uid)
-            last_id = getattr(user_obj, 'last_dataset_id', None) if user_obj else None
-            sheet_ids = {s.id for s in sheets}
-            target_ds_id = last_id if last_id in sheet_ids else sheets[0].id
     finally:
         db.close()
 
-    if target_ds_id:
-        # Hydrate full session state (df, df_cleaned, step history,
-        # current_dataset_id) from the persisted recipe so the dashboard
-        # opens straight onto the sheet's last view.
-        _hydrate_dataset_from_db(target_ds_id)
+    st.markdown(_sheets_dialog_css(), unsafe_allow_html=True)
+    safe_name = (project_name or 'Project').replace('<', '&lt;').replace('>', '&gt;')
+    st.markdown(f'''
+<div class="sh-modal">
+  <div class="sh-modal-eyebrow">PROJECT · {safe_name}</div>
+  <div class="sh-modal-title">Pick a <span class="accent">sheet</span> to enter</div>
+  <div class="sh-modal-sub">Every sheet in this project is listed below.
+    Open one to launch the dashboard, or add a brand-new sheet from a fresh upload.</div>
+  <div class="sh-modal-rule"></div>
+</div>
+''', unsafe_allow_html=True)
 
-    # Pre-load the project's knowledge base + recent learned notes so the
-    # AI assistant has authoritative project context on the very first
-    # question without an extra DB round-trip per render.
-    _refresh_project_ai_context(project_id)
+    if sheets:
+        st.markdown(
+            f'<div class="sh-modal-counter">'
+            f'Available · <b>{len(sheets):02d}</b> sheet{"s" if len(sheets) != 1 else ""}'
+            f'</div>', unsafe_allow_html=True)
+        for s in sheets:
+            sheet_name = s.dataset_name or s.filename or f"Sheet {s.id}"
+            row_count = getattr(s, 'row_count', 0) or 0
+            col_count = getattr(s, 'column_count', 0) or 0
+            uploaded_at = getattr(s, 'uploaded_at', None) or getattr(s, 'created_at', None)
+            uploaded = uploaded_at.strftime('%b %d, %Y') if uploaded_at else '—'
+            parts = [w for w in (sheet_name or '').split() if w]
+            if not parts:
+                mono = '··'
+            elif len(parts) == 1:
+                mono = parts[0][:2].upper()
+            else:
+                mono = (parts[0][:1] + parts[1][:1]).upper()
+            safe_sheet_name = sheet_name.replace('<', '&lt;').replace('>', '&gt;')
 
-    st.session_state.page = 'dashboard'
+            tile_l, tile_r = st.columns([5, 1.4], gap="small",
+                                        vertical_alignment="center")
+            with tile_l:
+                st.markdown(f'''
+<div class="sh-tile">
+  <div class="sh-tile-mono">{mono}</div>
+  <div class="sh-tile-body">
+    <div class="sh-tile-name">{safe_sheet_name}</div>
+    <div class="sh-tile-meta">
+      <span><b>{row_count:,}</b> rows</span>
+      <span class="dot"></span>
+      <span><b>{col_count}</b> cols</span>
+      <span class="dot"></span>
+      <span class="muted">{uploaded}</span>
+    </div>
+  </div>
+</div>
+''', unsafe_allow_html=True)
+            with tile_r:
+                st.markdown(
+                    '<div class="sh-tile-btn-marker"></div>',
+                    unsafe_allow_html=True)
+                if st.button("Open  →", key=f"sh_dlg_open_{s.id}",
+                             use_container_width=True):
+                    if _hydrate_dataset_from_db(s.id):
+                        _enter_dashboard_with_sheet(
+                            project_id, project_name, s.id)
+                        st.rerun()
+                    else:
+                        st.error("Couldn't open that sheet — its saved recipe is missing.")
+    else:
+        st.markdown('''
+<div class="sh-empty">
+  <div class="sh-empty-icon">+</div>
+  <div class="sh-empty-title">No sheets in this project yet</div>
+  <div class="sh-empty-sub">Add your first sheet below to start exploring.</div>
+</div>
+''', unsafe_allow_html=True)
+
+    # Add-new-sheet CTA (always available — both empty + populated states)
+    st.markdown('<div class="sh-add-marker"></div>', unsafe_allow_html=True)
+    if st.button("+   Add new sheet", key="sh_dlg_add",
+                 use_container_width=True):
+        _enter_dashboard_for_upload(project_id, project_name)
+        st.rerun()
 
 
 def _projects_page_css():
@@ -7817,6 +8098,13 @@ def show_projects_page():
     user = st.session_state.user
     user_id = user.get('id')
 
+    # Trigger sheet-picker dialog if the user just clicked "Open" on a
+    # project. Setting `_pending_sheet_dialog` from the row button + a
+    # rerun lands us here, where we open the modal exactly once per click.
+    pending = st.session_state.pop('_pending_sheet_dialog', None)
+    if pending:
+        _show_sheets_dialog(pending[0], pending[1])
+
     # Trial gate — same logic as the dashboard.
     db = get_db()
     try:
@@ -8044,6 +8332,7 @@ sheets, building models, and chatting with the data.</p>
             st.markdown('<div style="padding-top:1.15rem;">', unsafe_allow_html=True)
             if st.button("Open  →", key=f"proj_open_{p['id']}",
                          use_container_width=True, type="primary"):
+                # Mark as active + trigger the sheet-picker dialog on rerun.
                 _open_project(p['id'], p['name'])
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
