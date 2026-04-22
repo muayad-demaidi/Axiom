@@ -9515,92 +9515,305 @@ def show_dashboard():
                     _render_model_section(uid, run_analysis_cb=run_analysis, limits=limits)
 
                 elif active_tab == _TAB_LABELS[7]:
-                    _section_head("Comprehensive Report", "Executive summary, AI insights, and downloadable artefacts.", "08 — Report")
-                
+                    _section_head(
+                        "Comprehensive Report",
+                        "Executive summary, AI insights, and downloadable artefacts.",
+                        "08 — Report",
+                    )
+
                     df_report = _active_df()
-                
-                    st.subheader("Executive Summary")
-                    col1, col2, col3, col4 = st.columns(4)
-                    with col1:
-                        st.metric("Rows", f"{len(df_report):,}")
-                    with col2:
-                        st.metric("Columns", len(df_report.columns))
-                    with col3:
-                        quality = get_data_quality_score(df_report)
-                        st.metric("Quality", f"{quality['overall_score']}%")
-                    with col4:
-                        st.metric("Numeric Cols", len(df_report.select_dtypes(include=[np.number]).columns))
-                
-                    if st.session_state.analysis_results:
-                        st.subheader("Analysis Results")
-                        results = st.session_state.analysis_results
-                    
-                        if 'numeric_summary' in results and results['numeric_summary']:
-                            st.markdown("**Numeric Statistics:**")
-                            st.json(results['numeric_summary'])
-                
+                    quality = get_data_quality_score(df_report)
+                    numeric_cols_count = len(df_report.select_dtypes(include=[np.number]).columns)
+
+                    q_score = quality['overall_score']
+                    if q_score >= 85:
+                        q_tier, q_tier_label = "good", "Excellent"
+                    elif q_score >= 65:
+                        q_tier, q_tier_label = "fair", "Fair"
+                    else:
+                        q_tier, q_tier_label = "poor", "Needs work"
+
+                    st.markdown(
+                        '''<style>
+.dn-report-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.85rem; margin: 0.4rem 0 0.6rem 0; }
+@media (max-width: 980px) { .dn-report-kpis { grid-template-columns: repeat(2, 1fr); } }
+.dn-report-kpi {
+  position: relative;
+  background: linear-gradient(180deg, rgba(15,23,42,0.85), rgba(8,15,30,0.85));
+  border: 1px solid rgba(20,184,166,0.16);
+  border-radius: 14px;
+  padding: 0.95rem 1.05rem 0.9rem 1.15rem;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.28);
+  overflow: hidden;
+}
+.dn-report-kpi::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: linear-gradient(180deg, #14b8a6, #0d9488); opacity: 0.85;
+}
+.dn-report-kpi .head { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.55rem; }
+.dn-report-kpi .icon {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(20,184,166,0.14); border: 1px solid rgba(20,184,166,0.32);
+  color: #5eead4; font-size: 0.95rem; font-family: 'JetBrains Mono', monospace;
+}
+.dn-report-kpi .label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem; letter-spacing: 0.22em; text-transform: uppercase; color: #94a3b8;
+}
+.dn-report-kpi .value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.85rem; font-weight: 700; line-height: 1.05;
+  background: linear-gradient(135deg, #14b8a6, #0d9488);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.dn-report-kpi .helper { color: #94a3b8; font-size: 0.78rem; margin-top: 0.35rem; }
+.dn-report-kpi.quality .value {
+  background: none; -webkit-text-fill-color: initial; color: var(--q, #14b8a6);
+}
+.dn-report-kpi.quality.good { --q: #34d399; border-color: rgba(52,211,153,0.32); }
+.dn-report-kpi.quality.good::before { background: linear-gradient(180deg, #34d399, #10b981); }
+.dn-report-kpi.quality.good .icon { background: rgba(52,211,153,0.14); border-color: rgba(52,211,153,0.32); color: #34d399; }
+.dn-report-kpi.quality.fair { --q: #fbbf24; border-color: rgba(251,191,36,0.32); }
+.dn-report-kpi.quality.fair::before { background: linear-gradient(180deg, #fbbf24, #f59e0b); }
+.dn-report-kpi.quality.fair .icon { background: rgba(251,191,36,0.14); border-color: rgba(251,191,36,0.32); color: #fbbf24; }
+.dn-report-kpi.quality.poor { --q: #f87171; border-color: rgba(248,113,113,0.32); }
+.dn-report-kpi.quality.poor::before { background: linear-gradient(180deg, #f87171, #ef4444); }
+.dn-report-kpi.quality.poor .icon { background: rgba(248,113,113,0.14); border-color: rgba(248,113,113,0.32); color: #f87171; }
+.dn-report-kpi.quality .tier {
+  display: inline-block; margin-top: 0.4rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase;
+  padding: 0.18rem 0.55rem; border-radius: 999px;
+  background: rgba(255,255,255,0.03); color: var(--q); border: 1px solid currentColor;
+}
+.dn-export-card {
+  background: linear-gradient(180deg, rgba(15,23,42,0.85), rgba(8,15,30,0.85));
+  border: 1px solid rgba(20,184,166,0.16);
+  border-radius: 14px; padding: 1.1rem 1.15rem 0.95rem 1.15rem;
+  height: 100%;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.28);
+}
+.dn-export-card .ec-head { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.35rem; }
+.dn-export-card .ec-icon {
+  width: 32px; height: 32px; border-radius: 9px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(20,184,166,0.14); border: 1px solid rgba(20,184,166,0.32);
+  color: #5eead4; font-size: 1.05rem;
+}
+.dn-export-card .ec-title { font-family: 'Syne', sans-serif; font-weight: 700; color: #e2e8f0; font-size: 1rem; }
+.dn-export-card .ec-desc { color: #94a3b8; font-size: 0.84rem; margin: 0.2rem 0 0.7rem 0; line-height: 1.5; }
+.dn-export-card .ec-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem; letter-spacing: 0.18em; text-transform: uppercase;
+  color: #64748b; margin-top: 0.6rem;
+}
+.dn-ai-empty {
+  border: 1px dashed rgba(20,184,166,0.28);
+  background: rgba(15,23,42,0.55);
+  border-radius: 12px; padding: 0.95rem 1.1rem;
+  color: #94a3b8; font-size: 0.88rem; line-height: 1.55;
+  margin: 0.4rem 0 0.7rem 0;
+}
+.dn-ai-empty b { color: #e2e8f0; font-weight: 600; }
+</style>''',
+                        unsafe_allow_html=True,
+                    )
+
+                    st.markdown(
+                        f'''<div class="dn-report-kpis">
+  <div class="dn-report-kpi"><div class="head"><span class="icon">▦</span><span class="label">Rows</span></div>
+    <div class="value">{len(df_report):,}</div>
+    <div class="helper">records in active step</div></div>
+  <div class="dn-report-kpi"><div class="head"><span class="icon">∥</span><span class="label">Columns</span></div>
+    <div class="value">{len(df_report.columns)}</div>
+    <div class="helper">fields tracked</div></div>
+  <div class="dn-report-kpi quality {q_tier}"><div class="head"><span class="icon">◆</span><span class="label">Quality</span></div>
+    <div class="value">{q_score}%</div>
+    <div class="tier">{q_tier_label}</div></div>
+  <div class="dn-report-kpi"><div class="head"><span class="icon">∑</span><span class="label">Numeric Cols</span></div>
+    <div class="value">{numeric_cols_count}</div>
+    <div class="helper">eligible for stats</div></div>
+</div>''',
+                        unsafe_allow_html=True,
+                    )
+
+                    st.markdown("---")
+                    _sub_head(
+                        "Statistical summary",
+                        "key descriptive statistics for numeric fields",
+                    )
+                    num_summary = (st.session_state.analysis_results or {}).get('numeric_summary')
+                    if num_summary:
+                        try:
+                            # `numeric_summary` is `numeric_stats.to_dict()` on a
+                            # DataFrame whose rows are dataset columns and whose
+                            # columns are stat names — i.e. shape
+                            # `{stat_name: {column_name: value}}`. Rebuilding with
+                            # `pd.DataFrame(...)` (outer keys -> columns, inner
+                            # keys -> index) restores rows=columns, cols=stats.
+                            stats_df = pd.DataFrame(num_summary)
+                            wanted = [c for c in ['mean', 'median', 'std', 'min', 'max'] if c in stats_df.columns]
+                            if wanted:
+                                stats_df = stats_df[wanted]
+                            stats_df = stats_df.reset_index().rename(columns={'index': 'Column'})
+                            prefs_fmts = _resolve_display_prefs(_get_display_prefs())
+                            stats_cfg = {'Column': st.column_config.TextColumn('Column')}
+                            label_map = {
+                                'mean': 'Mean', 'median': 'Median', 'std': 'Std Dev',
+                                'min': 'Min', 'max': 'Max',
+                            }
+                            for c in stats_df.columns:
+                                if c == 'Column':
+                                    continue
+                                try:
+                                    stats_cfg[c] = st.column_config.NumberColumn(
+                                        label_map.get(c, c.title()),
+                                        format=prefs_fmts['dec'],
+                                    )
+                                except Exception:
+                                    pass
+                            st.dataframe(
+                                stats_df,
+                                use_container_width=True,
+                                hide_index=True,
+                                column_config=stats_cfg,
+                            )
+                        except Exception:
+                            st.info("Numeric summary is unavailable for the current dataset.")
+                    else:
+                        st.markdown(
+                            '<div class="dn-ai-empty">No numeric summary yet. Open the <b>Statistics</b> tab (or rerun the analysis) to populate this table.</div>',
+                            unsafe_allow_html=True,
+                        )
+
                     if limits['ai_chat_enabled']:
-                        st.subheader("AI Insights & Recommendations")
-                        if st.button("Generate AI Insights", use_container_width=True):
-                            with st.spinner("Analyzing data with AI..."):
+                        st.markdown("---")
+                        _sub_head(
+                            "AI insights & recommendations",
+                            "natural-language summary of trends, risks, and next steps",
+                        )
+                        if not st.session_state.ai_insights:
+                            st.markdown(
+                                '<div class="dn-ai-empty">No AI insights generated yet. Click <b>Generate AI insights</b> to produce an executive narrative — including key trends, risks, and recommended next steps — from the active dataset.</div>',
+                                unsafe_allow_html=True,
+                            )
+                        cta_col, _spacer = st.columns([1, 2])
+                        with cta_col:
+                            cta_label = "Regenerate AI insights" if st.session_state.ai_insights else "Generate AI insights"
+                            generate_clicked = st.button(
+                                cta_label,
+                                use_container_width=True,
+                                key="report_generate_ai",
+                            )
+                        if generate_clicked:
+                            with st.spinner("Analyzing the dataset and drafting recommendations…"):
                                 df_summary = {
                                     'row_count': len(df_report),
                                     'column_count': len(df_report.columns),
-                                    'columns': df_report.columns.tolist()
+                                    'columns': df_report.columns.tolist(),
                                 }
-                                analysis_results = st.session_state.analysis_results if st.session_state.analysis_results else {}
-                                insights = generate_data_insights(df_summary, analysis_results)
-                                st.session_state.ai_insights = insights
-                                st.markdown(f'<div class="insight-box">{insights}</div>', unsafe_allow_html=True)
-                    
+                                analysis_results = st.session_state.analysis_results or {}
+                                st.session_state.ai_insights = generate_data_insights(
+                                    df_summary, analysis_results
+                                )
+                            st.rerun()
                         if st.session_state.ai_insights:
-                            st.markdown(f'<div class="insight-box">{st.session_state.ai_insights}</div>', unsafe_allow_html=True)
-                
+                            st.markdown(
+                                f'<div class="insight-box">{st.session_state.ai_insights}</div>',
+                                unsafe_allow_html=True,
+                            )
+
                     st.markdown("---")
-                    st.subheader("Download Report")
-                
-                    col_dl1, col_dl2 = st.columns(2)
-                
-                    with col_dl1:
-                        report_content = f"""# DataVision Pro - Analysis Report
-        Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-    
-        ## Executive Summary
-        - **Total Rows:** {len(df_report):,}
-        - **Total Columns:** {len(df_report.columns)}
-        - **Data Quality Score:** {quality['overall_score']}%
-        - **Numeric Columns:** {len(df_report.select_dtypes(include=[np.number]).columns)}
-    
-        ## Column Information
-        {chr(10).join([f"- **{col}**: {df_report[col].dtype}" for col in df_report.columns])}
-    
-        ## Statistical Summary
-        """
-                        if st.session_state.analysis_results and 'numeric_summary' in st.session_state.analysis_results:
-                            for col, stats in st.session_state.analysis_results['numeric_summary'].items():
-                                report_content += f"\n### {col}\n"
-                                for stat, val in stats.items():
-                                    report_content += f"- {stat}: {val}\n"
-                    
-                        if st.session_state.ai_insights:
-                            report_content += f"\n## AI Insights & Recommendations\n{st.session_state.ai_insights}\n"
-                    
+                    _sub_head(
+                        "Download report",
+                        "export the executive summary or the cleaned dataset",
+                    )
+
+                    generated_at = datetime.now().strftime('%Y-%m-%d %H:%M')
+                    report_lines = [
+                        "# DataVision Pro — Analysis Report",
+                        f"_Generated: {generated_at}_",
+                        "",
+                        "## Executive Summary",
+                        f"- **Total Rows:** {len(df_report):,}",
+                        f"- **Total Columns:** {len(df_report.columns)}",
+                        f"- **Data Quality Score:** {q_score}% ({q_tier_label})",
+                        f"- **Numeric Columns:** {numeric_cols_count}",
+                        "",
+                        "## Column Information",
+                    ]
+                    for col in df_report.columns:
+                        report_lines.append(f"- **{col}**: {df_report[col].dtype}")
+                    report_lines.append("")
+                    report_lines.append("## Statistical Summary")
+                    if num_summary:
+                        # Same shape as above: {stat_name: {column_name: value}}.
+                        # Group by source column first so each section reads as
+                        # "column → its key stats" instead of being grouped by
+                        # statistic.
+                        cols_seen = set()
+                        for stat_map in num_summary.values():
+                            if isinstance(stat_map, dict):
+                                cols_seen.update(stat_map.keys())
+                        preferred_stat_order = [
+                            'mean', 'median', 'std', 'min', 'max',
+                            'count', 'missing', 'missing_pct',
+                        ]
+                        ordered_stats = [s for s in preferred_stat_order if s in num_summary]
+                        ordered_stats += [s for s in num_summary if s not in preferred_stat_order]
+                        for col in sorted(cols_seen):
+                            report_lines.append("")
+                            report_lines.append(f"### {col}")
+                            for stat_name in ordered_stats:
+                                col_map = num_summary.get(stat_name)
+                                if isinstance(col_map, dict) and col in col_map:
+                                    report_lines.append(f"- {stat_name}: {col_map[col]}")
+                    else:
+                        report_lines.append("")
+                        report_lines.append("_No numeric summary available._")
+                    if st.session_state.ai_insights:
+                        report_lines.append("")
+                        report_lines.append("## AI Insights & Recommendations")
+                        report_lines.append(st.session_state.ai_insights)
+                    report_content = "\n".join(report_lines) + "\n"
+
+                    csv_data = df_report.to_csv(index=False)
+
+                    dl1, dl2 = st.columns(2)
+                    with dl1:
+                        st.markdown(
+                            f'''<div class="dn-export-card">
+  <div class="ec-head"><span class="ec-icon">📄</span><span class="ec-title">Executive report (TXT)</span></div>
+  <div class="ec-desc">Markdown-formatted summary including KPIs, column types, descriptive statistics, and any generated AI insights.</div>
+  <div class="ec-meta">Generated · {generated_at}</div>
+</div>''',
+                            unsafe_allow_html=True,
+                        )
                         st.download_button(
-                            label="📄 Download Report (TXT)",
+                            label="Download report (.txt)",
                             data=report_content,
                             file_name=f"datavision_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
                             mime="text/plain",
-                            use_container_width=True
+                            use_container_width=True,
+                            key="report_dl_txt",
                         )
-                
-                    with col_dl2:
-                        csv_data = df_report.to_csv(index=False)
+                    with dl2:
+                        st.markdown(
+                            f'''<div class="dn-export-card">
+  <div class="ec-head"><span class="ec-icon">📊</span><span class="ec-title">Cleaned dataset (CSV)</span></div>
+  <div class="ec-desc">The full dataset as it appears at the active cleaning step — ready to share or load into another tool.</div>
+  <div class="ec-meta">Generated · {generated_at}</div>
+</div>''',
+                            unsafe_allow_html=True,
+                        )
                         st.download_button(
-                            label="📊 Download Data (CSV)",
+                            label="Download data (.csv)",
                             data=csv_data,
                             file_name=f"cleaned_data_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                             mime="text/csv",
-                            use_container_width=True
+                            use_container_width=True,
+                            key="report_dl_csv",
                         )
 
             with rail_col:
