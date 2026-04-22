@@ -1602,6 +1602,8 @@ if 'ai_insights' not in st.session_state:
     st.session_state.ai_insights = None
 if 'chat_messages' not in st.session_state:
     st.session_state.chat_messages = []
+if 'ai_panel_open' not in st.session_state:
+    st.session_state.ai_panel_open = False
 if 'current_dataset_id' not in st.session_state:
     st.session_state.current_dataset_id = None
 if 'current_project_id' not in st.session_state:
@@ -7441,7 +7443,6 @@ def show_dashboard():
                 "Visualizations",
                 "Predictions",
                 "ML & Clusters",
-                "AI Chat",
                 "Report",
             ]
             st.markdown('''<style>
@@ -7897,11 +7898,15 @@ def show_dashboard():
 }
 </style>''', unsafe_allow_html=True)
 
-            nav_col, content_col = st.columns([1, 4], gap="large")
+            _ai_open = st.session_state.get('ai_panel_open', False)
+            if _ai_open:
+                nav_col, content_col, rail_col = st.columns([1, 3.4, 1.4], gap="medium")
+            else:
+                nav_col, content_col, rail_col = st.columns([1, 4.55, 0.45], gap="small")
             with nav_col:
                 st.markdown('''
 <div class="dn-side-card dn-side-nav">
-  <div class="dn-side-title">Workspace · 09</div>
+  <div class="dn-side-title">Workspace · 08</div>
 ''', unsafe_allow_html=True)
 
                 def _fmt_section(label):
@@ -9021,134 +9026,7 @@ def show_dashboard():
                     _render_model_section(uid, run_analysis_cb=run_analysis, limits=limits)
 
                 elif active_tab == _TAB_LABELS[7]:
-                    _section_head("AI Assistant", "Ask questions about your data in natural language.", "08 — AI Chat")
-                
-                    if not limits['ai_chat_enabled']:
-                        st.markdown("""
-                        <div class="neon-card">
-                            <h3 style="text-align: center;">⭐ Tier 3 Feature</h3>
-                            <p style="text-align: center; color: #94a3b8;">
-                                AI-powered data conversations are available in Tier 3.
-                            </p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        if st.button("View Tiers", use_container_width=True, key="upgrade_chat"):
-                            st.session_state.page = 'pricing'
-                            st.rerun()
-                    else:
-                        st.markdown("""
-                        <style>
-                        .chat-container {
-                            display: flex;
-                            flex-direction: column;
-                            height: 500px;
-                            background: rgba(15, 23, 42, 0.5);
-                            border: 1px solid rgba(20, 184, 166, 0.2);
-                            border-radius: 12px;
-                            overflow: hidden;
-                        }
-                        .chat-messages {
-                            flex: 1;
-                            overflow-y: auto;
-                            padding: 1rem;
-                            display: flex;
-                            flex-direction: column;
-                            gap: 0.75rem;
-                        }
-                        .chat-bubble {
-                            max-width: 80%;
-                            padding: 0.75rem 1rem;
-                            border-radius: 12px;
-                            line-height: 1.5;
-                            animation: fadeIn 0.3s ease;
-                        }
-                        @keyframes fadeIn {
-                            from { opacity: 0; transform: translateY(10px); }
-                            to { opacity: 1; transform: translateY(0); }
-                        }
-                        .chat-bubble.user {
-                            background: linear-gradient(135deg, rgba(13, 148, 136, 0.3), rgba(5, 150, 105, 0.3));
-                            border: 1px solid rgba(20, 184, 166, 0.3);
-                            align-self: flex-end;
-                            color: #e2e8f0;
-                        }
-                        .chat-bubble.assistant {
-                            background: rgba(30, 41, 59, 0.8);
-                            border: 1px solid rgba(148, 163, 184, 0.2);
-                            align-self: flex-start;
-                            color: #cbd5e1;
-                        }
-                        .chat-role {
-                            font-size: 0.7rem;
-                            text-transform: uppercase;
-                            letter-spacing: 0.5px;
-                            margin-bottom: 0.25rem;
-                            opacity: 0.7;
-                        }
-                        .chat-bubble.user .chat-role { color: #14b8a6; }
-                        .chat-bubble.assistant .chat-role { color: #94a3b8; }
-                        </style>
-                        """, unsafe_allow_html=True)
-                    
-                        st.markdown('<p style="color: #94a3b8; margin-bottom: 1rem;">Ask any question about your data and get AI-powered insights</p>', unsafe_allow_html=True)
-                    
-                        chat_container = st.container(height=450)
-                    
-                        with chat_container:
-                            if not st.session_state.chat_messages:
-                                st.markdown("""
-                                <div style="text-align: center; padding: 3rem; color: #64748b;">
-                                    <div style="font-size: 3rem; margin-bottom: 1rem;"></div>
-                                    <p>Start a conversation about your data!</p>
-                                    <p style="font-size: 0.85rem;">Try asking: "What patterns do you see?" or "Summarize the key insights"</p>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            else:
-                                for msg in st.session_state.chat_messages:
-                                    role_icon = "" if msg["role"] == "user" else ""
-                                    role_label = "You" if msg["role"] == "user" else "AI Assistant"
-                                    bubble_class = msg["role"]
-                                    st.markdown(f"""
-                                    <div class="chat-bubble {bubble_class}">
-                                        <div class="chat-role">{role_icon} {role_label}</div>
-                                        <div>{msg["content"]}</div>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                    
-                        prompt = st.chat_input("Type your question here...", key="chat_input_main")
-                    
-                        if prompt:
-                            st.session_state.chat_messages.append({"role": "user", "content": prompt})
-                        
-                            with st.spinner("Analyzing your data..."):
-                                df_chat = _active_df()
-                                df_info = {
-                                    'row_count': len(df_chat),
-                                    'column_count': len(df_chat.columns),
-                                    'columns': df_chat.columns.tolist(),
-                                    'dtypes': df_chat.dtypes.astype(str).to_dict(),
-                                    'numeric_summary': df_chat.describe().to_dict() if not df_chat.select_dtypes(include=[np.number]).empty else {}
-                                }
-                                response = chat_about_data(prompt, df_info)
-                                st.session_state.chat_messages.append({"role": "assistant", "content": response})
-                            
-                                # `chat_history.dataset_id` is an Integer column, but
-                                # virtual joined-view datasets carry a synthetic
-                                # string id (`joined_<ts>`). Skip persistence in
-                                # that case so the chat tab never raises on a
-                                # type-mismatched insert.
-                                _cur_id = st.session_state.current_dataset_id
-                                if isinstance(_cur_id, int):
-                                    db = get_db()
-                                    try:
-                                        save_chat_message(db, _cur_id, prompt, response)
-                                    finally:
-                                        db.close()
-                        
-                            st.rerun()
-            
-                elif active_tab == _TAB_LABELS[8]:
-                    _section_head("Comprehensive Report", "Executive summary, AI insights, and downloadable artefacts.", "09 — Report")
+                    _section_head("Comprehensive Report", "Executive summary, AI insights, and downloadable artefacts.", "08 — Report")
                 
                     df_report = _active_df()
                 
@@ -9235,7 +9113,246 @@ def show_dashboard():
                             mime="text/csv",
                             use_container_width=True
                         )
-        
+
+            with rail_col:
+                # Marker lets the responsive CSS below scope the column.
+                st.markdown(
+                    f'<div class="dn-ai-rail-marker '
+                    f'{"open" if _ai_open else "closed"}"></div>',
+                    unsafe_allow_html=True,
+                )
+                _render_ai_rail(limits)
+
+            # Responsive guardrail: when the viewport is too narrow to fit
+            # the expanded rail comfortably, visually fold it back to the
+            # collapsed strip so the main content area never gets squashed.
+            # The server-side `ai_panel_open` flag is preserved, so the rail
+            # re-expands automatically once the viewport widens again.
+            if _ai_open:
+                st.markdown('''<style>
+@media (max-width: 1180px) {
+  [data-testid="stHorizontalBlock"]:has(.dn-ai-rail-marker.open)
+    > [data-testid="stColumn"]:last-child {
+    flex: 0 0 56px !important;
+    max-width: 56px !important;
+    min-width: 56px !important;
+  }
+  [data-testid="stHorizontalBlock"]:has(.dn-ai-rail-marker.open)
+    > [data-testid="stColumn"]:last-child .dn-rail-wrap.expanded,
+  [data-testid="stHorizontalBlock"]:has(.dn-ai-rail-marker.open)
+    > [data-testid="stColumn"]:last-child [data-testid="stChatInput"],
+  [data-testid="stHorizontalBlock"]:has(.dn-ai-rail-marker.open)
+    > [data-testid="stColumn"]:last-child [data-testid="stVerticalBlockBorderWrapper"] {
+    display: none !important;
+  }
+  [data-testid="stHorizontalBlock"]:has(.dn-ai-rail-marker.open)
+    > [data-testid="stColumn"]:last-child::before {
+    content: "AI";
+    display: block;
+    text-align: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.6rem; letter-spacing: 0.22em;
+    color: #64748b; padding: 0.6rem 0;
+  }
+}
+</style>''', unsafe_allow_html=True)
+
+
+def _render_ai_rail(limits):
+    """Persistent right-side AI Assistant rail.
+
+    Two states driven by `st.session_state.ai_panel_open`:
+      - Collapsed: narrow strip with a chat icon and rotated tagline.
+      - Expanded: full panel with header, conversation history, and chat input.
+    """
+    open_now = st.session_state.get('ai_panel_open', False)
+
+    st.markdown('''<style>
+.dn-rail-wrap {
+  position: sticky; top: 1rem;
+  background: linear-gradient(180deg, rgba(12,24,41,0.62), rgba(7,16,31,0.62));
+  border: 1px solid rgba(45,212,191,0.18);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.dn-rail-wrap.collapsed {
+  padding: 0.6rem 0.25rem;
+  text-align: center;
+}
+.dn-rail-wrap.expanded { padding: 0.85rem 0.9rem 0.6rem 0.9rem; }
+.dn-rail-collapsed-strip {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0.85rem; padding: 0.7rem 0 0.4rem 0;
+}
+.dn-rail-icon {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: rgba(45,212,191,0.12);
+  border: 1px solid rgba(45,212,191,0.32);
+  color: var(--teal);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+}
+.dn-rail-tagline {
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.66rem; letter-spacing: 0.28em; text-transform: uppercase;
+  color: #94a3b8; padding: 0.3rem 0;
+}
+.dn-rail-head {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding-bottom: 0.6rem; margin-bottom: 0.55rem;
+  border-bottom: 1px solid rgba(45,212,191,0.14);
+}
+.dn-rail-head .icon {
+  width: 26px; height: 26px; border-radius: 7px;
+  background: rgba(45,212,191,0.14);
+  border: 1px solid rgba(45,212,191,0.38);
+  color: var(--teal);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; flex-shrink: 0;
+}
+.dn-rail-head .titles { display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; }
+.dn-rail-head .eyebrow {
+  font-family: "JetBrains Mono", monospace; font-size: 0.58rem;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--teal); opacity: 0.85;
+}
+.dn-rail-head .title {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 0.98rem; color: #e2e8f0; line-height: 1.1;
+}
+.dn-rail-empty {
+  text-align: center; padding: 1.6rem 0.4rem;
+  color: #64748b; font-family: "DM Sans", sans-serif;
+  font-size: 0.82rem; line-height: 1.5;
+}
+.dn-rail-empty .hint {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.66rem; letter-spacing: 0.14em;
+  color: #475569; margin-top: 0.6rem; text-transform: uppercase;
+}
+.dn-rail-msg {
+  padding: 0.6rem 0.75rem; border-radius: 10px;
+  margin-bottom: 0.5rem; font-size: 0.84rem; line-height: 1.45;
+  font-family: "DM Sans", sans-serif;
+  word-wrap: break-word; overflow-wrap: anywhere;
+}
+.dn-rail-msg.user {
+  background: linear-gradient(135deg, rgba(13,148,136,0.22), rgba(5,150,105,0.18));
+  border: 1px solid rgba(45,212,191,0.28);
+  color: #e2e8f0;
+}
+.dn-rail-msg.assistant {
+  background: rgba(30,41,59,0.72);
+  border: 1px solid rgba(148,163,184,0.16);
+  color: #cbd5e1;
+}
+.dn-rail-role {
+  font-family: "JetBrains Mono", monospace; font-size: 0.58rem;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  margin-bottom: 0.25rem; opacity: 0.75;
+}
+.dn-rail-msg.user .dn-rail-role { color: var(--teal); }
+.dn-rail-msg.assistant .dn-rail-role { color: #94a3b8; }
+</style>''', unsafe_allow_html=True)
+
+    if not open_now:
+        st.markdown(
+            '<div class="dn-rail-wrap collapsed">'
+            '<div class="dn-rail-collapsed-strip">'
+            '<div class="dn-rail-icon">✦</div>'
+            '<div class="dn-rail-tagline">Talk to your data</div>'
+            '</div></div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("◂", key="ai_rail_open", use_container_width=True,
+                     help="Open AI Assistant"):
+            st.session_state.ai_panel_open = True
+            st.rerun()
+        return
+
+    st.markdown(
+        '<div class="dn-rail-wrap expanded">'
+        '<div class="dn-rail-head">'
+        '<div class="icon">✦</div>'
+        '<div class="titles">'
+        '<div class="eyebrow">Talk to your data</div>'
+        '<div class="title">AI Assistant</div>'
+        '</div></div></div>',
+        unsafe_allow_html=True,
+    )
+    if st.button("Collapse ▸", key="ai_rail_close", use_container_width=True,
+                 help="Collapse AI Assistant"):
+        st.session_state.ai_panel_open = False
+        st.rerun()
+
+    if not limits.get('ai_chat_enabled'):
+        st.markdown(
+            '<div class="neon-card" style="padding:1rem;margin-top:0.6rem;">'
+            '<div style="text-align:center;font-family:Syne,sans-serif;'
+            'font-weight:700;color:#e2e8f0;margin-bottom:0.4rem;">'
+            'Tier 3 Feature</div>'
+            '<div style="text-align:center;color:#94a3b8;font-size:0.82rem;'
+            'line-height:1.45;">AI-powered data conversations are available '
+            'in Tier 3.</div></div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("View Tiers", use_container_width=True, key="upgrade_chat_rail"):
+            st.session_state.page = 'pricing'
+            st.rerun()
+        return
+
+    chat_box = st.container(height=420)
+    with chat_box:
+        if not st.session_state.chat_messages:
+            st.markdown(
+                '<div class="dn-rail-empty">'
+                'Ask any question about your active dataset.'
+                '<div class="hint">Try: "What patterns do you see?"</div>'
+                '<div class="hint">Or: "Summarize the key insights"</div>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            for msg in st.session_state.chat_messages:
+                role_label = "You" if msg["role"] == "user" else "AI Assistant"
+                bubble_class = msg["role"]
+                st.markdown(
+                    f'<div class="dn-rail-msg {bubble_class}">'
+                    f'<div class="dn-rail-role">{role_label}</div>'
+                    f'<div>{msg["content"]}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+    prompt = st.chat_input("Ask about your data…", key="chat_input_rail")
+    if prompt:
+        st.session_state.chat_messages.append({"role": "user", "content": prompt})
+        with st.spinner("Analyzing your data..."):
+            df_chat = _active_df()
+            df_info = {
+                'row_count': len(df_chat),
+                'column_count': len(df_chat.columns),
+                'columns': df_chat.columns.tolist(),
+                'dtypes': df_chat.dtypes.astype(str).to_dict(),
+                'numeric_summary': df_chat.describe().to_dict()
+                    if not df_chat.select_dtypes(include=[np.number]).empty else {}
+            }
+            response = chat_about_data(prompt, df_info)
+            st.session_state.chat_messages.append({"role": "assistant", "content": response})
+
+            # `chat_history.dataset_id` is an Integer column; virtual joined
+            # views carry a synthetic string id (`joined_<ts>`). Skip
+            # persistence in that case so the rail never raises on a
+            # type-mismatched insert.
+            _cur_id = st.session_state.current_dataset_id
+            if isinstance(_cur_id, int):
+                db = get_db()
+                try:
+                    save_chat_message(db, _cur_id, prompt, response)
+                finally:
+                    db.close()
+        st.rerun()
 
 
 def show_support_section():
