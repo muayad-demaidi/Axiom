@@ -10602,42 +10602,133 @@ def show_dashboard():
                     n_corr = len(correlations) if correlations else 0
                     n_outlier_cols = len(outliers) if outliers else 0
 
-                    def _stats_kpi_tile(label, value_html, accent="#14b8a6"):
+                    st.markdown(
+                        "<style>"
+                        ".dn-stats-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));"
+                        "gap:0.75rem;margin-bottom:1rem;}"
+                        "@media (max-width:900px){.dn-stats-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}"
+                        "@media (max-width:520px){.dn-stats-kpis{grid-template-columns:1fr;}}"
+                        ".dn-stats-tile{background:rgba(15,23,42,0.7);"
+                        "border:1px solid rgba(45,212,191,0.15);border-radius:16px;"
+                        "padding:1.05rem 1.2rem;box-shadow:0 4px 24px rgba(0,0,0,0.3);"
+                        "backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}"
+                        ".dn-stats-tile-label{color:#94a3b8;font-size:0.66rem;"
+                        "letter-spacing:0.18em;text-transform:uppercase;"
+                        "font-family:'JetBrains Mono',monospace;}"
+                        ".dn-stats-tile-val{font-size:1.85rem;font-weight:700;"
+                        "font-family:'JetBrains Mono',monospace;margin-top:0.3rem;"
+                        "line-height:1.05;color:var(--teal-mid);}"
+                        ".dn-stats-tile-val .dn-stats-tile-sub{display:block;"
+                        "font-size:0.7rem;color:#94a3b8;margin-top:0.25rem;"
+                        "font-family:'Inter',sans-serif;letter-spacing:0;text-transform:none;font-weight:500;}"
+                        ".dn-stats-head{display:flex;align-items:baseline;gap:0.6rem;"
+                        "margin:1.6rem 0 0.7rem 0;padding-bottom:0.55rem;"
+                        "border-bottom:1px solid rgba(45,212,191,0.12);flex-wrap:wrap;}"
+                        ".dn-stats-head-eyebrow{font-family:'JetBrains Mono',monospace;"
+                        "font-size:0.62rem;letter-spacing:0.22em;text-transform:uppercase;"
+                        "color:var(--teal);opacity:0.85;}"
+                        ".dn-stats-head-title{font-family:'Syne',sans-serif;font-weight:700;"
+                        "font-size:1.05rem;color:#e2e8f0;letter-spacing:-0.005em;margin:0;}"
+                        ".dn-stats-head-cap{font-family:'DM Sans',sans-serif;font-size:0.78rem;"
+                        "color:#64748b;margin-left:auto;}"
+                        "@media (max-width:520px){.dn-stats-head-cap{margin-left:0;flex-basis:100%;}}"
+                        ".dn-stats-cat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));"
+                        "gap:0.75rem;}"
+                        "@media (max-width:900px){.dn-stats-cat-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}"
+                        "@media (max-width:520px){.dn-stats-cat-grid{grid-template-columns:1fr;}}"
+                        ".dn-stats-glossary{background:rgba(15,23,42,0.55);"
+                        "border:1px solid rgba(45,212,191,0.15);border-bottom:none;"
+                        "border-radius:14px 14px 0 0;padding:0.7rem 1rem;"
+                        "font-size:0.78rem;line-height:1.7;color:#94a3b8;}"
+                        ".dn-stats-glossary b{color:#cbd5e1;}"
+                        ".dn-stats-freq{background:rgba(15,23,42,0.55);"
+                        "border:1px solid rgba(45,212,191,0.15);border-radius:14px;"
+                        "padding:0.9rem 1.15rem;margin-top:0.75rem;}"
+                        ".dn-stats-freq-title{color:#94a3b8;font-size:0.7rem;"
+                        "letter-spacing:0.16em;text-transform:uppercase;"
+                        "font-family:'JetBrains Mono',monospace;margin-bottom:0.5rem;}"
+                        ".dn-stats-freq-row{display:flex;align-items:center;gap:0.75rem;margin:0.4rem 0;}"
+                        ".dn-stats-freq-key{flex:0 0 35%;color:#cbd5e1;font-size:0.85rem;"
+                        "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}"
+                        ".dn-stats-bar-track{flex:1;background:rgba(148,163,184,0.1);"
+                        "border-radius:6px;height:8px;overflow:hidden;}"
+                        ".dn-stats-bar-fill{height:100%;border-radius:6px;"
+                        "background:linear-gradient(90deg,var(--teal-mid),var(--teal-dark));}"
+                        ".dn-stats-freq-val{flex:0 0 110px;text-align:right;color:#94a3b8;"
+                        "font-family:'JetBrains Mono',monospace;font-size:0.78rem;}"
+                        ".dn-stats-chip{background:rgba(15,23,42,0.7);"
+                        "border:1px solid rgba(45,212,191,0.18);border-radius:14px;"
+                        "padding:0.8rem 1.05rem;margin:0.45rem 0;display:flex;"
+                        "align-items:center;gap:1rem;flex-wrap:wrap;}"
+                        ".dn-stats-chip-arrow{flex:0 0 28px;font-size:1rem;"
+                        "font-weight:700;text-align:center;}"
+                        ".dn-stats-chip-pair{flex:1 1 240px;color:#e2e8f0;font-size:0.92rem;}"
+                        ".dn-stats-chip-pair span.sep{color:#64748b;}"
+                        ".dn-stats-chip-bar{flex:1 1 160px;background:rgba(148,163,184,0.1);"
+                        "border-radius:6px;height:8px;overflow:hidden;min-width:120px;}"
+                        ".dn-stats-chip-bar > div{height:100%;border-radius:6px;}"
+                        ".dn-stats-chip-val{flex:0 0 70px;text-align:right;color:#cbd5e1;"
+                        "font-family:'JetBrains Mono',monospace;font-size:0.9rem;}"
+                        ".dn-stats-outlier-summary{padding:0.7rem 1rem;"
+                        "border:1px solid rgba(239,68,68,0.25);background:rgba(239,68,68,0.06);"
+                        "border-radius:12px;color:#fecaca;font-size:0.9rem;margin-bottom:0.6rem;}"
+                        ".dn-stats-outlier-card{background:rgba(15,23,42,0.7);"
+                        "border:1px solid rgba(45,212,191,0.15);border-radius:12px;"
+                        "padding:0.85rem 1.1rem;margin:0.4rem 0;}"
+                        ".dn-stats-outlier-row{display:flex;justify-content:space-between;"
+                        "align-items:center;gap:1rem;flex-wrap:wrap;}"
+                        ".dn-stats-outlier-name{color:#e2e8f0;font-weight:600;}"
+                        ".dn-stats-outlier-sev{font-size:0.7rem;letter-spacing:0.16em;"
+                        "font-family:'JetBrains Mono',monospace;text-transform:uppercase;}"
+                        ".dn-stats-outlier-meter{display:flex;align-items:center;gap:0.75rem;margin-top:0.5rem;}"
+                        ".dn-stats-outlier-meter .dn-stats-bar-track{height:6px;}"
+                        ".dn-stats-outlier-count{flex:0 0 auto;color:#cbd5e1;"
+                        "font-family:'JetBrains Mono',monospace;font-size:0.82rem;}"
+                        ".dn-stats-outlier-bounds{margin-top:0.45rem;color:#94a3b8;"
+                        "font-size:0.78rem;font-family:'JetBrains Mono',monospace;}"
+                        "</style>",
+                        unsafe_allow_html=True,
+                    )
+
+                    def _stats_section_head(eyebrow, title, caption=""):
+                        cap_html = (f"<div class='dn-stats-head-cap'>{caption}</div>"
+                                    if caption else "")
+                        st.markdown(
+                            "<div class='dn-stats-head'>"
+                            f"<div class='dn-stats-head-eyebrow'>{eyebrow}</div>"
+                            f"<h3 class='dn-stats-head-title'>{title}</h3>"
+                            f"{cap_html}</div>",
+                            unsafe_allow_html=True,
+                        )
+
+                    def _stats_kpi_tile(label, value_html, accent=None):
+                        style = (f" style='color:{accent};'" if accent else "")
                         return (
-                            "<div style='background:rgba(15,23,42,0.7);"
-                            "border:1px solid rgba(20,184,166,0.15);border-radius:16px;"
-                            "padding:1.05rem 1.2rem;box-shadow:0 4px 24px rgba(0,0,0,0.3);"
-                            "backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);'>"
-                            "<div style='color:#94a3b8;font-size:0.7rem;letter-spacing:0.16em;"
-                            "text-transform:uppercase;font-family:JetBrains Mono,monospace;'>"
-                            f"{label}</div>"
-                            "<div style='font-size:1.9rem;font-weight:700;"
-                            "font-family:JetBrains Mono,monospace;margin-top:0.3rem;"
-                            f"line-height:1.05;color:{accent};'>{value_html}</div>"
+                            "<div class='dn-stats-tile'>"
+                            f"<div class='dn-stats-tile-label'>{label}</div>"
+                            f"<div class='dn-stats-tile-val'{style}>{value_html}</div>"
                             "</div>"
                         )
 
-                    k1, k2, k3, k4 = st.columns(4)
-                    with k1:
-                        st.markdown(_stats_kpi_tile("Numeric Cols", f"{n_numeric}"),
-                                    unsafe_allow_html=True)
-                    with k2:
-                        st.markdown(_stats_kpi_tile("Categorical Cols", f"{n_cat}"),
-                                    unsafe_allow_html=True)
-                    with k3:
-                        st.markdown(_stats_kpi_tile(
+                    kpi_html = (
+                        "<div class='dn-stats-kpis'>"
+                        + _stats_kpi_tile("Numeric Cols", f"{n_numeric}")
+                        + _stats_kpi_tile("Categorical Cols", f"{n_cat}")
+                        + _stats_kpi_tile(
                             "Strong Correlations", f"{n_corr}",
-                            "#14b8a6" if n_corr else "#64748b"),
-                            unsafe_allow_html=True)
-                    with k4:
-                        st.markdown(_stats_kpi_tile(
+                            None if n_corr else "#64748b")
+                        + _stats_kpi_tile(
                             "Outlier Cols", f"{n_outlier_cols}",
-                            "#ef4444" if n_outlier_cols else "#10b981"),
-                            unsafe_allow_html=True)
+                            "#ef4444" if n_outlier_cols else "#10b981")
+                        + "</div>"
+                    )
+                    st.markdown(kpi_html, unsafe_allow_html=True)
 
-                    st.markdown("<div style='height:0.9rem'></div>", unsafe_allow_html=True)
-
-                    st.subheader("Descriptive Statistics")
+                    _stats_section_head(
+                        "Section 01",
+                        "Descriptive Statistics",
+                        f"{n_numeric} numeric column" + ("" if n_numeric == 1 else "s"),
+                    )
                     if not numeric_stats.empty:
                         # numeric_stats is `df.describe().T` plus extra metrics:
                         # source column names live in the index and the columns
@@ -10678,15 +10769,11 @@ def show_dashboard():
                             ("missing_pct", "% of rows missing"),
                         ]
                         glossary_html = " &middot; ".join(
-                            f"<span style='color:#94a3b8;'><b style='color:#cbd5e1;'>{k}</b> {v}</span>"
+                            f"<span><b>{k}</b> {v}</span>"
                             for k, v in glossary_pairs
                         )
                         st.markdown(
-                            "<div style='background:rgba(15,23,42,0.55);"
-                            "border:1px solid rgba(20,184,166,0.15);border-bottom:none;"
-                            "border-radius:14px 14px 0 0;padding:0.7rem 1rem;"
-                            "font-size:0.78rem;line-height:1.7;'>"
-                            f"{glossary_html}</div>",
+                            f"<div class='dn-stats-glossary'>{glossary_html}</div>",
                             unsafe_allow_html=True,
                         )
 
@@ -10714,7 +10801,11 @@ def show_dashboard():
                     else:
                         st.info("No numeric columns found")
 
-                    st.subheader("Categorical Statistics")
+                    _stats_section_head(
+                        "Section 02",
+                        "Categorical Statistics",
+                        f"{n_cat} categorical column" + ("" if n_cat == 1 else "s"),
+                    )
                     if cat_stats:
                         cat_cols = list(cat_stats.keys())
                         sel_col = st.selectbox(
@@ -10723,7 +10814,6 @@ def show_dashboard():
                             key=f"cat_stats_pick_{_ds_id}",
                         )
                         info = cat_stats[sel_col]
-                        m1, m2, m3, m4 = st.columns(4)
                         mc = info.get('most_common')
                         mc_disp = "—" if mc is None else _html.escape(str(mc))
                         mc_count = info.get('most_common_count', 0)
@@ -10731,30 +10821,23 @@ def show_dashboard():
                         lc_disp = "—" if lc is None else _html.escape(str(lc))
                         lc_count = info.get('least_common_count', 0)
                         miss = info.get('missing', 0)
-                        with m1:
-                            st.markdown(_stats_kpi_tile("Unique", f"{info['unique_count']:,}"),
-                                        unsafe_allow_html=True)
-                        with m2:
-                            st.markdown(_stats_kpi_tile(
+                        cat_tiles_html = (
+                            "<div class='dn-stats-cat-grid'>"
+                            + _stats_kpi_tile("Unique", f"{info['unique_count']:,}")
+                            + _stats_kpi_tile(
                                 "Most Common",
                                 f"<span style='font-size:1.05rem;'>{mc_disp}</span>"
-                                "<div style='font-size:0.72rem;color:#94a3b8;margin-top:0.25rem;"
-                                "font-family:Inter,sans-serif;letter-spacing:0;text-transform:none;'>"
-                                f"{mc_count:,} rows</div>"),
-                                unsafe_allow_html=True)
-                        with m3:
-                            st.markdown(_stats_kpi_tile(
+                                f"<span class='dn-stats-tile-sub'>{mc_count:,} rows</span>")
+                            + _stats_kpi_tile(
                                 "Least Common",
                                 f"<span style='font-size:1.05rem;'>{lc_disp}</span>"
-                                "<div style='font-size:0.72rem;color:#94a3b8;margin-top:0.25rem;"
-                                "font-family:Inter,sans-serif;letter-spacing:0;text-transform:none;'>"
-                                f"{lc_count:,} rows</div>"),
-                                unsafe_allow_html=True)
-                        with m4:
-                            st.markdown(_stats_kpi_tile(
+                                f"<span class='dn-stats-tile-sub'>{lc_count:,} rows</span>")
+                            + _stats_kpi_tile(
                                 "Missing", f"{miss:,}",
-                                "#ef4444" if miss else "#10b981"),
-                                unsafe_allow_html=True)
+                                "#ef4444" if miss else "#10b981")
+                            + "</div>"
+                        )
+                        st.markdown(cat_tiles_html, unsafe_allow_html=True)
 
                         top_values = info.get('top_values') or {}
                         if top_values:
@@ -10766,34 +10849,28 @@ def show_dashboard():
                                 bar_w = (v_ / max_v) * 100
                                 k_safe = _html.escape(str(k_))
                                 rows_html.append(
-                                    "<div style='display:flex;align-items:center;gap:0.75rem;"
-                                    "margin:0.4rem 0;'>"
-                                    "<div style='flex:0 0 35%;color:#cbd5e1;font-size:0.85rem;"
-                                    "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>"
-                                    f"{k_safe}</div>"
-                                    "<div style='flex:1;background:rgba(148,163,184,0.1);"
-                                    "border-radius:6px;height:8px;overflow:hidden;'>"
-                                    f"<div style='width:{bar_w:.1f}%;height:100%;"
-                                    "background:linear-gradient(90deg,#14b8a6,#0d9488);"
-                                    "border-radius:6px;'></div></div>"
-                                    "<div style='flex:0 0 110px;text-align:right;color:#94a3b8;"
-                                    "font-family:JetBrains Mono,monospace;font-size:0.78rem;'>"
-                                    f"{v_:,} &middot; {pct:.1f}%</div></div>"
+                                    "<div class='dn-stats-freq-row'>"
+                                    f"<div class='dn-stats-freq-key'>{k_safe}</div>"
+                                    "<div class='dn-stats-bar-track'>"
+                                    f"<div class='dn-stats-bar-fill' style='width:{bar_w:.1f}%;'></div>"
+                                    "</div>"
+                                    f"<div class='dn-stats-freq-val'>{v_:,} &middot; {pct:.1f}%</div>"
+                                    "</div>"
                                 )
                             st.markdown(
-                                "<div style='background:rgba(15,23,42,0.55);"
-                                "border:1px solid rgba(20,184,166,0.15);border-radius:14px;"
-                                "padding:0.9rem 1.15rem;margin-top:0.75rem;'>"
-                                "<div style='color:#94a3b8;font-size:0.7rem;letter-spacing:0.16em;"
-                                "text-transform:uppercase;font-family:JetBrains Mono,monospace;"
-                                f"margin-bottom:0.5rem;'>Top {len(top_values)} values</div>"
+                                "<div class='dn-stats-freq'>"
+                                f"<div class='dn-stats-freq-title'>Top {len(top_values)} values</div>"
                                 + "".join(rows_html) + "</div>",
                                 unsafe_allow_html=True,
                             )
                     else:
                         st.info("No categorical columns found")
 
-                    st.subheader("Strong Correlations")
+                    _stats_section_head(
+                        "Section 03",
+                        "Strong Correlations",
+                        f"top {min(n_corr, 10)} of {n_corr}" if n_corr else "threshold |r| ≥ 0.7",
+                    )
                     if correlations:
                         chips_html = []
                         for corr in correlations[:10]:
@@ -10812,23 +10889,15 @@ def show_dashboard():
                             c2 = _html.escape(str(corr['column2']))
                             bar_w = mag * 100
                             chips_html.append(
-                                f"<div title='{tooltip}' style='background:rgba(15,23,42,0.7);"
-                                "border:1px solid rgba(20,184,166,0.18);border-radius:14px;"
-                                "padding:0.8rem 1.05rem;margin:0.45rem 0;display:flex;"
-                                "align-items:center;gap:1rem;flex-wrap:wrap;'>"
-                                f"<div style='flex:0 0 28px;font-size:1rem;color:{arrow_color};"
-                                f"font-weight:700;text-align:center;'>{arrow}</div>"
-                                "<div style='flex:1 1 240px;color:#e2e8f0;font-size:0.92rem;'>"
-                                f"<b>{c1}</b> "
-                                "<span style='color:#64748b;'>&harr;</span> "
-                                f"<b>{c2}</b></div>"
-                                "<div style='flex:1 1 160px;background:rgba(148,163,184,0.1);"
-                                "border-radius:6px;height:8px;overflow:hidden;min-width:120px;'>"
-                                f"<div style='width:{bar_w:.1f}%;height:100%;"
-                                f"background:{arrow_color};border-radius:6px;'></div></div>"
-                                "<div style='flex:0 0 70px;text-align:right;color:#cbd5e1;"
-                                "font-family:JetBrains Mono,monospace;font-size:0.9rem;'>"
-                                f"{v:+.3f}</div></div>"
+                                f"<div class='dn-stats-chip' title='{tooltip}'>"
+                                f"<div class='dn-stats-chip-arrow' style='color:{arrow_color};'>{arrow}</div>"
+                                f"<div class='dn-stats-chip-pair'><b>{c1}</b> "
+                                f"<span class='sep'>&harr;</span> <b>{c2}</b></div>"
+                                "<div class='dn-stats-chip-bar'>"
+                                f"<div style='width:{bar_w:.1f}%;background:{arrow_color};'></div>"
+                                "</div>"
+                                f"<div class='dn-stats-chip-val'>{v:+.3f}</div>"
+                                "</div>"
                             )
                         st.markdown("".join(chips_html), unsafe_allow_html=True)
                     else:
@@ -10838,15 +10907,17 @@ def show_dashboard():
                             unsafe_allow_html=True,
                         )
 
-                    st.subheader("Outlier Detection")
+                    _stats_section_head(
+                        "Section 04",
+                        "Outlier Detection",
+                        "IQR method · 1.5 × Q3-Q1",
+                    )
                     total_numeric = n_numeric
                     if outliers:
                         n_with = len(outliers)
                         plural = "s" if total_numeric != 1 else ""
                         st.markdown(
-                            "<div style='padding:0.7rem 1rem;border:1px solid rgba(239,68,68,0.25);"
-                            "background:rgba(239,68,68,0.06);border-radius:12px;color:#fecaca;"
-                            "font-size:0.9rem;margin-bottom:0.6rem;'>"
+                            "<div class='dn-stats-outlier-summary'>"
                             f"<b>{n_with}</b> of <b>{total_numeric}</b> numeric column{plural} "
                             "have outliers.</div>",
                             unsafe_allow_html=True,
@@ -10859,34 +10930,25 @@ def show_dashboard():
                             elif pct >= 1:
                                 accent, sev = "#f59e0b", "Medium"
                             else:
-                                accent, sev = "#14b8a6", "Low"
+                                accent, sev = "var(--teal-mid)", "Low"
                             bar_w = min(max(pct, 0), 100)
                             lower = info.get('lower_bound')
                             upper = info.get('upper_bound')
                             col_safe = _html.escape(str(col))
                             cards_html.append(
-                                "<div style='background:rgba(15,23,42,0.7);"
-                                "border:1px solid rgba(20,184,166,0.15);"
-                                f"border-left:4px solid {accent};border-radius:12px;"
-                                "padding:0.85rem 1.1rem;margin:0.4rem 0;'>"
-                                "<div style='display:flex;justify-content:space-between;"
-                                "align-items:center;gap:1rem;flex-wrap:wrap;'>"
-                                f"<div style='color:#e2e8f0;font-weight:600;'>{col_safe}</div>"
-                                f"<div style='color:{accent};font-size:0.7rem;letter-spacing:0.16em;"
-                                "font-family:JetBrains Mono,monospace;text-transform:uppercase;'>"
-                                f"{sev}</div></div>"
-                                "<div style='display:flex;align-items:center;gap:0.75rem;"
-                                "margin-top:0.5rem;'>"
-                                "<div style='flex:1;background:rgba(148,163,184,0.1);"
-                                "border-radius:6px;height:6px;overflow:hidden;'>"
-                                f"<div style='width:{bar_w:.1f}%;height:100%;"
+                                f"<div class='dn-stats-outlier-card' style='border-left:4px solid {accent};'>"
+                                "<div class='dn-stats-outlier-row'>"
+                                f"<div class='dn-stats-outlier-name'>{col_safe}</div>"
+                                f"<div class='dn-stats-outlier-sev' style='color:{accent};'>{sev}</div>"
+                                "</div>"
+                                "<div class='dn-stats-outlier-meter'>"
+                                "<div class='dn-stats-bar-track'>"
+                                f"<div class='dn-stats-bar-fill' style='width:{bar_w:.1f}%;"
                                 f"background:{accent};'></div></div>"
-                                "<div style='flex:0 0 auto;color:#cbd5e1;"
-                                "font-family:JetBrains Mono,monospace;font-size:0.82rem;'>"
+                                f"<div class='dn-stats-outlier-count'>"
                                 f"{int(info['count']):,} &middot; {pct:.2f}%</div></div>"
-                                "<div style='margin-top:0.45rem;color:#94a3b8;font-size:0.78rem;"
-                                "font-family:JetBrains Mono,monospace;'>"
-                                f"bounds: [{lower}, {upper}]</div></div>"
+                                f"<div class='dn-stats-outlier-bounds'>bounds: [{lower}, {upper}]</div>"
+                                "</div>"
                             )
                         st.markdown("".join(cards_html), unsafe_allow_html=True)
                     else:
@@ -10897,8 +10959,10 @@ def show_dashboard():
                             unsafe_allow_html=True,
                         )
 
-                    st.markdown("<div style='height:1.2rem'></div>", unsafe_allow_html=True)
-                    st.subheader("Download Report")
+                    _stats_section_head(
+                        "Section 05",
+                        "Download Report",
+                    )
                     _report_ds_name = _active_ds_name or "dataset"
                     _report_html = _build_statistics_report_html(
                         dataset_name=_report_ds_name,
