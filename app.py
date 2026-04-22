@@ -12023,8 +12023,7 @@ def show_dashboard():
                         unsafe_allow_html=True,
                     )
 
-                    st.markdown("---")
-                    _sub_head(
+                    _block_head(
                         "Statistical summary",
                         "key descriptive statistics for numeric fields",
                     )
@@ -12042,28 +12041,117 @@ def show_dashboard():
                             if wanted:
                                 stats_df = stats_df[wanted]
                             stats_df = stats_df.reset_index().rename(columns={'index': 'Column'})
+
+                            # Detect currency-typed columns from the active step's
+                            # schema so we can render their stat values with a
+                            # currency prefix (the user's chosen symbol). Other
+                            # numeric columns use the decimal preference. Falls
+                            # back silently when no schema metadata is present.
                             prefs_fmts = _resolve_display_prefs(_get_display_prefs())
-                            stats_cfg = {'Column': st.column_config.TextColumn('Column')}
+                            try:
+                                _sh_for_report = _get_step_history(create=False)
+                            except Exception:
+                                _sh_for_report = None
+                            try:
+                                _active_step_for_report = _sh_for_report.current() if _sh_for_report else None
+                            except Exception:
+                                _active_step_for_report = None
+                            _schema_for_report = (
+                                (getattr(_active_step_for_report, 'meta', {}) or {}).get('schema')
+                                if _active_step_for_report else None
+                            ) or []
+                            currency_cols = set()
+                            for s in _schema_for_report:
+                                t = (s.get('inferred_type') if isinstance(s, dict)
+                                     else getattr(s, 'inferred_type', '')) or ''
+                                col_name = (s.get('column') if isinstance(s, dict)
+                                            else getattr(s, 'column', None))
+                                if col_name and t.lower() == 'currency':
+                                    currency_cols.add(col_name)
+
+                            # Translate the user's number/currency preferences
+                            # into a Python-side formatter so the on-screen stats
+                            # honor the same conventions as the rest of the app.
+                            _dec_pref = prefs_fmts.get('dec', 'localized')
+                            _curr_pref = prefs_fmts.get('currency', 'accounting')
+                            _symbol_map = {
+                                'dollar': '$', 'euro': '€', 'yen': '¥',
+                                'accounting': '$',
+                            }
+                            _curr_symbol = _symbol_map.get(_curr_pref, '')
+
+                            def _fmt_with_pref(v, pref):
+                                """Render `v` per a user pref token.
+                                Tokens: 'localized' (1,234.56), 'plain' (1234.56),
+                                or any printf-style spec like '%.0f' / '%.2f'.
+                                """
+                                if pd.isna(v):
+                                    return '—'
+                                try:
+                                    if pref == 'localized':
+                                        return f"{v:,.2f}"
+                                    if pref == 'plain':
+                                        return f"{v:.2f}"
+                                    if isinstance(pref, str) and pref.startswith('%'):
+                                        return pref % v
+                                    return f"{v:,.2f}"
+                                except Exception:
+                                    return str(v)
+
+                            def _fmt_num(v):
+                                return _fmt_with_pref(v, _dec_pref)
+
+                            def _fmt_curr(v):
+                                if pd.isna(v):
+                                    return '—'
+                                try:
+                                    if _curr_pref == 'accounting':
+                                        if v < 0:
+                                            return f"({_curr_symbol}{abs(v):,.2f})"
+                                        return f"{_curr_symbol}{v:,.2f}"
+                                    if _curr_pref in ('dollar', 'euro', 'yen'):
+                                        decimals = 0 if _curr_pref == 'yen' else 2
+                                        return f"{_curr_symbol}{v:,.{decimals}f}"
+                                    if isinstance(_curr_pref, str) and _curr_pref.startswith('%'):
+                                        return _curr_pref % v
+                                    return f"{v:,.2f}"
+                                except Exception:
+                                    return str(v)
+
+                            stat_cols = [c for c in stats_df.columns if c != 'Column']
+                            display_df = stats_df.copy()
+                            for idx in display_df.index:
+                                col_name = display_df.at[idx, 'Column']
+                                fmt = _fmt_curr if col_name in currency_cols else _fmt_num
+                                for c in stat_cols:
+                                    display_df.at[idx, c] = fmt(display_df.at[idx, c])
+
                             label_map = {
                                 'mean': 'Mean', 'median': 'Median', 'std': 'Std Dev',
                                 'min': 'Min', 'max': 'Max',
                             }
-                            for c in stats_df.columns:
+                            display_df = display_df.rename(columns=label_map)
+
+                            stats_cfg = {'Column': st.column_config.TextColumn('Column')}
+                            for c in display_df.columns:
                                 if c == 'Column':
                                     continue
                                 try:
-                                    stats_cfg[c] = st.column_config.NumberColumn(
-                                        label_map.get(c, c.title()),
-                                        format=prefs_fmts['dec'],
-                                    )
+                                    stats_cfg[c] = st.column_config.TextColumn(c)
                                 except Exception:
                                     pass
+
                             st.dataframe(
-                                stats_df,
+                                display_df,
                                 use_container_width=True,
                                 hide_index=True,
                                 column_config=stats_cfg,
                             )
+                            if currency_cols:
+                                st.caption(
+                                    "Currency formatting applied to: "
+                                    + ", ".join(sorted(currency_cols))
+                                )
                         except Exception:
                             st.info("Numeric summary is unavailable for the current dataset.")
                     else:
@@ -12073,23 +12161,23 @@ def show_dashboard():
                         )
 
                     if limits['ai_chat_enabled']:
-                        st.markdown("---")
-                        _sub_head(
+                        _block_head(
                             "AI insights & recommendations",
                             "natural-language summary of trends, risks, and next steps",
                         )
+                        cta_col, _spacer = st.columns([1, 2])
                         if not st.session_state.ai_insights:
                             st.markdown(
-                                '<div class="dn-ai-empty">No AI insights generated yet. Click <b>Generate AI insights</b> to produce an executive narrative — including key trends, risks, and recommended next steps — from the active dataset.</div>',
+                                '<div class="dn-ai-empty">No AI insights generated yet. Click <b>Generate AI insights</b> below to produce an executive narrative — including key trends, risks, and recommended next steps — from the active dataset.</div>',
                                 unsafe_allow_html=True,
                             )
-                        cta_col, _spacer = st.columns([1, 2])
                         with cta_col:
                             cta_label = "Regenerate AI insights" if st.session_state.ai_insights else "Generate AI insights"
                             generate_clicked = st.button(
                                 cta_label,
                                 use_container_width=True,
                                 key="report_generate_ai",
+                                type="primary",
                             )
                         if generate_clicked:
                             with st.spinner("Analyzing the dataset and drafting recommendations…"):
@@ -12106,16 +12194,15 @@ def show_dashboard():
                                 st.session_state.ai_insights = insights
                                 _record_learned_note("insight", insights)
                             st.rerun()
-                        if st.session_state.ai_insights:
+                        if st.session_state.ai_insights and not generate_clicked:
                             st.markdown(
                                 f'<div class="insight-box">{st.session_state.ai_insights}</div>',
                                 unsafe_allow_html=True,
                             )
 
-                    st.markdown("---")
-                    _sub_head(
-                        "Download report",
-                        "export the executive summary or the cleaned dataset",
+                    _block_head(
+                        "Exports",
+                        "download the executive summary or the cleaned dataset",
                     )
 
                     generated_at = datetime.now().strftime('%Y-%m-%d %H:%M')
