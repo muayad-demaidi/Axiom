@@ -286,14 +286,23 @@ NEON_CSS = """
     :root { --dn-workspace-h: calc(100vh - 100px); }
 }
 
-/* Tight padding + wide canvas while inside a workspace (rail open or closed). */
+/* Roomy side padding inside a workspace — the dashboard previously
+   stretched edge-to-edge at 98vw which looked too wide on large
+   monitors. Capping the canvas at 1720px and giving 2.4rem of breathing
+   room on each side keeps the layout balanced without losing density. */
 [data-testid="stMainBlockContainer"]:has(.dn-workspace-marker) {
-    max-width: min(1880px, 98vw) !important;
-    padding: 0.6rem 1rem 0.6rem 1rem !important;
+    max-width: min(1720px, 92vw) !important;
+    padding: 0.6rem 2.4rem 0.6rem 2.4rem !important;
 }
 [data-testid="stMainBlockContainer"]:has(.dn-workspace-marker .dn-ai-rail-marker.open),
 [data-testid="stMainBlockContainer"]:has(.dn-ai-rail-marker.open) {
-    max-width: min(1880px, 98vw) !important;
+    max-width: min(1720px, 92vw) !important;
+}
+@media (max-width: 1280px) {
+    [data-testid="stMainBlockContainer"]:has(.dn-workspace-marker) {
+        max-width: 96vw !important;
+        padding: 0.6rem 1.2rem 0.6rem 1.2rem !important;
+    }
 }
 /* Body never scrolls in the workspace — the panels do. */
 body:has(.dn-workspace-marker) { overflow: hidden !important; }
@@ -7223,14 +7232,22 @@ def _open_project(project_id, project_name):
 
 
 def _enter_dashboard_with_sheet(project_id, project_name, dataset_id):
-    """Hydrate a sheet and route into the dashboard (called from dialog)."""
+    """Hydrate a sheet and route into the dashboard (called from dialog).
+
+    Returns True on success, False if the sheet's saved recipe could
+    not be loaded. Hydrates exactly once (the previous flow accidentally
+    double-hydrated, slowing the modal-to-dashboard transition).
+    """
     _clear_workspace_state()
     st.session_state.current_project_id = project_id
     st.session_state.current_project_name = project_name
-    _hydrate_dataset_from_db(dataset_id)
+    if not _hydrate_dataset_from_db(dataset_id):
+        return False
     _refresh_project_ai_context(project_id)
     st.session_state.page = 'dashboard'
+    st.session_state['_project_validated_id'] = project_id
     st.session_state.pop('_pending_sheet_dialog', None)
+    return True
 
 
 def _enter_dashboard_for_upload(project_id, project_name):
@@ -7543,9 +7560,8 @@ def _show_sheets_dialog(project_id: int, project_name: str):
                     unsafe_allow_html=True)
                 if st.button("Open  →", key=f"sh_dlg_open_{s.id}",
                              use_container_width=True):
-                    if _hydrate_dataset_from_db(s.id):
-                        _enter_dashboard_with_sheet(
-                            project_id, project_name, s.id)
+                    if _enter_dashboard_with_sheet(
+                            project_id, project_name, s.id):
                         st.rerun()
                     else:
                         st.error("Couldn't open that sheet — its saved recipe is missing.")
@@ -8466,21 +8482,30 @@ def show_dashboard():
 
     if st.session_state.user:
         user_id = st.session_state.user.get('id')
-        # Re-validate that the project still belongs to this user.
-        _pdb = get_db()
-        try:
-            _proj = get_project(_pdb, st.session_state.current_project_id, user_id)
-            if _proj is None:
-                st.session_state.current_project_id = None
-                st.session_state.current_project_name = None
-                st.session_state.page = 'projects'
+        # Validate project ownership ONCE per project-open, not on every
+        # rerun. The Projects page sets `_project_validated_id` when the
+        # user picks a sheet; subsequent dashboard reruns short-circuit
+        # this DB round-trip. `touch_project` is also throttled — it
+        # already runs on project open via `_open_project`, so we don't
+        # need to write to the DB on every interaction.
+        _validated_pid = st.session_state.get('_project_validated_id')
+        _current_pid = st.session_state.current_project_id
+        if _validated_pid != _current_pid:
+            _pdb = get_db()
+            try:
+                _proj = get_project(_pdb, _current_pid, user_id)
+                if _proj is None:
+                    st.session_state.current_project_id = None
+                    st.session_state.current_project_name = None
+                    st.session_state.pop('_project_validated_id', None)
+                    st.session_state.page = 'projects'
+                    _pdb.close()
+                    st.rerun()
+                    return
+                st.session_state.current_project_name = _proj.name
+                st.session_state['_project_validated_id'] = _current_pid
+            finally:
                 _pdb.close()
-                st.rerun()
-                return
-            st.session_state.current_project_name = _proj.name
-            touch_project(_pdb, _proj.id, user_id)
-        finally:
-            _pdb.close()
         db = get_db()
         try:
             user_obj = get_user_by_id(db, user_id)
