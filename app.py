@@ -1347,14 +1347,40 @@ html { scroll-behavior: smooth; }
     color: inherit !important; font-size: inherit !important; font-weight: inherit !important; margin: 0 !important;
 }
 
-/* Popover dropdown content (rendered at body level) */
+/* Popover dropdown content (rendered at body level).
+   BaseWeb wraps the body in 2-3 layers, any of which can default to
+   white. Force every layer transparent / dark so no white frame leaks. */
+[data-baseweb="popover"],
+[data-baseweb="popover"] > div,
+[data-baseweb="popover"] > div > div {
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+/* The actual visible panel that Streamlit renders our content into */
 [data-baseweb="popover"] [data-testid="stPopoverBody"] {
     background: linear-gradient(180deg, #0c1829 0%, #07101f 100%) !important;
-    border: 1px solid rgba(45,212,191,0.22) !important;
+    background-color: #0c1829 !important;
+    color: #cbd5e1 !important;
+    border: 1px solid rgba(45,212,191,0.28) !important;
     border-radius: 14px !important;
-    box-shadow: 0 18px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(45,212,191,0.05) !important;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.55),
+                0 0 0 1px rgba(45,212,191,0.06),
+                inset 0 1px 0 rgba(255,255,255,0.02) !important;
     padding: 1rem 0.85rem !important;
-    min-width: 240px !important;
+    min-width: 260px !important;
+}
+/* Ensure every nested wrapper inside the body inherits the dark surface
+   (Streamlit's emotion-cached divs occasionally re-introduce white). */
+[data-baseweb="popover"] [data-testid="stPopoverBody"] > div,
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-testid="stVerticalBlock"],
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-testid="stHorizontalBlock"],
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-testid="stColumn"],
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-testid="stForm"],
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-testid="stMarkdownContainer"] {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #cbd5e1 !important;
 }
 .dn-pop-head { display: flex; align-items: center; gap: 0.85rem; padding: 0.25rem 0.4rem 0.6rem 0.4rem; }
 .dn-pop-avatar {
@@ -1430,12 +1456,22 @@ html { scroll-behavior: smooth; }
     border-top: 1px solid rgba(148,163,184,0.14) !important;
     margin: 0.65rem 0 !important;
 }
+/* Neutralize BaseWeb input/textarea wrappers (they add a white frame) */
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-baseweb="input"],
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-baseweb="base-input"],
+[data-baseweb="popover"] [data-testid="stPopoverBody"] [data-baseweb="textarea"] {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+}
 [data-baseweb="popover"] [data-testid="stPopoverBody"] input[type="text"],
 [data-baseweb="popover"] [data-testid="stPopoverBody"] input[type="password"],
 [data-baseweb="popover"] [data-testid="stPopoverBody"] textarea {
-    background: rgba(7,16,31,0.65) !important;
+    background: rgba(7,16,31,0.85) !important;
+    background-color: rgba(7,16,31,0.85) !important;
     color: #f1f5f9 !important;
-    border: 1px solid rgba(148,163,184,0.20) !important;
+    -webkit-text-fill-color: #f1f5f9 !important;
+    border: 1px solid rgba(148,163,184,0.25) !important;
     border-radius: 9px !important;
     font-family: 'DM Sans', sans-serif !important;
     font-size: 0.9rem !important;
