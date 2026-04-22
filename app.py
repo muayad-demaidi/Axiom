@@ -10,6 +10,7 @@ from datetime import datetime
 import io
 import base64
 import csv as _csv
+import html as _html
 import re
 import time
 
@@ -8699,10 +8700,54 @@ def show_dashboard():
                     _render_phase1_dock("stats", limits)
 
                     df_analysis = _active_df()
-
                     _ds_id = _active_step_signature()
-                    st.subheader("Descriptive Statistics")
+
                     numeric_stats = _c_numeric_stats(df_analysis, _ds_id)
+                    cat_stats = _c_categorical_stats(df_analysis, _ds_id)
+                    correlations = _c_strong_correlations(df_analysis, _ds_id)
+                    outliers = _c_outliers(df_analysis, _ds_id)
+
+                    n_numeric = int(len(numeric_stats)) if numeric_stats is not None and not numeric_stats.empty else 0
+                    n_cat = len(cat_stats) if cat_stats else 0
+                    n_corr = len(correlations) if correlations else 0
+                    n_outlier_cols = len(outliers) if outliers else 0
+
+                    def _stats_kpi_tile(label, value_html, accent="#14b8a6"):
+                        return (
+                            "<div style='background:rgba(15,23,42,0.7);"
+                            "border:1px solid rgba(20,184,166,0.15);border-radius:16px;"
+                            "padding:1.05rem 1.2rem;box-shadow:0 4px 24px rgba(0,0,0,0.3);"
+                            "backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);'>"
+                            "<div style='color:#94a3b8;font-size:0.7rem;letter-spacing:0.16em;"
+                            "text-transform:uppercase;font-family:JetBrains Mono,monospace;'>"
+                            f"{label}</div>"
+                            "<div style='font-size:1.9rem;font-weight:700;"
+                            "font-family:JetBrains Mono,monospace;margin-top:0.3rem;"
+                            f"line-height:1.05;color:{accent};'>{value_html}</div>"
+                            "</div>"
+                        )
+
+                    k1, k2, k3, k4 = st.columns(4)
+                    with k1:
+                        st.markdown(_stats_kpi_tile("Numeric Cols", f"{n_numeric}"),
+                                    unsafe_allow_html=True)
+                    with k2:
+                        st.markdown(_stats_kpi_tile("Categorical Cols", f"{n_cat}"),
+                                    unsafe_allow_html=True)
+                    with k3:
+                        st.markdown(_stats_kpi_tile(
+                            "Strong Correlations", f"{n_corr}",
+                            "#14b8a6" if n_corr else "#64748b"),
+                            unsafe_allow_html=True)
+                    with k4:
+                        st.markdown(_stats_kpi_tile(
+                            "Outlier Cols", f"{n_outlier_cols}",
+                            "#ef4444" if n_outlier_cols else "#10b981"),
+                            unsafe_allow_html=True)
+
+                    st.markdown("<div style='height:0.9rem'></div>", unsafe_allow_html=True)
+
+                    st.subheader("Descriptive Statistics")
                     if not numeric_stats.empty:
                         # numeric_stats is `df.describe().T` plus extra metrics:
                         # source column names live in the index and the columns
@@ -8713,7 +8758,10 @@ def show_dashboard():
                         # 1,234,567.89 instead of the raw float.
                         stats_display = numeric_stats.reset_index().rename(
                             columns={"index": "column"})
-                        stats_cfg = {"column": st.column_config.TextColumn("column")}
+                        try:
+                            stats_cfg = {"column": st.column_config.TextColumn("column", pinned=True)}
+                        except TypeError:
+                            stats_cfg = {"column": st.column_config.TextColumn("column")}
                         int_like = {"count", "missing"}
                         stats_fmts = _resolve_display_prefs(_get_display_prefs())
                         for c in stats_display.columns:
@@ -8728,44 +8776,236 @@ def show_dashboard():
                                     stats_cfg[c] = st.column_config.NumberColumn(format=stats_fmts["dec"])
                             except Exception:
                                 pass
-                        st.dataframe(
-                            stats_display,
-                            use_container_width=True,
-                            hide_index=True,
-                            column_config=stats_cfg,
+
+                        glossary_pairs = [
+                            ("count", "non-missing values"),
+                            ("mean", "average"),
+                            ("std", "standard deviation"),
+                            ("min / max", "range"),
+                            ("25% / 50% / 75%", "quartiles (50% = median)"),
+                            ("skewness", "asymmetry"),
+                            ("kurtosis", "tail weight"),
+                            ("missing_pct", "% of rows missing"),
+                        ]
+                        glossary_html = " &middot; ".join(
+                            f"<span style='color:#94a3b8;'><b style='color:#cbd5e1;'>{k}</b> {v}</span>"
+                            for k, v in glossary_pairs
                         )
+                        st.markdown(
+                            "<div style='background:rgba(15,23,42,0.55);"
+                            "border:1px solid rgba(20,184,166,0.15);border-bottom:none;"
+                            "border-radius:14px 14px 0 0;padding:0.7rem 1rem;"
+                            "font-size:0.78rem;line-height:1.7;'>"
+                            f"{glossary_html}</div>",
+                            unsafe_allow_html=True,
+                        )
+
+                        try:
+                            styler = stats_display.style.apply(
+                                lambda row: ['background-color: rgba(20, 184, 166, 0.05)'
+                                             if row.name % 2 else '' for _ in row],
+                                axis=1,
+                            )
+                            st.dataframe(
+                                styler,
+                                use_container_width=True,
+                                hide_index=True,
+                                column_config=stats_cfg,
+                                column_order=["column"] + [c for c in stats_display.columns if c != "column"],
+                            )
+                        except Exception:
+                            st.dataframe(
+                                stats_display,
+                                use_container_width=True,
+                                hide_index=True,
+                                column_config=stats_cfg,
+                                column_order=["column"] + [c for c in stats_display.columns if c != "column"],
+                            )
                     else:
                         st.info("No numeric columns found")
-                
+
                     st.subheader("Categorical Statistics")
-                    cat_stats = _c_categorical_stats(df_analysis, _ds_id)
                     if cat_stats:
-                        for col, stats in cat_stats.items():
-                            with st.expander(f"{col}"):
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    st.write(f"**Unique Values:** {stats['unique_count']}")
-                                    st.write(f"**Most Common:** {stats['most_common']}")
-                                with col2:
-                                    st.write(f"**Least Common:** {stats['least_common']}")
-                                    st.write(f"**Missing Values:** {stats['missing']}")
-                
+                        cat_cols = list(cat_stats.keys())
+                        sel_col = st.selectbox(
+                            "Choose a categorical column",
+                            cat_cols,
+                            key=f"cat_stats_pick_{_ds_id}",
+                        )
+                        info = cat_stats[sel_col]
+                        m1, m2, m3, m4 = st.columns(4)
+                        mc = info.get('most_common')
+                        mc_disp = "—" if mc is None else _html.escape(str(mc))
+                        mc_count = info.get('most_common_count', 0)
+                        lc = info.get('least_common')
+                        lc_disp = "—" if lc is None else _html.escape(str(lc))
+                        lc_count = info.get('least_common_count', 0)
+                        miss = info.get('missing', 0)
+                        with m1:
+                            st.markdown(_stats_kpi_tile("Unique", f"{info['unique_count']:,}"),
+                                        unsafe_allow_html=True)
+                        with m2:
+                            st.markdown(_stats_kpi_tile(
+                                "Most Common",
+                                f"<span style='font-size:1.05rem;'>{mc_disp}</span>"
+                                "<div style='font-size:0.72rem;color:#94a3b8;margin-top:0.25rem;"
+                                "font-family:Inter,sans-serif;letter-spacing:0;text-transform:none;'>"
+                                f"{mc_count:,} rows</div>"),
+                                unsafe_allow_html=True)
+                        with m3:
+                            st.markdown(_stats_kpi_tile(
+                                "Least Common",
+                                f"<span style='font-size:1.05rem;'>{lc_disp}</span>"
+                                "<div style='font-size:0.72rem;color:#94a3b8;margin-top:0.25rem;"
+                                "font-family:Inter,sans-serif;letter-spacing:0;text-transform:none;'>"
+                                f"{lc_count:,} rows</div>"),
+                                unsafe_allow_html=True)
+                        with m4:
+                            st.markdown(_stats_kpi_tile(
+                                "Missing", f"{miss:,}",
+                                "#ef4444" if miss else "#10b981"),
+                                unsafe_allow_html=True)
+
+                        top_values = info.get('top_values') or {}
+                        if top_values:
+                            top_total = sum(top_values.values()) or 1
+                            max_v = max(top_values.values()) or 1
+                            rows_html = []
+                            for k_, v_ in top_values.items():
+                                pct = (v_ / top_total) * 100
+                                bar_w = (v_ / max_v) * 100
+                                k_safe = _html.escape(str(k_))
+                                rows_html.append(
+                                    "<div style='display:flex;align-items:center;gap:0.75rem;"
+                                    "margin:0.4rem 0;'>"
+                                    "<div style='flex:0 0 35%;color:#cbd5e1;font-size:0.85rem;"
+                                    "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>"
+                                    f"{k_safe}</div>"
+                                    "<div style='flex:1;background:rgba(148,163,184,0.1);"
+                                    "border-radius:6px;height:8px;overflow:hidden;'>"
+                                    f"<div style='width:{bar_w:.1f}%;height:100%;"
+                                    "background:linear-gradient(90deg,#14b8a6,#0d9488);"
+                                    "border-radius:6px;'></div></div>"
+                                    "<div style='flex:0 0 110px;text-align:right;color:#94a3b8;"
+                                    "font-family:JetBrains Mono,monospace;font-size:0.78rem;'>"
+                                    f"{v_:,} &middot; {pct:.1f}%</div></div>"
+                                )
+                            st.markdown(
+                                "<div style='background:rgba(15,23,42,0.55);"
+                                "border:1px solid rgba(20,184,166,0.15);border-radius:14px;"
+                                "padding:0.9rem 1.15rem;margin-top:0.75rem;'>"
+                                "<div style='color:#94a3b8;font-size:0.7rem;letter-spacing:0.16em;"
+                                "text-transform:uppercase;font-family:JetBrains Mono,monospace;"
+                                f"margin-bottom:0.5rem;'>Top {len(top_values)} values</div>"
+                                + "".join(rows_html) + "</div>",
+                                unsafe_allow_html=True,
+                            )
+                    else:
+                        st.info("No categorical columns found")
+
                     st.subheader("Strong Correlations")
-                    correlations = _c_strong_correlations(df_analysis, _ds_id)
                     if correlations:
-                        for corr in correlations[:5]:
-                            emoji = "" if corr['correlation'] > 0 else ""
-                            st.markdown(f"{emoji} **{corr['column1']}** & **{corr['column2']}**: {corr['correlation']:.3f}")
+                        chips_html = []
+                        for corr in correlations[:10]:
+                            v = corr['correlation']
+                            mag = abs(v)
+                            is_pos = v >= 0
+                            arrow = "&#9650;" if is_pos else "&#9660;"
+                            arrow_color = "#10b981" if is_pos else "#ef4444"
+                            label = "positive" if is_pos else "negative"
+                            tooltip = _html.escape(
+                                f"|r|={mag:.3f}. Closer to 1 means a stronger "
+                                f"{label} linear relationship.",
+                                quote=True,
+                            )
+                            c1 = _html.escape(str(corr['column1']))
+                            c2 = _html.escape(str(corr['column2']))
+                            bar_w = mag * 100
+                            chips_html.append(
+                                f"<div title='{tooltip}' style='background:rgba(15,23,42,0.7);"
+                                "border:1px solid rgba(20,184,166,0.18);border-radius:14px;"
+                                "padding:0.8rem 1.05rem;margin:0.45rem 0;display:flex;"
+                                "align-items:center;gap:1rem;flex-wrap:wrap;'>"
+                                f"<div style='flex:0 0 28px;font-size:1rem;color:{arrow_color};"
+                                f"font-weight:700;text-align:center;'>{arrow}</div>"
+                                "<div style='flex:1 1 240px;color:#e2e8f0;font-size:0.92rem;'>"
+                                f"<b>{c1}</b> "
+                                "<span style='color:#64748b;'>&harr;</span> "
+                                f"<b>{c2}</b></div>"
+                                "<div style='flex:1 1 160px;background:rgba(148,163,184,0.1);"
+                                "border-radius:6px;height:8px;overflow:hidden;min-width:120px;'>"
+                                f"<div style='width:{bar_w:.1f}%;height:100%;"
+                                f"background:{arrow_color};border-radius:6px;'></div></div>"
+                                "<div style='flex:0 0 70px;text-align:right;color:#cbd5e1;"
+                                "font-family:JetBrains Mono,monospace;font-size:0.9rem;'>"
+                                f"{v:+.3f}</div></div>"
+                            )
+                        st.markdown("".join(chips_html), unsafe_allow_html=True)
                     else:
-                        st.info("No strong correlations found")
-                
+                        st.markdown(
+                            "<div class='success-box'>No strong correlations found "
+                            "(threshold |r| &ge; 0.7).</div>",
+                            unsafe_allow_html=True,
+                        )
+
                     st.subheader("Outlier Detection")
-                    outliers = _c_outliers(df_analysis, _ds_id)
+                    total_numeric = n_numeric
                     if outliers:
+                        n_with = len(outliers)
+                        plural = "s" if total_numeric != 1 else ""
+                        st.markdown(
+                            "<div style='padding:0.7rem 1rem;border:1px solid rgba(239,68,68,0.25);"
+                            "background:rgba(239,68,68,0.06);border-radius:12px;color:#fecaca;"
+                            "font-size:0.9rem;margin-bottom:0.6rem;'>"
+                            f"<b>{n_with}</b> of <b>{total_numeric}</b> numeric column{plural} "
+                            "have outliers.</div>",
+                            unsafe_allow_html=True,
+                        )
+                        cards_html = []
                         for col, info in outliers.items():
-                            st.markdown(f'<div class="warning-box">️ **{col}**: {info["count"]} outliers detected ({info["percentage"]}%)</div>', unsafe_allow_html=True)
+                            pct = float(info.get('percentage', 0))
+                            if pct >= 5:
+                                accent, sev = "#ef4444", "High"
+                            elif pct >= 1:
+                                accent, sev = "#f59e0b", "Medium"
+                            else:
+                                accent, sev = "#14b8a6", "Low"
+                            bar_w = min(max(pct, 0), 100)
+                            lower = info.get('lower_bound')
+                            upper = info.get('upper_bound')
+                            col_safe = _html.escape(str(col))
+                            cards_html.append(
+                                "<div style='background:rgba(15,23,42,0.7);"
+                                "border:1px solid rgba(20,184,166,0.15);"
+                                f"border-left:4px solid {accent};border-radius:12px;"
+                                "padding:0.85rem 1.1rem;margin:0.4rem 0;'>"
+                                "<div style='display:flex;justify-content:space-between;"
+                                "align-items:center;gap:1rem;flex-wrap:wrap;'>"
+                                f"<div style='color:#e2e8f0;font-weight:600;'>{col_safe}</div>"
+                                f"<div style='color:{accent};font-size:0.7rem;letter-spacing:0.16em;"
+                                "font-family:JetBrains Mono,monospace;text-transform:uppercase;'>"
+                                f"{sev}</div></div>"
+                                "<div style='display:flex;align-items:center;gap:0.75rem;"
+                                "margin-top:0.5rem;'>"
+                                "<div style='flex:1;background:rgba(148,163,184,0.1);"
+                                "border-radius:6px;height:6px;overflow:hidden;'>"
+                                f"<div style='width:{bar_w:.1f}%;height:100%;"
+                                f"background:{accent};'></div></div>"
+                                "<div style='flex:0 0 auto;color:#cbd5e1;"
+                                "font-family:JetBrains Mono,monospace;font-size:0.82rem;'>"
+                                f"{int(info['count']):,} &middot; {pct:.2f}%</div></div>"
+                                "<div style='margin-top:0.45rem;color:#94a3b8;font-size:0.78rem;"
+                                "font-family:JetBrains Mono,monospace;'>"
+                                f"bounds: [{lower}, {upper}]</div></div>"
+                            )
+                        st.markdown("".join(cards_html), unsafe_allow_html=True)
                     else:
-                        st.success("No outliers detected")
+                        plural = "s" if total_numeric != 1 else ""
+                        st.markdown(
+                            "<div class='success-box'>No outliers detected across "
+                            f"{total_numeric} numeric column{plural}.</div>",
+                            unsafe_allow_html=True,
+                        )
             
                 elif active_tab == _TAB_LABELS[4]:
                     _section_head("Visualizations", "Distributions, relationships, and custom charts.", "05 — Visualizations")
