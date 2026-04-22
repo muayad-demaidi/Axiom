@@ -7327,8 +7327,7 @@ def show_dashboard():
                         # Auto-run Phase 1 the moment a fresh file is uploaded
                         # (no "Start Analysis" click needed). Sensible defaults:
                         # filename as dataset name, current month/year, sniffed
-                        # CSV options. Users can still re-run with a custom
-                        # name from the "Upload New Data" panel later. If the
+                        # CSV options. If the
                         # file's content hash matches a previously persisted
                         # dataset that already has a saved recipe, hydrate
                         # from the DB instead of re-running the pipeline.
@@ -7411,75 +7410,6 @@ def show_dashboard():
                                         st.error("Could not rebuild this dataset's history.")
 
         if st.session_state.df is not None:
-            with st.expander("Upload New Data", expanded=False):
-                file_limit_mb = limits['max_file_size_mb']
-                new_file = st.file_uploader(
-                    "Choose CSV or Excel file", type=['csv', 'xlsx', 'xls'],
-                    help=f"Limit {file_limit_mb}MB per file", key="new_upload", label_visibility="collapsed"
-                )
-                if new_file:
-                    file_size_mb = new_file.size / (1024 * 1024)
-                    if file_size_mb > limits['max_file_size_mb']:
-                        st.error(f"File size exceeds limit ({limits['max_file_size_mb']} MB)")
-                    else:
-                        # Same auto-run pattern as the empty-state uploader:
-                        # hash the bytes, hydrate from a saved recipe if the
-                        # same file was analysed before, otherwise auto-run
-                        # Phase 1 immediately. The metadata fields below are
-                        # pre-filled from the file and let the user re-run
-                        # with a custom name/period if they want.
-                        try:
-                            new_bytes = new_file.getvalue()
-                        except Exception:
-                            new_bytes = b''
-                        new_hash = hashlib.sha1(new_bytes).hexdigest() if new_bytes else None
-                        new_sig = f"new|{new_file.name}|{new_file.size}|{new_hash or ''}"
-                        st.success(f"Uploaded: {new_file.name}")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            period_month = st.selectbox("Month", range(1, 13), index=datetime.now().month - 1, key="new_month")
-                        with col2:
-                            period_year = st.selectbox("Year", range(2020, 2030), index=datetime.now().year - 2020, key="new_year")
-                        dataset_name = st.text_input("Dataset Name", value=new_file.name.split('.')[0], key="new_name")
-                        csv_delim2, csv_hdr2 = _csv_options_panel(new_file, "next")
-                        if st.session_state.get('_auto_analyzed_sig') != new_sig:
-                            st.session_state['_auto_analyzed_sig'] = new_sig
-                            hydrated = False
-                            if new_hash:
-                                _uid_now = (st.session_state.user or {}).get('id')
-                                if _uid_now:
-                                    _hdb = get_db()
-                                    try:
-                                        _existing = get_user_datasets(
-                                            _hdb, _uid_now,
-                                            project_id=st.session_state.get('current_project_id'))
-                                    except Exception:
-                                        _existing = []
-                                    finally:
-                                        _hdb.close()
-                                    for _r in _existing:
-                                        _meta = _r.parse_meta or {}
-                                        if (_meta.get('content_hash') == new_hash
-                                                and _r.source_parquet
-                                                and _r.step_recipes):
-                                            if _hydrate_dataset_from_db(_r.id):
-                                                st.success(
-                                                    f"Reopened previous analysis "
-                                                    f"of `{new_file.name}` — "
-                                                    "no re-run needed.")
-                                                hydrated = True
-                                                st.rerun()
-                                            break
-                            if not hydrated:
-                                run_analysis(new_file, dataset_name, period_month, period_year,
-                                             limits, delimiter=csv_delim2, has_header=csv_hdr2,
-                                             content_hash=new_hash)
-                        if st.button("Re-run with these settings",
-                                     use_container_width=True, key="new_analyze"):
-                            run_analysis(new_file, dataset_name, period_month, period_year,
-                                         limits, delimiter=csv_delim2, has_header=csv_hdr2,
-                                         content_hash=new_hash)
-    
             _TAB_LABELS = [
                 "Overview",
                 "Cleaning",
