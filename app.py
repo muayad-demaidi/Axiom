@@ -7414,6 +7414,47 @@ div:has(> .sh-add-marker) + [data-testid="stButton"] > button:hover {
   color: #94a3b8;
 }
 
+/* KB divider + scoped restyle of the KB expander inside the modal */
+.sh-kb-divider {
+  display: flex; align-items: center; gap: 0.7rem;
+  margin: 1.4rem 0 0.6rem 0;
+}
+.sh-kb-divider::before,
+.sh-kb-divider::after {
+  content: ""; flex: 1 1 auto; height: 1px;
+  background: linear-gradient(90deg,
+    transparent, rgba(45,212,191,0.22), transparent);
+}
+.sh-kb-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem; letter-spacing: 0.28em;
+  color: var(--teal); text-transform: uppercase;
+  white-space: nowrap; opacity: 0.85;
+  padding: 0.18rem 0.55rem;
+  border: 1px solid rgba(45,212,191,0.3);
+  border-radius: 999px;
+  background: rgba(13,148,136,0.08);
+}
+.sh-kb-marker { display: none; }
+/* Restyle the immediately-following Knowledge Base expander to match
+   the Data Noir glass-tile aesthetic so it doesn't read as bolted on. */
+div:has(> .sh-kb-marker) ~ [data-testid="stExpander"] {
+  background: linear-gradient(135deg, rgba(13,148,136,0.05), rgba(15,23,42,0.55) 60%) !important;
+  border: 1px solid rgba(45,212,191,0.16) !important;
+  border-radius: 12px !important;
+  margin-top: 0.4rem !important;
+  overflow: hidden;
+}
+div:has(> .sh-kb-marker) ~ [data-testid="stExpander"] summary {
+  font-family: 'Syne', sans-serif !important;
+  font-weight: 600 !important;
+  color: #e2e8f0 !important;
+  padding: 0.7rem 0.95rem !important;
+}
+div:has(> .sh-kb-marker) ~ [data-testid="stExpander"] summary:hover {
+  background: rgba(45,212,191,0.05) !important;
+}
+
 /* Stagger reveal — first 6 sheets get progressive delays */
 .sh-tile { animation-delay: 0ms; }
 [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:nth-of-type(1) .sh-tile { animation-delay: 40ms; }
@@ -7523,6 +7564,18 @@ def _show_sheets_dialog(project_id: int, project_name: str):
                  use_container_width=True):
         _enter_dashboard_for_upload(project_id, project_name)
         st.rerun()
+
+    # ── Knowledge Base block ──────────────────────────────────────────
+    # Lives at the bottom of the modal so the primary action (picking a
+    # sheet) stays above the fold; the KB is project-wide context, not
+    # per-sheet, so this is the right scope for it.
+    st.markdown('''
+<div class="sh-kb-divider">
+  <span class="sh-kb-eyebrow">PROJECT CONTEXT</span>
+</div>
+''', unsafe_allow_html=True)
+    st.markdown('<div class="sh-kb-marker"></div>', unsafe_allow_html=True)
+    _render_knowledge_base_panel(project_id)
 
 
 def _projects_page_css():
@@ -8833,11 +8886,10 @@ def show_dashboard():
                 st.success("Analysis completed!")
                 st.rerun()
     
-        # ── Project shell: sheet switcher + Knowledge Base ─────────────
-        # Rendered above the per-sheet content so users can jump between
-        # sheets in a multi-sheet project, add another sheet, or attach
-        # background context that biases every AI answer in this project.
-        _render_project_shell(limits)
+        # Sheet management + Knowledge Base were intentionally removed
+        # from the dashboard — both now live inside the sheet-picker
+        # modal on the Projects page. The dashboard is left clean for
+        # the per-sheet workflow (Overview / Cleaning / Statistics …).
 
         if st.session_state.df is None:
             upload_col1, upload_col2, upload_col3 = st.columns([1, 2, 1])
