@@ -3398,6 +3398,171 @@ def _c_strong_correlations(_df, dataset_id):
 def _c_outliers(_df, dataset_id):
     return detect_outliers(_df)
 
+def _build_statistics_report_html(dataset_name, numeric_stats, cat_stats,
+                                   correlations, outliers):
+    """Build a self-contained HTML report from cached Statistics-tab outputs."""
+    esc = _html.escape
+    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+    ds_safe = esc(str(dataset_name or "dataset"))
+
+    parts = []
+    parts.append(
+        "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'>"
+        f"<title>Statistics Report — {ds_safe}</title>"
+        "<style>"
+        "body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;"
+        "background:#0f172a;color:#e2e8f0;margin:0;padding:2rem;}"
+        ".wrap{max-width:1100px;margin:0 auto;}"
+        "h1{font-size:1.6rem;margin:0 0 0.25rem 0;color:#f8fafc;}"
+        "h2{font-size:1.15rem;margin:2rem 0 0.75rem 0;color:#5eead4;"
+        "border-bottom:1px solid rgba(94,234,212,0.25);padding-bottom:0.35rem;}"
+        "h3{font-size:0.95rem;margin:1.25rem 0 0.4rem 0;color:#cbd5e1;}"
+        ".meta{color:#94a3b8;font-size:0.85rem;margin-bottom:1rem;}"
+        "table{border-collapse:collapse;width:100%;font-size:0.85rem;"
+        "background:rgba(15,23,42,0.5);}"
+        "th,td{padding:0.45rem 0.7rem;border:1px solid rgba(148,163,184,0.18);"
+        "text-align:left;}"
+        "th{background:rgba(20,184,166,0.12);color:#5eead4;font-weight:600;}"
+        "tr:nth-child(even) td{background:rgba(20,184,166,0.04);}"
+        ".pill{display:inline-block;padding:0.15rem 0.55rem;border-radius:999px;"
+        "font-size:0.72rem;font-weight:600;letter-spacing:0.04em;}"
+        ".pos{background:rgba(16,185,129,0.15);color:#34d399;}"
+        ".neg{background:rgba(239,68,68,0.15);color:#f87171;}"
+        ".sev-high{color:#f87171;font-weight:600;}"
+        ".sev-med{color:#fbbf24;font-weight:600;}"
+        ".sev-low{color:#5eead4;font-weight:600;}"
+        ".empty{color:#94a3b8;font-style:italic;padding:0.5rem 0;}"
+        ".cat-card{background:rgba(15,23,42,0.6);border:1px solid "
+        "rgba(148,163,184,0.18);border-radius:8px;padding:0.85rem 1rem;"
+        "margin:0.6rem 0;}"
+        ".cat-name{font-weight:600;color:#e2e8f0;margin-bottom:0.4rem;}"
+        ".cat-meta{color:#94a3b8;font-size:0.82rem;}"
+        "ul{margin:0.3rem 0 0 1.1rem;padding:0;}"
+        "li{margin:0.15rem 0;color:#cbd5e1;font-size:0.85rem;}"
+        "</style></head><body><div class='wrap'>"
+    )
+    parts.append(
+        f"<h1>Statistics Report</h1>"
+        f"<div class='meta'>Dataset: <b>{ds_safe}</b> &middot; Generated: {generated_at}</div>"
+    )
+
+    # Descriptive statistics
+    parts.append("<h2>Descriptive Statistics</h2>")
+    if numeric_stats is not None and not numeric_stats.empty:
+        ns = numeric_stats.reset_index().rename(columns={"index": "column"})
+        head = "".join(f"<th>{esc(str(c))}</th>" for c in ns.columns)
+        rows_html = []
+        for _, row in ns.iterrows():
+            cells = []
+            for c in ns.columns:
+                v = row[c]
+                if isinstance(v, float):
+                    cell = f"{v:,.2f}"
+                elif isinstance(v, (int, np.integer)):
+                    cell = f"{int(v):,}"
+                else:
+                    cell = esc(str(v))
+                cells.append(f"<td>{cell}</td>")
+            rows_html.append("<tr>" + "".join(cells) + "</tr>")
+        parts.append(f"<table><thead><tr>{head}</tr></thead><tbody>"
+                     + "".join(rows_html) + "</tbody></table>")
+    else:
+        parts.append("<div class='empty'>No numeric columns found.</div>")
+
+    # Categorical summaries
+    parts.append("<h2>Categorical Summaries</h2>")
+    if cat_stats:
+        for col, info in cat_stats.items():
+            mc = info.get('most_common')
+            lc = info.get('least_common')
+            mc_disp = "—" if mc is None else esc(str(mc))
+            lc_disp = "—" if lc is None else esc(str(lc))
+            top_values = info.get('top_values') or {}
+            top_total = sum(top_values.values()) or 1
+            top_html = "".join(
+                f"<li>{esc(str(k))} — {int(v):,} ({(v/top_total)*100:.1f}%)</li>"
+                for k, v in top_values.items()
+            )
+            parts.append(
+                f"<div class='cat-card'><div class='cat-name'>{esc(str(col))}</div>"
+                f"<div class='cat-meta'>Unique: {int(info.get('unique_count', 0)):,}"
+                f" &middot; Missing: {int(info.get('missing', 0)):,}"
+                f" &middot; Most common: <b>{mc_disp}</b>"
+                f" ({int(info.get('most_common_count', 0)):,})"
+                f" &middot; Least common: <b>{lc_disp}</b>"
+                f" ({int(info.get('least_common_count', 0)):,})</div>"
+                + (f"<h3>Top values</h3><ul>{top_html}</ul>" if top_html else "")
+                + "</div>"
+            )
+    else:
+        parts.append("<div class='empty'>No categorical columns found.</div>")
+
+    # Strong correlations (already sorted by |r| desc in helper)
+    parts.append("<h2>Strong Correlations</h2>")
+    if correlations:
+        rows_html = []
+        for i, c in enumerate(correlations, start=1):
+            v = float(c['correlation'])
+            cls = "pos" if v >= 0 else "neg"
+            label = "positive" if v >= 0 else "negative"
+            rows_html.append(
+                f"<tr><td>{i}</td><td>{esc(str(c['column1']))}</td>"
+                f"<td>{esc(str(c['column2']))}</td>"
+                f"<td>{v:+.3f}</td>"
+                f"<td><span class='pill {cls}'>{label}</span></td></tr>"
+            )
+        parts.append(
+            "<table><thead><tr><th>#</th><th>Column A</th><th>Column B</th>"
+            "<th>r</th><th>Direction</th></tr></thead><tbody>"
+            + "".join(rows_html) + "</tbody></table>"
+        )
+    else:
+        parts.append("<div class='empty'>No strong correlations found "
+                     "(threshold |r| ≥ 0.7).</div>")
+
+    # Outliers
+    parts.append("<h2>Outlier Findings</h2>")
+    if outliers:
+        rows_html = []
+        for col, info in outliers.items():
+            pct = float(info.get('percentage', 0))
+            if pct >= 5:
+                sev_html = "<span class='sev-high'>High</span>"
+            elif pct >= 1:
+                sev_html = "<span class='sev-med'>Medium</span>"
+            else:
+                sev_html = "<span class='sev-low'>Low</span>"
+            def _fmt(x):
+                if x is None:
+                    return "—"
+                if isinstance(x, (int, np.integer)):
+                    return f"{int(x):,}"
+                if isinstance(x, float):
+                    return f"{x:,.2f}"
+                return esc(str(x))
+            rows_html.append(
+                f"<tr><td>{esc(str(col))}</td>"
+                f"<td>{int(info.get('count', 0)):,}</td>"
+                f"<td>{pct:.2f}%</td>"
+                f"<td>{_fmt(info.get('lower_bound'))}</td>"
+                f"<td>{_fmt(info.get('upper_bound'))}</td>"
+                f"<td>{_fmt(info.get('min_outlier'))}</td>"
+                f"<td>{_fmt(info.get('max_outlier'))}</td>"
+                f"<td>{sev_html}</td></tr>"
+            )
+        parts.append(
+            "<table><thead><tr><th>Column</th><th>Count</th><th>%</th>"
+            "<th>Lower</th><th>Upper</th><th>Min outlier</th>"
+            "<th>Max outlier</th><th>Severity</th></tr></thead><tbody>"
+            + "".join(rows_html) + "</tbody></table>"
+        )
+    else:
+        parts.append("<div class='empty'>No outliers detected.</div>")
+
+    parts.append("</div></body></html>")
+    return "".join(parts)
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def _c_distribution_overview(_df, dataset_id):
     return create_distribution_overview(_df)
@@ -10514,7 +10679,35 @@ def show_dashboard():
                             f"{total_numeric} numeric column{plural}.</div>",
                             unsafe_allow_html=True,
                         )
-            
+
+                    st.markdown("<div style='height:1.2rem'></div>", unsafe_allow_html=True)
+                    st.subheader("Download Report")
+                    _report_ds_name = _active_ds_name or "dataset"
+                    _report_html = _build_statistics_report_html(
+                        dataset_name=_report_ds_name,
+                        numeric_stats=numeric_stats,
+                        cat_stats=cat_stats,
+                        correlations=correlations,
+                        outliers=outliers,
+                    )
+                    _safe_ds_slug = re.sub(r"[^A-Za-z0-9_-]+", "_",
+                                           str(_report_ds_name)).strip("_") or "dataset"
+                    _report_filename = (
+                        f"statistics_report_{_safe_ds_slug}_"
+                        f"{datetime.now().strftime('%Y%m%d_%H%M')}.html"
+                    )
+                    st.caption(
+                        "Shareable HTML snapshot of descriptive statistics, categorical "
+                        "summaries, ranked strong correlations, and outlier findings."
+                    )
+                    st.download_button(
+                        label="Download report (.html)",
+                        data=_report_html.encode("utf-8"),
+                        file_name=_report_filename,
+                        mime="text/html",
+                        key=f"stats_report_dl_{_ds_id}",
+                    )
+
                 elif active_tab == _TAB_LABELS[4]:
                     _section_head("Visualizations", "Distributions, relationships, and custom charts.", "05 — Visualizations")
                 
