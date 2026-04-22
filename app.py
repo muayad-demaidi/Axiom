@@ -6911,36 +6911,58 @@ def show_dashboard():
   max-width: 36ch;
 }
 .dn-crumb-ds.empty { color: #475569; font-style: italic; }
-/* Back-button pill — scoped via marker so we don't restyle other buttons */
+/* Back-button pill — scoped via marker. Selectors duplicated with
+   [kind="secondary"] to defeat the global `.stButton > button[kind="secondary"]`
+   rule defined earlier in NEON_CSS. */
 .dn-back-marker { display: none; }
-[data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"] > button {
+[data-testid="stColumn"]:has(.dn-back-marker) .stButton > button,
+[data-testid="stColumn"]:has(.dn-back-marker) .stButton > button[kind="secondary"],
+[data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"] > button,
+[data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"] > button[kind="secondary"] {
   background: transparent !important;
+  background-color: transparent !important;
   color: #94a3b8 !important;
-  border: 1px solid rgba(148,163,184,0.18) !important;
+  border: 1px solid rgba(148,163,184,0.20) !important;
   border-radius: 999px !important;
   font-family: 'DM Sans', sans-serif !important;
   font-weight: 500 !important;
-  font-size: 0.78rem !important;
-  letter-spacing: 0.02em !important;
-  padding: 0.32rem 0.85rem !important;
-  min-height: 32px !important; height: 32px !important;
+  font-size: 0.8rem !important;
+  letter-spacing: 0.01em !important;
+  padding: 0.45rem 1.05rem !important;
+  min-height: 36px !important; height: 36px !important;
+  line-height: 1 !important;
   width: auto !important;
+  box-shadow: none !important;
   transition: color 160ms ease, border-color 160ms ease, background 160ms ease !important;
 }
+[data-testid="stColumn"]:has(.dn-back-marker) .stButton > button:hover,
 [data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"] > button:hover {
   color: var(--teal) !important;
-  border-color: rgba(45,212,191,0.40) !important;
-  background: rgba(45,212,191,0.06) !important;
+  border-color: rgba(45,212,191,0.45) !important;
+  background: rgba(45,212,191,0.07) !important;
+  background-color: rgba(45,212,191,0.07) !important;
   transform: none !important;
 }
-[data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"] {
-  display: flex; justify-content: flex-start; padding-top: 0.25rem;
+[data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"] > button p,
+[data-testid="stColumn"]:has(.dn-back-marker) .stButton > button p {
+  color: inherit !important;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+[data-testid="stColumn"]:has(.dn-back-marker) [data-testid="stButton"],
+[data-testid="stColumn"]:has(.dn-back-marker) .stButton {
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  width: auto !important;
 }
 </style>
 ''', unsafe_allow_html=True)
 
     nav_back_col, nav_crumb_col, nav_user_col = st.columns(
-        [0.95, 4.45, 1.6], gap="small", vertical_alignment="center")
+        [1.1, 4.3, 1.6], gap="small", vertical_alignment="center")
     with nav_back_col:
         st.markdown('<div class="dn-back-marker"></div>', unsafe_allow_html=True)
         if st.button("← Projects", key="dash_back_projects",
