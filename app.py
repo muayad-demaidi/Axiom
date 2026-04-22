@@ -13,6 +13,7 @@ import csv as _csv
 import html as _html
 import re
 import time
+import html
 
 from context.type_inference import (
     infer_schema, apply_schema, schema_to_dataframe, cast_column, ColumnType
@@ -7907,6 +7908,255 @@ def show_dashboard():
   font-family: "Syne", sans-serif !important; font-weight: 700 !important;
   font-size: 1.55rem !important; color: #e2e8f0 !important;
 }
+/* ── Predictions tab polish ──────────────────────────────── */
+.dn-pred-hint {
+  display: flex; gap: 0.85rem; align-items: flex-start;
+  padding: 0.95rem 1.15rem; margin: 0 0 1.2rem 0;
+  background: linear-gradient(180deg, rgba(45,212,191,0.06), rgba(45,212,191,0.02));
+  border: 1px solid rgba(45,212,191,0.16);
+  border-radius: 12px;
+}
+.dn-pred-hint .ico {
+  font-family: "JetBrains Mono", monospace; font-size: 0.7rem;
+  letter-spacing: 0.2em; color: var(--teal);
+  padding: 0.15rem 0.5rem; border: 1px solid rgba(45,212,191,0.3);
+  border-radius: 6px; flex-shrink: 0; line-height: 1.4;
+}
+.dn-pred-hint .txt {
+  font-family: "DM Sans", sans-serif; font-size: 0.88rem;
+  color: #cbd5e1; line-height: 1.5;
+}
+.dn-pred-hint .txt b { color: #e2e8f0; font-weight: 600; }
+/* Premium upsell card */
+.dn-pred-upsell {
+  position: relative; overflow: hidden;
+  background: linear-gradient(140deg, rgba(20,184,166,0.10), rgba(15,23,42,0.85) 60%);
+  border: 1px solid rgba(45,212,191,0.28);
+  border-radius: 20px; padding: 2rem 2.2rem;
+  margin: 0.5rem 0 1.2rem 0;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+}
+.dn-pred-upsell::after {
+  content: ""; position: absolute; top: -40%; right: -20%;
+  width: 380px; height: 380px;
+  background: radial-gradient(circle, rgba(45,212,191,0.18), transparent 70%);
+  pointer-events: none;
+}
+.dn-pred-upsell .eyebrow {
+  font-family: "JetBrains Mono", monospace; font-size: 0.66rem;
+  letter-spacing: 0.28em; text-transform: uppercase;
+  color: var(--teal); margin-bottom: 0.65rem;
+}
+.dn-pred-upsell h3 {
+  font-family: "Syne", sans-serif; font-weight: 800;
+  font-size: 1.55rem; color: #f1f5f9; margin: 0 0 0.55rem 0;
+  line-height: 1.2;
+}
+.dn-pred-upsell .lead {
+  font-family: "DM Sans", sans-serif; font-size: 0.95rem;
+  color: #94a3b8; max-width: 56ch; margin: 0 0 1.25rem 0;
+  line-height: 1.55; position: relative; z-index: 1;
+}
+.dn-pred-upsell ul {
+  list-style: none; padding: 0; margin: 0 0 1.4rem 0;
+  position: relative; z-index: 1;
+}
+.dn-pred-upsell ul li {
+  font-family: "DM Sans", sans-serif; font-size: 0.9rem;
+  color: #cbd5e1; padding: 0.4rem 0 0.4rem 1.65rem;
+  position: relative; line-height: 1.4;
+}
+.dn-pred-upsell ul li::before {
+  content: "✓"; position: absolute; left: 0; top: 0.4rem;
+  width: 1.2rem; height: 1.2rem; line-height: 1.2rem;
+  text-align: center; border-radius: 50%;
+  background: rgba(45,212,191,0.18); color: var(--teal);
+  font-size: 0.7rem; font-weight: 700;
+}
+/* Comparison cards for similar datasets */
+.dn-pred-cmp-head {
+  display: flex; align-items: baseline; gap: 0.7rem;
+  margin: 0.5rem 0 0.85rem 0;
+}
+.dn-pred-cmp-head .label {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1.05rem; color: #e2e8f0;
+}
+.dn-pred-cmp-head .count {
+  font-family: "JetBrains Mono", monospace; font-size: 0.7rem;
+  letter-spacing: 0.18em; color: #64748b; text-transform: uppercase;
+}
+.dn-pred-cmp-card {
+  background: linear-gradient(180deg, rgba(17,31,53,0.55), rgba(12,24,41,0.4));
+  border: 1px solid rgba(45,212,191,0.12);
+  border-radius: 14px; padding: 1.1rem 1.25rem;
+  margin: 0 0 0.75rem 0;
+  transition: border-color 0.2s ease;
+}
+.dn-pred-cmp-card:hover { border-color: rgba(45,212,191,0.28); }
+.dn-pred-cmp-top {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 0.6rem 1rem; margin-bottom: 0.85rem;
+}
+.dn-pred-cmp-name {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1rem; color: #f1f5f9; flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dn-pred-chip {
+  font-family: "JetBrains Mono", monospace; font-size: 0.66rem;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 0.22rem 0.6rem; border-radius: 999px;
+  border: 1px solid rgba(148,163,184,0.18);
+  color: #cbd5e1; background: rgba(15,23,42,0.5);
+  white-space: nowrap;
+}
+.dn-pred-chip.period { color: #94a3b8; }
+.dn-pred-chip.sim-hi { color: #2dd4bf; border-color: rgba(45,212,191,0.4); background: rgba(45,212,191,0.10); }
+.dn-pred-chip.sim-md { color: #f59e0b; border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.10); }
+.dn-pred-chip.sim-lo { color: #fb7185; border-color: rgba(251,113,133,0.35); background: rgba(251,113,133,0.10); }
+.dn-pred-cmp-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.55rem;
+}
+.dn-pred-cmp-stat {
+  background: rgba(15,23,42,0.5);
+  border: 1px solid rgba(148,163,184,0.08);
+  border-radius: 10px; padding: 0.55rem 0.75rem;
+  display: flex; flex-direction: column; gap: 0.2rem;
+  min-width: 0;
+}
+.dn-pred-cmp-stat .k {
+  font-family: "JetBrains Mono", monospace; font-size: 0.6rem;
+  letter-spacing: 0.16em; color: #64748b; text-transform: uppercase;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dn-pred-cmp-stat .v {
+  font-family: "DM Sans", sans-serif; font-size: 0.88rem;
+  color: #e2e8f0; font-weight: 600; font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Config panel for forecasting controls */
+.dn-pred-panel-marker { display: none; }
+[data-testid="stVerticalBlock"]:has(> div > .dn-pred-panel-marker) {
+  background: linear-gradient(180deg, rgba(17,31,53,0.5), rgba(12,24,41,0.35));
+  border: 1px solid rgba(45,212,191,0.14);
+  border-radius: 16px; padding: 1.1rem 1.3rem 0.9rem 1.3rem;
+  margin: 0.4rem 0 1rem 0;
+}
+.dn-pred-panel-head {
+  display: flex; align-items: baseline; gap: 0.7rem;
+  margin: 0 0 0.85rem 0;
+}
+.dn-pred-panel-head .label {
+  font-family: "JetBrains Mono", monospace; font-size: 0.66rem;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--teal);
+}
+.dn-pred-panel-head .title {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1rem; color: #e2e8f0;
+}
+.dn-pred-empty {
+  background: linear-gradient(180deg, rgba(17,31,53,0.45), rgba(12,24,41,0.3));
+  border: 1px dashed rgba(148,163,184,0.22);
+  border-radius: 14px; padding: 1.5rem 1.6rem;
+  text-align: center; margin: 0.4rem 0 1rem 0;
+}
+.dn-pred-empty .ico {
+  font-family: "JetBrains Mono", monospace; font-size: 0.7rem;
+  letter-spacing: 0.2em; color: #f59e0b; margin-bottom: 0.6rem;
+}
+.dn-pred-empty .title {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1.05rem; color: #e2e8f0; margin-bottom: 0.4rem;
+}
+.dn-pred-empty .body {
+  font-family: "DM Sans", sans-serif; font-size: 0.88rem;
+  color: #94a3b8; max-width: 52ch; margin: 0 auto; line-height: 1.5;
+}
+/* Forecast result metrics strip */
+.dn-pred-metrics {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 0; margin: 0.4rem 0 0.9rem 0;
+  background: linear-gradient(180deg, rgba(17,31,53,0.55), rgba(12,24,41,0.45));
+  border: 1px solid rgba(45,212,191,0.14);
+  border-radius: 14px; overflow: hidden;
+}
+.dn-pred-metric {
+  padding: 0.95rem 1.15rem;
+  border-right: 1px solid rgba(148,163,184,0.07);
+  display: flex; flex-direction: column; gap: 0.4rem;
+  min-width: 0;
+}
+.dn-pred-metric:last-child { border-right: none; }
+.dn-pred-metric .k {
+  font-family: "JetBrains Mono", monospace; font-size: 0.6rem;
+  letter-spacing: 0.2em; text-transform: uppercase; color: #64748b;
+}
+.dn-pred-metric .v {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1.35rem; color: #e2e8f0; line-height: 1.1;
+  display: flex; align-items: center; gap: 0.4rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dn-pred-metric .v .arrow { font-size: 1.1rem; line-height: 1; }
+.dn-pred-metric.up .v, .dn-pred-metric.up .arrow { color: #2dd4bf; }
+.dn-pred-metric.down .v, .dn-pred-metric.down .arrow { color: #fb7185; }
+.dn-pred-metric.flat .v, .dn-pred-metric.flat .arrow { color: #94a3b8; }
+.dn-pred-pill {
+  display: inline-flex; align-items: center;
+  font-family: "JetBrains Mono", monospace; font-size: 0.7rem;
+  font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 0.25rem 0.7rem; border-radius: 999px;
+  border: 1px solid; line-height: 1.2;
+}
+.dn-pred-pill.hi { color: #2dd4bf; border-color: rgba(45,212,191,0.4); background: rgba(45,212,191,0.10); }
+.dn-pred-pill.md { color: #f59e0b; border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.10); }
+.dn-pred-pill.lo { color: #fb7185; border-color: rgba(251,113,133,0.35); background: rgba(251,113,133,0.10); }
+@media (max-width: 900px) {
+  .dn-pred-metrics { grid-template-columns: repeat(2, 1fr); }
+  .dn-pred-metric { border-bottom: 1px solid rgba(148,163,184,0.07); }
+}
+/* Framed chart card */
+.dn-pred-chart-frame-marker { display: none; }
+[data-testid="stVerticalBlock"]:has(> div > .dn-pred-chart-frame-marker) {
+  background: rgba(15,23,42,0.45);
+  border: 1px solid rgba(45,212,191,0.14);
+  border-radius: 16px; padding: 0.6rem 0.8rem;
+  margin: 0 0 1rem 0;
+}
+/* AI insight card */
+.dn-pred-ai {
+  background: linear-gradient(140deg, rgba(168,85,247,0.08), rgba(15,23,42,0.55));
+  border: 1px solid rgba(168,85,247,0.25);
+  border-radius: 14px; padding: 1.1rem 1.3rem;
+  margin: 0.4rem 0 0.6rem 0;
+}
+.dn-pred-ai .head {
+  display: flex; align-items: center; gap: 0.55rem;
+  margin: 0 0 0.6rem 0;
+}
+.dn-pred-ai .badge {
+  font-family: "JetBrains Mono", monospace; font-size: 0.62rem;
+  font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase;
+  color: #c4b5fd; background: rgba(168,85,247,0.15);
+  border: 1px solid rgba(168,85,247,0.35);
+  padding: 0.2rem 0.55rem; border-radius: 6px;
+}
+.dn-pred-ai .title {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1rem; color: #e2e8f0;
+}
+.dn-pred-ai .body {
+  font-family: "DM Sans", sans-serif; font-size: 0.9rem;
+  color: #cbd5e1; line-height: 1.55;
+}
+.dn-pred-ai .body b { color: #e2e8f0; font-weight: 600; }
+.dn-pred-ai ul {
+  margin: 0.5rem 0 0 0; padding: 0 0 0 1.1rem;
+  color: #94a3b8; font-size: 0.86rem; line-height: 1.55;
+}
 </style>''', unsafe_allow_html=True)
 
             _ai_open = st.session_state.get('ai_panel_open', False)
@@ -9085,63 +9335,305 @@ def show_dashboard():
             
                 elif active_tab == _TAB_LABELS[5]:
                     _section_head("Predictions & Comparisons", "Forecast a target column and compare against historical periods.", "06 — Predictions")
-                
+
                     if not limits['predictions_enabled']:
-                        st.markdown("""
-                        <div class="neon-card">
-                            <h3 style="text-align: center;">Tier 2 Feature</h3>
-                            <p style="text-align: center; color: #94a3b8;">
-                                Advanced predictions and time-series comparisons are available in Tier 2 and above.
-                            </p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        if st.button("View Tiers", use_container_width=True, key="upgrade_pred"):
-                            st.session_state.page = 'pricing'
-                            st.rerun()
+                        st.markdown(
+                            '<div class="dn-pred-upsell">'
+                            '<div class="eyebrow">Tier 2 · Premium</div>'
+                            '<h3>Unlock forecasting &amp; historical insight</h3>'
+                            '<p class="lead">Project where your numbers are heading and benchmark this dataset against your past uploads — without leaving the dashboard.</p>'
+                            '<ul>'
+                            '<li>Linear forecasts on any numeric column with a confidence read-out</li>'
+                            '<li>Automatic comparison against your similar historical datasets</li>'
+                            '<li>AI-style trend analysis explained in plain language</li>'
+                            '</ul>'
+                            '</div>',
+                            unsafe_allow_html=True,
+                        )
+                        u1, u2, u3 = st.columns([1, 1.2, 1])
+                        with u2:
+                            if st.button("Upgrade to Tier 2", use_container_width=True, key="upgrade_pred", type="primary"):
+                                st.session_state.page = 'pricing'
+                                st.rerun()
                     else:
                         df_pred = _active_df()
                         numeric_cols = df_pred.select_dtypes(include=[np.number]).columns.tolist()
-                    
+
+                        st.markdown(
+                            '<div class="dn-pred-hint">'
+                            '<span class="ico">HOW</span>'
+                            '<span class="txt">Pick a numeric column, choose how many future points to project, then run the forecast. We chart your history and projection together, with a <b>trend, confidence, and delta</b> read-out so you can act on it.</span>'
+                            '</div>',
+                            unsafe_allow_html=True,
+                        )
+
                         if st.session_state.similar_datasets:
-                            st.subheader("Historical Data Comparison")
-                            st.info(f"Found {len(st.session_state.similar_datasets)} similar dataset(s)")
-                        
-                            for similar in st.session_state.similar_datasets[:3]:
-                                record = similar['record']
-                                with st.expander(f"{record['dataset_name']} ({record['period_month']}/{record['period_year']})"):
-                                    st.write(f"**Similarity:** {similar['similarity']*100:.1f}%")
-                                    st.write(f"**Rows:** {record['row_count']:,}")
-                                    if record.get('summary_stats'):
-                                        st.json(record['summary_stats'])
-                    
-                        st.subheader("Forecasting")
-                        if numeric_cols:
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                target_col = st.selectbox("Target Column", numeric_cols, key="pred_target")
-                            with col2:
-                                periods = st.slider("Forecast Periods", 1, 12, 6)
-                        
-                            if st.button("Generate Forecast", use_container_width=True):
-                                with st.spinner("Generating predictions..."):
-                                    values = df_pred[target_col].dropna().tolist()
-                                    forecast_result = simple_forecast(values, periods)
-                                    if forecast_result is not None and len(values) > 0:
-                                        predictions_list = forecast_result.get('predictions', []) if isinstance(forecast_result, dict) else forecast_result
-                                        labels = [f"Point {i+1}" for i in range(len(values))]
-                                        trend_chart = create_trend_chart(values, labels, f"Forecast for {target_col}", predictions_list)
-                                        if trend_chart:
-                                            st.plotly_chart(trend_chart, use_container_width=True)
-                                    
-                                        if isinstance(forecast_result, dict):
-                                            trend_info = forecast_result.get('trend', '')
-                                            confidence = forecast_result.get('confidence', '')
-                                            if trend_info:
-                                                st.markdown(f'<div class="insight-box">**Trend:** {trend_info} | **Confidence:** {confidence}</div>', unsafe_allow_html=True)
-                                    
-                                        trend_analysis = analyze_trend(df_pred, target_col)
-                                        if trend_analysis:
-                                            st.markdown(f'<div class="insight-box">**Analysis:** {trend_analysis}</div>', unsafe_allow_html=True)
+                            sim_count = len(st.session_state.similar_datasets)
+                            st.markdown(
+                                f'<div class="dn-pred-cmp-head">'
+                                f'<span class="label">Historical comparison</span>'
+                                f'<span class="count">{sim_count} similar dataset{"s" if sim_count != 1 else ""} found</span>'
+                                f'</div>',
+                                unsafe_allow_html=True,
+                            )
+
+                            collapse = sim_count > 3
+                            shown = st.session_state.similar_datasets if collapse else st.session_state.similar_datasets[:3]
+
+                            def _render_cmp_cards(items):
+                                for similar in items:
+                                    record = similar['record']
+                                    sim_pct = similar.get('similarity', 0) * 100
+                                    sim_cls = 'sim-hi' if sim_pct >= 75 else ('sim-md' if sim_pct >= 50 else 'sim-lo')
+                                    name = str(record.get('dataset_name', 'Untitled'))
+                                    pm = record.get('period_month')
+                                    py = record.get('period_year')
+                                    period_str = f"{pm}/{py}" if pm and py else "—"
+                                    rows = record.get('row_count', 0)
+                                    stats = record.get('summary_stats') or {}
+                                    stat_cells = []
+                                    if isinstance(stats, dict):
+                                        for k, v in list(stats.items())[:6]:
+                                            if isinstance(v, dict):
+                                                inner = v.get('mean', v.get('avg', v.get('count')))
+                                                if inner is None:
+                                                    continue
+                                                v = inner
+                                            try:
+                                                v_str = f"{float(v):,.2f}"
+                                            except (TypeError, ValueError):
+                                                v_str = str(v)[:20]
+                                            stat_cells.append(
+                                                f'<div class="dn-pred-cmp-stat"><span class="k">{html.escape(str(k))[:24]}</span><span class="v">{html.escape(v_str)}</span></div>'
+                                            )
+                                    stats_html = (
+                                        f'<div class="dn-pred-cmp-grid">{"".join(stat_cells)}</div>'
+                                        if stat_cells else ''
+                                    )
+                                    st.markdown(
+                                        f'<div class="dn-pred-cmp-card">'
+                                        f'<div class="dn-pred-cmp-top">'
+                                        f'<span class="dn-pred-cmp-name">{html.escape(name)}</span>'
+                                        f'<span class="dn-pred-chip period">{html.escape(period_str)}</span>'
+                                        f'<span class="dn-pred-chip {sim_cls}">{sim_pct:.0f}% match</span>'
+                                        f'<span class="dn-pred-chip">{rows:,} rows</span>'
+                                        f'</div>'
+                                        f'{stats_html}'
+                                        f'</div>',
+                                        unsafe_allow_html=True,
+                                    )
+
+                            if collapse:
+                                with st.expander(f"Show top {len(shown)} matches", expanded=False):
+                                    _render_cmp_cards(shown)
+                            else:
+                                _render_cmp_cards(shown)
+
+                        st.markdown(
+                            '<div class="dn-block-head">'
+                            '<span class="dn-block-rule"></span>'
+                            '<span class="dn-block-label">FORECAST</span>'
+                            '<span class="dn-block-cap">Configure &amp; project</span>'
+                            '<span class="dn-block-rule grow"></span>'
+                            '</div>',
+                            unsafe_allow_html=True,
+                        )
+
+                        if not numeric_cols:
+                            st.markdown(
+                                '<div class="dn-pred-empty">'
+                                '<div class="ico">NO NUMERIC COLUMNS</div>'
+                                '<div class="title">Forecasting needs at least one numeric column</div>'
+                                '<div class="body">Head back to <b>Cleaning</b> and convert a column to a number, or load a dataset with quantitative fields, then return here to project a forecast.</div>'
+                                '</div>',
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            running = st.session_state.get('pred_running', False)
+
+                            with st.container():
+                                st.markdown('<div class="dn-pred-panel-marker"></div>', unsafe_allow_html=True)
+                                st.markdown(
+                                    '<div class="dn-pred-panel-head">'
+                                    '<span class="label">CONFIGURE</span>'
+                                    '<span class="title">Forecast setup</span>'
+                                    '</div>',
+                                    unsafe_allow_html=True,
+                                )
+                                cfg1, cfg2 = st.columns([1.2, 1])
+                                with cfg1:
+                                    target_col = st.selectbox(
+                                        "Target column",
+                                        numeric_cols,
+                                        key="pred_target",
+                                        help="The numeric series we'll learn from and project forward.",
+                                    )
+                                with cfg2:
+                                    periods = st.slider(
+                                        "Forecast periods",
+                                        1, 12, 6,
+                                        key="pred_periods",
+                                        help="How many future points to project.",
+                                    )
+                                st.caption("We fit a simple linear trend to the column's history and extend it by the number of periods you choose.")
+
+                                btn_label = "Generating forecast…" if running else "Generate forecast"
+                                run_clicked = st.button(
+                                    btn_label,
+                                    use_container_width=True,
+                                    key="pred_run_btn",
+                                    type="primary",
+                                    disabled=running,
+                                )
+
+                            if run_clicked:
+                                st.session_state['pred_running'] = True
+                                values = []
+                                forecast_result = None
+                                trend_analysis = None
+                                chart_payload = None
+                                try:
+                                    with st.spinner("Analyzing trend…"):
+                                        values = df_pred[target_col].dropna().tolist()
+                                        forecast_result = simple_forecast(values, periods) if len(values) > 0 else None
+                                        try:
+                                            date_candidates = df_pred.select_dtypes(
+                                                include=['datetime64', 'datetime', 'datetimetz']
+                                            ).columns.tolist()
+                                            if date_candidates:
+                                                trend_analysis = analyze_trend(df_pred, date_candidates[0], target_col)
+                                            else:
+                                                df_for_analysis = df_pred[[target_col]].copy()
+                                                df_for_analysis['__row_idx__'] = range(len(df_for_analysis))
+                                                trend_analysis = analyze_trend(df_for_analysis, '__row_idx__', target_col)
+                                        except Exception:
+                                            trend_analysis = None
+                                    with st.spinner("Generating forecast…"):
+                                        if forecast_result and isinstance(forecast_result, dict) and 'error' not in forecast_result:
+                                            predictions_list = forecast_result.get('predictions', [])
+                                            labels = [f"Point {i+1}" for i in range(len(values))]
+                                            chart_payload = create_trend_chart(values, labels, f"Forecast for {target_col}", predictions_list)
+                                except Exception as e:
+                                    st.error(f"Could not generate the forecast: {e}")
+                                    forecast_result = {'error': str(e)}
+                                finally:
+                                    st.session_state['pred_running'] = False
+                                    st.session_state['pred_last'] = {
+                                        'target': target_col,
+                                        'periods': periods,
+                                        'values': values,
+                                        'result': forecast_result,
+                                        'chart': chart_payload,
+                                        'analysis': trend_analysis,
+                                    }
+
+                            last = st.session_state.get('pred_last')
+                            if last and last.get('result'):
+                                result = last['result']
+                                values = last['values']
+                                target_col_r = last['target']
+                                periods_r = last['periods']
+
+                                if isinstance(result, dict) and 'error' in result:
+                                    st.warning(result['error'])
+                                elif isinstance(result, dict):
+                                    preds = result.get('predictions', []) or []
+                                    slope = result.get('slope', 0) or 0
+                                    r2 = result.get('r2_score', 0) or 0
+                                    last_actual = values[-1] if values else None
+                                    first_pred = preds[0] if preds else None
+
+                                    if slope > 0.01:
+                                        trend_label, trend_cls, arrow = "Upward", "up", "▲"
+                                    elif slope < -0.01:
+                                        trend_label, trend_cls, arrow = "Downward", "down", "▼"
+                                    else:
+                                        trend_label, trend_cls, arrow = "Stable", "flat", "▬"
+
+                                    if r2 >= 0.7:
+                                        conf_label, conf_cls = "High", "hi"
+                                    elif r2 >= 0.4:
+                                        conf_label, conf_cls = "Medium", "md"
+                                    else:
+                                        conf_label, conf_cls = "Low", "lo"
+
+                                    if last_actual is not None and first_pred is not None and last_actual != 0:
+                                        delta_pct = ((first_pred - last_actual) / abs(last_actual)) * 100
+                                        delta_str = f"{first_pred:,.2f}"
+                                        delta_aux = f"<span class=\"arrow\">{'▲' if delta_pct >= 0 else '▼'}</span> {delta_pct:+.1f}%"
+                                        delta_cls = "up" if delta_pct >= 0 else "down"
+                                    else:
+                                        delta_str = "—"
+                                        delta_aux = ""
+                                        delta_cls = "flat"
+
+                                    st.markdown(
+                                        f'<div class="dn-pred-metrics">'
+                                        f'<div class="dn-pred-metric {trend_cls}"><span class="k">Trend</span>'
+                                        f'<span class="v"><span class="arrow">{arrow}</span>{trend_label}</span></div>'
+                                        f'<div class="dn-pred-metric"><span class="k">Confidence</span>'
+                                        f'<span class="v"><span class="dn-pred-pill {conf_cls}">{conf_label} · R² {r2:.2f}</span></span></div>'
+                                        f'<div class="dn-pred-metric"><span class="k">Horizon</span>'
+                                        f'<span class="v">{periods_r} pts</span></div>'
+                                        f'<div class="dn-pred-metric {delta_cls}"><span class="k">Next vs last</span>'
+                                        f'<span class="v">{delta_str} {delta_aux}</span></div>'
+                                        f'</div>',
+                                        unsafe_allow_html=True,
+                                    )
+
+                                    chart_payload = last.get('chart')
+                                    if chart_payload is not None:
+                                        with st.container():
+                                            st.markdown('<div class="dn-pred-chart-frame-marker"></div>', unsafe_allow_html=True)
+                                            st.plotly_chart(chart_payload, use_container_width=True)
+
+                                    analysis = last.get('analysis') or {}
+                                    total_growth = analysis.get('total_growth')
+                                    avg_change = analysis.get('avg_change')
+                                    volatility = analysis.get('volatility')
+
+                                    target_safe = html.escape(str(target_col_r))
+                                    if isinstance(total_growth, (int, float)):
+                                        growth_str = f"Across the observed history, <b>{target_safe}</b> moved <b>{total_growth:+.1f}%</b> overall. "
+                                    else:
+                                        growth_str = ""
+
+                                    if trend_cls == "up":
+                                        narrative = f"The trend analysis flags a steady <b>upward</b> trajectory (slope {slope:+.4f}). "
+                                    elif trend_cls == "down":
+                                        narrative = f"The trend analysis flags a <b>downward</b> trajectory (slope {slope:+.4f}). "
+                                    else:
+                                        narrative = "The series looks essentially <b>flat</b> — short-term movement, no clear direction. "
+
+                                    confidence_note = (
+                                        "Fit quality is strong, so the projection is a useful planning anchor."
+                                        if conf_cls == "hi"
+                                        else ("Fit is moderate — treat the projection as directional, not exact."
+                                              if conf_cls == "md"
+                                              else "Fit is weak — the underlying signal is noisy, so use the projection only as a rough guide.")
+                                    )
+
+                                    detail_items = []
+                                    if isinstance(avg_change, (int, float)):
+                                        detail_items.append(f"Average period-over-period change: <b>{avg_change:+.2f}%</b>")
+                                    if isinstance(volatility, (int, float)):
+                                        detail_items.append(f"Volatility (std of changes): <b>{volatility:.2f}%</b>")
+                                    if isinstance(analysis, dict) and analysis.get('error'):
+                                        detail_items.append(f"Note: {html.escape(str(analysis['error']))}")
+
+                                    detail_html = (
+                                        '<ul>' + ''.join(f'<li>{d}</li>' for d in detail_items) + '</ul>'
+                                        if detail_items else ''
+                                    )
+
+                                    st.markdown(
+                                        f'<div class="dn-pred-ai">'
+                                        f'<div class="head"><span class="badge">AI Insight</span>'
+                                        f'<span class="title">Trend analysis</span></div>'
+                                        f'<div class="body">{growth_str}{narrative}{confidence_note}{detail_html}</div>'
+                                        f'</div>',
+                                        unsafe_allow_html=True,
+                                    )
             
                 elif active_tab == _TAB_LABELS[6]:
                     _section_head(
