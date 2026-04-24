@@ -6,7 +6,8 @@ AXIOM (formerly DataVision Pro) is a comprehensive, intelligent data analytics s
 ### Brand
 - **Current name**: AXIOM (rebranded from DataVision Pro)
 - **Logo**: Blue hexagonal network/dome design at `static/logo.png` (1408×768) and `marketing-site/public/logo.png`. Old DataVision Pro logos preserved as `logo_datavision_backup.png` in both locations.
-- **Domain**: still `datavisionpro.app` (not renamed) — internal links and SEO slugs (`/compare/datavision-pro-vs-*`) intentionally preserved to avoid breaking external SEO equity. Only user-visible UI strings, page titles, alt text, copyright, email templates, AI system prompt, and marketing-site content were renamed to AXIOM. Colors unchanged (still teal/navy "Data Noir" theme).
+- **Domain**: still `datavisionpro.app` (not renamed) — internal links and SEO slugs (`/compare/datavision-pro-vs-*`) intentionally preserved to avoid breaking external SEO equity. Only user-visible UI strings, page titles, alt text, copyright, email templates, AI system prompt, and marketing-site content were renamed to AXIOM.
+- **Accent palette**: shifted from teal (#2dd4bf / #14b8a6 / #0d9488) to the AXIOM-blue family (#60a5fa / #3b82f6 / #2563eb / #1d4ed8) so the surrounding UI matches the actual logo color. The CSS custom properties keep their legacy `--teal*` names for compatibility but resolve to blue values at runtime — when adding new accents, prefer `var(--teal)`/`var(--teal-mid)`/`var(--teal-dark)` over hardcoded hexes so future palette changes stay one-edit jobs. The deep-navy background and "Data Noir" mood are unchanged.
 
 ## User Preferences
 - Language: Arabic (Levantine dialect) for communication
