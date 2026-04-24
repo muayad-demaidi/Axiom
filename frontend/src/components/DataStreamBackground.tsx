@@ -18,7 +18,6 @@ export function DataStreamBackground({ className = "" }: { className?: string })
     const reduced =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -117,10 +116,43 @@ export function DataStreamBackground({ className = "" }: { className?: string })
       rafRef.current = requestAnimationFrame(frame);
     }
 
+    function paintStaticFrame() {
+      // One-shot decorative frame for reduced-motion users: a dense
+      // snapshot of the Matrix-style cascade with no animation.
+      const strong = readVar("--stream-strong", "rgba(147,197,253,0.95)");
+      const soft = readVar("--stream-soft", "rgba(96,165,250,0.55)");
+      ctx.clearRect(0, 0, width, height);
+      for (let i = 0; i < columnCount; i++) {
+        const x = i * fontSize;
+        const headY = (Math.random() * 0.75 + 0.1) * height;
+        const trail = 18 + Math.floor(Math.random() * 28);
+        for (let t = 1; t <= trail; t++) {
+          const ty = headY - t * fontSize;
+          if (ty < -fontSize) break;
+          const alpha = Math.max(0, 1 - t / trail) * 0.7;
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = soft;
+          ctx.fillText(glyphs[(Math.random() * glyphs.length) | 0], x, ty);
+        }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = strong;
+        ctx.fillText(glyphs[(Math.random() * glyphs.length) | 0], x, headY);
+      }
+      ctx.globalAlpha = 1;
+    }
+
     resize();
-    const ro = new ResizeObserver(resize);
+    const ro = new ResizeObserver(() => {
+      resize();
+      if (reduced) paintStaticFrame();
+    });
     ro.observe(canvas);
-    rafRef.current = requestAnimationFrame(frame);
+
+    if (reduced) {
+      paintStaticFrame();
+    } else {
+      rafRef.current = requestAnimationFrame(frame);
+    }
 
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);

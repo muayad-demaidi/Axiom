@@ -108,6 +108,5 @@ a { color: inherit; }
   border-color: var(--accent);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .data-stream { display: none; }
-}
+/* The DataStreamBackground component renders a single static frame
+   when prefers-reduced-motion is set, so we keep the canvas visible. */
