@@ -319,12 +319,11 @@ Provide:
 
 Write the response in a clear and organized manner."""
 
-    system = "You are an expert data analyst providing professional insights and recommendations."
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": _augment_system(system, project_context)},
+                {"role": "system", "content": _augment_system(SYSTEM_PROMPT, project_context)},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=2000
@@ -347,15 +346,9 @@ def chat_about_data(user_question: str, df_info: Dict,
 - Data types: {json.dumps(df_info.get('dtypes', {}), ensure_ascii=False)}
 - Statistical summary: {json.dumps(df_info.get('numeric_summary', {}), ensure_ascii=False, default=str)[:1500]}"""
 
-    base_system = f"""You are an intelligent data analysis assistant.
-You have information about the user's dataset.
-Answer their questions accurately and helpfully.
-If they ask about predictions, provide your analysis based on available data.
-
-{context}"""
-
     messages = [
-        {"role": "system", "content": _augment_system(base_system, project_context)}
+        {"role": "system", "content": _augment_system(SYSTEM_PROMPT, project_context)},
+        {"role": "system", "content": context},
     ]
     
     if chat_history:
@@ -397,12 +390,11 @@ def generate_comparison_insights(comparison_data: Dict,
 3. توصيات بناءً على التغييرات
 4. تحذيرات إذا كانت هناك تغييرات سلبية كبيرة"""
 
-    system = "أنت محلل بيانات خبير تقارن بين فترات زمنية مختلفة."
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": _augment_system(system, project_context)},
+                {"role": "system", "content": _augment_system(SYSTEM_PROMPT, project_context)},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=1500
@@ -430,12 +422,11 @@ def generate_prediction_insights(prediction_data: Dict, historical_context: str 
 4. توصيات للمستقبل
 5. تحذيرات أو ملاحظات مهمة"""
 
-    system = "أنت خبير في تحليل التنبؤات والنماذج الإحصائية."
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": _augment_system(system, project_context)},
+                {"role": "system", "content": _augment_system(SYSTEM_PROMPT, project_context)},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=1500
@@ -459,12 +450,11 @@ def generate_cleaning_report(cleaning_report: Dict,
 2. جودة البيانات بعد التنظيف
 3. أي ملاحظات مهمة"""
 
-    system = "أنت مساعد يشرح التقارير التقنية بلغة بسيطة."
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": _augment_system(system, project_context)},
+                {"role": "system", "content": _augment_system(SYSTEM_PROMPT, project_context)},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=800
