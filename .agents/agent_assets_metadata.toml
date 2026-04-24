@@ -18,3 +18,9 @@ id = "kFg2rOlMV_zTBSFeFVurg"
 uri = "file://axiom_project_export.zip"
 type = "unspecified"
 title = "AXIOM Project — Full Export"
+
+[[outputs]]
+id = "S_2RywOLpEmwLZ4QSOMWX"
+uri = "file://axiom_project_complete.zip"
+type = "unspecified"
+title = "AXIOM Project — Complete Backup (Full Restore)"
