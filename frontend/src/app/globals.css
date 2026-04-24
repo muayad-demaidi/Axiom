@@ -63,10 +63,16 @@ a { color: inherit; }
 .btn-ghost:hover { background: var(--surface-alt); }
 
 .card {
-  background: var(--surface-alt);
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-alt) 65%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
   border-radius: 12px;
   padding: 1.5rem;
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+}
+.dark .card {
+  background: color-mix(in srgb, var(--surface-alt) 55%, transparent);
+  border-color: color-mix(in srgb, var(--border) 70%, transparent);
 }
 .card h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; }
 .card p  { font-size: 0.9rem; color: var(--text-muted); line-height: 1.55; }
