@@ -47,8 +47,8 @@ export function DataStreamBackground({ className = "" }: { className?: string })
       // paint is already dense — no "warming up" gap visible to users.
       drops = new Array(columnCount).fill(0).map(() => ({
         y: Math.random() * height,
-        speed: 0.7 + Math.random() * 1.4,
-        trail: 20 + Math.floor(Math.random() * 40),
+        speed: 0.22 + Math.random() * 0.4,
+        trail: 22 + Math.floor(Math.random() * 38),
       }));
     }
 
@@ -61,8 +61,8 @@ export function DataStreamBackground({ className = "" }: { className?: string })
 
     let last = 0;
     function frame(now: number) {
-      // ~24fps — Matrix-y feel without thrashing the CPU
-      if (now - last < 42) {
+      // ~14fps — calm, ambient feel
+      if (now - last < 70) {
         rafRef.current = requestAnimationFrame(frame);
         return;
       }
@@ -87,7 +87,7 @@ export function DataStreamBackground({ className = "" }: { className?: string })
           const ch = glyphs[(Math.random() * glyphs.length) | 0];
           // Fade further-up glyphs more aggressively
           const alpha = Math.max(0, 1 - t / d.trail);
-          ctx.globalAlpha = alpha * 0.75;
+          ctx.globalAlpha = alpha * 0.55;
           ctx.fillStyle = soft;
           ctx.fillText(ch, x, ty);
         }
@@ -104,8 +104,8 @@ export function DataStreamBackground({ className = "" }: { className?: string })
         // Reset when fully off-screen, with a fresh randomized profile
         if (d.y - d.trail * fontSize > height) {
           d.y = -Math.random() * height * 0.5 - fontSize;
-          d.speed = 0.7 + Math.random() * 1.4;
-          d.trail = 20 + Math.floor(Math.random() * 40);
+          d.speed = 0.22 + Math.random() * 0.4;
+          d.trail = 22 + Math.floor(Math.random() * 38);
         }
       }
 

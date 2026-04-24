@@ -54,17 +54,20 @@ export default function HomePage() {
     })),
   };
   return (
-    <MarketingShell current="/" jsonLd={[softwareLd, faqLd]}>
-      <section className="relative overflow-hidden min-h-[640px] md:min-h-[720px] flex items-center">
+    <>
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden="true">
         <DataStreamBackground />
         <div
-          className="pointer-events-none absolute inset-0"
+          className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse 55% 38% at center, color-mix(in srgb, var(--surface) 70%, transparent) 0%, color-mix(in srgb, var(--surface) 25%, transparent) 60%, transparent 100%)",
+              "radial-gradient(ellipse 70% 50% at 50% 40%, color-mix(in srgb, var(--surface) 65%, transparent) 0%, color-mix(in srgb, var(--surface) 30%, transparent) 55%, transparent 100%)",
           }}
-          aria-hidden="true"
         />
+      </div>
+      <div className="relative z-10">
+      <MarketingShell current="/" jsonLd={[softwareLd, faqLd]}>
+      <section className="relative overflow-hidden min-h-[560px] md:min-h-[640px] flex items-center">
         <div className="container-x relative py-16 md:py-20 text-center w-full">
           <span className="eyebrow">AXIOM · v2026.4</span>
           <h1 className="text-4xl md:text-6xl font-bold mt-3 leading-tight">
@@ -118,5 +121,7 @@ export default function HomePage() {
         </div>
       </section>
     </MarketingShell>
+      </div>
+    </>
   );
 }
