@@ -76,17 +76,20 @@ async def stream(req: ChatStreamRequest, user=Depends(get_current_user), db=Depe
         if m.role in ("user", "assistant"):
             msgs.append({"role": m.role, "content": m.content})
 
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = (
+        os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+    )
+    base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
     if not api_key:
         async def fallback() -> AsyncIterator[bytes]:
             yield (
-                "OpenAI key is not configured on the backend; chat is offline. "
-                "Set OPENAI_API_KEY to enable streaming responses."
+                "OpenAI key is not configured on the backend; chat is offline."
             ).encode()
         return StreamingResponse(fallback(), media_type="text/plain; charset=utf-8")
 
     from openai import OpenAI
-    client = OpenAI(api_key=api_key)
+    client = OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
 
     def producer():
         try:

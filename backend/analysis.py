@@ -19,6 +19,7 @@ from data_cleaner import clean_data  # type: ignore
 from data_analyzer import generate_summary_report  # type: ignore
 from predictions import simple_forecast  # type: ignore
 
+from ._json import jsonify
 from .auth import get_current_user, get_db_session
 from .datasets import load_dataset_dataframe
 
@@ -43,13 +44,13 @@ class CleanRequest(BaseModel):
 async def clean(req: CleanRequest, user=Depends(get_current_user), db=Depends(get_db_session)):
     _, df = _require_dataset(db, req.dataset_id, user.id)
     cleaned, report = clean_data(df, enabled=req.enabled, params=req.params)
-    return {
+    return jsonify({
         "rows_before": int(len(df)),
         "rows_after": int(len(cleaned)),
         "report": report,
         "preview": cleaned.head(20).to_dict(orient="records"),
         "columns": [{"name": c, "dtype": str(cleaned[c].dtype)} for c in cleaned.columns],
-    }
+    })
 
 
 class TransformStep(BaseModel):
@@ -96,12 +97,12 @@ async def transform(req: TransformRequest, user=Depends(get_current_user), db=De
             applied.append({"op": op, "column": col, "status": "applied"})
         except Exception as e:
             applied.append({"op": op, "column": col, "status": f"error: {e}"})
-    return {
+    return jsonify({
         "applied": applied,
         "rows": int(len(df)),
         "preview": df.head(20).to_dict(orient="records"),
         "columns": [{"name": c, "dtype": str(df[c].dtype)} for c in df.columns],
-    }
+    })
 
 
 class DatasetIdRequest(BaseModel):
@@ -111,7 +112,7 @@ class DatasetIdRequest(BaseModel):
 @router.post("/statistics")
 async def statistics(req: DatasetIdRequest, user=Depends(get_current_user), db=Depends(get_db_session)):
     _, df = _require_dataset(db, req.dataset_id, user.id)
-    return {"dataset_id": req.dataset_id, "report": generate_summary_report(df)}
+    return jsonify({"dataset_id": req.dataset_id, "report": generate_summary_report(df)})
 
 
 class PredictRequest(BaseModel):
@@ -128,7 +129,7 @@ async def predict(req: PredictRequest, user=Depends(get_current_user), db=Depend
     series = pd.to_numeric(df[req.column], errors="coerce").dropna().tolist()
     if len(series) < 3:
         raise HTTPException(400, "Need at least 3 numeric points to forecast")
-    return {"column": req.column, "forecast": simple_forecast(series, periods=req.periods)}
+    return jsonify({"column": req.column, "forecast": simple_forecast(series, periods=req.periods)})
 
 
 class ModelRequest(BaseModel):
@@ -159,7 +160,7 @@ async def model(req: ModelRequest, user=Depends(get_current_user), db=Depends(ge
         sizes: dict[int, int] = {}
         for label in labels:
             sizes[int(label)] = sizes.get(int(label), 0) + 1
-        return {"method": "kmeans", "k": k, "cluster_sizes": sizes}
+        return jsonify({"method": "kmeans", "k": k, "cluster_sizes": sizes})
 
     if req.method == "randomforest":
         from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
@@ -178,7 +179,7 @@ async def model(req: ModelRequest, user=Depends(get_current_user), db=Depends(ge
             key=lambda r: r["importance"],
             reverse=True,
         )
-        return {"method": "randomforest", "target": req.target, "feature_importance": importance[:25]}
+        return jsonify({"method": "randomforest", "target": req.target, "feature_importance": importance[:25]})
 
     raise HTTPException(400, f"Unknown method '{req.method}'")
 
@@ -227,18 +228,18 @@ async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=De
             {"bin": f"{edges[i]:.2f}–{edges[i + 1]:.2f}", "count": int(h[i])}
             for i in range(len(h))
         ]
-        return {"chart": "histogram", "x": col, "points": points}
+        return jsonify({"chart": "histogram", "x": col, "points": points})
 
     if chart == "pie":
         col = _ensure(req.x)
         counts = df[col].dropna().astype(str).value_counts().head(_MAX_CATEGORIES)
         if counts.empty:
             raise HTTPException(400, f"Column '{col}' has no values")
-        return {
+        return jsonify({
             "chart": "pie",
             "x": col,
             "points": [{"name": str(k), "value": int(v)} for k, v in counts.items()],
-        }
+        })
 
     if chart == "box":
         # Use X if numeric; otherwise fall back to all numeric columns (max 6).
@@ -266,7 +267,7 @@ async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=De
             })
         if not points:
             raise HTTPException(400, "No numeric values to summarize")
-        return {"chart": "box", "points": points}
+        return jsonify({"chart": "box", "points": points})
 
     if chart == "heatmap":
         numeric_df = df.select_dtypes(include="number")
@@ -278,7 +279,7 @@ async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=De
         corr = numeric_df.corr(numeric_only=True).fillna(0.0)
         cols = [str(c) for c in corr.columns]
         matrix = [[float(v) for v in row] for row in corr.values.tolist()]
-        return {"chart": "heatmap", "columns": cols, "matrix": matrix}
+        return jsonify({"chart": "heatmap", "columns": cols, "matrix": matrix})
 
     # Bar / line / scatter all need both axes.
     x = _ensure(req.x)
@@ -297,7 +298,7 @@ async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=De
         if len(sub) > _MAX_SCATTER_POINTS:
             sub = sub.sample(_MAX_SCATTER_POINTS, random_state=42)
         points = [{"x": float(rx), "y": float(ry)} for rx, ry in sub.itertuples(index=False, name=None)]
-        return {"chart": "scatter", "x": x, "y": y, "points": points}
+        return jsonify({"chart": "scatter", "x": x, "y": y, "points": points})
 
     if chart == "bar":
         if pair.empty:
@@ -311,11 +312,11 @@ async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=De
                 .head(_MAX_CATEGORIES)
             )
             points = [{"x": str(k), "y": float(v)} for k, v in grouped.items()]
-            return {"chart": "bar", "x": x, "y": f"mean({y})", "points": points}
+            return jsonify({"chart": "bar", "x": x, "y": f"mean({y})", "points": points})
         # Both columns categorical — fall back to a frequency bar chart of X.
         counts = pair["x"].astype(str).value_counts().head(_MAX_CATEGORIES)
         points = [{"x": str(k), "y": int(v)} for k, v in counts.items()]
-        return {"chart": "bar", "x": x, "y": "count", "points": points}
+        return jsonify({"chart": "bar", "x": x, "y": "count", "points": points})
 
     if chart == "line":
         if pair.empty:
@@ -342,6 +343,6 @@ async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=De
         if len(points) > _MAX_LINE_POINTS:
             step = max(1, len(points) // _MAX_LINE_POINTS)
             points = points[::step]
-        return {"chart": "line", "x": x, "y": y, "points": points}
+        return jsonify({"chart": "line", "x": x, "y": y, "points": points})
 
     raise HTTPException(400, f"Unknown chart type '{req.chart}'")

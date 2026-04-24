@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 import models  # type: ignore
 from data_analyzer import generate_summary_report  # type: ignore
 
+from ._json import jsonify
 from .auth import get_current_user, get_db_session
 
 router = APIRouter(prefix="/api/datasets", tags=["datasets"])
@@ -86,14 +87,14 @@ async def upload_dataset(
         source_parquet=parquet_bytes,
         project_id=project_id,
     )
-    return {
+    return jsonify({
         "id": record.id,
         "filename": record.filename,
         "dataset_name": record.dataset_name,
         "rows": record.row_count,
         "cols": record.column_count,
         "summary": summary,
-    }
+    })
 
 
 @router.get("")
@@ -122,7 +123,7 @@ async def get_dataset(dataset_id: int, user=Depends(get_current_user), db=Depend
     record = models.get_dataset_record(db, dataset_id, user_id=user.id)
     if not record:
         raise HTTPException(404, "Dataset not found")
-    return {
+    return jsonify({
         "id": record.id,
         "filename": record.filename,
         "dataset_name": record.dataset_name,
@@ -130,7 +131,7 @@ async def get_dataset(dataset_id: int, user=Depends(get_current_user), db=Depend
         "cols": record.column_count,
         "summary": record.summary_stats or {},
         "project_id": record.project_id,
-    }
+    })
 
 
 def load_dataset_dataframe(record) -> pd.DataFrame:

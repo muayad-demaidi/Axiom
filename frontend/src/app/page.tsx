@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MarketingShell } from "@/components/MarketingShell";
 import { FAQ } from "@/components/FAQ";
+import { DataStreamBackground } from "@/components/DataStreamBackground";
 import { SITE } from "@/lib/site";
 
 const faq = [
@@ -54,21 +55,32 @@ export default function HomePage() {
   };
   return (
     <MarketingShell current="/" jsonLd={[softwareLd, faqLd]}>
-      <section className="container-x py-16 md:py-24 text-center">
-        <span className="eyebrow">AXIOM · v2026.4</span>
-        <h1 className="text-4xl md:text-6xl font-bold mt-3 leading-tight">
-          From <span className="text-[var(--accent)]">raw spreadsheet</span> to clean,
-          AI-explained insight in <span className="text-[var(--accent)]">seconds</span>.
-        </h1>
-        <p className="mt-6 max-w-2xl mx-auto text-[var(--text-muted)] text-lg">
-          Upload a CSV or Excel file. AXIOM automatically cleans, profiles, and analyses it —
-          then explains what matters in plain English with built-in AI chat, predictions, and clustering.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link className="btn btn-primary" href={SITE.appUrl}>Launch the app — 60 days free →</Link>
-          <Link className="btn btn-ghost" href="/features">See features</Link>
+      <section className="relative overflow-hidden">
+        <DataStreamBackground />
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, var(--surface) 0%, color-mix(in srgb, var(--surface) 70%, transparent) 45%, transparent 80%)",
+          }}
+          aria-hidden="true"
+        />
+        <div className="container-x relative py-20 md:py-28 text-center">
+          <span className="eyebrow">AXIOM · v2026.4</span>
+          <h1 className="text-4xl md:text-6xl font-bold mt-3 leading-tight">
+            From <span className="text-[var(--accent)]">raw spreadsheet</span> to clean,
+            AI-explained insight in <span className="text-[var(--accent)]">seconds</span>.
+          </h1>
+          <p className="mt-6 max-w-2xl mx-auto text-[var(--text-muted)] text-lg">
+            Upload a CSV or Excel file. AXIOM automatically cleans, profiles, and analyses it —
+            then explains what matters in plain English with built-in AI chat, predictions, and clustering.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Link className="btn btn-primary" href={SITE.appUrl}>Launch the app — 60 days free →</Link>
+            <Link className="btn btn-ghost" href="/features">See features</Link>
+          </div>
+          <p className="mt-3 text-xs text-[var(--text-muted)]">No credit card. Full Tier 3 features during the trial.</p>
         </div>
-        <p className="mt-3 text-xs text-[var(--text-muted)]">No credit card. Full Tier 3 features during the trial.</p>
       </section>
 
       <section className="container-x py-16">
