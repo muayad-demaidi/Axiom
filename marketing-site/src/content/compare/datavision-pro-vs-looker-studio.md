@@ -1,8 +1,8 @@
 ---
 competitor: Looker Studio
-title: DataVision Pro vs Looker Studio
-description: DataVision Pro vs Google Looker Studio — compare AI features, file-based analysis, dashboard governance, and pricing. Honest trade-offs, no fabricated metrics.
-intro: DataVision Pro is an AI-first analytics platform built around uploading a file and getting cleaned data, statistics, ML, and AI insights immediately. Looker Studio (formerly Google Data Studio) is a free dashboard tool tightly integrated with the Google ecosystem — Sheets, BigQuery, Google Ads, GA4. Pick DataVision Pro for fast file-based analysis with AI; pick Looker Studio for free shareable dashboards on Google data sources.
+title: AXIOM vs Looker Studio
+description: AXIOM vs Google Looker Studio — compare AI features, file-based analysis, dashboard governance, and pricing. Honest trade-offs, no fabricated metrics.
+intro: AXIOM is an AI-first analytics platform built around uploading a file and getting cleaned data, statistics, ML, and AI insights immediately. Looker Studio (formerly Google Data Studio) is a free dashboard tool tightly integrated with the Google ecosystem — Sheets, BigQuery, Google Ads, GA4. Pick AXIOM for fast file-based analysis with AI; pick Looker Studio for free shareable dashboards on Google data sources.
 bestFor:
   us: Analysts who upload CSV/Excel files and want AI-explained cleaning, statistics, and ML in one tool.
   them: Teams that live in Google Sheets, BigQuery, Google Ads, or GA4 and need free, shareable dashboards.
@@ -48,12 +48,12 @@ whenToChoose:
 faq:
 - q: Is Looker Studio really free?
   a: Yes — the standard product is free for any Google account. Looker Studio Pro adds enterprise features (team workspaces, asset management, support) at $9/user/project/month as of April 2026, billed through Google Cloud.
-- q: Does DataVision Pro connect to BigQuery?
+- q: Does AXIOM connect to BigQuery?
   a: Today it consumes CSV/Excel uploads. Direct warehouse connectors are on the roadmap. For now, export the relevant slice from BigQuery to CSV and upload it.
 - q: Which is better for AI?
-  a: DataVision Pro builds AI into every analysis page out of the box. Looker Studio's Gemini features sit behind the Pro tier and focus on chart-suggestion and natural-language querying.
+  a: AXIOM builds AI into every analysis page out of the box. Looker Studio's Gemini features sit behind the Pro tier and focus on chart-suggestion and natural-language querying.
 - q: Can I use both?
-  a: Yes — many teams use Looker Studio for live shareable dashboards over GA4/Google Ads, and DataVision Pro for deeper ad-hoc analysis on extracts.
+  a: Yes — many teams use Looker Studio for live shareable dashboards over GA4/Google Ads, and AXIOM for deeper ad-hoc analysis on extracts.
 updated: '2026-04-21'
 relatedGlossary:
 - k-means-clustering

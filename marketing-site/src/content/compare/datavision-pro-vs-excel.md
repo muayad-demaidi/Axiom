@@ -1,8 +1,8 @@
 ---
 competitor: "Excel"
-title: "DataVision Pro vs Excel"
-description: "DataVision Pro vs Excel — when to leave the spreadsheet behind for AI cleaning, ML, and reproducible analysis on larger files."
-intro: "Excel is the world's most beloved analytics tool — and at large file sizes, repeated cleaning, or when you need real ML, it starts to creak. DataVision Pro picks up where Excel slows down: ingest large CSVs, run automated cleaning, generate predictions, and explain results with AI — without writing a single VBA macro."
+title: "AXIOM vs Excel"
+description: "AXIOM vs Excel — when to leave the spreadsheet behind for AI cleaning, ML, and reproducible analysis on larger files."
+intro: "Excel is the world's most beloved analytics tool — and at large file sizes, repeated cleaning, or when you need real ML, it starts to creak. AXIOM picks up where Excel slows down: ingest large CSVs, run automated cleaning, generate predictions, and explain results with AI — without writing a single VBA macro."
 bestFor:
   us: "Analysts pushing past Excel's row limits, or anyone who reruns the same cleaning pipeline every month."
   them: "Quick calculations, simple lookups, financial modelling, and anything under ~100k rows."
@@ -43,12 +43,12 @@ whenToChoose:
     - "Your team's entire workflow is built on Excel and Microsoft 365."
     - "You need cell-level formulas more than statistical analysis."
 faq:
-  - q: "Can DataVision Pro export back to Excel?"
+  - q: "Can AXIOM export back to Excel?"
     a: "Yes — analysed datasets and reports export to CSV and Excel formats."
   - q: "Does it replace pivot tables?"
     a: "It replaces the analysis use of pivot tables (group-by, summarise, chart). For interactive cell-level pivoting, Excel is still excellent."
   - q: "What about Google Sheets?"
-    a: "Same trade-offs apply. Sheets struggles past ~50k rows; DataVision Pro is comfortable into the millions."
+    a: "Same trade-offs apply. Sheets struggles past ~50k rows; AXIOM is comfortable into the millions."
   - q: "Do I lose my Excel skills?"
     a: "Not at all — the cleaning steps map 1:1 to operations you already know (filter, replace, drop column, dedupe). You just stop maintaining macros to run them."
 updated: "2026-04-21"

@@ -1,8 +1,8 @@
 ---
 competitor: "Tableau"
-title: "DataVision Pro vs Tableau"
-description: "DataVision Pro vs Tableau — an honest, side-by-side comparison of pricing, AI features, learning curve, and ideal users. No fluff, no fake testimonials."
-intro: "DataVision Pro is an AI-first analytics platform built around one-click cleaning, statistics, and natural-language insights. Tableau is a mature, dashboard-first BI platform that excels at curated, enterprise-grade visual analytics. The right pick depends on whether you need fast answers from raw files (DataVision Pro) or governed dashboards across many sources (Tableau)."
+title: "AXIOM vs Tableau"
+description: "AXIOM vs Tableau — an honest, side-by-side comparison of pricing, AI features, learning curve, and ideal users. No fluff, no fake testimonials."
+intro: "AXIOM is an AI-first analytics platform built around one-click cleaning, statistics, and natural-language insights. Tableau is a mature, dashboard-first BI platform that excels at curated, enterprise-grade visual analytics. The right pick depends on whether you need fast answers from raw files (AXIOM) or governed dashboards across many sources (Tableau)."
 bestFor:
   us: "Analysts who upload CSV/Excel files and need clean data, statistics, ML, and AI explanations in one place — fast."
   them: "BI teams building governed, reusable dashboards for hundreds of business users on top of a curated data warehouse."
@@ -46,13 +46,13 @@ whenToChoose:
     - "You have, or are willing to hire, dedicated Tableau developers."
     - "Your stakeholders demand pixel-perfect, reusable visualisations."
 faq:
-  - q: "Is DataVision Pro a Tableau replacement?"
+  - q: "Is AXIOM a Tableau replacement?"
     a: "For ad-hoc file analysis, yes. For enterprise BI on top of a curated warehouse with hundreds of viewers, Tableau is still the heavier-duty platform."
   - q: "Can I use both?"
-    a: "Absolutely. Many teams use DataVision Pro for fast exploration and prototyping, then push the validated dataset and metric definitions into Tableau for company-wide dashboards."
+    a: "Absolutely. Many teams use AXIOM for fast exploration and prototyping, then push the validated dataset and metric definitions into Tableau for company-wide dashboards."
   - q: "Which is cheaper for a 5-person team?"
-    a: "DataVision Pro — 60-day full-feature trial and free tiers afterward. As of April 2026 Tableau Creator is $75/user/month billed annually ($900/user/year), so a five-person team starts at roughly $4,500/year before Explorer/Viewer add-ons."
-  - q: "Does DataVision Pro connect to a warehouse?"
+    a: "AXIOM — 60-day full-feature trial and free tiers afterward. As of April 2026 Tableau Creator is $75/user/month billed annually ($900/user/year), so a five-person team starts at roughly $4,500/year before Explorer/Viewer add-ons."
+  - q: "Does AXIOM connect to a warehouse?"
     a: "Today it imports CSV / Excel uploads. Direct warehouse connectors are on the roadmap."
 updated: "2026-04-21"
 relatedGlossary:

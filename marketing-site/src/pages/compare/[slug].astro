@@ -59,14 +59,14 @@ const breadcrumbsLd = {
       <p style="font-size:1.1rem; color:var(--text);"><strong set:html={c.intro}></strong></p>
 
       <div class="grid grid-2" style="margin: 1.5rem 0 2rem;">
-        <div class="card"><h3>Best for DataVision Pro</h3><p>{c.bestFor.us}</p></div>
+        <div class="card"><h3>Best for AXIOM</h3><p>{c.bestFor.us}</p></div>
         <div class="card"><h3>Best for {c.competitor}</h3><p>{c.bestFor.them}</p></div>
       </div>
 
       <h2>Side-by-side comparison</h2>
       <table class="compare">
         <thead>
-          <tr><th>Feature</th><th>DataVision Pro</th><th>{c.competitor}</th></tr>
+          <tr><th>Feature</th><th>AXIOM</th><th>{c.competitor}</th></tr>
         </thead>
         <tbody>
           {c.rows.map((r) => (
@@ -79,7 +79,7 @@ const breadcrumbsLd = {
         </tbody>
       </table>
 
-      <h2>When to choose DataVision Pro</h2>
+      <h2>When to choose AXIOM</h2>
       <ul>
         {c.whenToChoose.us.map((x) => <li>{x}</li>)}
       </ul>
@@ -98,7 +98,7 @@ const breadcrumbsLd = {
       <p class="small muted">Notes marked <code>[verify]</code> are pending confirmation against the latest official pricing or feature pages from {c.competitor}. We never publish a number we can't source.</p>
 
       <div class="cta-strip">
-        <h2>Try DataVision Pro on your own data</h2>
+        <h2>Try AXIOM on your own data</h2>
         <p>60-day Tier 3 trial. No credit card.</p>
         <a class="btn btn-primary" href={SITE.appUrl}>Launch the app →</a>
       </div>

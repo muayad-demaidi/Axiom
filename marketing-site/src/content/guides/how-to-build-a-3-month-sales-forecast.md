@@ -1,7 +1,7 @@
 ---
 title: "How to build a 3-month sales forecast (no code)"
-description: "Step-by-step: turn 24 months of sales history into a defensible 3-month forecast using DataVision Pro's predictions tab — with honest accuracy bounds."
-intro: "To build a 3-month sales forecast: gather at least 24 months of monthly sales (two full seasonal cycles), load it into DataVision Pro, fit a linear-trend or RandomForest model in the Predictions tab, hold out the last three months to measure error, then apply the validated model to forecast the next three months — and report the error band, not a single number."
+description: "Step-by-step: turn 24 months of sales history into a defensible 3-month forecast using AXIOM's predictions tab — with honest accuracy bounds."
+intro: "To build a 3-month sales forecast: gather at least 24 months of monthly sales (two full seasonal cycles), load it into AXIOM, fit a linear-trend or RandomForest model in the Predictions tab, hold out the last three months to measure error, then apply the validated model to forecast the next three months — and report the error band, not a single number."
 estTime: "10 minutes"
 difficulty: "Intermediate"
 prerequisites:

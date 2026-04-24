@@ -38,7 +38,7 @@ relatedCompare:
 - datavision-pro-vs-excel
 ---
 
-<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-detect-outliers-in-sales-data">how to detect outliers in sales data</a> · <a href="/compare/datavision-pro-vs-excel">DataVision Pro vs Excel</a>.</p>
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-detect-outliers-in-sales-data">how to detect outliers in sales data</a> · <a href="/compare/datavision-pro-vs-excel">AXIOM vs Excel</a>.</p>
 
 ## How it works
 
@@ -52,4 +52,4 @@ relatedCompare:
 ## When to drop and when to investigate
 
 <p>Drop only if you can prove the value is impossible (negative age, future timestamp). Investigate when the value is merely surprising — a $50,000 order from a normally-$500 customer is an outlier you want to <em>understand</em>, not delete.</p>
-        <p>DataVision Pro shows enhanced outlier detection with box plots and K-Means risk clustering side-by-side, so you can see whether a point is a single weird record or a whole cluster of new behaviour.</p>
+        <p>AXIOM shows enhanced outlier detection with box plots and K-Means risk clustering side-by-side, so you can see whether a point is a single weird record or a whole cluster of new behaviour.</p>

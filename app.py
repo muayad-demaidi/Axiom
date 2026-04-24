@@ -208,7 +208,7 @@ def sanitize_for_json(obj):
     return obj
 
 st.set_page_config(
-    page_title="DataVision Pro - Intelligent Data Analytics",
+    page_title="AXIOM - AI Data Analysis",
     page_icon="🔮",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -2332,7 +2332,7 @@ def _render_phase1_dock(tab_id, limits):
                else "open Review to confirm")
         st.markdown(
             "<div class='dn-doubt-note'>"
-            "<span class='dn-doubt-tag'>DataVision wasn't sure</span>"
+            "<span class='dn-doubt-tag'>AXIOM wasn't sure</span>"
             f"<span class='dn-doubt-body'>{_html.escape(str(d.get('message','')))} — {cta}.</span>"
             "</div>",
             unsafe_allow_html=True,
@@ -2493,14 +2493,14 @@ def _render_assistant_mode_picker(widget_key: str) -> None:
 def _render_chat_dock(tab_id, limits, doubts):
     """Persistent chat dock shared across the Phase-1 tabs."""
     if not limits.get('ai_chat_enabled'):
-        with st.expander("Chat with DataVision (Tier 3)", expanded=False):
+        with st.expander("Chat with AXIOM (Tier 3)", expanded=False):
             st.caption("AI chat is part of Tier 3. The doubts above stay "
                        "visible as inline notes — open Review on each tab "
                        "to confirm them manually.")
         return
 
     expanded_default = bool(doubts)
-    with st.expander("Chat with DataVision", expanded=expanded_default):
+    with st.expander("Chat with AXIOM", expanded=expanded_default):
         st.caption("Same conversation across Cleaning, Statistics, and ML tabs.")
         _render_assistant_mode_picker(
             f"assistant_mode_dock_{tab_id}_{_ds_key()}")
@@ -2511,7 +2511,7 @@ def _render_chat_dock(tab_id, limits, doubts):
             if not st.session_state.chat_messages:
                 st.caption("Ask anything about your dataset.")
             for msg in st.session_state.chat_messages:
-                role_label = "You" if msg["role"] == "user" else "DataVision"
+                role_label = "You" if msg["role"] == "user" else "AXIOM"
                 bg = ("rgba(45,212,191,0.10)" if msg["role"] == "user"
                       else "rgba(30,41,59,0.6)")
                 content = (msg.get("content") or "").replace("\n", "<br>")
@@ -2549,7 +2549,7 @@ def _render_chat_dock(tab_id, limits, doubts):
                             except Exception:
                                 pass
                             st.rerun()
-        prompt = st.chat_input("Ask DataVision...",
+        prompt = st.chat_input("Ask AXIOM...",
                                key=f"dock_chat_{tab_id}_{_ds_key()}")
         if prompt:
             st.session_state.chat_messages.append(
@@ -3095,7 +3095,7 @@ def _render_questions_panel(ds_key: str, sh: StepHistory,
 
     st.markdown(
         '<div class="dn-questions-head">'
-        '<span class="dn-questions-eyebrow">Questions from DataVision</span>'
+        '<span class="dn-questions-eyebrow">Questions from AXIOM</span>'
         f'<span class="dn-questions-count">{len(open_qs)} open</span>'
         '</div>'
         '<div class="dn-questions-cap">Pick an answer to record the decision as a step. '
@@ -4326,7 +4326,7 @@ def _render_auth_chrome(logo_b64, action_label="Home", action_href="/"):
     """Render the shared navbar + atmospheric background + auth CSS for auth pages."""
     st.markdown(f'''
 <div class="lp-nav"><div class="lp-nav-inner">
-<a class="lp-nav-logo" href="/" target="_self"><img src="data:image/png;base64,{logo_b64}" alt="DataVision Pro"></a>
+<a class="lp-nav-logo" href="/" target="_self"><img src="data:image/png;base64,{logo_b64}" alt="AXIOM"></a>
 <div class="lp-nav-links">
 <a class="lp-nav-link" href="/" target="_self">Home</a>
 <a class="lp-nav-link" href="/#features" target="_self">Features</a>
@@ -4686,7 +4686,7 @@ def show_login_page():
 <div class="lp-footer">
 <div class="lp-footer-inner">
 <div>
-<img src="data:image/png;base64,{logo_b64}" style="height:60px;width:auto;border-radius:6px;" alt="DataVision Pro">
+<img src="data:image/png;base64,{logo_b64}" style="height:60px;width:auto;border-radius:6px;" alt="AXIOM">
 <p class="lp-footer-brand-desc">An intelligent data analytics platform that turns raw datasets into clear, actionable insights &mdash; in seconds, no code required.</p>
 </div>
 <div>
@@ -4719,7 +4719,7 @@ def show_login_page():
 </div>
 </div>
 <div class="lp-footer-bottom">
-<span class="lp-footer-copy">&copy; 2026 DataVision Pro. All rights reserved.</span>
+<span class="lp-footer-copy">&copy; 2026 AXIOM. All rights reserved.</span>
 <span class="lp-footer-status">All systems operational</span>
 </div>
 </div>
@@ -5038,7 +5038,7 @@ def show_register_page():
 <div class="lp-footer"><div class="lp-footer-inner">
 <div class="lp-footer-grid">
 <div class="lp-footer-brand">
-<a class="lp-footer-logo" href="/" target="_self"><img src="data:image/png;base64,{logo_b64}" alt="DataVision Pro"></a>
+<a class="lp-footer-logo" href="/" target="_self"><img src="data:image/png;base64,{logo_b64}" alt="AXIOM"></a>
 <p class="lp-footer-desc">Intelligent data analytics for teams who want answers, not dashboards. AI-powered insights from upload to action.</p>
 </div>
 <div class="lp-footer-col">
@@ -5065,7 +5065,7 @@ def show_register_page():
 </div>
 </div>
 <div class="lp-footer-bottom">
-<div class="lp-footer-copy">© 2026 DataVision Pro · All systems operational</div>
+<div class="lp-footer-copy">© 2026 AXIOM · All systems operational</div>
 <div class="lp-footer-pulse"><span class="lp-pulse-dot"></span>STATUS · LIVE</div>
 </div>
 </div></div>
@@ -5111,7 +5111,7 @@ def show_forgot_password_page():
 <div class="auth-brand-pane">
 <div class="auth-brand-eyebrow">Account Recovery</div>
 <h1 class="auth-brand-headline">Forgot your password?<br>We&rsquo;ll help you back in.</h1>
-<p class="auth-brand-sub">Enter the email address tied to your DataVision Pro account and we&rsquo;ll send you a secure link to choose a new password.</p>
+<p class="auth-brand-sub">Enter the email address tied to your AXIOM account and we&rsquo;ll send you a secure link to choose a new password.</p>
 <div class="auth-brand-features">
 <div class="auth-brand-feat">
 <div class="auth-brand-feat-icon">01</div>
@@ -6178,7 +6178,7 @@ def render_clickable_logo(key_suffix=""):
     }
     </style>
     <div class="sidebar-logo-container" onclick="window.location.reload()">
-        <img src="app/static/logo.png" class="sidebar-logo" alt="DataVision Pro">
+        <img src="app/static/logo.png" class="sidebar-logo" alt="AXIOM">
     </div>
     ''', unsafe_allow_html=True)
     return logo_clicked
@@ -8424,7 +8424,7 @@ def show_projects_page():
     with nav_brand_col:
         st.markdown(
             '<div class="dn-topbar">'
-            '<span class="dn-topbar-brand">DataVision <span style="color:var(--teal);">Pro</span></span>'
+            '<span class="dn-topbar-brand">AXIOM</span>'
             '<span class="dn-topbar-eyebrow">Projects</span>'
             '</div>', unsafe_allow_html=True)
     with nav_user_col:
@@ -8732,7 +8732,7 @@ def show_dashboard():
                     <div style="font-size: 4rem; margin-bottom: 1rem;">⏰</div>
                     <h2 style="color: #e2e8f0;">Your Free Trial Has Ended</h2>
                     <p style="color: #94a3b8; font-size: 1.1rem; max-width: 500px; margin: 1rem auto;">
-                        Your 60-day free trial period has expired. To continue using DataVision Pro, 
+                        Your 60-day free trial period has expired. To continue using AXIOM, 
                         please contact our team for activation.
                     </p>
                     <p style="color: #14b8a6; font-size: 1rem;">
@@ -11158,7 +11158,7 @@ def show_dashboard():
                             scope = (f" across <b>{len(cols_touched)}</b> "
                                      f"column{'s' if len(cols_touched) != 1 else ''}"
                                      if cols_touched else "")
-                            sentence_html = (f"DataVision {joined}{scope}.")
+                            sentence_html = (f"AXIOM {joined}{scope}.")
 
                         ds_name_for_hero = _html.escape(
                             _active_ds_name
@@ -12912,7 +12912,7 @@ def show_dashboard():
 
                     generated_at = datetime.now().strftime('%Y-%m-%d %H:%M')
                     report_lines = [
-                        "# DataVision Pro — Analysis Report",
+                        "# AXIOM — Analysis Report",
                         f"_Generated: {generated_at}_",
                         "",
                         "## Executive Summary",
@@ -13387,7 +13387,7 @@ def show_help_page():
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<p class="sub-title">Everything you need to get the most out of DataVision Pro &mdash; '
+        '<p class="sub-title">Everything you need to get the most out of AXIOM &mdash; '
         'from your first upload to advanced cleaning and AI insights.</p>',
         unsafe_allow_html=True,
     )
@@ -13414,7 +13414,7 @@ def show_help_page():
     st.markdown('<a id="getting-started"></a>', unsafe_allow_html=True)
     st.header("Getting Started")
     st.markdown(
-        "DataVision Pro turns spreadsheets and CSVs into clean datasets, "
+        "AXIOM turns spreadsheets and CSVs into clean datasets, "
         "descriptive statistics, charts, and AI-powered insights — without writing code."
     )
     st.markdown(
@@ -13619,7 +13619,7 @@ def show_home_page():
     # ── NAVBAR ────────────────────────────────────────────────────────────────
     st.markdown(f'''
 <div class="lp-nav"><div class="lp-nav-inner">
-<a class="lp-nav-logo" href="/" target="_self"><img src="data:image/png;base64,{logo_b64}" alt="DataVision Pro"></a>
+<a class="lp-nav-logo" href="/" target="_self"><img src="data:image/png;base64,{logo_b64}" alt="AXIOM"></a>
 <div class="lp-nav-links">
 <a class="lp-nav-link" href="#features">Features</a>
 <a class="lp-nav-link" href="#how">How It Works</a>
@@ -13636,7 +13636,7 @@ def show_home_page():
     # ── HERO ──────────────────────────────────────────────────────────────────
     st.markdown(f'''
 <div class="lp-hero" style="text-align:center;padding:3rem 0 1.5rem 0;">
-<a href="/" target="_self" style="display:inline-block;" class="logo-link"><img src="data:image/png;base64,{logo_b64}" style="max-width:640px;width:100%;border-radius:14px;" alt="DataVision Pro logo"></a>
+<a href="/" target="_self" style="display:inline-block;" class="logo-link"><img src="data:image/png;base64,{logo_b64}" style="max-width:640px;width:100%;border-radius:14px;" alt="AXIOM logo"></a>
 <h1 style="font-family:&#39;Syne&#39;,sans-serif;font-size:3.75rem;font-weight:800;letter-spacing:-0.04em;background:linear-gradient(135deg,#2dd4bf 0%,#14b8a6 40%,#94a3b8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:1.75rem 0 1rem 0;line-height:1.05;">Intelligent Data Analytics,<br>Done in Seconds</h1>
 <p style="font-size:1.15rem;color:#94a3b8;font-weight:400;max-width:560px;margin:0 auto 0.5rem auto;line-height:1.7;">Upload any dataset and get instant cleaning, statistics, charts, and AI-powered insights &mdash; <span style="color:#2dd4bf;font-weight:600;">no code required.</span></p>
 </div>
@@ -13748,7 +13748,7 @@ def show_home_page():
 <div class="lp-footer">
 <div class="lp-footer-inner">
 <div>
-<img src="data:image/png;base64,{logo_b64}" style="height:60px;width:auto;border-radius:6px;" alt="DataVision Pro">
+<img src="data:image/png;base64,{logo_b64}" style="height:60px;width:auto;border-radius:6px;" alt="AXIOM">
 <p class="lp-footer-brand-desc">An intelligent data analytics platform that turns raw datasets into clear, actionable insights &mdash; in seconds, no code required.</p>
 </div>
 <div>
@@ -13781,7 +13781,7 @@ def show_home_page():
 </div>
 </div>
 <div class="lp-footer-bottom">
-<span class="lp-footer-copy">&copy; 2026 DataVision Pro. All rights reserved.</span>
+<span class="lp-footer-copy">&copy; 2026 AXIOM. All rights reserved.</span>
 <span class="lp-footer-status">All systems operational</span>
 </div>
 </div>

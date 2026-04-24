@@ -38,7 +38,7 @@ relatedCompare:
 - datavision-pro-vs-tableau
 ---
 
-<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-detect-outliers-in-sales-data">how to detect outliers in sales data</a> · <a href="/compare/datavision-pro-vs-tableau">DataVision Pro vs Tableau</a>.</p>
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-detect-outliers-in-sales-data">how to detect outliers in sales data</a> · <a href="/compare/datavision-pro-vs-tableau">AXIOM vs Tableau</a>.</p>
 
 ## How it works (Lloyd's algorithm)
 
@@ -59,4 +59,4 @@ relatedCompare:
 
 ## Where K-Means breaks
 
-<p>K-Means struggles with non-spherical clusters, very different cluster sizes, and mixed numeric/categorical data. For those cases prefer DBSCAN, Gaussian Mixture Models, or k-prototypes. DataVision Pro uses K-Means specifically for risk clustering, where 3–5 spherical groups (low/medium/high) match the business question.</p>
+<p>K-Means struggles with non-spherical clusters, very different cluster sizes, and mixed numeric/categorical data. For those cases prefer DBSCAN, Gaussian Mixture Models, or k-prototypes. AXIOM uses K-Means specifically for risk clustering, where 3–5 spherical groups (low/medium/high) match the business question.</p>

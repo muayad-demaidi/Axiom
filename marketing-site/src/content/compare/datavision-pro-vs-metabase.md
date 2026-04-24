@@ -1,8 +1,8 @@
 ---
 competitor: Metabase
-title: DataVision Pro vs Metabase
-description: DataVision Pro vs Metabase — compare AI features, file-based analysis, self-service BI, and hosting. An honest side-by-side, no fabricated lift numbers.
-intro: DataVision Pro is a hosted AI analytics platform focused on uploading a file and getting cleaned data, statistics, ML, and AI insights immediately. Metabase is an open-source self-service BI tool that points at your database and lets non-engineers build questions and dashboards in a friendly UI. Pick DataVision Pro for AI-first file analysis; pick Metabase for self-hosted dashboards over a SQL database.
+title: AXIOM vs Metabase
+description: AXIOM vs Metabase — compare AI features, file-based analysis, self-service BI, and hosting. An honest side-by-side, no fabricated lift numbers.
+intro: AXIOM is a hosted AI analytics platform focused on uploading a file and getting cleaned data, statistics, ML, and AI insights immediately. Metabase is an open-source self-service BI tool that points at your database and lets non-engineers build questions and dashboards in a friendly UI. Pick AXIOM for AI-first file analysis; pick Metabase for self-hosted dashboards over a SQL database.
 bestFor:
   us: Analysts who upload files and want AI-explained cleaning, stats, and ML without hosting infrastructure.
   them: Teams with a Postgres / MySQL / warehouse who want self-service exploration and dashboards on top of it.
@@ -48,12 +48,12 @@ whenToChoose:
 faq:
 - q: Is Metabase free?
   a: The open-source edition is free to self-host. As of April 2026, Metabase Starter Cloud begins at $85/month (5 users included, then $5/extra user), Pro Cloud at $500/month (10 users included, then $10/extra user), and Enterprise is custom-quoted.
-- q: Can DataVision Pro connect to my Postgres?
+- q: Can AXIOM connect to my Postgres?
   a: Today it consumes CSV/Excel uploads. Direct database connectors are on the roadmap. For now, export the slice you need and upload it.
 - q: Which is better for AI?
-  a: DataVision Pro builds GPT-powered analysis into every page by default. Metabase's Metabot is focused on natural-language SQL question generation; both are useful in different ways.
+  a: AXIOM builds GPT-powered analysis into every page by default. Metabase's Metabot is focused on natural-language SQL question generation; both are useful in different ways.
 - q: Can I use both?
-  a: Yes — Metabase is excellent for always-on dashboards over your warehouse; DataVision Pro is excellent for AI-driven deep-dives on the extracts your team needs to investigate.
+  a: Yes — Metabase is excellent for always-on dashboards over your warehouse; AXIOM is excellent for AI-driven deep-dives on the extracts your team needs to investigate.
 updated: '2026-04-21'
 relatedGlossary:
 - etl-vs-elt

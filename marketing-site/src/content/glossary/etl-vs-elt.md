@@ -20,8 +20,8 @@ faq:
     a: "No. For tiny datasets and infrequent runs, a small ETL server is cheaper than warm warehouse compute. ELT wins at scale and on bursty workloads."
   - q: "Can I mix ETL and ELT?"
     a: "Yes — many teams ETL the lightweight transforms (PII masking, deduping) and ELT the heavyweight ones (joins, aggregations). It's called ETLT."
-  - q: "Where does DataVision Pro fit?"
-    a: "DataVision Pro is downstream of both — it consumes a clean CSV/Excel extract and runs the analysis layer, freeing your warehouse from BI workloads."
+  - q: "Where does AXIOM fit?"
+    a: "AXIOM is downstream of both — it consumes a clean CSV/Excel extract and runs the analysis layer, freeing your warehouse from BI workloads."
   - q: "Is reverse ETL the opposite?"
     a: "Not the opposite — reverse ETL pushes warehouse data back into operational tools (CRM, ad platforms). It complements ELT rather than replacing it."
   - q: "Which is better for compliance?"
@@ -38,7 +38,7 @@ relatedCompare:
 - datavision-pro-vs-metabase
 ---
 
-<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-clean-a-messy-csv-in-60-seconds">how to clean a messy CSV in 60 seconds</a> · <a href="/compare/datavision-pro-vs-metabase">DataVision Pro vs Metabase</a>.</p>
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-clean-a-messy-csv-in-60-seconds">how to clean a messy CSV in 60 seconds</a> · <a href="/compare/datavision-pro-vs-metabase">AXIOM vs Metabase</a>.</p>
 
 ## Side-by-side comparison
 

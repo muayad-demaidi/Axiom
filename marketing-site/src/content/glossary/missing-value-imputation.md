@@ -24,7 +24,7 @@ faq:
     a: "Missing Not At Random — the missingness itself depends on the unknown value (e.g., high earners refuse to disclose income). No imputation method fully solves MNAR; you need extra information or a sensitivity analysis."
   - q: "Should I impute the target column?"
     a: "No. Drop rows where the target is missing for training. Imputing the target invents the answer and leaks."
-  - q: "Does DataVision Pro impute automatically?"
+  - q: "Does AXIOM impute automatically?"
     a: "Yes — its auto-cleaning includes mean/median/mode imputation as a toggleable substep, and you can insert custom rules (Replace Values, Drop Column) above or below it."
 related:
   - "data-cleaning"
@@ -38,7 +38,7 @@ relatedCompare:
 - datavision-pro-vs-excel
 ---
 
-<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-clean-a-messy-csv-in-60-seconds">how to clean a messy CSV in 60 seconds</a> · <a href="/compare/datavision-pro-vs-excel">DataVision Pro vs Excel</a>.</p>
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-clean-a-messy-csv-in-60-seconds">how to clean a messy CSV in 60 seconds</a> · <a href="/compare/datavision-pro-vs-excel">AXIOM vs Excel</a>.</p>
 
 ## Method ladder (cheap → rigorous)
 

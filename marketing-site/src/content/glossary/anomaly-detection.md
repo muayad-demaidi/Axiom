@@ -38,7 +38,7 @@ relatedCompare:
 - datavision-pro-vs-metabase
 ---
 
-<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-detect-outliers-in-sales-data">how to detect outliers in sales data</a> · <a href="/compare/datavision-pro-vs-metabase">DataVision Pro vs Metabase</a>.</p>
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-detect-outliers-in-sales-data">how to detect outliers in sales data</a> · <a href="/compare/datavision-pro-vs-metabase">AXIOM vs Metabase</a>.</p>
 
 ## Anomaly vs outlier
 
@@ -61,4 +61,4 @@ relatedCompare:
           <li><strong>Precision@k</strong> — have a human review the top-k flagged events and score how many were real.</li>
           <li><strong>Injected anomalies</strong> — synthesise known anomalies into a holdout window and measure recall.</li>
         </ul>
-        <p>DataVision Pro's K-Means risk clustering view doubles as a coarse anomaly detector — points that sit far from any cluster centroid are the operational candidates worth investigating first.</p>
+        <p>AXIOM's K-Means risk clustering view doubles as a coarse anomaly detector — points that sit far from any cluster centroid are the operational candidates worth investigating first.</p>

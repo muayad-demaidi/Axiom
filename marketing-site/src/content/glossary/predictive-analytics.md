@@ -17,7 +17,7 @@ stats:
       url: "https://www.bain.com/insights/the-value-of-online-customer-loyalty"
 faq:
   - q: "Do I need a data scientist?"
-    a: "Not for the common patterns. DataVision Pro's predictions tab covers linear models and tree-based forecasting in a few clicks."
+    a: "Not for the common patterns. AXIOM's predictions tab covers linear models and tree-based forecasting in a few clicks."
   - q: "How much history do I need?"
     a: "For seasonal forecasts, at least two full cycles (e.g. 24 months for monthly seasonality). For classification, at least a few hundred examples per class."
   - q: "What's the biggest pitfall?"
@@ -38,7 +38,7 @@ relatedCompare:
 - datavision-pro-vs-power-bi
 ---
 
-<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-build-a-3-month-sales-forecast">how to build a 3-month sales forecast</a> · <a href="/compare/datavision-pro-vs-power-bi">DataVision Pro vs Power BI</a>.</p>
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-build-a-3-month-sales-forecast">how to build a 3-month sales forecast</a> · <a href="/compare/datavision-pro-vs-power-bi">AXIOM vs Power BI</a>.</p>
 
 ## Common model families
 

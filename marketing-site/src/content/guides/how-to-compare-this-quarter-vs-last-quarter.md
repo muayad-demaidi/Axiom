@@ -1,6 +1,6 @@
 ---
 title: How to compare this quarter vs last quarter (without lying with averages)
-description: A practical guide to a defensible quarter-over-quarter comparison — same-day windows, mix-shift checks, and confidence intervals — using DataVision Pro's time-period view.
+description: A practical guide to a defensible quarter-over-quarter comparison — same-day windows, mix-shift checks, and confidence intervals — using AXIOM's time-period view.
 intro: 'To compare this quarter vs last quarter honestly: align both windows to the same number of business days, hold the customer mix constant where possible, report median alongside mean (revenue distributions are skewed), check for a mix shift that explains the headline change, and surface the result with a confidence interval — not a single percent number that hides the variance.'
 estTime: 10 minutes
 difficulty: Intermediate
@@ -19,7 +19,7 @@ faq:
   a: Normalise by days, customers, or sessions before comparing. Report the per-unit metric, not the totals.
 - q: Is a confidence interval really needed for QoQ?
   a: Yes — without it, leadership cannot tell a real swing from random variation, and you'll spend the next quarter explaining noise as strategy.
-- q: Does DataVision Pro detect mix shifts automatically?
+- q: Does AXIOM detect mix shifts automatically?
   a: Yes — the time-period comparison surfaces grouped share-of-total alongside the headline metric so a composition change is visible at a glance.
 updated: '2026-04-21'
 relatedGlossary:
@@ -35,7 +35,7 @@ relatedCompare:
 
 ## Align the windows
 
-<p>Compare like with like: same number of business days, same days of week. Q1 has fewer days than Q4; February is short; Easter and Lunar New Year shift between months. In DataVision Pro, set both windows to the same length (e.g. trailing 90 days) rather than calendar quarters when the calendars don't match.</p>
+<p>Compare like with like: same number of business days, same days of week. Q1 has fewer days than Q4; February is short; Easter and Lunar New Year shift between months. In AXIOM, set both windows to the same length (e.g. trailing 90 days) rather than calendar quarters when the calendars don't match.</p>
 
 ## Profile both windows separately
 
@@ -43,7 +43,7 @@ relatedCompare:
 
 ## Check the mix
 
-<p>Group by the dimensions that matter (country, channel, segment, product line) and compare the share of revenue per group. If the country mix shifted from 70/30 to 50/50, the headline change is partly composition, not performance. DataVision Pro's tabular comparison view shows both shares side-by-side for a one-glance check.</p>
+<p>Group by the dimensions that matter (country, channel, segment, product line) and compare the share of revenue per group. If the country mix shifted from 70/30 to 50/50, the headline change is partly composition, not performance. AXIOM's tabular comparison view shows both shares side-by-side for a one-glance check.</p>
 
 ## Compute the lift with a confidence interval
 

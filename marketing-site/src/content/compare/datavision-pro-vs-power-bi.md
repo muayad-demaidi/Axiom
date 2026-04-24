@@ -1,8 +1,8 @@
 ---
 competitor: "Power BI"
-title: "DataVision Pro vs Power BI"
-description: "DataVision Pro vs Microsoft Power BI — compare AI features, ease of use, file-based analysis, and ideal team size. No fabricated metrics."
-intro: "DataVision Pro is a browser-first analytics tool focused on uploading a file and getting cleaned data, statistics, ML, and AI insights immediately. Power BI is Microsoft's full BI platform, deeply integrated with Excel, Microsoft 365, and Azure. Pick DataVision Pro for speed and AI; pick Power BI for ecosystem fit inside a Microsoft shop."
+title: "AXIOM vs Power BI"
+description: "AXIOM vs Microsoft Power BI — compare AI features, ease of use, file-based analysis, and ideal team size. No fabricated metrics."
+intro: "AXIOM is a browser-first analytics tool focused on uploading a file and getting cleaned data, statistics, ML, and AI insights immediately. Power BI is Microsoft's full BI platform, deeply integrated with Excel, Microsoft 365, and Azure. Pick AXIOM for speed and AI; pick Power BI for ecosystem fit inside a Microsoft shop."
 bestFor:
   us: "Teams that live in spreadsheets and want AI-explained analysis without modelling a dataset first."
   them: "Organisations standardised on Microsoft 365 / Azure that need DAX-powered, governed BI across the company."
@@ -43,14 +43,14 @@ whenToChoose:
     - "Your reports must live next to Teams, SharePoint, and Excel."
     - "You have a BI team that already speaks DAX and M."
 faq:
-  - q: "Can I open a Power BI .pbix in DataVision Pro?"
-    a: "No. DataVision Pro consumes CSV and Excel files directly. Export your Power BI dataset to CSV/XLSX to bring it in."
-  - q: "Does DataVision Pro need Windows?"
+  - q: "Can I open a Power BI .pbix in AXIOM?"
+    a: "No. AXIOM consumes CSV and Excel files directly. Export your Power BI dataset to CSV/XLSX to bring it in."
+  - q: "Does AXIOM need Windows?"
     a: "No. It runs in any modern browser on Mac, Linux, ChromeOS, Windows, and tablets."
   - q: "Is Power BI free?"
     a: "Power BI Desktop is free; sharing and collaboration require Power BI Pro ($14/user/month) or Premium Per User ($24/user/month) as of April 2026. Premium capacity (formerly P-SKUs, now Fabric F-SKUs) starts higher and is usage-billed."
   - q: "Which has better AI?"
-    a: "Both ship AI features. DataVision Pro builds AI into every analysis page out of the box; Power BI Copilot is powerful but typically requires additional licences and a Premium capacity."
+    a: "Both ship AI features. AXIOM builds AI into every analysis page out of the box; Power BI Copilot is powerful but typically requires additional licences and a Premium capacity."
 updated: "2026-04-21"
 relatedGlossary:
 - predictive-analytics

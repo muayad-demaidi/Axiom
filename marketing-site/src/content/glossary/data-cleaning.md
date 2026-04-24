@@ -38,7 +38,7 @@ relatedCompare:
 - datavision-pro-vs-excel
 ---
 
-<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-clean-a-messy-csv-in-60-seconds">how to clean a messy CSV in 60 seconds</a> · <a href="/compare/datavision-pro-vs-excel">DataVision Pro vs Excel</a>.</p>
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-clean-a-messy-csv-in-60-seconds">how to clean a messy CSV in 60 seconds</a> · <a href="/compare/datavision-pro-vs-excel">AXIOM vs Excel</a>.</p>
 
 ## How data cleaning works
 
@@ -56,4 +56,4 @@ relatedCompare:
 ## Why it matters for analysts
 
 <p>Garbage in, garbage out is not a cliché — it is a budget item. Analysts who skip cleaning end up debugging KPIs in board meetings instead of trusting them. A repeatable cleaning step keeps every chart, model, and AI summary anchored to the same source of truth.</p>
-        <p>In <strong>DataVision Pro</strong>, the cleaning pipeline runs as an ordered list of toggleable substeps you can reorder (↑/↓) and extend (Trim Whitespace, Drop Column, Rename Column), so the same recipe can be replayed on next month's file in one click.</p>
+        <p>In <strong>AXIOM</strong>, the cleaning pipeline runs as an ordered list of toggleable substeps you can reorder (↑/↓) and extend (Trim Whitespace, Drop Column, Rename Column), so the same recipe can be replayed on next month's file in one click.</p>

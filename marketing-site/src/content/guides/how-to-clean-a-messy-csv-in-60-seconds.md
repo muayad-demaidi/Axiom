@@ -1,11 +1,11 @@
 ---
 title: "How to clean a messy CSV in 60 seconds"
-description: "A 60-second walkthrough for turning a messy CSV — duplicates, missing values, mixed types, stray whitespace — into a clean, analysis-ready dataset using DataVision Pro."
+description: "A 60-second walkthrough for turning a messy CSV — duplicates, missing values, mixed types, stray whitespace — into a clean, analysis-ready dataset using AXIOM."
 intro: "To clean a messy CSV in 60 seconds: upload it, run auto-clean (which removes duplicates, trims whitespace, infers types, fills missing values, and flags outliers as a single ordered pipeline you can toggle), preview the change at each step, then save the result as a reusable cleaning recipe for next month's file."
 estTime: "60 seconds"
 difficulty: "Beginner"
 prerequisites:
-  - "A free DataVision Pro account (60-day Tier 3 trial included)."
+  - "A free AXIOM account (60-day Tier 3 trial included)."
   - "A CSV or XLSX file under 200 MB."
 pitfalls:
   - "Imputing before dropping duplicates inflates the imputed values with duplicate rows."
@@ -15,7 +15,7 @@ faq:
   - q: "What if my CSV has multiple header rows?"
     a: "Use the Insert Substep menu to drop the rows above the real header, or open the file in Excel/Sheets, fix the header, and re-upload."
   - q: "Will it handle European decimal separators?"
-    a: "Yes — DataVision Pro infers comma-vs-period decimals per column during type inference."
+    a: "Yes — AXIOM infers comma-vs-period decimals per column during type inference."
   - q: "Can I undo a step?"
     a: "Yes. Cleaning is non-destructive: you can toggle any substep off, reorder it, or insert a new one and the pipeline replays from scratch."
   - q: "Does it work for Excel files with multiple sheets?"
@@ -34,7 +34,7 @@ relatedCompare:
 
 ## Upload your file
 
-<p>From the dashboard, click <strong>Upload Dataset</strong> and drop the file. DataVision Pro automatically detects the delimiter, encoding (UTF-8, Latin-1, Windows-1252), and header row.</p>
+<p>From the dashboard, click <strong>Upload Dataset</strong> and drop the file. AXIOM automatically detects the delimiter, encoding (UTF-8, Latin-1, Windows-1252), and header row.</p>
 
 ## Run auto-clean
 

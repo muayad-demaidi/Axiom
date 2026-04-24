@@ -1,16 +1,16 @@
 export const SITE = {
-  name: "DataVision Pro",
-  tagline: "Intelligent data analytics, no code required",
+  name: "AXIOM",
+  tagline: "AI-powered data analysis, no code required",
   description:
-    "DataVision Pro turns raw CSVs and Excel files into clean, analyzed, AI-explained insights in seconds. Auto cleaning, statistics, ML, predictions, and a built-in chat assistant.",
+    "AXIOM turns raw CSVs and Excel files into clean, analyzed, AI-explained insights in seconds. Auto cleaning, statistics, ML, predictions, and a built-in chat assistant.",
   url: "https://datavisionpro.app",
   appUrl:
     (typeof process !== "undefined" && process.env && process.env.APP_URL) ||
     "https://app.datavisionpro.app",
   supportEmail: "muayad.demaidi.work@gmail.com",
   organization: {
-    name: "DataVision Pro",
-    legalName: "DataVision Pro",
+    name: "AXIOM",
+    legalName: "AXIOM",
     foundingDate: "2026-01-01",
     sameAs: [],
   },

@@ -1,7 +1,7 @@
 ---
 title: How to A/B test a pricing change
 description: 'Step-by-step: design, size, and analyse an A/B test on a pricing change without statistical bait-and-switch. Includes power analysis, sample size, and how to read the result honestly.'
-intro: 'To A/B test a pricing change: pre-declare the metric (revenue per visitor, not conversion rate alone), power-analyse the sample size you need, randomise at the user level, run for at least one full week without peeking, then load both arms into DataVision Pro and report the lift with a confidence interval — never just a p-value.'
+intro: 'To A/B test a pricing change: pre-declare the metric (revenue per visitor, not conversion rate alone), power-analyse the sample size you need, randomise at the user level, run for at least one full week without peeking, then load both arms into AXIOM and report the lift with a confidence interval — never just a p-value.'
 estTime: 15 minutes setup + 1–4 weeks runtime
 difficulty: Intermediate
 prerequisites:
@@ -20,7 +20,7 @@ faq:
   a: It crosses convention but is weak evidence. Pair it with the confidence interval and the commercial significance of the effect before deciding.
 - q: Should I segment the result by country / device?
   a: Pre-declare any segmentation you'll perform. Slicing the data after the fact (HARKing) inflates false positives. If you must explore, treat segment results as hypotheses for the next test.
-- q: Does DataVision Pro run the experiment for me?
+- q: Does AXIOM run the experiment for me?
   a: No — it analyses the data after you've collected it. Pair it with your existing experimentation platform or a simple hashed split in your application code.
 updated: '2026-04-21'
 relatedGlossary:
@@ -50,9 +50,9 @@ relatedCompare:
 
 <p>Run for a minimum of seven full days — and longer if your business has a monthly cycle (B2B, payroll, subscription renewals). Resist checking results daily and stopping when you "see significance"; naive peeking inflates the false-positive rate well above 5%.</p>
 
-## Analyse in DataVision Pro
+## Analyse in AXIOM
 
-<p>Export both arms as a CSV with columns <code>variant, user_id, revenue, converted</code>. Upload to DataVision Pro, run the descriptive statistics tab to compare RPV by variant, and use the AI chat to compute the lift, the 95% confidence interval, and a sanity-check p-value. Report all three — never just one.</p>
+<p>Export both arms as a CSV with columns <code>variant, user_id, revenue, converted</code>. Upload to AXIOM, run the descriptive statistics tab to compare RPV by variant, and use the AI chat to compute the lift, the 95% confidence interval, and a sanity-check p-value. Report all three — never just one.</p>
 
 ## Make the call honestly
 

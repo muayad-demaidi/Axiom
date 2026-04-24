@@ -24,8 +24,8 @@ faq:
   a: Only with a sequential test design (e.g. group-sequential or always-valid p-values). Naive early stopping doubles your false-positive rate.
 - q: Is A/B testing the same as multivariate testing?
   a: No. A/B compares two versions; multivariate tests several factors simultaneously to find the best combination — and needs much larger samples.
-- q: Can I A/B test in DataVision Pro?
-  a: DataVision Pro analyses the results of an A/B test you've already run — load both arms, compute lift, confidence interval, and statistical significance side-by-side using the time-period comparison view.
+- q: Can I A/B test in AXIOM?
+  a: AXIOM analyses the results of an A/B test you've already run — load both arms, compute lift, confidence interval, and statistical significance side-by-side using the time-period comparison view.
 related:
 - descriptive-statistics
 - predictive-analytics
@@ -39,7 +39,7 @@ relatedCompare:
 - datavision-pro-vs-tableau
 ---
 
-<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-ab-test-a-pricing-change">how to A/B test a pricing change</a> · <a href="/guides/how-to-compare-this-quarter-vs-last-quarter">how to compare this quarter vs last quarter</a> · <a href="/compare/datavision-pro-vs-tableau">DataVision Pro vs Tableau</a>.</p>
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-ab-test-a-pricing-change">how to A/B test a pricing change</a> · <a href="/guides/how-to-compare-this-quarter-vs-last-quarter">how to compare this quarter vs last quarter</a> · <a href="/compare/datavision-pro-vs-tableau">AXIOM vs Tableau</a>.</p>
 
 ## How to run a trustworthy test
 

@@ -38,7 +38,7 @@ relatedCompare:
 - datavision-pro-vs-power-bi
 ---
 
-<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-detect-outliers-in-sales-data">how to detect outliers in sales data</a> · <a href="/compare/datavision-pro-vs-power-bi">DataVision Pro vs Power BI</a>.</p>
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-detect-outliers-in-sales-data">how to detect outliers in sales data</a> · <a href="/compare/datavision-pro-vs-power-bi">AXIOM vs Power BI</a>.</p>
 
 ## The three common scalers
 
@@ -54,4 +54,4 @@ relatedCompare:
 
 ## When you do not need it
 
-<p>Tree-based models — Random Forest, XGBoost, LightGBM — are scale-invariant and do not benefit from normalization. Skipping it for trees keeps feature interpretability intact. DataVision Pro applies z-score scaling automatically before K-Means clustering and skips it for tree models.</p>
+<p>Tree-based models — Random Forest, XGBoost, LightGBM — are scale-invariant and do not benefit from normalization. Skipping it for trees keeps feature interpretability intact. AXIOM applies z-score scaling automatically before K-Means clustering and skips it for tree models.</p>

@@ -39,7 +39,7 @@ relatedCompare:
 - datavision-pro-vs-metabase
 ---
 
-<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-build-a-3-month-sales-forecast">how to build a 3-month sales forecast</a> · <a href="/guides/how-to-compare-this-quarter-vs-last-quarter">how to compare this quarter vs last quarter</a> · <a href="/compare/datavision-pro-vs-metabase">DataVision Pro vs Metabase</a>.</p>
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-build-a-3-month-sales-forecast">how to build a 3-month sales forecast</a> · <a href="/guides/how-to-compare-this-quarter-vs-last-quarter">how to compare this quarter vs last quarter</a> · <a href="/compare/datavision-pro-vs-metabase">AXIOM vs Metabase</a>.</p>
 
 ## Three flavours of drift
 
@@ -61,4 +61,4 @@ relatedCompare:
 
 ## What to do about it
 
-<p>Retrain on a sliding window, add monitoring alerts at PSI thresholds, or switch to an online-learning model. In DataVision Pro, the time-period comparison view lets analysts spot drift visually before it shows up in business KPIs.</p>
+<p>Retrain on a sliding window, add monitoring alerts at PSI thresholds, or switch to an online-learning model. In AXIOM, the time-period comparison view lets analysts spot drift visually before it shows up in business KPIs.</p>

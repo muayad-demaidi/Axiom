@@ -9,7 +9,7 @@ const entries = (await getCollection("glossary")).sort((a, b) =>
 );
 
 const description =
-  "DataVision Pro Glossary — clear, sourced definitions of core data analytics terms: data cleaning, outlier detection, K-Means, data drift, ETL vs ELT, descriptive statistics, predictive analytics, and more.";
+  "AXIOM Glossary — clear, sourced definitions of core data analytics terms: data cleaning, outlier detection, K-Means, data drift, ETL vs ELT, descriptive statistics, predictive analytics, and more.";
 
 const breadcrumbsLd = {
   "@context": "https://schema.org",
@@ -23,7 +23,7 @@ const breadcrumbsLd = {
 const itemListLd = {
   "@context": "https://schema.org",
   "@type": "DefinedTermSet",
-  name: "DataVision Pro Data Analytics Glossary",
+  name: "AXIOM Data Analytics Glossary",
   hasDefinedTerm: entries.map((g) => ({
     "@type": "DefinedTerm",
     name: g.data.term,

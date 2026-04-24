@@ -1,7 +1,12 @@
-# DataVision Pro - Intelligent Data Analytics Platform
+# AXIOM - Intelligent Data Analytics Platform
 
 ## Overview
-DataVision Pro is a comprehensive, intelligent data analytics system built with Streamlit, designed to offer one-click automated data analysis. It aims to simplify complex data processes, providing valuable insights and predictive capabilities to users. The platform focuses on automatic data cleaning, statistical analysis, interactive visualizations, time period comparisons, and AI-powered predictive analytics. It includes an AI chat assistant, generates professional reports with recommendations, and operates on a 60-day free trial system with email notifications and a support contact form. The project also includes a sophisticated SEO/GEO automation agent and a separate marketing site to drive organic discovery. The business vision is to provide an accessible yet powerful data analysis tool, catering to users who need quick, professional insights without deep technical expertise.
+AXIOM (formerly DataVision Pro) is a comprehensive, intelligent data analytics system built with Streamlit, designed to offer one-click automated data analysis. It aims to simplify complex data processes, providing valuable insights and predictive capabilities to users. The platform focuses on automatic data cleaning, statistical analysis, interactive visualizations, time period comparisons, and AI-powered predictive analytics. It includes an AI chat assistant, generates professional reports with recommendations, and operates on a 60-day free trial system with email notifications and a support contact form. The project also includes a sophisticated SEO/GEO automation agent and a separate marketing site to drive organic discovery. The business vision is to provide an accessible yet powerful data analysis tool, catering to users who need quick, professional insights without deep technical expertise.
+
+### Brand
+- **Current name**: AXIOM (rebranded from DataVision Pro)
+- **Logo**: Blue hexagonal network/dome design at `static/logo.png` (1408×768) and `marketing-site/public/logo.png`. Old DataVision Pro logos preserved as `logo_datavision_backup.png` in both locations.
+- **Domain**: still `datavisionpro.app` (not renamed) — internal links and SEO slugs (`/compare/datavision-pro-vs-*`) intentionally preserved to avoid breaking external SEO equity. Only user-visible UI strings, page titles, alt text, copyright, email templates, AI system prompt, and marketing-site content were renamed to AXIOM. Colors unchanged (still teal/navy "Data Noir" theme).
 
 ## User Preferences
 - Language: Arabic (Levantine dialect) for communication

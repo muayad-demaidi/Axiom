@@ -22,7 +22,7 @@ faq:
     a: "Report both. Mean is sensitive to outliers; median is robust. The gap between them is itself a useful diagnostic."
   - q: "What's a good standard deviation?"
     a: "There is no universal answer — std is meaningful only relative to the mean (coefficient of variation = std / mean) or to a domain benchmark."
-  - q: "Why does DataVision Pro show currency codes in the stats table?"
+  - q: "Why does AXIOM show currency codes in the stats table?"
     a: "Because mean revenue of 1,200 means very different things in JPY vs USD — the unit is part of the answer, not metadata."
   - q: "Are percentiles better than std for skewed data?"
     a: "Usually yes. P50/P90/P99 describe customer experience more honestly than mean ± std when the distribution has a long tail."
@@ -39,7 +39,7 @@ relatedCompare:
 - datavision-pro-vs-excel
 ---
 
-<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-compare-this-quarter-vs-last-quarter">how to compare this quarter vs last quarter</a> · <a href="/guides/how-to-ab-test-a-pricing-change">how to A/B test a pricing change</a> · <a href="/compare/datavision-pro-vs-excel">DataVision Pro vs Excel</a>.</p>
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-compare-this-quarter-vs-last-quarter">how to compare this quarter vs last quarter</a> · <a href="/guides/how-to-ab-test-a-pricing-change">how to A/B test a pricing change</a> · <a href="/compare/datavision-pro-vs-excel">AXIOM vs Excel</a>.</p>
 
 ## The core measures
 
@@ -52,4 +52,4 @@ relatedCompare:
 
 ## When the mean lies
 
-<p>Income, revenue, page-view, and time-on-site distributions are almost always right-skewed. Reporting only the mean overstates the typical experience. Always pair mean with median, or report the full 5-number summary. DataVision Pro's descriptive-statistics table includes both and flags skew automatically.</p>
+<p>Income, revenue, page-view, and time-on-site distributions are almost always right-skewed. Reporting only the mean overstates the typical experience. Always pair mean with median, or report the full 5-number summary. AXIOM's descriptive-statistics table includes both and flags skew automatically.</p>

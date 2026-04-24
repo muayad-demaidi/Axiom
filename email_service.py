@@ -50,13 +50,13 @@ def send_welcome_email(user_email, user_name, trial_end_date):
     html_content = f"""
     <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f172a; color: #e2e8f0; padding: 2rem; border-radius: 12px;">
         <div style="text-align: center; margin-bottom: 2rem;">
-            <h1 style="color: #14b8a6; font-size: 2rem; margin: 0;">DataVision Pro</h1>
+            <h1 style="color: #14b8a6; font-size: 2rem; margin: 0;">AXIOM</h1>
             <p style="color: #94a3b8; margin-top: 0.5rem;">Welcome to the Future of Data Analytics</p>
         </div>
         
         <div style="background: rgba(20, 184, 166, 0.1); border: 1px solid rgba(20, 184, 166, 0.2); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
             <h2 style="color: #e2e8f0; margin-top: 0;">Hello {user_name}! 👋</h2>
-            <p>Thank you for joining DataVision Pro. Your account has been created successfully and your <strong style="color: #14b8a6;">60-day free trial</strong> has started!</p>
+            <p>Thank you for joining AXIOM. Your account has been created successfully and your <strong style="color: #14b8a6;">60-day free trial</strong> has started!</p>
         </div>
         
         <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
@@ -88,7 +88,7 @@ def send_welcome_email(user_email, user_name, trial_end_date):
         params = {
             "from": from_email,
             "to": [user_email],
-            "subject": "Welcome to DataVision Pro - Your 60-Day Free Trial Has Started!",
+            "subject": "Welcome to AXIOM - Your 60-Day Free Trial Has Started!",
             "html": html_content
         }
         
@@ -115,13 +115,13 @@ def send_password_reset_email(user_email, user_name, reset_url):
     html_content = f"""
     <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f172a; color: #e2e8f0; padding: 2rem; border-radius: 12px;">
         <div style="text-align: center; margin-bottom: 2rem;">
-            <h1 style="color: #14b8a6; font-size: 2rem; margin: 0;">DataVision Pro</h1>
+            <h1 style="color: #14b8a6; font-size: 2rem; margin: 0;">AXIOM</h1>
             <p style="color: #94a3b8; margin-top: 0.5rem;">Password Reset Request</p>
         </div>
 
         <div style="background: rgba(20, 184, 166, 0.1); border: 1px solid rgba(20, 184, 166, 0.2); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
             <h2 style="color: #e2e8f0; margin-top: 0;">Hi {safe_name},</h2>
-            <p style="color: #cbd5e1; line-height: 1.7;">We received a request to reset the password for your DataVision Pro account. Click the button below to choose a new password. This link is valid for <strong style="color: #14b8a6;">1 hour</strong> and can be used only once.</p>
+            <p style="color: #cbd5e1; line-height: 1.7;">We received a request to reset the password for your AXIOM account. Click the button below to choose a new password. This link is valid for <strong style="color: #14b8a6;">1 hour</strong> and can be used only once.</p>
         </div>
 
         <div style="text-align: center; margin: 2rem 0;">
@@ -146,7 +146,7 @@ def send_password_reset_email(user_email, user_name, reset_url):
 
     text_content = (
         f"Hi {safe_name},\n\n"
-        "We received a request to reset the password for your DataVision Pro "
+        "We received a request to reset the password for your AXIOM "
         "account. Open the link below to choose a new password. This link is "
         "valid for 1 hour and can be used only once.\n\n"
         f"{reset_url}\n\n"
@@ -157,7 +157,7 @@ def send_password_reset_email(user_email, user_name, reset_url):
         params = {
             "from": from_email,
             "to": [user_email],
-            "subject": "Reset your DataVision Pro password",
+            "subject": "Reset your AXIOM password",
             "html": html_content,
             "text": text_content,
         }
@@ -182,7 +182,7 @@ def send_password_changed_email(user_email, user_name):
 
     safe_name = user_name or "there"
     support_email = "muayad.demaidi.work@gmail.com"
-    support_subject = "Unrecognized password change on my DataVision Pro account"
+    support_subject = "Unrecognized password change on my AXIOM account"
     support_link = (
         f"mailto:{support_email}"
         f"?subject={support_subject.replace(' ', '%20')}"
@@ -191,13 +191,13 @@ def send_password_changed_email(user_email, user_name):
     html_content = f"""
     <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f172a; color: #e2e8f0; padding: 2rem; border-radius: 12px;">
         <div style="text-align: center; margin-bottom: 2rem;">
-            <h1 style="color: #14b8a6; font-size: 2rem; margin: 0;">DataVision Pro</h1>
+            <h1 style="color: #14b8a6; font-size: 2rem; margin: 0;">AXIOM</h1>
             <p style="color: #94a3b8; margin-top: 0.5rem;">Password Changed</p>
         </div>
 
         <div style="background: rgba(20, 184, 166, 0.1); border: 1px solid rgba(20, 184, 166, 0.2); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
             <h2 style="color: #e2e8f0; margin-top: 0;">Hi {safe_name},</h2>
-            <p style="color: #cbd5e1; line-height: 1.7;">Your DataVision Pro password was just changed. If you made this change, no further action is needed.</p>
+            <p style="color: #cbd5e1; line-height: 1.7;">Your AXIOM password was just changed. If you made this change, no further action is needed.</p>
         </div>
 
         <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
@@ -217,7 +217,7 @@ def send_password_changed_email(user_email, user_name):
 
     text_content = (
         f"Hi {safe_name},\n\n"
-        "Your DataVision Pro password was just changed. If you made this "
+        "Your AXIOM password was just changed. If you made this "
         "change, no further action is needed.\n\n"
         "If this wasn't you, please contact our support team right away so we "
         f"can help secure your account: {support_email}\n"
@@ -227,7 +227,7 @@ def send_password_changed_email(user_email, user_name):
         params = {
             "from": from_email,
             "to": [user_email],
-            "subject": "Your DataVision Pro password was just changed",
+            "subject": "Your AXIOM password was just changed",
             "html": html_content,
             "text": text_content,
         }
@@ -251,7 +251,7 @@ def send_support_notification(user_email, user_name, message):
     
     html_content = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 2rem;">
-        <h2 style="color: #0d9488;">New Support Message - DataVision Pro</h2>
+        <h2 style="color: #0d9488;">New Support Message - AXIOM</h2>
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
             <p><strong>From:</strong> {user_name or 'N/A'}</p>
             <p><strong>Email:</strong> {user_email}</p>
@@ -267,7 +267,7 @@ def send_support_notification(user_email, user_name, message):
         params = {
             "from": from_email,
             "to": ["muayad.demaidi.work@gmail.com"],
-            "subject": f"Support Request from {user_name or user_email} - DataVision Pro",
+            "subject": f"Support Request from {user_name or user_email} - AXIOM",
             "html": html_content
         }
         
