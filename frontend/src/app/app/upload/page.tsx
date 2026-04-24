@@ -58,12 +58,26 @@ export default function UploadPage() {
 
   function pick(d: Dataset) {
     setActiveDatasetId(d.id);
-    router.push("/app/statistics");
+    const pid = getActiveProjectId();
+    router.push(pid ? `/app/project/${pid}` : "/app/statistics");
+  }
+
+  function backToProject() {
+    const pid = getActiveProjectId();
+    if (pid) router.push(`/app/project/${pid}`);
+    else router.push("/app");
   }
 
   return (
     <div className="max-w-3xl">
-      <span className="eyebrow">Data · Upload</span>
+      <button
+        type="button"
+        onClick={backToProject}
+        className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)]"
+      >
+        ← Back to project
+      </button>
+      <span className="eyebrow block mt-2">Data · Upload</span>
       <h1 className="text-2xl font-bold mt-2">Upload a dataset</h1>
       <p className="text-[var(--text-muted)] mt-2">CSV or Excel, up to 200 MB on Tier 3.</p>
 

@@ -16,6 +16,8 @@ export default function ProductHome() {
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
+  // Re-render on mode changes so toggling the segment immediately reflects.
+  const [modeTick, setModeTick] = useState(0);
 
   useEffect(() => {
     if (!getToken()) { router.push("/login"); return; }
@@ -37,6 +39,7 @@ export default function ProductHome() {
       setProjects((arr) => [p, ...(arr ?? [])]);
       setNewName("");
       pick(p.id);
+      router.push(`/app/project/${p.id}`);
     } catch (e: unknown) { setError(errMessage(e)); }
     finally { setBusy(false); }
   }
@@ -46,10 +49,15 @@ export default function ProductHome() {
     setActiveId(id);
   }
 
-  function goMode(id: number, m: Mode) {
+  function chooseMode(id: number, m: Mode) {
     pick(id);
     setProjectMode(id, m);
-    router.push(m === "guided" ? "/app/chat" : "/app/upload");
+    setModeTick((t) => t + 1);
+  }
+
+  function openProject(id: number) {
+    pick(id);
+    router.push(`/app/project/${id}`);
   }
 
   return (
@@ -57,7 +65,7 @@ export default function ProductHome() {
       <span className="eyebrow">Workspace</span>
       <h1 className="text-2xl md:text-3xl font-bold mt-2">Your projects</h1>
       <p className="text-[var(--text-muted)] mt-2">
-        Each project keeps its own datasets, chats, and analyses. Pick a mode per project — Guided for chat-first or Expert for the full dashboard.
+        Each project keeps its own datasets and chat history. AXIOM remembers everything in the project so it can answer across all your data.
       </p>
 
       <form onSubmit={createProject} className="mt-6 flex gap-2">
@@ -85,7 +93,7 @@ export default function ProductHome() {
               const mode = getProjectMode(p.id);
               const active = activeId === p.id;
               return (
-                <li key={p.id} className={`card ${active ? "ring-2 ring-[var(--accent)]" : ""}`}>
+                <li key={`${p.id}-${modeTick}`} className={`card ${active ? "ring-2 ring-[var(--accent)]" : ""}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3>{p.name}</h3>
@@ -96,10 +104,44 @@ export default function ProductHome() {
                     </div>
                     {active && <span className="text-[10px] font-mono text-[var(--accent)]">ACTIVE</span>}
                   </div>
-                  <div className="mt-3 flex gap-2">
-                    <button onClick={() => goMode(p.id, "guided")} className="btn btn-ghost text-xs">Guided</button>
-                    <button onClick={() => goMode(p.id, "expert")} className="btn btn-primary text-xs">Expert</button>
-                    <Link href="/app/upload" onClick={() => pick(p.id)} className="btn btn-ghost text-xs">Upload data</Link>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] mr-1">Mode</span>
+                    <button
+                      type="button"
+                      onClick={() => chooseMode(p.id, "guided")}
+                      data-active={mode === "guided"}
+                      className="mode-seg"
+                      aria-pressed={mode === "guided"}
+                    >
+                      Guided
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => chooseMode(p.id, "expert")}
+                      data-active={mode === "expert"}
+                      className="mode-seg"
+                      aria-pressed={mode === "expert"}
+                    >
+                      Expert
+                    </button>
+                  </div>
+
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openProject(p.id)}
+                      className="btn btn-primary text-xs"
+                    >
+                      Open
+                    </button>
+                    <Link
+                      href="/app/upload"
+                      onClick={() => pick(p.id)}
+                      className="btn btn-ghost text-xs"
+                    >
+                      Upload data
+                    </Link>
                   </div>
                 </li>
               );

@@ -207,12 +207,37 @@ class AnalysisHistory(Base):
     ai_insights = Column(Text, nullable=True)
 
 
+class ChatSession(Base):
+    """A named conversation thread inside a project.
+
+    Projects own multiple chat sessions so users can keep separate
+    investigations distinct (e.g. "Q1 revenue analysis" vs "outlier
+    review") while AXIOM still pulls in the whole project's data as
+    context for each one.
+    """
+    __tablename__ = "chat_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"),
+                        nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"),
+                     nullable=False, index=True)
+    title = Column(String(255), nullable=False, default="New chat")
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
 class ChatHistory(Base):
     """Model to store chat conversations"""
     __tablename__ = "chat_history"
-    
+
     id = Column(Integer, primary_key=True, index=True)
+    # Legacy `dataset_id` kept nullable for back-compat with rows from the
+    # pre-session world. New rows are always anchored on `session_id`,
+    # which transitively gives us project + user.
     dataset_id = Column(Integer, nullable=True)
+    session_id = Column(Integer, ForeignKey("chat_sessions.id"),
+                        nullable=True, index=True)
     user_message = Column(Text, nullable=False)
     ai_response = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
@@ -260,11 +285,18 @@ def init_db():
         pass
     # New tables for the per-project knowledge base. Created explicitly so
     # older deployments pick them up without needing a migration tool.
-    for _t in (ProjectKnowledgeBase.__table__, ProjectLearnedNote.__table__):
+    for _t in (ProjectKnowledgeBase.__table__, ProjectLearnedNote.__table__,
+               ChatSession.__table__):
         try:
             _t.create(bind=engine, checkfirst=True)
         except Exception:
             pass
+    # ChatHistory needs a `session_id` column on older deployments so
+    # session-aware writes don't 500 against legacy schemas.
+    _migrations.extend([
+        "ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS session_id INTEGER REFERENCES chat_sessions(id)",
+        "CREATE INDEX IF NOT EXISTS ix_chat_history_session_id ON chat_history(session_id)",
+    ])
     with engine.begin() as conn:
         for stmt in _migrations:
             try:
@@ -456,14 +488,25 @@ def get_datasets_by_name(db, dataset_name):
     ).order_by(DatasetRecord.period_year, DatasetRecord.period_month).all()
 
 
-def save_chat_message(db, dataset_id, user_message, ai_response):
-    """Save a chat message to history"""
+def save_chat_message(db, dataset_id=None, user_message=None, ai_response=None,
+                      session_id=None):
+    """Save a chat message to history.
+
+    `session_id` is the new session-anchored path; `dataset_id` is kept for
+    legacy callers that haven't been migrated to sessions yet.
+    """
     chat = ChatHistory(
         dataset_id=dataset_id,
-        user_message=user_message,
-        ai_response=ai_response
+        session_id=session_id,
+        user_message=user_message or "",
+        ai_response=ai_response or "",
     )
     db.add(chat)
+    if session_id is not None:
+        # bump session updated_at so the sidebar can sort by recency
+        sess = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+        if sess is not None:
+            sess.updated_at = datetime.utcnow()
     db.commit()
     return chat
 
@@ -474,6 +517,83 @@ def get_chat_history(db, dataset_id=None, limit=50):
     if dataset_id:
         query = query.filter(ChatHistory.dataset_id == dataset_id)
     return query.order_by(ChatHistory.timestamp.desc()).limit(limit).all()
+
+
+# ---------------------------------------------------------------------------
+# Chat sessions (multi-conversation per project)
+# ---------------------------------------------------------------------------
+
+def create_chat_session(db, project_id, user_id, title="New chat"):
+    """Create a fresh chat session inside a project the user owns."""
+    proj = db.query(Project).filter(
+        Project.id == project_id, Project.user_id == user_id
+    ).first()
+    if not proj:
+        return None
+    sess = ChatSession(
+        project_id=project_id,
+        user_id=user_id,
+        title=(title or "New chat")[:255],
+    )
+    db.add(sess)
+    db.commit()
+    db.refresh(sess)
+    return sess
+
+
+def list_chat_sessions(db, project_id, user_id):
+    """List a project's chat sessions, newest activity first."""
+    return (
+        db.query(ChatSession)
+        .filter(ChatSession.project_id == project_id,
+                ChatSession.user_id == user_id)
+        .order_by(ChatSession.updated_at.desc(), ChatSession.id.desc())
+        .all()
+    )
+
+
+def get_chat_session(db, session_id, user_id):
+    """Fetch a chat session if it belongs to the user, else None."""
+    return (
+        db.query(ChatSession)
+        .filter(ChatSession.id == session_id, ChatSession.user_id == user_id)
+        .first()
+    )
+
+
+def get_session_messages(db, session_id, limit=200):
+    """Return messages in a session in chronological order."""
+    return (
+        db.query(ChatHistory)
+        .filter(ChatHistory.session_id == session_id)
+        .order_by(ChatHistory.timestamp.asc(), ChatHistory.id.asc())
+        .limit(limit)
+        .all()
+    )
+
+
+def rename_chat_session(db, session_id, user_id, title):
+    sess = get_chat_session(db, session_id, user_id)
+    if not sess:
+        return None
+    sess.title = (title or "Untitled")[:255]
+    sess.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(sess)
+    return sess
+
+
+def delete_chat_session(db, session_id, user_id):
+    sess = get_chat_session(db, session_id, user_id)
+    if not sess:
+        return False
+    # Cascade: remove the messages too.
+    db.query(ChatHistory).filter(ChatHistory.session_id == session_id).delete(
+        synchronize_session=False
+    )
+    db.delete(sess)
+    db.commit()
+    return True
 
 
 def hash_password(password):

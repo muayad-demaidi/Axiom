@@ -31,6 +31,7 @@ from .projects import router as projects_router  # noqa: E402
 from .datasets import router as datasets_router  # noqa: E402
 from .analysis import router as analysis_router  # noqa: E402
 from .chat import router as chat_router  # noqa: E402
+from .chats import router as chats_router  # noqa: E402
 from .support import router as support_router  # noqa: E402
 
 app = FastAPI(title="AXIOM API", version="0.2.0")
@@ -69,6 +70,7 @@ app.include_router(projects_router)
 app.include_router(datasets_router)
 app.include_router(analysis_router)
 app.include_router(chat_router)
+app.include_router(chats_router)
 app.include_router(support_router)
 
 

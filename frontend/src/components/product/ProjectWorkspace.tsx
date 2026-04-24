@@ -1,0 +1,368 @@
+"use client";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { api, ApiError, getToken } from "@/lib/api";
+import { errMessage, type AxiomDataset, type AxiomProject } from "@/lib/types";
+import { setActiveProjectId, setActiveDatasetId } from "@/lib/projectContext";
+import { ChatPanel } from "@/components/product/ChatPanel";
+
+type ChatSession = {
+  id: number;
+  project_id: number;
+  title: string;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export function ProjectWorkspace({ projectId }: { projectId: number }) {
+  const router = useRouter();
+  const [project, setProject] = useState<AxiomProject | null>(null);
+  const [datasets, setDatasets] = useState<AxiomDataset[]>([]);
+  const [sessions, setSessions] = useState<ChatSession[] | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const refreshSessions = useCallback(
+    async (preferId?: number | null) => {
+      try {
+        const list = await api<ChatSession[]>(
+          `/api/projects/${projectId}/chats`
+        );
+        setSessions(list);
+        if (preferId != null && list.some((s) => s.id === preferId)) {
+          setActiveSessionId(preferId);
+        } else if (list.length > 0) {
+          setActiveSessionId((cur) =>
+            cur && list.some((s) => s.id === cur) ? cur : list[0].id
+          );
+        } else {
+          // Auto-create the first session so the user lands in a usable
+          // chat view immediately, without an empty-state click.
+          const created = await api<ChatSession>(
+            `/api/projects/${projectId}/chats`,
+            { method: "POST", json: { title: "New chat" } }
+          );
+          setSessions([created]);
+          setActiveSessionId(created.id);
+        }
+      } catch (e: unknown) {
+        setError(errMessage(e));
+      }
+    },
+    [projectId]
+  );
+
+  useEffect(() => {
+    if (!getToken()) {
+      router.push("/login");
+      return;
+    }
+    if (!Number.isFinite(projectId)) {
+      router.push("/app");
+      return;
+    }
+    setActiveProjectId(projectId);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const [projects, allDatasets] = await Promise.all([
+          api<AxiomProject[]>("/api/projects"),
+          api<AxiomDataset[]>("/api/datasets"),
+        ]);
+        if (cancelled) return;
+        const proj = projects.find((p) => p.id === projectId) || null;
+        setProject(proj);
+        if (!proj) {
+          setError("Project not found.");
+          return;
+        }
+        const projDatasets = allDatasets.filter(
+          (d) => d.project_id === projectId
+        );
+        setDatasets(projDatasets);
+        await refreshSessions();
+      } catch (e: unknown) {
+        if (!cancelled) {
+          if (e instanceof ApiError && e.status === 401) {
+            router.push("/login");
+          } else {
+            setError(errMessage(e));
+          }
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, router, refreshSessions]);
+
+  async function newSession() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const s = await api<ChatSession>(
+        `/api/projects/${projectId}/chats`,
+        { method: "POST", json: { title: "New chat" } }
+      );
+      setSessions((cur) => (cur ? [s, ...cur] : [s]));
+      setActiveSessionId(s.id);
+    } catch (e: unknown) {
+      setError(errMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteSession(id: number) {
+    if (!confirm("Delete this chat?")) return;
+    try {
+      await api(`/api/chats/${id}`, { method: "DELETE" });
+      setSessions((cur) => (cur ? cur.filter((s) => s.id !== id) : cur));
+      if (activeSessionId === id) {
+        setActiveSessionId(null);
+        await refreshSessions();
+      }
+    } catch (e: unknown) {
+      setError(errMessage(e));
+    }
+  }
+
+  async function commitRename(id: number) {
+    const title = renameValue.trim();
+    if (!title) {
+      setRenamingId(null);
+      return;
+    }
+    try {
+      const updated = await api<ChatSession>(`/api/chats/${id}`, {
+        method: "PATCH",
+        json: { title },
+      });
+      setSessions((cur) =>
+        cur ? cur.map((s) => (s.id === id ? updated : s)) : cur
+      );
+    } catch (e: unknown) {
+      setError(errMessage(e));
+    } finally {
+      setRenamingId(null);
+    }
+  }
+
+  function pickDataset(id: number) {
+    setActiveDatasetId(id);
+  }
+
+  // When the chat panel produces a streaming reply we may want to bump
+  // the session's `updated_at`; we do that by re-fetching sessions on
+  // every successful turn through the callback below.
+  const onTurnComplete = useCallback(() => {
+    refreshSessions(activeSessionId);
+  }, [refreshSessions, activeSessionId]);
+
+  const activeSession = useMemo(
+    () => sessions?.find((s) => s.id === activeSessionId) ?? null,
+    [sessions, activeSessionId]
+  );
+
+  return (
+    <div className="-m-6 grid grid-cols-[260px_1fr] min-h-[calc(100vh-3.5rem)]">
+      {/* Project rail */}
+      <aside className="border-r border-[var(--border)] bg-[var(--surface-alt)] p-4 flex flex-col text-sm overflow-y-auto">
+        <Link
+          href="/app"
+          className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)] mb-3"
+        >
+          ← All projects
+        </Link>
+        <div className="font-semibold text-[var(--text)] truncate">
+          {project?.name ?? "…"}
+        </div>
+        <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] mt-0.5">
+          {datasets.length} dataset{datasets.length === 1 ? "" : "s"}
+        </div>
+
+        <button
+          onClick={newSession}
+          disabled={busy}
+          className="btn btn-primary text-xs mt-4 justify-center"
+        >
+          + New chat
+        </button>
+
+        <div className="mt-5">
+          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
+            Chats
+          </div>
+          {sessions === null ? (
+            <div className="text-[var(--text-muted)] text-xs">Loading…</div>
+          ) : sessions.length === 0 ? (
+            <div className="text-[var(--text-muted)] text-xs">No chats yet.</div>
+          ) : (
+            <ul className="space-y-1">
+              {sessions.map((s) => {
+                const active = s.id === activeSessionId;
+                const isRenaming = renamingId === s.id;
+                return (
+                  <li
+                    key={s.id}
+                    className={`group rounded px-2 py-1.5 cursor-pointer flex items-center gap-1 ${
+                      active
+                        ? "bg-[var(--accent)] text-white"
+                        : "hover:bg-[var(--surface)] text-[var(--text)]"
+                    }`}
+                    onClick={() => !isRenaming && setActiveSessionId(s.id)}
+                  >
+                    {isRenaming ? (
+                      <input
+                        autoFocus
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={() => commitRename(s.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitRename(s.id);
+                          if (e.key === "Escape") setRenamingId(null);
+                        }}
+                        className="flex-1 px-2 py-1 text-xs rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
+                      />
+                    ) : (
+                      <>
+                        <span
+                          className="flex-1 truncate text-xs"
+                          title={s.title}
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            setRenamingId(s.id);
+                            setRenameValue(s.title);
+                          }}
+                        >
+                          {s.title || "Untitled chat"}
+                        </span>
+                        <button
+                          aria-label="Rename"
+                          className={`opacity-0 group-hover:opacity-100 text-[10px] px-1 rounded ${
+                            active ? "text-white/80 hover:text-white" : "text-[var(--text-muted)] hover:text-[var(--accent)]"
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRenamingId(s.id);
+                            setRenameValue(s.title);
+                          }}
+                        >
+                          ✎
+                        </button>
+                        <button
+                          aria-label="Delete"
+                          className={`opacity-0 group-hover:opacity-100 text-[10px] px-1 rounded ${
+                            active ? "text-white/80 hover:text-white" : "text-[var(--text-muted)] hover:text-red-500"
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteSession(s.id);
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="mt-6">
+          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
+            Datasets
+          </div>
+          {datasets.length === 0 ? (
+            <div className="text-[var(--text-muted)] text-xs">
+              No data uploaded yet.{" "}
+              <Link href="/app/upload" className="text-[var(--accent)] underline">
+                Upload
+              </Link>
+            </div>
+          ) : (
+            <ul className="space-y-1">
+              {datasets.map((d) => (
+                <li key={d.id}>
+                  <button
+                    onClick={() => pickDataset(d.id)}
+                    className="text-left w-full rounded px-2 py-1.5 text-xs hover:bg-[var(--surface)]"
+                    title={`${d.rows} rows × ${d.cols} cols`}
+                  >
+                    <span className="truncate block">{d.dataset_name}</span>
+                    <span className="text-[10px] text-[var(--text-muted)] font-mono">
+                      {d.rows.toLocaleString()} × {d.cols}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Link
+            href="/app/upload"
+            className="block mt-2 text-xs text-[var(--accent)] hover:underline"
+          >
+            + Upload more
+          </Link>
+        </div>
+
+        <div className="mt-6">
+          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
+            Tools
+          </div>
+          <ul className="space-y-1 text-xs">
+            <li><Link href="/app/clean" className="block px-2 py-1 rounded hover:bg-[var(--surface)]">Clean</Link></li>
+            <li><Link href="/app/transform" className="block px-2 py-1 rounded hover:bg-[var(--surface)]">Transform</Link></li>
+            <li><Link href="/app/statistics" className="block px-2 py-1 rounded hover:bg-[var(--surface)]">Statistics</Link></li>
+            <li><Link href="/app/visualize" className="block px-2 py-1 rounded hover:bg-[var(--surface)]">Visualize</Link></li>
+            <li><Link href="/app/predict" className="block px-2 py-1 rounded hover:bg-[var(--surface)]">Predict</Link></li>
+            <li><Link href="/app/model" className="block px-2 py-1 rounded hover:bg-[var(--surface)]">Model</Link></li>
+            <li><Link href="/app/report" className="block px-2 py-1 rounded hover:bg-[var(--surface)]">Report</Link></li>
+          </ul>
+        </div>
+      </aside>
+
+      {/* Main pane */}
+      <main className="p-6 overflow-auto">
+        <div className="max-w-4xl">
+          {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
+          <div className="flex items-baseline justify-between mb-3">
+            <div>
+              <span className="eyebrow">Project chat</span>
+              <h1 className="text-xl font-semibold mt-1">
+                {activeSession?.title ?? "New chat"}
+              </h1>
+            </div>
+            {datasets.length > 0 && (
+              <div className="text-xs text-[var(--text-muted)] font-mono">
+                AI sees all {datasets.length} dataset
+                {datasets.length === 1 ? "" : "s"} in this project
+              </div>
+            )}
+          </div>
+
+          {activeSessionId ? (
+            <ChatPanel
+              key={activeSessionId}
+              sessionId={activeSessionId}
+              onTurnComplete={onTurnComplete}
+              hasData={datasets.length > 0}
+            />
+          ) : (
+            <div className="card text-sm text-[var(--text-muted)]">
+              Loading chat…
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
