@@ -1,0 +1,45 @@
+"Act as a Senior Full-Stack Engineer and Software Architect. I want to migrate my current Streamlit data analysis tool into a production-grade SaaS platform called 'Axiom'.
+
+Project Goal: Convert the existing Streamlit logic into a modern stack: React (Vite/TS) for the Frontend and FastAPI for the Backend, ensuring all current features are preserved with a significantly upgraded UI/UX.
+
+1. Architectural Requirements:
+
+Backend (FastAPI): Extract all data processing logic, AI chat functions, and file handling from the Streamlit script and expose them via RESTful API endpoints.
+
+Frontend (React + Tailwind CSS): Build a high-end, minimalist dashboard.
+
+State Management: Ensure the frontend handles data efficiently using React hooks or context.
+
+2. UI/UX Design Specifications (The 'Axiom' Look):
+
+Professionalism: Clean, enterprise-level design. No neon, no glows, no flashy colors.
+
+Themes: Full support for Light Mode (White/Gray #F9FAFB) and Dark Mode (Deep Matte Gray #111827).
+
+Sidebar Structure: Implement a 'Projects' section. Each project must be a dedicated workspace with its own context, chat history, and uploaded datasets. Use a folder-like hierarchy.
+
+Main Area: A sophisticated chat interface. AI responses should include formatted tables, collapsible Python code blocks, and clean, flat-style data charts (using Recharts or Chart.js).
+
+Typography: Use 'Inter' or 'SF Pro' fonts for a technical, precise feel.
+
+3. Functional Requirements:
+
+File Handling: Enable CSV/Excel uploads that are stored and processed per project.
+
+AI Integration: Preserve the existing AI model logic but implement it as an asynchronous stream in the React UI for a better user experience.
+
+Context Switching: When a user switches between 'Projects' in the sidebar, the main chat and data view must update instantly to reflect that specific project's state.
+
+4. Technical Execution:
+
+Analyze the current streamlit_app.py (or main file).
+
+Generate the main.py for FastAPI.
+
+Generate the React components in a /frontend folder.
+
+Setup the proxy or environment variables so they communicate seamlessly.
+
+DO NOT delete the original Streamlit file until the new stack is fully verified.
+
+Please execute the full migration now. Start by setting up the folder structure and the Backend API first, then move directly to the React UI. Provide the complete code for both."
