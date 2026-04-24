@@ -185,20 +185,30 @@ async def model(req: ModelRequest, user=Depends(get_current_user), db=Depends(ge
 
 class VisualizeRequest(BaseModel):
     dataset_id: int
-    chart: str  # "bar" | "line" | "scatter" | "pie" | "histogram"
+    chart: str  # "bar" | "line" | "scatter" | "pie" | "histogram" | "box" | "heatmap"
     x: str | None = None
     y: str | None = None
     bins: int = 20
+
+    model_config = {"protected_namespaces": ()}
+
+
+_MAX_CATEGORIES = 30
+_MAX_SCATTER_POINTS = 500
+_MAX_LINE_POINTS = 500
 
 
 @router.post("/visualize")
 async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=Depends(get_db_session)):
     """Return aggregated series for the requested chart.
 
-    The endpoint deliberately returns small JSON (capped to 200 points)
-    so the browser doesn't have to download the underlying dataset just to
-    render a chart.
+    Aggregations happen server-side so the browser only ships the points it
+    needs to render — never the raw dataset. Mirrors the chart palette in
+    legacy `visualizations.py` (bar/line/scatter/box/pie/heatmap) plus a
+    histogram for numeric distributions.
     """
+    import numpy as np
+
     _, df = _require_dataset(db, req.dataset_id, user.id)
     chart = req.chart.lower()
 
@@ -208,31 +218,130 @@ async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=De
         return col
 
     if chart == "histogram":
-        import numpy as np
         col = _ensure(req.x or req.y)
         series = pd.to_numeric(df[col], errors="coerce").dropna()
         if series.empty:
             raise HTTPException(400, f"Column '{col}' has no numeric values")
         h, edges = np.histogram(series, bins=max(2, min(req.bins, 50)))
         points = [
-            {"bin": f"{edges[i]:.2f}–{edges[i+1]:.2f}", "count": int(h[i])}
+            {"bin": f"{edges[i]:.2f}–{edges[i + 1]:.2f}", "count": int(h[i])}
             for i in range(len(h))
         ]
         return {"chart": "histogram", "x": col, "points": points}
 
     if chart == "pie":
         col = _ensure(req.x)
-        counts = df[col].astype(str).value_counts().head(20)
+        counts = df[col].dropna().astype(str).value_counts().head(_MAX_CATEGORIES)
+        if counts.empty:
+            raise HTTPException(400, f"Column '{col}' has no values")
         return {
             "chart": "pie",
             "x": col,
-            "points": [{"name": k, "value": int(v)} for k, v in counts.items()],
+            "points": [{"name": str(k), "value": int(v)} for k, v in counts.items()],
         }
 
+    if chart == "box":
+        # Use X if numeric; otherwise fall back to all numeric columns (max 6).
+        numeric_cols: list[str]
+        if req.x and req.x in df.columns and pd.api.types.is_numeric_dtype(df[req.x]):
+            numeric_cols = [req.x]
+        else:
+            numeric_cols = df.select_dtypes(include="number").columns.tolist()[:6]
+        if not numeric_cols:
+            raise HTTPException(400, "No numeric columns available for a box plot")
+        points = []
+        for col in numeric_cols:
+            series = pd.to_numeric(df[col], errors="coerce").dropna()
+            if series.empty:
+                continue
+            q1, median, q3 = (float(series.quantile(q)) for q in (0.25, 0.5, 0.75))
+            points.append({
+                "column": col,
+                "min": float(series.min()),
+                "q1": q1,
+                "median": median,
+                "q3": q3,
+                "max": float(series.max()),
+                "count": int(series.size),
+            })
+        if not points:
+            raise HTTPException(400, "No numeric values to summarize")
+        return {"chart": "box", "points": points}
+
+    if chart == "heatmap":
+        numeric_df = df.select_dtypes(include="number")
+        # Cap to 12 columns so the matrix stays readable in the UI.
+        if numeric_df.shape[1] > 12:
+            numeric_df = numeric_df.iloc[:, :12]
+        if numeric_df.shape[1] < 2:
+            raise HTTPException(400, "Need at least two numeric columns for a heatmap")
+        corr = numeric_df.corr(numeric_only=True).fillna(0.0)
+        cols = [str(c) for c in corr.columns]
+        matrix = [[float(v) for v in row] for row in corr.values.tolist()]
+        return {"chart": "heatmap", "columns": cols, "matrix": matrix}
+
+    # Bar / line / scatter all need both axes.
     x = _ensure(req.x)
     y = _ensure(req.y)
-    sub = df[[x, y]].dropna().head(200)
-    points = [{"x": (str(r[x]) if not isinstance(r[x], (int, float)) else r[x]),
-               "y": float(r[y]) if pd.api.types.is_numeric_dtype(df[y]) else str(r[y])}
-              for _, r in sub.iterrows()]
-    return {"chart": chart, "x": x, "y": y, "points": points}
+    # Use the column series directly (df[[x,y]] would collide if x == y).
+    x_series = df[x]
+    y_series = df[y]
+    pair = pd.DataFrame({"x": x_series.values, "y": y_series.values}).dropna()
+
+    if chart == "scatter":
+        pair_x = pd.to_numeric(pair["x"], errors="coerce")
+        pair_y = pd.to_numeric(pair["y"], errors="coerce")
+        sub = pd.DataFrame({"x": pair_x, "y": pair_y}).dropna()
+        if sub.empty:
+            raise HTTPException(400, f"Scatter needs numeric values in both '{x}' and '{y}'")
+        if len(sub) > _MAX_SCATTER_POINTS:
+            sub = sub.sample(_MAX_SCATTER_POINTS, random_state=42)
+        points = [{"x": float(rx), "y": float(ry)} for rx, ry in sub.itertuples(index=False, name=None)]
+        return {"chart": "scatter", "x": x, "y": y, "points": points}
+
+    if chart == "bar":
+        if pair.empty:
+            raise HTTPException(400, "No rows to plot after dropping nulls")
+        y_numeric = pd.to_numeric(pair["y"], errors="coerce")
+        if y_numeric.notna().any():
+            sub = pair.assign(_y=y_numeric).dropna(subset=["_y"])
+            grouped = (
+                sub.groupby(sub["x"].astype(str))["_y"].mean()
+                .sort_values(ascending=False)
+                .head(_MAX_CATEGORIES)
+            )
+            points = [{"x": str(k), "y": float(v)} for k, v in grouped.items()]
+            return {"chart": "bar", "x": x, "y": f"mean({y})", "points": points}
+        # Both columns categorical — fall back to a frequency bar chart of X.
+        counts = pair["x"].astype(str).value_counts().head(_MAX_CATEGORIES)
+        points = [{"x": str(k), "y": int(v)} for k, v in counts.items()]
+        return {"chart": "bar", "x": x, "y": "count", "points": points}
+
+    if chart == "line":
+        if pair.empty:
+            raise HTTPException(400, "No rows to plot after dropping nulls")
+        y_numeric = pd.to_numeric(pair["y"], errors="coerce")
+        if not y_numeric.notna().any():
+            raise HTTPException(400, f"Line chart needs a numeric Y column ('{y}' is non-numeric)")
+        sub = pair.assign(_y=y_numeric).dropna(subset=["_y"])
+        x_dt = pd.to_datetime(sub["x"], errors="coerce")
+        x_num = pd.to_numeric(sub["x"], errors="coerce")
+        threshold = max(3, int(0.6 * len(sub)))
+        if x_dt.notna().sum() >= threshold:
+            ordered = sub.assign(_x=x_dt).dropna(subset=["_x"]).sort_values("_x")
+            points = [
+                {"x": d.isoformat(), "y": float(v)}
+                for d, v in zip(ordered["_x"], ordered["_y"])
+            ]
+        elif x_num.notna().sum() >= threshold:
+            ordered = sub.assign(_x=x_num).dropna(subset=["_x"]).sort_values("_x")
+            points = [{"x": float(d), "y": float(v)} for d, v in zip(ordered["_x"], ordered["_y"])]
+        else:
+            grouped = sub.groupby(sub["x"].astype(str))["_y"].mean()
+            points = [{"x": str(k), "y": float(v)} for k, v in grouped.items()]
+        if len(points) > _MAX_LINE_POINTS:
+            step = max(1, len(points) // _MAX_LINE_POINTS)
+            points = points[::step]
+        return {"chart": "line", "x": x, "y": y, "points": points}
+
+    raise HTTPException(400, f"Unknown chart type '{req.chart}'")
