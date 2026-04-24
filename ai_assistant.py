@@ -331,6 +331,82 @@ def _apply_mode_directive(system_prompt: str,
     return system_prompt
 
 
+# Map common locale identifiers / aliases to a human-readable language name
+# we can drop straight into the model prompt ("Respond in <X>.").
+_LANGUAGE_NAMES = {
+    "ar": "Arabic",
+    "ar-sa": "Arabic",
+    "ar-eg": "Arabic",
+    "arabic": "Arabic",
+    "en": "English",
+    "en-us": "English",
+    "en-gb": "English",
+    "english": "English",
+    "fr": "French",
+    "french": "French",
+    "es": "Spanish",
+    "spanish": "Spanish",
+    "de": "German",
+    "german": "German",
+}
+
+
+def _normalize_language(user_language: Optional[str]) -> Optional[str]:
+    """Turn a locale-ish string into a human-readable language name.
+
+    Returns ``None`` when no usable hint is provided so callers can fall back
+    to the persona's "match the user's language" rule.
+    """
+    if not user_language:
+        return None
+    key = str(user_language).strip().lower()
+    if not key:
+        return None
+    if key in _LANGUAGE_NAMES:
+        return _LANGUAGE_NAMES[key]
+    # Strip region suffix ("ar-MA" -> "ar") and try again.
+    base = key.split("-", 1)[0].split("_", 1)[0]
+    if base in _LANGUAGE_NAMES:
+        return _LANGUAGE_NAMES[base]
+    # Otherwise, trust the caller — capitalise it for the prompt.
+    return user_language.strip()
+
+
+def _language_instruction(user_language: Optional[str]) -> str:
+    """Render the 'reply in language X' line for a user prompt."""
+    name = _normalize_language(user_language)
+    if name:
+        return f"Respond in {name}."
+    return (
+        "Respond in the same language the user has been using in this "
+        "conversation; if you cannot tell, default to English.")
+
+
+# Localized error messages for the report-generating helpers. Keyed by the
+# normalized language name; falls back to English for anything else.
+_ERROR_MESSAGES = {
+    "comparison": {
+        "English": "Sorry, an error occurred while generating the comparison insights: {error}",
+        "Arabic": "عذراً، حدث خطأ أثناء توليد رؤى المقارنة: {error}",
+    },
+    "prediction": {
+        "English": "Sorry, an error occurred while generating the prediction insights: {error}",
+        "Arabic": "عذراً، حدث خطأ أثناء توليد رؤى التنبؤ: {error}",
+    },
+    "cleaning": {
+        "English": "Sorry, an error occurred while generating the cleaning report: {error}",
+        "Arabic": "عذراً، حدث خطأ أثناء توليد تقرير التنظيف: {error}",
+    },
+}
+
+
+def _localized_error(kind: str, user_language: Optional[str], error: str) -> str:
+    """Pick an error message in the user's language, falling back to English."""
+    name = _normalize_language(user_language) or "English"
+    template = _ERROR_MESSAGES[kind].get(name) or _ERROR_MESSAGES[kind]["English"]
+    return template.format(error=error)
+
+
 def generate_data_insights(df_summary: Dict, analysis_results: Dict,
                            project_context=None) -> str:
     """Generate AI-powered insights from data analysis"""
@@ -420,19 +496,28 @@ def chat_about_data(user_question: str, df_info: Dict,
 
 
 def generate_comparison_insights(comparison_data: Dict,
-                                 project_context=None) -> str:
-    """Generate insights from period comparison"""
-    
-    prompt = f"""أنت محلل بيانات محترف. قم بتحليل مقارنة البيانات التالية بين فترتين مختلفتين وقدم رؤى مفيدة:
+                                 project_context=None,
+                                 user_language: Optional[str] = None) -> str:
+    """Generate insights from period comparison.
 
-بيانات المقارنة:
+    ``user_language`` is an optional locale or language name (e.g. ``"ar"``,
+    ``"en"``, ``"Arabic"``). When provided, the model is told to reply in that
+    language and error messages are localized accordingly. When omitted, the
+    persona's default "match the user's language" rule is used.
+    """
+
+    prompt = f"""You are a professional data analyst. Analyze the following comparison of data between two different periods and provide useful insights.
+
+Comparison data:
 {json.dumps(comparison_data, ensure_ascii=False, indent=2, default=str)[:3000]}
 
-قدم:
-1. أهم التغييرات بين الفترتين
-2. الاتجاهات الملحوظة
-3. توصيات بناءً على التغييرات
-4. تحذيرات إذا كانت هناك تغييرات سلبية كبيرة"""
+Provide:
+1. The most important changes between the two periods
+2. Notable trends
+3. Recommendations based on the changes
+4. Warnings if there are any significant negative changes
+
+{_language_instruction(user_language)}"""
 
     try:
         response = client.chat.completions.create(
@@ -445,26 +530,33 @@ def generate_comparison_insights(comparison_data: Dict,
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"عذراً، حدث خطأ: {str(e)}"
+        return _localized_error("comparison", user_language, str(e))
 
 
 def generate_prediction_insights(prediction_data: Dict, historical_context: str = "",
-                                 project_context=None) -> str:
-    """Generate insights about predictions"""
-    
-    prompt = f"""أنت محلل بيانات متخصص في التنبؤات. حلل نتائج التنبؤ التالية:
+                                 project_context=None,
+                                 user_language: Optional[str] = None) -> str:
+    """Generate insights about predictions.
 
-نتائج التنبؤ:
+    See :func:`generate_comparison_insights` for the meaning of
+    ``user_language``.
+    """
+
+    prompt = f"""You are a data analyst specializing in forecasting. Analyze the following prediction results:
+
+Prediction results:
 {json.dumps(prediction_data, ensure_ascii=False, indent=2, default=str)}
 
-{f"السياق التاريخي: {historical_context}" if historical_context else ""}
+{f"Historical context: {historical_context}" if historical_context else ""}
 
-قدم:
-1. تفسير للتنبؤات
-2. مدى موثوقية التنبؤ
-3. العوامل المؤثرة
-4. توصيات للمستقبل
-5. تحذيرات أو ملاحظات مهمة"""
+Provide:
+1. An interpretation of the predictions
+2. How reliable the prediction is
+3. The contributing factors
+4. Recommendations for the future
+5. Important warnings or notes
+
+{_language_instruction(user_language)}"""
 
     try:
         response = client.chat.completions.create(
@@ -477,22 +569,29 @@ def generate_prediction_insights(prediction_data: Dict, historical_context: str 
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"عذراً، حدث خطأ: {str(e)}"
+        return _localized_error("prediction", user_language, str(e))
 
 
 def generate_cleaning_report(cleaning_report: Dict,
-                             project_context=None) -> str:
-    """Generate a user-friendly cleaning report"""
-    
-    prompt = f"""حوّل تقرير تنظيف البيانات التالي إلى تقرير مفهوم ومفيد للمستخدم العادي:
+                             project_context=None,
+                             user_language: Optional[str] = None) -> str:
+    """Generate a user-friendly cleaning report.
 
-تقرير التنظيف:
+    See :func:`generate_comparison_insights` for the meaning of
+    ``user_language``.
+    """
+
+    prompt = f"""Turn the following data cleaning report into a clear, user-friendly summary for a non-technical reader:
+
+Cleaning report:
 {json.dumps(cleaning_report, ensure_ascii=False, indent=2)}
 
-اكتب التقرير بأسلوب بسيط ومفهوم، واذكر:
-1. ما تم تنظيفه
-2. جودة البيانات بعد التنظيف
-3. أي ملاحظات مهمة"""
+Write the summary in a simple, easy-to-understand style, and cover:
+1. What was cleaned
+2. The data quality after cleaning
+3. Any important notes
+
+{_language_instruction(user_language)}"""
 
     try:
         response = client.chat.completions.create(
@@ -505,4 +604,4 @@ def generate_cleaning_report(cleaning_report: Dict,
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"عذراً، حدث خطأ: {str(e)}"
+        return _localized_error("cleaning", user_language, str(e))
