@@ -1,7 +1,8 @@
 import os
 import json
+import re
 import pandas as pd
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Iterable
 from openai import OpenAI
 
 AI_INTEGRATIONS_OPENAI_API_KEY = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
@@ -382,6 +383,107 @@ def _language_instruction(user_language: Optional[str]) -> str:
         "conversation; if you cannot tell, default to English.")
 
 
+# Tiny stop-word lists used for cheap European-language disambiguation when
+# the text is in Latin script. Tuned to be small but distinctive — we only
+# need to tip the balance between five candidates, not run a full NLP model.
+_STOPWORDS = {
+    "English": {
+        "the", "and", "you", "for", "with", "this", "that", "what",
+        "have", "are", "is", "of", "in", "to", "on", "it", "be", "from",
+        "please", "thanks", "show", "make", "can", "do", "how",
+    },
+    "French": {
+        "le", "la", "les", "des", "une", "un", "et", "est", "que", "qui",
+        "pour", "avec", "dans", "sur", "vous", "nous", "je", "ne", "pas",
+        "ce", "cette", "ces", "merci", "bonjour", "comment", "quel",
+    },
+    "Spanish": {
+        "el", "la", "los", "las", "un", "una", "y", "es", "que", "de",
+        "para", "con", "por", "en", "del", "al", "yo", "tú", "muy",
+        "gracias", "hola", "como", "qué", "cuál",
+    },
+    "German": {
+        "der", "die", "das", "und", "ist", "ein", "eine", "mit", "für",
+        "nicht", "von", "zu", "den", "dem", "des", "ich", "du", "wir",
+        "ihr", "sie", "bitte", "danke", "wie", "was",
+    },
+}
+
+_TOKEN_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ\u0600-\u06FF]+", re.UNICODE)
+_ARABIC_CHAR_RE = re.compile(r"[\u0600-\u06FF]")
+
+
+def detect_language(text: Optional[str]) -> Optional[str]:
+    """Best-effort language detection from a free-form string.
+
+    Returns one of the canonical names used by ``_LANGUAGE_NAMES``
+    ("Arabic", "English", "French", "Spanish", "German") when a guess is
+    confident enough, otherwise ``None``. The implementation is intentionally
+    tiny and dependency-free — we only need to tip the balance between the
+    handful of languages this app has localized strings for. Anything
+    outside that set falls through to the model's own judgement.
+    """
+    if not text:
+        return None
+    sample = str(text).strip()
+    if not sample:
+        return None
+
+    # Arabic is unambiguous via script: any meaningful share of Arabic
+    # letters wins, regardless of interspersed Latin words.
+    arabic_chars = len(_ARABIC_CHAR_RE.findall(sample))
+    letter_count = sum(1 for ch in sample if ch.isalpha())
+    if letter_count and arabic_chars / letter_count >= 0.2:
+        return "Arabic"
+
+    # Latin script — score against a small set of stopwords per language.
+    tokens = [t.lower() for t in _TOKEN_RE.findall(sample)]
+    if not tokens:
+        return None
+    scores = {
+        lang: sum(1 for t in tokens if t in words)
+        for lang, words in _STOPWORDS.items()
+    }
+    best_lang, best_score = max(scores.items(), key=lambda kv: kv[1])
+    if best_score == 0:
+        return None
+    # Require a clear winner — if two languages tie, we don't pick.
+    sorted_scores = sorted(scores.values(), reverse=True)
+    if len(sorted_scores) > 1 and sorted_scores[0] == sorted_scores[1]:
+        return None
+    return best_lang
+
+
+def detect_language_from_history(
+        messages: Optional[Iterable[Dict[str, Any]]],
+        fallback: Optional[str] = None) -> Optional[str]:
+    """Infer language by scanning the most recent user messages.
+
+    ``messages`` is the chat history as stored in session state — a list of
+    ``{"role": ..., "content": ...}`` dicts (or the legacy
+    ``{"user": ..., "assistant": ...}`` shape used by ``chat_about_data``).
+    The newest user-authored entries are inspected first; the first
+    confident detection wins. ``fallback`` is returned when nothing can be
+    determined (e.g. empty history or only short emoji replies).
+    """
+    if not messages:
+        return fallback
+    msg_list = list(messages)
+    for msg in reversed(msg_list[-10:]):
+        if not isinstance(msg, dict):
+            continue
+        text: Optional[str] = None
+        role = msg.get("role")
+        if role == "user":
+            text = msg.get("content")
+        elif "user" in msg:
+            text = msg.get("user")
+        guess = detect_language(text)
+        if guess:
+            return guess
+    return fallback
+
+
 # Localized error messages for the report-generating helpers. Keyed by the
 # normalized language name; falls back to English for anything else.
 _ERROR_MESSAGES = {
@@ -397,6 +499,14 @@ _ERROR_MESSAGES = {
         "English": "Sorry, an error occurred while generating the cleaning report: {error}",
         "Arabic": "عذراً، حدث خطأ أثناء توليد تقرير التنظيف: {error}",
     },
+    "insights": {
+        "English": "Sorry, an error occurred while generating analysis: {error}",
+        "Arabic": "عذراً، حدث خطأ أثناء توليد التحليل: {error}",
+    },
+    "chat": {
+        "English": "Sorry, an error occurred: {error}",
+        "Arabic": "عذراً، حدث خطأ: {error}",
+    },
 }
 
 
@@ -409,12 +519,16 @@ def _localized_error(kind: str, user_language: Optional[str], error: str) -> str
 
 def generate_data_insights(df_summary: Dict, analysis_results: Dict,
                            project_context=None,
-                           assistant_mode: Optional[str] = None) -> str:
+                           assistant_mode: Optional[str] = None,
+                           user_language: Optional[str] = None) -> str:
     """Generate AI-powered insights from data analysis.
 
     ``assistant_mode`` is the UI-selected response mode ("expert" or
     "simple") and is injected into the system prompt so insights match
     the same voice the chat assistant uses.
+
+    See :func:`generate_comparison_insights` for the meaning of
+    ``user_language``.
     """
 
     prompt = f"""You are a professional data analyst. Analyze the following data and provide useful insights and recommendations.
@@ -433,7 +547,9 @@ Provide:
 3. Strengths and weaknesses of the data
 4. Suggestions for improvement
 
-Write the response in a clear and organized manner."""
+Write the response in a clear and organized manner.
+
+{_language_instruction(user_language)}"""
 
     system_prompt = _apply_mode_directive(
         _augment_system(SYSTEM_PROMPT, project_context), assistant_mode)
@@ -450,19 +566,28 @@ Write the response in a clear and organized manner."""
         result = response.choices[0].message.content
         return result if result else "Unable to generate insights. Please try again."
     except Exception as e:
-        return f"Sorry, an error occurred while generating analysis: {str(e)}"
+        return _localized_error("insights", user_language, str(e))
 
 
 def chat_about_data(user_question: str, df_info: Dict, 
                     chat_history: List[Dict] = None,
                     project_context=None,
-                    assistant_mode: Optional[str] = None) -> str:
+                    assistant_mode: Optional[str] = None,
+                    user_language: Optional[str] = None) -> str:
     """Interactive chat about the data.
 
     ``assistant_mode`` is the UI-selected response mode ("expert" or
     "simple"). When provided it's injected into the system prompt so
     the model skips the Step 0 mode question and immediately follows
     the matching response format.
+
+    ``user_language`` is an optional locale or language name (e.g.
+    ``"ar"``, ``"en"``, ``"Arabic"``). When provided, the model is told
+    to reply in that language as a system-level directive — overriding
+    the persona's implicit "match the user's language" rule. When the
+    caller leaves it ``None``, we fall back to a cheap heuristic that
+    inspects the current question (and recent history) so even helpers
+    that get a JSON-only prompt land on the right language.
     """
     
     context = f"""Available data information:
@@ -472,8 +597,18 @@ def chat_about_data(user_question: str, df_info: Dict,
 - Data types: {json.dumps(df_info.get('dtypes', {}), ensure_ascii=False)}
 - Statistical summary: {json.dumps(df_info.get('numeric_summary', {}), ensure_ascii=False, default=str)[:1500]}"""
 
+    # Resolve the effective language: explicit caller value wins, else
+    # detect from the question itself, else fall back to the most recent
+    # user message in chat history.
+    effective_language = user_language
+    if not effective_language:
+        effective_language = (
+            detect_language(user_question)
+            or detect_language_from_history(chat_history))
+
     base_system = _augment_system(SYSTEM_PROMPT, project_context)
     base_system = _apply_mode_directive(base_system, assistant_mode)
+    base_system = f"{base_system}\n\n{_language_instruction(effective_language)}"
 
     messages = [
         {"role": "system", "content": base_system},
@@ -501,7 +636,7 @@ def chat_about_data(user_question: str, df_info: Dict,
         error_msg = str(e)
         if "connection" in error_msg.lower() or "timeout" in error_msg.lower():
             return f"Connection error. Please try again later. Details: {error_msg}"
-        return f"Sorry, an error occurred: {error_msg}"
+        return _localized_error("chat", effective_language, error_msg)
 
 
 def generate_comparison_insights(comparison_data: Dict,

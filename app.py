@@ -181,7 +181,8 @@ from predictions import (
 )
 from ai_assistant import (
     generate_data_insights, chat_about_data, 
-    generate_comparison_insights, generate_prediction_insights
+    generate_comparison_insights, generate_prediction_insights,
+    detect_language, detect_language_from_history,
 )
 import math
 from email_service import send_welcome_email, send_support_notification, send_password_reset_email, send_password_changed_email
@@ -1783,6 +1784,19 @@ if 'assistant_mode' not in st.session_state:
     # skips the Step 0 mode-detection question and immediately
     # uses the matching response format.
     st.session_state.assistant_mode = 'simple'
+if 'ai_language_pref' not in st.session_state:
+    # User's preferred reply language for the AI helpers. The literal
+    # string "auto" means "infer from the conversation"; any other
+    # value is a canonical language name ("Arabic", "English", ...)
+    # that pins replies even when the prompt is JSON-only (as in the
+    # comparison / prediction / cleaning report helpers).
+    st.session_state.ai_language_pref = 'auto'
+if 'ai_language_detected' not in st.session_state:
+    # Last auto-detected language for this session. Persists across
+    # tabs so a question typed in Arabic on the chat dock keeps
+    # one-shot helpers (insights, comparison reports, ...) in Arabic
+    # too, until the next user message flips it.
+    st.session_state.ai_language_detected = None
 if 'ai_panel_open' not in st.session_state:
     # Default to OPEN — the AI assistant is a primary surface of the
     # dashboard, not an opt-in panel. Users can still collapse it
@@ -2333,6 +2347,86 @@ _ASSISTANT_MODE_LABELS = {
 }
 
 
+# Languages exposed in the UI picker. "auto" means "infer from the
+# conversation" — any other value is the canonical name accepted by
+# ``ai_assistant._normalize_language``.
+_AI_LANGUAGE_OPTIONS = ['auto', 'English', 'Arabic', 'French', 'Spanish', 'German']
+_AI_LANGUAGE_LABELS = {
+    'auto': 'Auto-detect',
+    'English': 'English',
+    'Arabic': 'العربية (Arabic)',
+    'French': 'Français',
+    'Spanish': 'Español',
+    'German': 'Deutsch',
+}
+
+
+def _resolve_ai_language(extra_text: "str | None" = None) -> "str | None":
+    """Single source of truth for the AI reply language.
+
+    Resolution order:
+    1. The user's explicit picker choice (``ai_language_pref``) wins
+       whenever it isn't ``"auto"``.
+    2. Otherwise, detect from ``extra_text`` (typically the prompt the
+       user just typed) — this lets language switches mid-session take
+       effect on the very next reply.
+    3. Otherwise fall back to the language detected from the recent
+       chat history (``ai_language_detected``), so JSON-only helpers
+       like the comparison/prediction/cleaning report still pin to
+       whatever the user has been speaking in this session.
+    Returns ``None`` when nothing can be inferred so the helpers fall
+    back to the persona's implicit "match the user's language" rule.
+    """
+    pref = st.session_state.get('ai_language_pref', 'auto')
+    if pref and pref != 'auto':
+        return pref
+    detected = detect_language(extra_text) if extra_text else None
+    if detected:
+        # Cache so subsequent one-shot helpers in this run agree even
+        # without re-receiving the prompt.
+        st.session_state.ai_language_detected = detected
+        return detected
+    cached = st.session_state.get('ai_language_detected')
+    if cached:
+        return cached
+    history_guess = detect_language_from_history(
+        st.session_state.get('chat_messages'))
+    if history_guess:
+        st.session_state.ai_language_detected = history_guess
+    return history_guess
+
+
+def _render_ai_language_picker(widget_key: str) -> None:
+    """Render the reply-language selector for the AI assistant.
+
+    Default ``Auto-detect`` defers to ``_resolve_ai_language`` (which
+    inspects the latest user input + chat history). Picking a specific
+    language pins every subsequent AI reply — chat, insights, and the
+    JSON-only one-shot helpers — to that language until the user
+    switches again.
+    """
+    current = st.session_state.get('ai_language_pref', 'auto')
+    if current not in _AI_LANGUAGE_OPTIONS:
+        current = 'auto'
+        st.session_state.ai_language_pref = current
+    st.session_state[widget_key] = current
+    chosen = st.selectbox(
+        "Reply language",
+        options=_AI_LANGUAGE_OPTIONS,
+        format_func=lambda v: _AI_LANGUAGE_LABELS.get(v, v),
+        key=widget_key,
+        help="Pin every AI reply to a specific language. Auto-detect "
+             "infers it from your latest message — switching languages "
+             "mid-conversation flips the next reply.",
+    )
+    if chosen != st.session_state.get('ai_language_pref'):
+        st.session_state.ai_language_pref = chosen
+        # Clear the cached auto-detect so an explicit pick takes effect
+        # immediately, and so going back to "auto" re-detects fresh
+        # rather than reusing a stale value.
+        st.session_state.ai_language_detected = None
+
+
 def _render_assistant_mode_picker(widget_key: str) -> None:
     """Render the Expert / Simple mode selector for the AI assistant.
 
@@ -2410,6 +2504,8 @@ def _render_chat_dock(tab_id, limits, doubts):
         st.caption("Same conversation across Cleaning, Statistics, and ML tabs.")
         _render_assistant_mode_picker(
             f"assistant_mode_dock_{tab_id}_{_ds_key()}")
+        _render_ai_language_picker(
+            f"ai_language_dock_{tab_id}_{_ds_key()}")
         chat_box = st.container(height=300)
         with chat_box:
             if not st.session_state.chat_messages:
@@ -2478,7 +2574,8 @@ def _render_chat_dock(tab_id, limits, doubts):
                         prompt, df_info,
                         project_context=_project_ctx_text(),
                         assistant_mode=st.session_state.get(
-                            'assistant_mode'))
+                            'assistant_mode'),
+                        user_language=_resolve_ai_language(prompt))
             st.session_state.chat_messages.append(
                 {"role": "assistant", "content": response})
             try:
@@ -12797,6 +12894,7 @@ def show_dashboard():
                                     project_context=_project_ctx_text(),
                                     assistant_mode=st.session_state.get(
                                         'assistant_mode'),
+                                    user_language=_resolve_ai_language(),
                                 )
                                 st.session_state.ai_insights = insights
                                 _record_learned_note("insight", insights)
@@ -13160,6 +13258,7 @@ def _render_ai_rail(limits):
         return
 
     _render_assistant_mode_picker("assistant_mode_rail")
+    _render_ai_language_picker("ai_language_rail")
 
     chat_box = st.container(height=520)
     with chat_box:
@@ -13207,7 +13306,8 @@ def _render_ai_rail(limits):
             response = chat_about_data(
                 prompt, df_info,
                 project_context=_project_ctx_text(),
-                assistant_mode=st.session_state.get('assistant_mode'))
+                assistant_mode=st.session_state.get('assistant_mode'),
+                user_language=_resolve_ai_language(prompt))
             st.session_state.chat_messages.append({"role": "assistant", "content": response})
             _record_learned_note("chat", f"Q: {prompt}\nA: {response}")
 
