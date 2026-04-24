@@ -55,17 +55,17 @@ export default function HomePage() {
   };
   return (
     <MarketingShell current="/" jsonLd={[softwareLd, faqLd]}>
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden min-h-[640px] md:min-h-[720px] flex items-center">
         <DataStreamBackground />
         <div
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse at center, var(--surface) 0%, color-mix(in srgb, var(--surface) 70%, transparent) 45%, transparent 80%)",
+              "radial-gradient(ellipse 55% 38% at center, color-mix(in srgb, var(--surface) 70%, transparent) 0%, color-mix(in srgb, var(--surface) 25%, transparent) 60%, transparent 100%)",
           }}
           aria-hidden="true"
         />
-        <div className="container-x relative py-20 md:py-28 text-center">
+        <div className="container-x relative py-16 md:py-20 text-center w-full">
           <span className="eyebrow">AXIOM · v2026.4</span>
           <h1 className="text-4xl md:text-6xl font-bold mt-3 leading-tight">
             From <span className="text-[var(--accent)]">raw spreadsheet</span> to clean,

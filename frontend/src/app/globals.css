@@ -10,9 +10,9 @@
   --border: #e5e7eb;
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
-  --stream-strong: rgba(37, 99, 235, 0.55);
-  --stream-soft: rgba(37, 99, 235, 0.18);
-  --stream-fade: rgba(255, 255, 255, 0);
+  --stream-strong: rgba(37, 99, 235, 0.85);
+  --stream-soft: rgba(59, 130, 246, 0.45);
+  --stream-fade: rgba(255, 255, 255, 0.10);
 }
 
 .dark {
@@ -23,9 +23,9 @@
   --border: #1a2750;
   --accent: #60a5fa;
   --accent-hover: #93c5fd;
-  --stream-strong: rgba(147, 197, 253, 0.85);
-  --stream-soft: rgba(96, 165, 250, 0.30);
-  --stream-fade: rgba(5, 11, 31, 0);
+  --stream-strong: rgba(191, 219, 254, 1);
+  --stream-soft: rgba(96, 165, 250, 0.55);
+  --stream-fade: rgba(5, 11, 31, 0.12);
   color-scheme: dark;
 }
 

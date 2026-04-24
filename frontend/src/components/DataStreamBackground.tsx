@@ -2,10 +2,11 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Decorative animated background: streams of monospace glyphs flowing
- * downward, evoking live data ingestion. Renders to a <canvas> and
- * adapts to the active theme via the CSS variables --stream-strong /
- * --stream-soft / --stream-fade. Hidden when prefers-reduced-motion.
+ * Decorative animated background: dense Matrix-style streams of monospace
+ * glyphs flowing downward, evoking live data ingestion. Renders to a
+ * <canvas> and adapts to the active theme via CSS variables
+ * --stream-strong / --stream-soft / --stream-fade. Hidden when
+ * prefers-reduced-motion.
  */
 export function DataStreamBackground({ className = "" }: { className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -24,9 +25,14 @@ export function DataStreamBackground({ className = "" }: { className?: string })
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const fontSize = 14;
+    // Mix of digits, latin, brackets, currency, math, and a few cyrillic-ish
+    // glyphs so the texture reads as "data" rather than only numbers.
     const glyphs =
-      "01234567890123456789ABCDEFabcdef.,;:+-*/=<>{}[]()|#$%&";
-    let columns: number[] = [];
+      "01010110ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz" +
+      "{}[]()<>/\\|=+-*&^%$#@!?:;.,~`БДЖЛПФЦЧШЯабвгдежзилнпфцч";
+
+    type Drop = { y: number; speed: number; trail: number };
+    let drops: Drop[] = [];
     let columnCount = 0;
     let width = 0;
     let height = 0;
@@ -39,10 +45,15 @@ export function DataStreamBackground({ className = "" }: { className?: string })
       canvas.height = Math.floor(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.font = `${fontSize}px "JetBrains Mono", ui-monospace, monospace`;
+      ctx.textBaseline = "top";
       columnCount = Math.ceil(width / fontSize);
-      columns = new Array(columnCount)
-        .fill(0)
-        .map(() => Math.random() * height);
+      // Spread drops across the full section height so the very first
+      // paint is already dense — no "warming up" gap visible to users.
+      drops = new Array(columnCount).fill(0).map(() => ({
+        y: Math.random() * height,
+        speed: 0.7 + Math.random() * 1.4,
+        trail: 20 + Math.floor(Math.random() * 40),
+      }));
     }
 
     function readVar(name: string, fallback: string) {
@@ -54,32 +65,55 @@ export function DataStreamBackground({ className = "" }: { className?: string })
 
     let last = 0;
     function frame(now: number) {
-      if (now - last < 70) {
+      // ~24fps — Matrix-y feel without thrashing the CPU
+      if (now - last < 42) {
         rafRef.current = requestAnimationFrame(frame);
         return;
       }
       last = now;
 
-      const fade = readVar("--stream-fade", "rgba(5,11,31,0.08)");
-      const strong = readVar("--stream-strong", "rgba(96,165,250,0.85)");
-      const soft = readVar("--stream-soft", "rgba(96,165,250,0.30)");
+      const fade = readVar("--stream-fade", "rgba(5,11,31,0.10)");
+      const strong = readVar("--stream-strong", "rgba(147,197,253,0.95)");
+      const soft = readVar("--stream-soft", "rgba(96,165,250,0.55)");
 
-      // soft trail wash so glyphs leave a fading tail
+      // Soft background wash so older glyphs decay into a long tail.
       ctx.fillStyle = fade;
       ctx.fillRect(0, 0, width, height);
 
       for (let i = 0; i < columnCount; i++) {
-        const ch = glyphs[(Math.random() * glyphs.length) | 0];
+        const d = drops[i];
         const x = i * fontSize;
-        const y = columns[i];
-        ctx.fillStyle = Math.random() < 0.08 ? strong : soft;
-        ctx.fillText(ch, x, y);
-        if (y > height + Math.random() * 200) {
-          columns[i] = -fontSize * Math.random() * 12;
-        } else {
-          columns[i] = y + fontSize;
+
+        // Long trail of soft glyphs above the head
+        for (let t = 1; t <= d.trail; t++) {
+          const ty = d.y - t * fontSize;
+          if (ty < -fontSize || ty > height) continue;
+          const ch = glyphs[(Math.random() * glyphs.length) | 0];
+          // Fade further-up glyphs more aggressively
+          const alpha = Math.max(0, 1 - t / d.trail);
+          ctx.globalAlpha = alpha * 0.75;
+          ctx.fillStyle = soft;
+          ctx.fillText(ch, x, ty);
+        }
+
+        // Bright "head" glyph
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = strong;
+        const head = glyphs[(Math.random() * glyphs.length) | 0];
+        ctx.fillText(head, x, d.y);
+
+        // Advance
+        d.y += fontSize * d.speed;
+
+        // Reset when fully off-screen, with a fresh randomized profile
+        if (d.y - d.trail * fontSize > height) {
+          d.y = -Math.random() * height * 0.5 - fontSize;
+          d.speed = 0.7 + Math.random() * 1.4;
+          d.trail = 20 + Math.floor(Math.random() * 40);
         }
       }
+
+      ctx.globalAlpha = 1;
       rafRef.current = requestAnimationFrame(frame);
     }
 
