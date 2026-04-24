@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     description: SITE.description,
     images: [SITE.socialImage],
   },
-  icons: { icon: "/logo.png" },
+  icons: { icon: "/logo-mark.png" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

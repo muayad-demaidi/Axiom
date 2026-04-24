@@ -35,8 +35,20 @@ export default function SignupPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4">
-      <Link href="/" className="flex items-center gap-2 mb-8 font-semibold">
-        <Image src="/logo.png" alt="AXIOM" width={36} height={36} />
+      <Link
+        href="/"
+        aria-label="AXIOM home"
+        className="flex items-center gap-3 mb-8 font-semibold text-lg tracking-tight"
+      >
+        <Image
+          src="/logo-mark.png"
+          alt=""
+          aria-hidden="true"
+          width={40}
+          height={40}
+          priority
+          className="h-10 w-10 object-contain"
+        />
         <span>AXIOM</span>
       </Link>
       <form onSubmit={submit} className="card w-full max-w-sm space-y-4">

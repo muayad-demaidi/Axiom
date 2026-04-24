@@ -6,8 +6,20 @@ export function Header({ current = "" }: { current?: string }) {
   return (
     <header className="sticky top-0 z-50 backdrop-blur bg-[var(--surface)]/80 border-b border-[var(--border)]">
       <div className="container-x flex items-center justify-between gap-6 py-3">
-        <Link href="/" className="flex items-center gap-2 font-semibold text-base">
-          <Image src="/logo.png" alt="AXIOM" width={32} height={32} />
+        <Link
+          href="/"
+          aria-label="AXIOM home"
+          className="flex items-center gap-2.5 font-semibold text-base tracking-tight"
+        >
+          <Image
+            src="/logo-mark.png"
+            alt=""
+            aria-hidden="true"
+            width={28}
+            height={28}
+            priority
+            className="h-7 w-7 object-contain"
+          />
           <span>AXIOM</span>
         </Link>
         <nav aria-label="Primary" className="hidden md:flex gap-5 text-sm">

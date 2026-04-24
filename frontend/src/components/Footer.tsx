@@ -8,7 +8,17 @@ export function Footer() {
     <footer className="border-t border-[var(--border)] mt-20 bg-[var(--surface-alt)]">
       <div className="container-x grid gap-10 py-12 md:grid-cols-[2fr_1fr_1fr_1fr]">
         <div>
-          <Image src="/logo.png" alt="AXIOM" width={48} height={48} />
+          <Link href="/" aria-label="AXIOM home" className="inline-flex items-center gap-3">
+            <Image
+              src="/logo-mark.png"
+              alt=""
+              aria-hidden="true"
+              width={40}
+              height={40}
+              className="h-10 w-10 object-contain"
+            />
+            <span className="text-lg font-semibold tracking-tight">AXIOM</span>
+          </Link>
           <p className="text-sm text-[var(--text-muted)] mt-3 max-w-[320px]">
             An intelligent data analytics platform that turns raw datasets into clear, actionable
             insights — in seconds, no code required.
