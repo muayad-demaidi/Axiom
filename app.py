@@ -12747,6 +12747,8 @@ def show_dashboard():
                                 insights = generate_data_insights(
                                     df_summary, analysis_results,
                                     project_context=_project_ctx_text(),
+                                    assistant_mode=st.session_state.get(
+                                        'assistant_mode'),
                                 )
                                 st.session_state.ai_insights = insights
                                 _record_learned_note("insight", insights)

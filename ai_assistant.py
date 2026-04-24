@@ -408,9 +408,15 @@ def _localized_error(kind: str, user_language: Optional[str], error: str) -> str
 
 
 def generate_data_insights(df_summary: Dict, analysis_results: Dict,
-                           project_context=None) -> str:
-    """Generate AI-powered insights from data analysis"""
-    
+                           project_context=None,
+                           assistant_mode: Optional[str] = None) -> str:
+    """Generate AI-powered insights from data analysis.
+
+    ``assistant_mode`` is the UI-selected response mode ("expert" or
+    "simple") and is injected into the system prompt so insights match
+    the same voice the chat assistant uses.
+    """
+
     prompt = f"""You are a professional data analyst. Analyze the following data and provide useful insights and recommendations.
 
 Data Summary:
@@ -429,11 +435,14 @@ Provide:
 
 Write the response in a clear and organized manner."""
 
+    system_prompt = _apply_mode_directive(
+        _augment_system(SYSTEM_PROMPT, project_context), assistant_mode)
+
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": _augment_system(SYSTEM_PROMPT, project_context)},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=2000
@@ -497,13 +506,18 @@ def chat_about_data(user_question: str, df_info: Dict,
 
 def generate_comparison_insights(comparison_data: Dict,
                                  project_context=None,
-                                 user_language: Optional[str] = None) -> str:
+                                 user_language: Optional[str] = None,
+                                 assistant_mode: Optional[str] = None) -> str:
     """Generate insights from period comparison.
 
     ``user_language`` is an optional locale or language name (e.g. ``"ar"``,
     ``"en"``, ``"Arabic"``). When provided, the model is told to reply in that
     language and error messages are localized accordingly. When omitted, the
     persona's default "match the user's language" rule is used.
+
+    ``assistant_mode`` mirrors the chat helper: when supplied it routes
+    through ``_apply_mode_directive`` so the comparison summary follows
+    the same Expert/Simple voice the user picked in the UI.
     """
 
     prompt = f"""You are a professional data analyst. Analyze the following comparison of data between two different periods and provide useful insights.
@@ -519,11 +533,14 @@ Provide:
 
 {_language_instruction(user_language)}"""
 
+    system_prompt = _apply_mode_directive(
+        _augment_system(SYSTEM_PROMPT, project_context), assistant_mode)
+
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": _augment_system(SYSTEM_PROMPT, project_context)},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=1500
@@ -535,11 +552,12 @@ Provide:
 
 def generate_prediction_insights(prediction_data: Dict, historical_context: str = "",
                                  project_context=None,
-                                 user_language: Optional[str] = None) -> str:
+                                 user_language: Optional[str] = None,
+                                 assistant_mode: Optional[str] = None) -> str:
     """Generate insights about predictions.
 
     See :func:`generate_comparison_insights` for the meaning of
-    ``user_language``.
+    ``user_language`` and ``assistant_mode``.
     """
 
     prompt = f"""You are a data analyst specializing in forecasting. Analyze the following prediction results:
@@ -558,11 +576,14 @@ Provide:
 
 {_language_instruction(user_language)}"""
 
+    system_prompt = _apply_mode_directive(
+        _augment_system(SYSTEM_PROMPT, project_context), assistant_mode)
+
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": _augment_system(SYSTEM_PROMPT, project_context)},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=1500
@@ -574,11 +595,12 @@ Provide:
 
 def generate_cleaning_report(cleaning_report: Dict,
                              project_context=None,
-                             user_language: Optional[str] = None) -> str:
+                             user_language: Optional[str] = None,
+                             assistant_mode: Optional[str] = None) -> str:
     """Generate a user-friendly cleaning report.
 
     See :func:`generate_comparison_insights` for the meaning of
-    ``user_language``.
+    ``user_language`` and ``assistant_mode``.
     """
 
     prompt = f"""Turn the following data cleaning report into a clear, user-friendly summary for a non-technical reader:
@@ -593,11 +615,14 @@ Write the summary in a simple, easy-to-understand style, and cover:
 
 {_language_instruction(user_language)}"""
 
+    system_prompt = _apply_mode_directive(
+        _augment_system(SYSTEM_PROMPT, project_context), assistant_mode)
+
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": _augment_system(SYSTEM_PROMPT, project_context)},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=800
