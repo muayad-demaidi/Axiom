@@ -12,3 +12,9 @@ id = "6o3gj3HPyz5OEza0iowcN"
 uri = "file://ملخص_تحديثات_DataVisionPro.pdf"
 type = "pdf"
 title = "ملخص تحديثات DataVision Pro - أبريل 2026"
+
+[[outputs]]
+id = "kFg2rOlMV_zTBSFeFVurg"
+uri = "file://axiom_project_export.zip"
+type = "unspecified"
+title = "AXIOM Project — Full Export"
