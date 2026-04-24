@@ -32,9 +32,13 @@
 html, body {
   background: var(--surface);
   color: var(--text);
-  font-family: Inter, "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-inter), Inter, "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   transition: background-color 200ms ease, color 200ms ease;
+}
+
+code, pre, .eyebrow, .data-stream {
+  font-family: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
 }
 
 a { color: inherit; }
