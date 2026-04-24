@@ -297,6 +297,40 @@ def _augment_system(system_prompt: str, project_context) -> str:
         f"{ctx}")
 
 
+def _apply_mode_directive(system_prompt: str,
+                          assistant_mode: Optional[str]) -> str:
+    """Append an explicit-mode directive to the system prompt.
+
+    When the UI passes a chosen mode (Expert / Simple), the assistant
+    must skip Step 0's mode-detection question and immediately follow
+    the matching response format on every reply.
+    """
+    if not assistant_mode:
+        return system_prompt
+    mode_norm = str(assistant_mode).strip().lower()
+    if mode_norm == "expert":
+        return (
+            f"{system_prompt}\n\n"
+            "## ACTIVE MODE — EXPERT (preselected by the user via UI)\n"
+            "The user has already chosen Expert Mode in the interface. "
+            "Do NOT ask the Step 0 mode question and do NOT offer to "
+            "switch modes — the UI already exposes that control. "
+            "Follow the Expert Mode behavior and response format "
+            "(full technical language, code, reasoning, warnings, "
+            "next-step question) on every reply.")
+    if mode_norm == "simple":
+        return (
+            f"{system_prompt}\n\n"
+            "## ACTIVE MODE — SIMPLE (preselected by the user via UI)\n"
+            "The user has already chosen Simple Mode in the interface. "
+            "Do NOT ask the Step 0 mode question and do NOT offer to "
+            "switch modes — the UI already exposes that control. "
+            "Follow the Simple Mode behavior and response format "
+            "(plain language, 3-line quick summary, max 2–3 choices, "
+            "exactly one clear next step) on every reply.")
+    return system_prompt
+
+
 def generate_data_insights(df_summary: Dict, analysis_results: Dict,
                            project_context=None) -> str:
     """Generate AI-powered insights from data analysis"""
@@ -336,8 +370,15 @@ Write the response in a clear and organized manner."""
 
 def chat_about_data(user_question: str, df_info: Dict, 
                     chat_history: List[Dict] = None,
-                    project_context=None) -> str:
-    """Interactive chat about the data"""
+                    project_context=None,
+                    assistant_mode: Optional[str] = None) -> str:
+    """Interactive chat about the data.
+
+    ``assistant_mode`` is the UI-selected response mode ("expert" or
+    "simple"). When provided it's injected into the system prompt so
+    the model skips the Step 0 mode question and immediately follows
+    the matching response format.
+    """
     
     context = f"""Available data information:
 - Rows: {df_info.get('row_count', 'Unknown')}
@@ -346,8 +387,11 @@ def chat_about_data(user_question: str, df_info: Dict,
 - Data types: {json.dumps(df_info.get('dtypes', {}), ensure_ascii=False)}
 - Statistical summary: {json.dumps(df_info.get('numeric_summary', {}), ensure_ascii=False, default=str)[:1500]}"""
 
+    base_system = _augment_system(SYSTEM_PROMPT, project_context)
+    base_system = _apply_mode_directive(base_system, assistant_mode)
+
     messages = [
-        {"role": "system", "content": _augment_system(SYSTEM_PROMPT, project_context)},
+        {"role": "system", "content": base_system},
         {"role": "system", "content": context},
     ]
     

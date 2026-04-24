@@ -1775,6 +1775,14 @@ if 'ai_insights' not in st.session_state:
     st.session_state.ai_insights = None
 if 'chat_messages' not in st.session_state:
     st.session_state.chat_messages = []
+if 'assistant_mode' not in st.session_state:
+    # UI-selected response mode for the AI assistant. One of
+    # "simple" (friendly default, plain language) or "expert"
+    # (full technical detail). Injected into the system prompt
+    # via `chat_about_data(assistant_mode=...)` so the model
+    # skips the Step 0 mode-detection question and immediately
+    # uses the matching response format.
+    st.session_state.assistant_mode = 'simple'
 if 'ai_panel_open' not in st.session_state:
     # Default to OPEN — the AI assistant is a primary surface of the
     # dashboard, not an opt-in panel. Users can still collapse it
@@ -2319,6 +2327,49 @@ def _render_phase1_dock(tab_id, limits):
     _render_chat_dock(tab_id, limits, doubts)
 
 
+_ASSISTANT_MODE_LABELS = {
+    'simple': 'Simple — plain language, easy choices',
+    'expert': 'Expert — full technical detail, code, metrics',
+}
+
+
+def _render_assistant_mode_picker(widget_key: str) -> None:
+    """Render the Expert / Simple mode selector for the AI assistant.
+
+    The choice is persisted in ``st.session_state.assistant_mode`` and
+    injected into ``chat_about_data`` on every call so the model skips
+    its Step 0 mode-detection question and uses the matching response
+    format. Switching mid-conversation takes effect on the next reply
+    without clearing chat history.
+
+    Multiple pickers (dock + rail) share ``assistant_mode`` as their
+    canonical source of truth. Before calling ``st.radio`` we force
+    the per-widget key to the canonical value so the two controls
+    never drift apart when both surfaces render in the same run.
+    """
+    options = ['simple', 'expert']
+    current = st.session_state.get('assistant_mode', 'simple')
+    if current not in options:
+        current = 'simple'
+        st.session_state.assistant_mode = current
+    # Keep per-widget state aligned with the canonical mode so a change
+    # made via the dock picker is reflected in the rail picker (and
+    # vice-versa) on the next rerun.
+    st.session_state[widget_key] = current
+    chosen = st.radio(
+        "Assistant mode",
+        options=options,
+        format_func=lambda v: _ASSISTANT_MODE_LABELS.get(v, v.title()),
+        key=widget_key,
+        horizontal=True,
+        help="Pick how the AI assistant talks to you. Switch any "
+             "time — the next reply uses the new mode and your "
+             "chat history stays intact.",
+    )
+    if chosen != st.session_state.get('assistant_mode'):
+        st.session_state.assistant_mode = chosen
+
+
 def _render_chat_dock(tab_id, limits, doubts):
     """Persistent chat dock shared across the Phase-1 tabs."""
     if not limits.get('ai_chat_enabled'):
@@ -2331,6 +2382,8 @@ def _render_chat_dock(tab_id, limits, doubts):
     expanded_default = bool(doubts)
     with st.expander("Chat with DataVision", expanded=expanded_default):
         st.caption("Same conversation across Cleaning, Statistics, and ML tabs.")
+        _render_assistant_mode_picker(
+            f"assistant_mode_dock_{tab_id}_{_ds_key()}")
         chat_box = st.container(height=300)
         with chat_box:
             if not st.session_state.chat_messages:
@@ -2397,7 +2450,9 @@ def _render_chat_dock(tab_id, limits, doubts):
                 with st.spinner("Thinking..."):
                     response = chat_about_data(
                         prompt, df_info,
-                        project_context=_project_ctx_text())
+                        project_context=_project_ctx_text(),
+                        assistant_mode=st.session_state.get(
+                            'assistant_mode'))
             st.session_state.chat_messages.append(
                 {"role": "assistant", "content": response})
             try:
@@ -13054,6 +13109,8 @@ def _render_ai_rail(limits):
             st.rerun()
         return
 
+    _render_assistant_mode_picker("assistant_mode_rail")
+
     chat_box = st.container(height=520)
     with chat_box:
         # Marker lets the bounded-rail CSS stretch this internal scroll
@@ -13099,7 +13156,8 @@ def _render_ai_rail(limits):
             }
             response = chat_about_data(
                 prompt, df_info,
-                project_context=_project_ctx_text())
+                project_context=_project_ctx_text(),
+                assistant_mode=st.session_state.get('assistant_mode'))
             st.session_state.chat_messages.append({"role": "assistant", "content": response})
             _record_learned_note("chat", f"Q: {prompt}\nA: {response}")
 
