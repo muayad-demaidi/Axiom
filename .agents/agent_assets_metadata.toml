@@ -24,3 +24,9 @@ id = "S_2RywOLpEmwLZ4QSOMWX"
 uri = "file://axiom_project_complete.zip"
 type = "unspecified"
 title = "AXIOM Project — Complete Backup (88 MB)"
+
+[[outputs]]
+id = "yhgB5ISSs510o5X9YSwH0"
+uri = "file://axiom_project_slim.zip"
+type = "unspecified"
+title = "AXIOM Project — Slim Backup (13 MB, fast download)"
