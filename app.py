@@ -140,7 +140,7 @@ from models import (
     update_user_subscription, save_support_message, check_trial_active,
     issue_session_token, get_user_by_session_token, clear_session_token,
     update_dataset_steps, update_dataset_name, dataset_name_exists_in_project,
-    get_dataset_record, set_user_last_dataset,
+    get_dataset_record, set_user_last_dataset, set_user_assistant_mode,
     get_user_datasets, get_user_by_email,
     create_password_reset_token, get_valid_password_reset_token,
     consume_password_reset_token, purge_expired_password_reset_tokens,
@@ -2368,6 +2368,32 @@ def _render_assistant_mode_picker(widget_key: str) -> None:
     )
     if chosen != st.session_state.get('assistant_mode'):
         st.session_state.assistant_mode = chosen
+        # Persist the new preference on the user's row so it survives
+        # logout, browser refresh, or session garbage collection. We
+        # also keep the in-session ``user`` dict in sync so subsequent
+        # reruns hydrate the picker from the cached value without
+        # needing another DB round-trip.
+        _user = st.session_state.get('user') or {}
+        _uid = _user.get('id')
+        if _uid is not None:
+            try:
+                _db = get_db()
+                try:
+                    set_user_assistant_mode(_db, _uid, chosen)
+                finally:
+                    _db.close()
+                _user['assistant_mode'] = chosen
+                st.session_state.user = _user
+            except Exception as exc:
+                # Persistence failure shouldn't break the picker —
+                # the in-session value still applies for this run.
+                # Log to stderr so a silent DB write failure is at
+                # least visible in the workflow logs for debugging.
+                print(
+                    f"[assistant_mode] failed to persist mode "
+                    f"{chosen!r} for user {_uid}: {exc}",
+                    flush=True,
+                )
 
 
 def _render_chat_dock(tab_id, limits, doubts):
@@ -3983,7 +4009,8 @@ def user_to_dict(user):
         'specialty': user.specialty,
         'specialty_other': user.specialty_other,
         'trial_start': user.trial_start,
-        'trial_end': user.trial_end
+        'trial_end': user.trial_end,
+        'assistant_mode': (getattr(user, 'assistant_mode', None) or 'simple'),
     }
 
 
@@ -3996,6 +4023,12 @@ if not st.session_state.session_hydrated and st.session_state.user is None:
             _db_user = get_user_by_session_token(_db, _saved_token)
             if _db_user:
                 st.session_state.user = user_to_dict(_db_user)
+                # Restore the user's persisted assistant mode so the
+                # Expert/Simple picker reflects their preference on the
+                # very first dashboard render after a token-based resume.
+                _saved_mode = (st.session_state.user or {}).get('assistant_mode')
+                if _saved_mode in ('simple', 'expert'):
+                    st.session_state.assistant_mode = _saved_mode
                 if st.session_state.page in ('home', 'login', 'register'):
                     st.session_state.page = 'projects'
                 # Auto-resume the dataset the user was last working on so the
@@ -4518,6 +4551,14 @@ def show_login_page():
                         if user:
                             _tok = issue_session_token(db, user, days=30)
                             st.session_state.user = user_to_dict(user)
+                            # Restore persisted Expert/Simple preference
+                            # so the picker reflects the user's choice
+                            # straight after sign-in instead of resetting
+                            # to the in-process "simple" default.
+                            _saved_mode = (st.session_state.user or {}).get(
+                                'assistant_mode')
+                            if _saved_mode in ('simple', 'expert'):
+                                st.session_state.assistant_mode = _saved_mode
                             st.session_state.page = 'projects'
                             st.query_params[SESSION_QP_NAME] = _tok
                         else:
@@ -4858,6 +4899,13 @@ def show_register_page():
                         if user:
                             _tok = issue_session_token(db, user, days=30)
                             st.session_state.user = user_to_dict(user)
+                            # New accounts default to "simple"; mirror that
+                            # explicitly so the picker is consistent with
+                            # the row we just persisted in the DB.
+                            _saved_mode = (st.session_state.user or {}).get(
+                                'assistant_mode')
+                            if _saved_mode in ('simple', 'expert'):
+                                st.session_state.assistant_mode = _saved_mode
                             st.session_state.page = 'projects'
                             st.query_params[SESSION_QP_NAME] = _tok
                             try:

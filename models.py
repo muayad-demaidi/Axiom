@@ -44,6 +44,12 @@ class User(Base):
     session_token = Column(String(128), nullable=True, index=True)
     session_expires = Column(DateTime, nullable=True)
     last_dataset_id = Column(Integer, nullable=True)
+    # AI assistant response mode persisted across sessions. One of
+    # "simple" (friendly default, plain language) or "expert" (full
+    # technical detail, code, metrics). Mirrors the in-session value
+    # at ``st.session_state.assistant_mode`` so the picker reflects
+    # the user's preference immediately on login / dashboard load.
+    assistant_mode = Column(String(16), nullable=True, default="simple")
 
 
 class PasswordResetToken(Base):
@@ -226,6 +232,7 @@ def init_db():
 
     _migrations = [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_dataset_id INTEGER",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS assistant_mode VARCHAR(16) DEFAULT 'simple'",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS source_parquet BYTEA",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS parse_meta JSON",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS step_recipes JSON",
@@ -389,6 +396,28 @@ def set_user_last_dataset(db, user_id, dataset_id):
     if user:
         user.last_dataset_id = dataset_id
         db.commit()
+
+
+def set_user_assistant_mode(db, user_id, mode):
+    """Persist the user's preferred AI assistant response mode.
+
+    ``mode`` must be one of ``"simple"`` / ``"expert"``; any other value
+    is silently coerced to ``"simple"`` to match the picker default and
+    avoid storing junk that the system prompt builder would have to
+    re-validate downstream.
+    """
+    if user_id is None:
+        return None
+    cleaned = (str(mode or "")).strip().lower()
+    if cleaned not in ("simple", "expert"):
+        cleaned = "simple"
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        return None
+    if user.assistant_mode != cleaned:
+        user.assistant_mode = cleaned
+        db.commit()
+    return user
 
 
 def find_similar_datasets(db, columns_info):
