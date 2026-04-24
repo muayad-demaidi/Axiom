@@ -248,17 +248,26 @@ def send_support_notification(user_email, user_name, message):
         return False
     
     resend.api_key = api_key
-    
+
+    # Escape user-controlled fields before interpolating into HTML/subject
+    # so a malicious sender cannot inject arbitrary markup, links, or
+    # script-bearing tags into the support inbox.
+    import html as _html
+    safe_name = _html.escape(user_name or "N/A")
+    safe_email = _html.escape(user_email or "")
+    safe_message_html = _html.escape(message or "").replace("\n", "<br>")
+    safe_subject_label = _html.escape(user_name or user_email or "anonymous")
+
     html_content = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 2rem;">
         <h2 style="color: #0d9488;">New Support Message - AXIOM</h2>
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
-            <p><strong>From:</strong> {user_name or 'N/A'}</p>
-            <p><strong>Email:</strong> {user_email}</p>
+            <p><strong>From:</strong> {safe_name}</p>
+            <p><strong>Email:</strong> {safe_email}</p>
         </div>
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.5rem;">
             <h3>Message:</h3>
-            <p>{message}</p>
+            <p>{safe_message_html}</p>
         </div>
     </div>
     """
@@ -267,7 +276,7 @@ def send_support_notification(user_email, user_name, message):
         params = {
             "from": from_email,
             "to": ["muayad.demaidi.work@gmail.com"],
-            "subject": f"Support Request from {user_name or user_email} - AXIOM",
+            "subject": f"Support Request from {safe_subject_label} - AXIOM",
             "html": html_content
         }
         

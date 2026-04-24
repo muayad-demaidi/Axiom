@@ -1,6 +1,7 @@
 import { MarketingShell } from "@/components/MarketingShell";
 import { Breadcrumbs, breadcrumbsJsonLd } from "@/components/Breadcrumbs";
 import { SITE } from "@/lib/site";
+import { ContactForm } from "@/components/ContactForm";
 
 export const metadata = {
   title: "Contact",
@@ -17,10 +18,13 @@ export default function ContactPage() {
         <span className="eyebrow">Contact</span>
         <h1 className="text-3xl md:text-5xl font-bold mt-3">Talk to us.</h1>
         <p className="mt-4 text-[var(--text-muted)] text-lg">
-          Support, feedback, or partnership — email us and we&rsquo;ll reply within one business day.
+          Support, feedback, or partnership — send a message and we&rsquo;ll reply within one business day.
         </p>
-        <div className="card mt-8">
-          <p className="text-sm text-[var(--text-muted)] mb-2">Email</p>
+
+        <ContactForm />
+
+        <div className="card mt-6">
+          <p className="text-sm text-[var(--text-muted)] mb-2">Prefer email?</p>
           <a className="text-[var(--accent)] text-lg font-semibold" href={`mailto:${SITE.supportEmail}`}>
             {SITE.supportEmail}
           </a>

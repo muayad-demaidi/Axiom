@@ -31,6 +31,7 @@ from .projects import router as projects_router  # noqa: E402
 from .datasets import router as datasets_router  # noqa: E402
 from .analysis import router as analysis_router  # noqa: E402
 from .chat import router as chat_router  # noqa: E402
+from .support import router as support_router  # noqa: E402
 
 app = FastAPI(title="AXIOM API", version="0.2.0")
 
@@ -68,6 +69,7 @@ app.include_router(projects_router)
 app.include_router(datasets_router)
 app.include_router(analysis_router)
 app.include_router(chat_router)
+app.include_router(support_router)
 
 
 from fastapi import Depends, HTTPException  # noqa: E402
@@ -115,8 +117,13 @@ async def report_pdf(
 
     record, df = _require_dataset(db, req.dataset_id, user.id)
 
+    dataset_label = record.dataset_name or record.filename or "dataset"
+    safe_dataset_label = _escape_for_pdf(str(dataset_label))
+    safe_title = _escape_for_pdf(req.title) if req.title else "AXIOM Dataset Report"
+
     buf = BytesIO()
-    title_text = req.title or f"AXIOM Report — {record.dataset_name or record.filename}"
+    # `title` here is PDF metadata (raw string is fine), not Paragraph markup.
+    title_text = req.title or f"AXIOM Report — {dataset_label}"
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
         rightMargin=2 * cm, leftMargin=2 * cm,
@@ -128,10 +135,10 @@ async def report_pdf(
 
     # ---- Cover ----------------------------------------------------------
     story.append(Spacer(1, 4 * cm))
-    story.append(Paragraph(req.title or "AXIOM Dataset Report", styles["Title"]))
+    story.append(Paragraph(safe_title, styles["Title"]))
     story.append(Spacer(1, 0.4 * cm))
     story.append(Paragraph(
-        f"Dataset: <b>{record.dataset_name or record.filename}</b>",
+        f"Dataset: <b>{safe_dataset_label}</b>",
         styles["BodyText"],
     ))
     story.append(Paragraph(
@@ -144,7 +151,7 @@ async def report_pdf(
     ))
     if req.notes:
         story.append(Spacer(1, 0.4 * cm))
-        story.append(Paragraph(req.notes, styles["BodyText"]))
+        story.append(Paragraph(_escape_for_pdf(req.notes), styles["BodyText"]))
     story.append(PageBreak())
 
     # ---- Summary stats: columns table ----------------------------------
