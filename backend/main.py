@@ -94,10 +94,12 @@ async def report_pdf(
 
     The legacy `generate_plan_pdf.py` is a fixed Arabic marketing-plan
     document, not a parametric report generator, so we build the PDF
-    inline here. The output covers basic shape, dtypes, missing-value
-    counts and numeric describe() — the same building blocks the
-    Streamlit dashboard surfaces in its "Report" tab.
+    inline here. The output mirrors the legacy Streamlit "Report" tab:
+    a cover, summary stats (shape, dtypes, missing values, numeric
+    describe), AI-generated insights, and a chart when there's at least
+    one numeric column.
     """
+    from datetime import datetime
     from io import BytesIO
 
     try:
@@ -106,7 +108,7 @@ async def report_pdf(
         from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.lib.units import cm
         from reportlab.platypus import (
-            Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+            Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
         )
     except Exception as exc:  # pragma: no cover - environment guard
         raise HTTPException(500, f"reportlab not available: {exc}")
@@ -114,25 +116,38 @@ async def report_pdf(
     record, df = _require_dataset(db, req.dataset_id, user.id)
 
     buf = BytesIO()
+    title_text = req.title or f"AXIOM Report — {record.dataset_name or record.filename}"
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
         rightMargin=2 * cm, leftMargin=2 * cm,
         topMargin=2 * cm, bottomMargin=2 * cm,
-        title=req.title or f"AXIOM Report — {record.dataset_name or record.filename}",
+        title=title_text,
     )
     styles = getSampleStyleSheet()
-    story = []
+    story: list = []
+
+    # ---- Cover ----------------------------------------------------------
+    story.append(Spacer(1, 4 * cm))
     story.append(Paragraph(req.title or "AXIOM Dataset Report", styles["Title"]))
+    story.append(Spacer(1, 0.4 * cm))
     story.append(Paragraph(
-        f"Dataset: <b>{record.dataset_name or record.filename}</b>"
-        f" · {len(df):,} rows × {df.shape[1]:,} columns",
+        f"Dataset: <b>{record.dataset_name or record.filename}</b>",
+        styles["BodyText"],
+    ))
+    story.append(Paragraph(
+        f"{len(df):,} rows × {df.shape[1]:,} columns",
+        styles["BodyText"],
+    ))
+    story.append(Paragraph(
+        f"Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
         styles["BodyText"],
     ))
     if req.notes:
         story.append(Spacer(1, 0.4 * cm))
         story.append(Paragraph(req.notes, styles["BodyText"]))
+    story.append(PageBreak())
 
-    story.append(Spacer(1, 0.6 * cm))
+    # ---- Summary stats: columns table ----------------------------------
     story.append(Paragraph("<b>Columns</b>", styles["Heading2"]))
     cols_data = [["Column", "Dtype", "Non-null", "Missing"]]
     for col in df.columns[:50]:
@@ -169,6 +184,26 @@ async def report_pdf(
         ]))
         story.append(ntbl)
 
+    # ---- Chart (if applicable) -----------------------------------------
+    chart_png = _build_report_chart(df)
+    if chart_png is not None:
+        story.append(Spacer(1, 0.6 * cm))
+        story.append(Paragraph("<b>Distribution preview</b>", styles["Heading2"]))
+        story.append(Image(BytesIO(chart_png), width=15 * cm, height=8 * cm))
+
+    # ---- AI insights ---------------------------------------------------
+    insights_text = _build_ai_insights(df)
+    if insights_text:
+        story.append(PageBreak())
+        story.append(Paragraph("<b>AI insights</b>", styles["Heading2"]))
+        story.append(Spacer(1, 0.2 * cm))
+        for para in insights_text.split("\n"):
+            line = para.strip()
+            if not line:
+                story.append(Spacer(1, 0.15 * cm))
+                continue
+            story.append(Paragraph(_escape_for_pdf(line), styles["BodyText"]))
+
     doc.build(story)
     buf.seek(0)
     filename = f"axiom-report-{record.id}.pdf"
@@ -177,3 +212,83 @@ async def report_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _escape_for_pdf(text: str) -> str:
+    """Escape characters that reportlab's Paragraph parser treats as markup."""
+    return (
+        text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+    )
+
+
+def _build_report_chart(df) -> bytes | None:
+    """Render a small distribution chart for the first numeric column.
+
+    Falls back to ``None`` when no numeric column is available or the
+    plotting backend isn't usable, so the PDF still builds.
+    """
+    numeric = df.select_dtypes(include="number")
+    if numeric.empty:
+        return None
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt  # noqa: WPS433
+    except Exception:
+        return None
+
+    col = numeric.columns[0]
+    series = numeric[col].dropna()
+    if series.empty:
+        return None
+
+    from io import BytesIO
+    fig, ax = plt.subplots(figsize=(7.5, 4))
+    try:
+        ax.hist(series, bins=min(30, max(5, int(len(series) ** 0.5))),
+                color="#1d4ed8", edgecolor="white")
+        ax.set_title(f"Distribution of {col}")
+        ax.set_xlabel(str(col))
+        ax.set_ylabel("Count")
+        fig.tight_layout()
+        out = BytesIO()
+        fig.savefig(out, format="png", dpi=120)
+        return out.getvalue()
+    finally:
+        plt.close(fig)
+
+
+def _build_ai_insights(df) -> str | None:
+    """Generate AI insights for the report; degrade gracefully on failure."""
+    try:
+        from ai_assistant import generate_data_insights  # type: ignore
+    except Exception:
+        return None
+
+    try:
+        numeric = df.select_dtypes(include="number")
+        analysis: dict = {
+            "shape": {"rows": int(len(df)), "cols": int(df.shape[1])},
+            "dtypes": {str(c): str(df[c].dtype) for c in df.columns[:30]},
+            "missing": {
+                str(c): int(len(df) - int(df[c].notna().sum()))
+                for c in df.columns[:30]
+            },
+        }
+        if not numeric.empty:
+            analysis["numeric_describe"] = (
+                numeric.describe().round(3).to_dict()
+            )
+        df_summary = {
+            "row_count": int(len(df)),
+            "column_count": int(df.shape[1]),
+            "columns": [str(c) for c in df.columns],
+        }
+        text = generate_data_insights(df_summary, analysis)
+        if not text:
+            return None
+        return str(text).strip()
+    except Exception:
+        return None
