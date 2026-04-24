@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface: #ffffff;
+  --surface-alt: #f9fafb;
+  --text: #111827;
+  --text-muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+}
+
+.dark {
+  --surface: #111827;
+  --surface-alt: #1f2937;
+  --text: #f9fafb;
+  --text-muted: #9ca3af;
+  --border: #374151;
+  --accent: #60a5fa;
+  --accent-hover: #93c5fd;
+}
+
+html, body {
+  background: var(--surface);
+  color: var(--text);
+  font-family: Inter, "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+
+.container-x {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.6rem 1.1rem; border-radius: 8px;
+  font-weight: 600; font-size: 0.9rem;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  border: 1px solid transparent;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-ghost { background: transparent; color: var(--text); border-color: var(--border); }
+.btn-ghost:hover { background: var(--surface-alt); }
+
+.card {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+.card h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; }
+.card p  { font-size: 0.9rem; color: var(--text-muted); line-height: 1.55; }
+
+.eyebrow {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.72rem; font-weight: 600;
+  color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase;
+}
+
+.prose-mark h1 { font-size: 2rem; font-weight: 700; margin: 1.5rem 0 0.75rem; }
+.prose-mark h2 { font-size: 1.5rem; font-weight: 700; margin: 1.5rem 0 0.5rem; }
+.prose-mark h3 { font-size: 1.15rem; font-weight: 600; margin: 1rem 0 0.4rem; }
+.prose-mark p  { margin: 0.6rem 0; line-height: 1.65; color: var(--text); }
+.prose-mark ul { list-style: disc; padding-left: 1.4rem; margin: 0.6rem 0; }
+.prose-mark ol { list-style: decimal; padding-left: 1.4rem; margin: 0.6rem 0; }
+.prose-mark code { font-family: "JetBrains Mono", monospace; background: var(--surface-alt); padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.88em; }
+.prose-mark pre { background: var(--surface-alt); padding: 1rem; border-radius: 8px; overflow-x: auto; }
+.prose-mark a { color: var(--accent); text-decoration: underline; }
+.prose-mark table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.92rem; }
+.prose-mark th, .prose-mark td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+.prose-mark th { background: var(--surface-alt); font-weight: 600; }
+
+[dir="rtl"] { text-align: right; }

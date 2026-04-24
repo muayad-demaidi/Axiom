@@ -1,7 +1,33 @@
 # AXIOM - Intelligent Data Analytics Platform
 
+## Active Migration: Streamlit + Astro → Next.js + FastAPI (Task #131, in progress)
+The unified app is being scaffolded under `frontend/` (Next.js 14 App Router + React + TS + Tailwind) and `backend/` (FastAPI). The existing Streamlit app and Astro marketing site **remain in the repo as the parity reference and are not deleted** until each surface is verified at parity.
+
+**Current workflow layout** (see `.replit`):
+- `Start application` → Next.js dev server on port 5000 (primary preview, webview).
+- `Backend API` → FastAPI/uvicorn on port 8000 (console). Frontend proxies `/api/*` to it via `next.config.mjs` rewrites.
+- `Streamlit (legacy)` → `streamlit run app.py` on port 5173 (console, not auto-started). Start it via the workflow tool when verifying parity against the legacy app.
+- The previous `Marketing site` (Astro static) workflow has been removed; its content has been migrated to Next.js routes (see below). Source still lives at `marketing-site/` for diff/parity until cutover.
+
+**Migration status**:
+- ✅ Marketing surfaces — `/`, `/features`, `/pricing`, `/about`, `/contact`, `/glossary` (12 entries), `/guides` (5 entries), `/compare` (5 entries) all rendering as SSG with `revalidate = 3600` (ISR), generating canonical metadata, Organization / SoftwareApplication / FAQPage / Article / DefinedTerm / BreadcrumbList JSON-LD, and a sitemap matching legacy priorities (1.0/0.9/0.9/0.6/0.5/0.8/0.7/0.8 + per-slug 0.7).
+- ✅ Content collections migrated as Markdown under `frontend/content/{glossary,guides,compare}/` parsed with gray-matter + remark + Zod schemas (`frontend/src/lib/content.ts`).
+- ✅ SEO infrastructure — `app/sitemap.ts`, `app/robots.ts`, per-page `generateMetadata`, JSON-LD injection helper, breadcrumbs.
+- ✅ Product shell skeleton — `/app` workspace, sidebar grouped `DATA · ANALYSIS · INSIGHT`, pages for upload / clean / transform / statistics / visualize / predict / model / chat / report. Streaming chat panel hits `/api/chat/stream` (SSE-style chunked text) and is dataset-aware (pulls active project + dataset from local storage).
+- ✅ FastAPI backend wired in `backend/`: `auth_routes.py` (JWT + bcrypt via `models.create_user`/`authenticate_user`), `projects.py` (list/create/update/delete), `datasets.py` (upload + list, persists Parquet bytes via `models.save_dataset_record`), `analysis.py` (clean → `data_cleaner.clean_data`, statistics → `data_analyzer.generate_summary_report`, predict → `predictions.simple_forecast`, model → sklearn KMeans / RandomForest, transform → small Power Query–style step set), `chat.py` (real OpenAI streaming reusing `ai_assistant.SYSTEM_PROMPT` + `detect_language`, persists turns via `models.save_chat_message`). All routes verified via curl: register → token → /me → projects round-trip succeeds.
+- ✅ Frontend auth surface — `/login`, `/signup` post to `/api/auth/{login,register}`, store JWT in `localStorage` (`axiom_token`), redirect to `/app`. `frontend/src/lib/api.ts` adds the bearer header to every request and exposes `streamPost` for SSE-style chunks. `frontend/src/lib/projectContext.ts` tracks active project/dataset/mode in local storage.
+- ✅ Real product pages — `/app` lists projects with mode picker (Guided → `/app/chat`, Expert → `/app/upload`); `/app/upload` posts CSV/Excel and shows live row × col counts; `/app/statistics`, `/app/clean`, `/app/transform`, `/app/predict`, `/app/model` all hit the wired endpoints against the active dataset and render JSON results.
+- ✅ **Deployment configured** — `.replit` deployment switched to `autoscale`. Build runs `cd frontend && npm install --include=dev && npm run build`; production run starts uvicorn on 127.0.0.1:8000 in the background and serves Next.js on `$PORT` with `BACKEND_URL=http://127.0.0.1:8000` so `/api/*` rewrites still resolve. The user must click Publish from the main repl after this branch merges.
+- ⚠️ Still pending parity follow-ups: PDF report generation (returns `pending_migration`), Recharts visualizations on `/app/visualize`, broader Power Query transform palette beyond the six ops currently exposed, and full removal of `marketing-site/` + `app.py` once a side-by-side parity QA confirms equivalence.
+
+**Visual system** (replaces "Data Noir" for the unified app):
+- Light surface `#F9FAFB`, dark surface `#111827`, accent `#2563eb` (blue family preserved from the brand). Defined as CSS custom properties in `frontend/src/app/globals.css` and surfaced through Tailwind tokens (`bg-surface`, `text-text`, `border-border`, `text-accent`).
+- Type: Inter (body/UI), JetBrains Mono (code/eyebrow), with SF Pro fallback. Loaded via Google Fonts in `app/layout.tsx`.
+- Charts will use Recharts (Plotly retired in the new product surface).
+- Data Noir, glassmorphism, and matrix-rain effects from the Streamlit app are intentionally not carried forward.
+
 ## Overview
-AXIOM (formerly DataVision Pro) is a comprehensive, intelligent data analytics system built with Streamlit, designed to offer one-click automated data analysis. It aims to simplify complex data processes, providing valuable insights and predictive capabilities to users. The platform focuses on automatic data cleaning, statistical analysis, interactive visualizations, time period comparisons, and AI-powered predictive analytics. It includes an AI chat assistant, generates professional reports with recommendations, and operates on a 60-day free trial system with email notifications and a support contact form. The project also includes a sophisticated SEO/GEO automation agent and a separate marketing site to drive organic discovery. The business vision is to provide an accessible yet powerful data analysis tool, catering to users who need quick, professional insights without deep technical expertise.
+AXIOM (formerly DataVision Pro) is a comprehensive, intelligent data analytics system. The legacy interface is built with Streamlit and is being migrated to a unified Next.js + FastAPI app. It aims to simplify complex data processes, providing valuable insights and predictive capabilities to users. The platform focuses on automatic data cleaning, statistical analysis, interactive visualizations, time period comparisons, and AI-powered predictive analytics. It includes an AI chat assistant, generates professional reports with recommendations, and operates on a 60-day free trial system with email notifications and a support contact form. The project also includes a sophisticated SEO/GEO automation agent and a separate marketing site to drive organic discovery. The business vision is to provide an accessible yet powerful data analysis tool, catering to users who need quick, professional insights without deep technical expertise.
 
 ### Brand
 - **Current name**: AXIOM (rebranded from DataVision Pro)

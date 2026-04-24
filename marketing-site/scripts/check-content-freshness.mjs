@@ -5,7 +5,13 @@ import { dirname, join, relative } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
-const CONTENT_DIR = join(ROOT, "src", "content");
+// During the AXIOM migration the content collections moved from
+// `marketing-site/src/content` to `frontend/content`. Honour an
+// override (`AXIOM_CONTENT_DIR`) so this script keeps working from
+// either location.
+const CONTENT_DIR = process.env.AXIOM_CONTENT_DIR
+  ? process.env.AXIOM_CONTENT_DIR
+  : join(ROOT, "..", "frontend", "content");
 const COLLECTIONS = ["compare", "glossary", "guides"];
 
 const args = Object.fromEntries(

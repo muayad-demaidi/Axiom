@@ -1,0 +1,133 @@
+"""Auth routes: register, login, current user, forgot/reset password."""
+from __future__ import annotations
+
+import logging
+import os
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+
+import models  # type: ignore
+
+from .auth import get_current_user, get_db_session, issue_token
+
+router = APIRouter(prefix="/api/auth", tags=["auth"])
+log = logging.getLogger("axiom.auth_routes")
+
+
+class RegisterRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    username: str = Field(min_length=2, max_length=64)
+    password: str = Field(min_length=6, max_length=128)
+    full_name: str | None = None
+
+
+class LoginRequest(BaseModel):
+    email_or_username: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    token: str
+    user: dict
+
+
+def _user_view(user) -> dict:
+    return {
+        "id": user.id,
+        "email": user.email,
+        "username": user.username,
+        "subscription_type": getattr(user, "subscription_type", None),
+        "trial_end": str(user.trial_end) if getattr(user, "trial_end", None) else None,
+        "assistant_mode": getattr(user, "assistant_mode", None),
+    }
+
+
+@router.post("/register", response_model=TokenResponse)
+async def register(req: RegisterRequest, db=Depends(get_db_session)):
+    existing = db.query(models.User).filter(
+        (models.User.email == req.email) | (models.User.username == req.username)
+    ).first()
+    if existing:
+        raise HTTPException(409, "User with this email or username already exists")
+    user = models.create_user(
+        db, email=req.email, username=req.username, password=req.password, full_name=req.full_name
+    )
+    if not user:
+        raise HTTPException(500, "Could not create user")
+    return {"token": issue_token(user.id, user.email), "user": _user_view(user)}
+
+
+@router.post("/login", response_model=TokenResponse)
+async def login(req: LoginRequest, db=Depends(get_db_session)):
+    user = models.authenticate_user(db, req.email_or_username, req.password)
+    if not user:
+        raise HTTPException(401, "Invalid credentials")
+    return {"token": issue_token(user.id, user.email), "user": _user_view(user)}
+
+
+@router.get("/me")
+async def me(user=Depends(get_current_user)):
+    return _user_view(user)
+
+
+class ForgotRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+class ResetRequest(BaseModel):
+    token: str = Field(min_length=10, max_length=512)
+    new_password: str = Field(min_length=6, max_length=128)
+
+
+def _send_reset_email(email: str, raw_token: str) -> None:
+    """Best-effort delivery via Resend; never raise upstream.
+
+    The /forgot endpoint always returns 200 to avoid leaking which emails
+    are registered, so failures here are logged and swallowed.
+    """
+    public_url = os.environ.get("PUBLIC_APP_URL", "http://localhost:5000")
+    reset_url = f"{public_url.rstrip('/')}/reset-password?token={raw_token}"
+    try:
+        import resend  # type: ignore
+
+        api_key = os.environ.get("RESEND_API_KEY")
+        if not api_key:
+            log.warning("RESEND_API_KEY not set; reset link for %s: %s", email, reset_url)
+            return
+        resend.api_key = api_key
+        resend.Emails.send({
+            "from": os.environ.get("RESEND_FROM", "AXIOM <onboarding@resend.dev>"),
+            "to": [email],
+            "subject": "Reset your AXIOM password",
+            "html": (
+                f"<p>Hi,</p>"
+                f"<p>You requested a password reset. This link expires in 1 hour:</p>"
+                f"<p><a href=\"{reset_url}\">{reset_url}</a></p>"
+                f"<p>If you didn't request this, you can safely ignore this email.</p>"
+            ),
+        })
+    except Exception as exc:  # pragma: no cover - best effort
+        log.warning("Reset email delivery failed for %s: %s", email, exc)
+
+
+@router.post("/forgot")
+async def forgot_password(req: ForgotRequest, db=Depends(get_db_session)):
+    user = db.query(models.User).filter(models.User.email == req.email).first()
+    if user:
+        raw_token = models.create_password_reset_token(db, user)
+        if raw_token:
+            _send_reset_email(user.email, raw_token)
+    # Always return 200 — don't leak account existence.
+    return {"ok": True}
+
+
+@router.post("/reset")
+async def reset_password(req: ResetRequest, db=Depends(get_db_session)):
+    token, _user = models.get_valid_password_reset_token(db, req.token)
+    if not token:
+        raise HTTPException(400, "Invalid or expired reset token")
+    user = models.consume_password_reset_token(db, token, req.new_password)
+    if not user:
+        raise HTTPException(400, "Could not reset password")
+    return {"token": issue_token(user.id, user.email), "user": _user_view(user)}

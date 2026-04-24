@@ -38,9 +38,12 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
-const DEFAULT_SITEMAP = resolve(ROOT, "marketing-site/dist/sitemap.xml");
+// Unified Next.js app produces a single sitemap at frontend/.next/server/app/sitemap.xml.body
+// after `next build`; once exported it is served from `/sitemap.xml`. We also fall back to the
+// legacy Astro location if it still exists during the parity window.
+const DEFAULT_SITEMAP = resolve(ROOT, "frontend/.next/server/app/sitemap.xml.body");
 const DEFAULT_SITEMAP_INDEX = resolve(ROOT, "marketing-site/dist/sitemap-index.xml");
-const DEFAULT_STATE = resolve(ROOT, "marketing-site/.indexnow-state.json");
+const DEFAULT_STATE = resolve(ROOT, ".indexnow-state.json");
 
 const SITEMAP_PATH = process.env.SITEMAP_PATH
   ? resolve(ROOT, process.env.SITEMAP_PATH)

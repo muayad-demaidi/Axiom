@@ -1,0 +1,64 @@
+---
+competitor: "Power BI"
+title: "AXIOM vs Power BI"
+description: "AXIOM vs Microsoft Power BI — compare AI features, ease of use, file-based analysis, and ideal team size. No fabricated metrics."
+intro: "AXIOM is a browser-first analytics tool focused on uploading a file and getting cleaned data, statistics, ML, and AI insights immediately. Power BI is Microsoft's full BI platform, deeply integrated with Excel, Microsoft 365, and Azure. Pick AXIOM for speed and AI; pick Power BI for ecosystem fit inside a Microsoft shop."
+bestFor:
+  us: "Teams that live in spreadsheets and want AI-explained analysis without modelling a dataset first."
+  them: "Organisations standardised on Microsoft 365 / Azure that need DAX-powered, governed BI across the company."
+rows:
+  - feature: "File upload analysis"
+    us: "Drag CSV/XLSX → instant analysis"
+    them: "Power Query → load → model → visualise"
+  - feature: "Cleaning pipeline"
+    us: "Toggleable, reorderable substeps"
+    them: "Power Query (M language)"
+  - feature: "AI insights"
+    us: "GPT-powered chat + auto report"
+    them: "Copilot for Power BI; requires a Power BI Premium F2+ capacity or a Microsoft 365 Copilot licence ($30/user/month)"
+  - feature: "Predictive models"
+    us: "Built-in linear / RandomForest / K-Means"
+    them: "Requires Azure ML or R/Python visuals"
+  - feature: "Microsoft 365 integration"
+    us: "Email exports + CSV downloads"
+    them: "Native — Teams, SharePoint, Excel"
+  - feature: "Mobile editing"
+    us: "Browser-based, responsive"
+    them: "View on mobile; authoring is desktop-only (Windows)"
+  - feature: "Pricing entry point"
+    us: "60-day free Tier 3 trial"
+    them: "Power BI Pro per-user / Premium per-capacity"
+  - feature: "Learning curve"
+    us: "No DAX, no formula language"
+    them: "DAX + M required for non-trivial work"
+whenToChoose:
+  us:
+    - "Your data lives in spreadsheets and you want results without a modelling step."
+    - "You want AI summaries and recommendations baked into every chart."
+    - "You're not on a Windows desktop, or you work cross-platform."
+    - "You don't have time to learn DAX."
+  them:
+    - "You're a Microsoft 365 / Azure shop with existing Power BI investment."
+    - "You need DAX-grade modelling and row-level security at enterprise scale."
+    - "Your reports must live next to Teams, SharePoint, and Excel."
+    - "You have a BI team that already speaks DAX and M."
+faq:
+  - q: "Can I open a Power BI .pbix in AXIOM?"
+    a: "No. AXIOM consumes CSV and Excel files directly. Export your Power BI dataset to CSV/XLSX to bring it in."
+  - q: "Does AXIOM need Windows?"
+    a: "No. It runs in any modern browser on Mac, Linux, ChromeOS, Windows, and tablets."
+  - q: "Is Power BI free?"
+    a: "Power BI Desktop is free; sharing and collaboration require Power BI Pro ($14/user/month) or Premium Per User ($24/user/month) as of April 2026. Premium capacity (formerly P-SKUs, now Fabric F-SKUs) starts higher and is usage-billed."
+  - q: "Which has better AI?"
+    a: "Both ship AI features. AXIOM builds AI into every analysis page out of the box; Power BI Copilot is powerful but typically requires additional licences and a Premium capacity."
+updated: "2026-04-21"
+relatedGlossary:
+- predictive-analytics
+- k-means-clustering
+- normalization
+relatedGuides:
+- how-to-build-a-3-month-sales-forecast
+- how-to-clean-a-messy-csv-in-60-seconds
+---
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/glossary/predictive-analytics">predictive analytics</a> · <a href="/glossary/k-means-clustering">k-means clustering</a> · <a href="/glossary/normalization">normalization</a>.</p>
+

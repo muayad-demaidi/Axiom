@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import List, Dict, Any
 
 CONFIG_PATH = Path(__file__).parent / "agent_config.json"
-REVIEW_DIR = Path(__file__).resolve().parent.parent / "marketing-site" / "_review" / "drafts"
-CONTENT_DIR = Path(__file__).resolve().parent.parent / "marketing-site" / "src" / "content"
+REVIEW_DIR = Path(__file__).resolve().parent.parent / "frontend" / "_review" / "drafts"
+CONTENT_DIR = Path(__file__).resolve().parent.parent / "frontend" / "content"
 
 # Per-1M-token pricing for gpt-4o (USD) — used for the soft cost cap.
 PRICE_PER_M_INPUT = 2.50

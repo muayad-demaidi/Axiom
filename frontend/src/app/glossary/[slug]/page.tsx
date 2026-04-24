@@ -1,0 +1,111 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { MarketingShell } from "@/components/MarketingShell";
+import { Breadcrumbs, breadcrumbsJsonLd } from "@/components/Breadcrumbs";
+import { getGlossaryEntry, listGlossarySlugs } from "@/lib/content";
+import { SITE } from "@/lib/site";
+
+export const revalidate = 3600;
+export const dynamicParams = false;
+
+export async function generateStaticParams() {
+  const slugs = await listGlossarySlugs();
+  return slugs.map((slug) => ({ slug }));
+}
+
+export async function generateMetadata({ params }: { params: { slug: string } }) {
+  const entry = await getGlossaryEntry(params.slug);
+  if (!entry) return {};
+  return {
+    title: `${entry.data.term} — ${entry.data.question}`,
+    description: entry.data.description,
+    alternates: { canonical: `${SITE.url}/glossary/${entry.slug}` },
+  };
+}
+
+export default async function GlossaryEntryPage({ params }: { params: { slug: string } }) {
+  const entry = await getGlossaryEntry(params.slug);
+  if (!entry) notFound();
+  const crumbs = [
+    { href: "/", label: "Home" },
+    { href: "/glossary", label: "Glossary" },
+    { label: entry.data.term },
+  ];
+  const faqLd = entry.data.faq.length
+    ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: entry.data.faq.map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: { "@type": "Answer", text: f.a },
+        })),
+      }
+    : null;
+  const articleLd = {
+    "@context": "https://schema.org",
+    "@type": "DefinedTerm",
+    name: entry.data.term,
+    description: entry.data.shortDef,
+    inDefinedTermSet: SITE.url + "/glossary",
+    url: `${SITE.url}/glossary/${entry.slug}`,
+  };
+  const ld = [breadcrumbsJsonLd(crumbs, SITE.url), articleLd, ...(faqLd ? [faqLd] : []), ...(entry.data.jsonLd ?? [])];
+  return (
+    <MarketingShell current="/glossary" jsonLd={ld}>
+      <article className="container-x pt-10 pb-16 max-w-3xl">
+        <Breadcrumbs items={crumbs} />
+        <span className="eyebrow">Glossary</span>
+        <h1 className="text-3xl md:text-5xl font-bold mt-3">{entry.data.term}</h1>
+        <p className="mt-3 text-lg text-[var(--text-muted)]">{entry.data.shortDef}</p>
+        <div className="prose-mark mt-8" dangerouslySetInnerHTML={{ __html: entry.html }} />
+        {entry.data.stats.length > 0 && (
+          <section className="mt-10">
+            <h2 className="text-2xl font-bold mb-4">By the numbers</h2>
+            <div className="grid gap-4 md:grid-cols-3">
+              {entry.data.stats.map((s) => (
+                <div key={s.label} className="card">
+                  <div className="text-3xl font-bold text-[var(--accent)]">{s.value}</div>
+                  <div className="text-sm mt-1">{s.label}</div>
+                  <a href={s.source.url} rel="nofollow noopener" className="text-xs text-[var(--text-muted)] mt-2 underline">
+                    Source: {s.source.label}
+                  </a>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        {entry.data.faq.length > 0 && (
+          <section className="mt-12">
+            <h2 className="text-2xl font-bold mb-4">FAQ</h2>
+            <div className="space-y-3">
+              {entry.data.faq.map((f) => (
+                <details key={f.q} className="card">
+                  <summary className="cursor-pointer font-semibold">{f.q}</summary>
+                  <p className="mt-2 text-[var(--text-muted)] text-sm">{f.a}</p>
+                </details>
+              ))}
+            </div>
+          </section>
+        )}
+        {(entry.data.relatedGuides.length > 0 || entry.data.relatedCompare.length > 0 || entry.data.related.length > 0) && (
+          <section className="mt-12">
+            <h2 className="text-2xl font-bold mb-4">Related</h2>
+            <ul className="space-y-2 text-[var(--accent)]">
+              {entry.data.related.map((r) => (
+                <li key={r}><Link href={`/glossary/${r}`}>→ Glossary: {r}</Link></li>
+              ))}
+              {entry.data.relatedGuides.map((r) => (
+                <li key={r}><Link href={`/guides/${r}`}>→ Guide: {r}</Link></li>
+              ))}
+              {entry.data.relatedCompare.map((r) => (
+                <li key={r}><Link href={`/compare/${r}`}>→ Compare: {r}</Link></li>
+              ))}
+            </ul>
+          </section>
+        )}
+        <p className="mt-12 text-xs text-[var(--text-muted)]">Last updated {entry.data.updated}</p>
+      </article>
+    </MarketingShell>
+  );
+}
