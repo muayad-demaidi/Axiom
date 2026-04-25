@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api, ApiError, getToken } from "@/lib/api";
 import { errMessage, type AxiomDataset, type AxiomProject } from "@/lib/types";
 import { setActiveProjectId, setActiveDatasetId } from "@/lib/projectContext";
@@ -17,6 +17,14 @@ type ChatSession = {
 
 export function ProjectWorkspace({ projectId }: { projectId: number }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedSessionId = useMemo(() => {
+    const s = searchParams.get("session");
+    const n = s ? Number(s) : NaN;
+    return Number.isFinite(n) ? n : null;
+  }, [searchParams]);
+  const initialPrompt = searchParams.get("q") || null;
+
   const [project, setProject] = useState<AxiomProject | null>(null);
   const [datasets, setDatasets] = useState<AxiomDataset[]>([]);
   const [sessions, setSessions] = useState<ChatSession[] | null>(null);
@@ -85,7 +93,7 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
           (d) => d.project_id === projectId
         );
         setDatasets(projDatasets);
-        await refreshSessions();
+        await refreshSessions(requestedSessionId);
       } catch (e: unknown) {
         if (!cancelled) {
           if (e instanceof ApiError && e.status === 401) {
@@ -100,7 +108,15 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
     return () => {
       cancelled = true;
     };
-  }, [projectId, router, refreshSessions]);
+  }, [projectId, router, refreshSessions, requestedSessionId]);
+
+  // If the URL session id changes (e.g. user clicks a different chat in
+  // the global sidebar without changing the project), follow it.
+  useEffect(() => {
+    if (requestedSessionId && sessions?.some((s) => s.id === requestedSessionId)) {
+      setActiveSessionId(requestedSessionId);
+    }
+  }, [requestedSessionId, sessions]);
 
   async function newSession() {
     if (busy) return;
@@ -158,6 +174,16 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
     setActiveDatasetId(id);
   }
 
+  // Strip ?q= from the URL after the prompt is consumed so reloading
+  // doesn't resend the message.
+  const onInitialPromptConsumed = useCallback(() => {
+    if (!initialPrompt) return;
+    const sid = activeSessionId;
+    if (sid) {
+      router.replace(`/app/project/${projectId}?session=${sid}`);
+    }
+  }, [router, projectId, activeSessionId, initialPrompt]);
+
   // When the chat panel produces a streaming reply we may want to bump
   // the session's `updated_at`; we do that by re-fetching sessions on
   // every successful turn through the callback below.
@@ -171,20 +197,14 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
   );
 
   return (
-    <div className="-m-6 grid grid-cols-[260px_1fr] min-h-[calc(100vh-3.5rem)]">
-      {/* Project rail */}
+    <div className="-m-6 grid grid-cols-[240px_1fr] min-h-[calc(100vh-3.5rem)]">
+      {/* Project rail — narrow, scoped to this project */}
       <aside className="border-r border-[var(--border)] bg-[var(--surface-alt)] p-4 flex flex-col text-sm overflow-y-auto">
-        <Link
-          href="/app"
-          className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)] mb-3"
-        >
-          ← All projects
-        </Link>
         <div className="font-semibold text-[var(--text)] truncate">
           {project?.name ?? "…"}
         </div>
         <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] mt-0.5">
-          {datasets.length} dataset{datasets.length === 1 ? "" : "s"}
+          Project workspace
         </div>
 
         <button
@@ -192,12 +212,12 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
           disabled={busy}
           className="btn btn-primary text-xs mt-4 justify-center"
         >
-          + New chat
+          + New chat in this project
         </button>
 
         <div className="mt-5">
           <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
-            Chats
+            Chats in this project
           </div>
           {sessions === null ? (
             <div className="text-[var(--text-muted)] text-xs">Loading…</div>
@@ -246,7 +266,9 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
                         <button
                           aria-label="Rename"
                           className={`opacity-0 group-hover:opacity-100 text-[10px] px-1 rounded ${
-                            active ? "text-white/80 hover:text-white" : "text-[var(--text-muted)] hover:text-[var(--accent)]"
+                            active
+                              ? "text-white/80 hover:text-white"
+                              : "text-[var(--text-muted)] hover:text-[var(--accent)]"
                           }`}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -259,7 +281,9 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
                         <button
                           aria-label="Delete"
                           className={`opacity-0 group-hover:opacity-100 text-[10px] px-1 rounded ${
-                            active ? "text-white/80 hover:text-white" : "text-[var(--text-muted)] hover:text-red-500"
+                            active
+                              ? "text-white/80 hover:text-white"
+                              : "text-[var(--text-muted)] hover:text-red-500"
                           }`}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -313,21 +337,6 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
             + Upload more
           </Link>
         </div>
-
-        <div className="mt-6">
-          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
-            Tools
-          </div>
-          <ul className="space-y-1 text-xs">
-            <li><Link href="/app/clean" className="block px-2 py-1 rounded hover:bg-[var(--surface)]">Clean</Link></li>
-            <li><Link href="/app/transform" className="block px-2 py-1 rounded hover:bg-[var(--surface)]">Transform</Link></li>
-            <li><Link href="/app/statistics" className="block px-2 py-1 rounded hover:bg-[var(--surface)]">Statistics</Link></li>
-            <li><Link href="/app/visualize" className="block px-2 py-1 rounded hover:bg-[var(--surface)]">Visualize</Link></li>
-            <li><Link href="/app/predict" className="block px-2 py-1 rounded hover:bg-[var(--surface)]">Predict</Link></li>
-            <li><Link href="/app/model" className="block px-2 py-1 rounded hover:bg-[var(--surface)]">Model</Link></li>
-            <li><Link href="/app/report" className="block px-2 py-1 rounded hover:bg-[var(--surface)]">Report</Link></li>
-          </ul>
-        </div>
       </aside>
 
       {/* Main pane */}
@@ -355,6 +364,10 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
               sessionId={activeSessionId}
               onTurnComplete={onTurnComplete}
               hasData={datasets.length > 0}
+              initialPrompt={
+                requestedSessionId === activeSessionId ? initialPrompt : null
+              }
+              onInitialPromptConsumed={onInitialPromptConsumed}
             />
           ) : (
             <div className="card text-sm text-[var(--text-muted)]">

@@ -15,6 +15,10 @@ from .auth import get_current_user, get_db_session
 
 router = APIRouter(tags=["chats"])
 
+# Name used for the auto-managed "Quick Chats" project that hosts ad-hoc
+# conversations started from the landing page (no explicit project picked).
+QUICK_PROJECT_NAME = "Quick Chats"
+
 
 class ChatSessionCreate(BaseModel):
     title: str | None = Field(default=None, max_length=255)
@@ -112,3 +116,91 @@ async def delete_chat(
     if not ok:
         raise HTTPException(404, "Chat not found")
     return {"ok": True}
+
+
+# ----------------------------------------------------------------------
+# Global recent + quick-start
+# ----------------------------------------------------------------------
+
+@router.get("/api/chats/recent")
+async def list_recent_chats(
+    limit: int = 12,
+    user=Depends(get_current_user),
+    db=Depends(get_db_session),
+):
+    """Recent chat sessions across **all** the user's projects.
+
+    Powers the global "Chats" list in the sidebar so users can resume
+    any conversation without first picking the right project.
+    """
+    rows = (
+        db.query(models.ChatSession, models.Project.name)
+        .join(models.Project, models.Project.id == models.ChatSession.project_id)
+        .filter(
+            models.ChatSession.user_id == user.id,
+            # Defence-in-depth: also constrain via the joined project.
+            models.Project.user_id == user.id,
+        )
+        .order_by(models.ChatSession.updated_at.desc(),
+                  models.ChatSession.id.desc())
+        .limit(max(1, min(limit, 50)))
+        .all()
+    )
+    out = []
+    for s, project_name in rows:
+        d = _session_view(s)
+        d["project_name"] = project_name
+        out.append(d)
+    return out
+
+
+@router.post("/api/chats/quick")
+async def quick_start_chat(
+    req: ChatSessionCreate,
+    user=Depends(get_current_user),
+    db=Depends(get_db_session),
+):
+    """Find-or-create the user's "Quick Chats" project, then create a
+    fresh session inside it. Used by the home-screen chat input so the
+    user can just start typing without picking a project first.
+
+    Race-safe: two concurrent quick-start requests from the same user
+    can both miss the find step; catch the IntegrityError raised by the
+    partial unique index and re-fetch, so we never leave duplicate
+    "Quick Chats" projects on a user.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    def _find():
+        return (
+            db.query(models.Project)
+            .filter(
+                models.Project.user_id == user.id,
+                models.Project.name == QUICK_PROJECT_NAME,
+            )
+            .first()
+        )
+
+    proj = _find()
+    if proj is None:
+        try:
+            proj = models.create_project(db, user.id, QUICK_PROJECT_NAME, None)
+        except IntegrityError:
+            db.rollback()
+            proj = _find()
+        if proj is None:
+            raise HTTPException(500, "Could not create quick-chats project")
+    sess = models.create_chat_session(
+        db,
+        project_id=proj.id,
+        user_id=user.id,
+        title=(req.title or "New chat").strip() or "New chat",
+    )
+    if not sess:
+        raise HTTPException(500, "Could not create chat")
+    return {
+        "project_id": proj.id,
+        "project_name": proj.name,
+        "session_id": sess.id,
+        "title": sess.title,
+    }

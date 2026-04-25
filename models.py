@@ -296,6 +296,10 @@ def init_db():
     _migrations.extend([
         "ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS session_id INTEGER REFERENCES chat_sessions(id)",
         "CREATE INDEX IF NOT EXISTS ix_chat_history_session_id ON chat_history(session_id)",
+        # Make the per-user "Quick Chats" auto-project idempotent under
+        # concurrent landing-page submissions.
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_projects_user_quick_chats "
+        "ON projects (user_id) WHERE name = 'Quick Chats'",
     ])
     with engine.begin() as conn:
         for stmt in _migrations:

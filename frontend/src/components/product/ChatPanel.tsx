@@ -21,6 +21,12 @@ type ChatPanelProps = {
   onTurnComplete?: () => void;
   /** Hint used to set a friendlier empty-state message. */
   hasData?: boolean;
+  /** Optional first message to auto-send once history finishes loading
+   * and is empty. Used by the home-screen quick-start flow. */
+  initialPrompt?: string | null;
+  /** Called once after the initialPrompt is consumed so the parent can
+   * clear it from the URL (so reloads don't resend). */
+  onInitialPromptConsumed?: () => void;
 };
 
 const GREETING_NEW =
@@ -28,13 +34,21 @@ const GREETING_NEW =
 const GREETING_NO_DATA =
   "This project doesn't have any data yet. Upload a CSV or Excel file from the sidebar and I'll start analysing it.";
 
-export function ChatPanel({ sessionId = null, onTurnComplete, hasData = true }: ChatPanelProps) {
+export function ChatPanel({
+  sessionId = null,
+  onTurnComplete,
+  hasData = true,
+  initialPrompt = null,
+  onInitialPromptConsumed,
+}: ChatPanelProps) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [authed, setAuthed] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(!!sessionId);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const consumedPromptRef = useRef<string | null>(null);
+  const sendRef = useRef<((text?: string) => Promise<void>) | null>(null);
 
   useEffect(() => {
     setAuthed(!!getToken());
@@ -94,12 +108,17 @@ export function ChatPanel({ sessionId = null, onTurnComplete, hasData = true }: 
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  async function send() {
-    if (!input.trim() || streaming) return;
-    const userMsg: Msg = { role: "user", content: input };
-    const nextHistory = [...messages, userMsg];
+  async function send(forceText?: string) {
+    const text = (forceText ?? input).trim();
+    if (!text || streaming) return;
+    const userMsg: Msg = { role: "user", content: text };
+    // Replace the synthetic greeting (if it's the only assistant turn so
+    // far) so the auto-sent prompt looks natural in the transcript.
+    const baseHistory =
+      messages.length === 1 && messages[0].role === "assistant" ? [] : messages;
+    const nextHistory = [...baseHistory, userMsg];
     setMessages([...nextHistory, { role: "assistant", content: "" }]);
-    setInput("");
+    if (forceText == null) setInput("");
     setStreaming(true);
     let acc = "";
     try {
@@ -135,6 +154,23 @@ export function ChatPanel({ sessionId = null, onTurnComplete, hasData = true }: 
       setStreaming(false);
     }
   }
+  sendRef.current = send;
+
+  // Auto-send the initial prompt carried over from the landing page.
+  useEffect(() => {
+    if (loadingHistory) return;
+    if (!initialPrompt) return;
+    if (consumedPromptRef.current === initialPrompt) return;
+    if (streaming) return;
+    // Only auto-send into a fresh thread (greeting only).
+    const isFresh =
+      messages.length === 0 ||
+      (messages.length === 1 && messages[0].role === "assistant");
+    if (!isFresh) return;
+    consumedPromptRef.current = initialPrompt;
+    onInitialPromptConsumed?.();
+    sendRef.current?.(initialPrompt);
+  }, [loadingHistory, initialPrompt, messages, streaming, onInitialPromptConsumed]);
 
   return (
     <div className="card flex flex-col h-[70vh]">
@@ -165,7 +201,7 @@ export function ChatPanel({ sessionId = null, onTurnComplete, hasData = true }: 
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          send();
+          void send();
         }}
         className="mt-3 flex gap-2"
       >
