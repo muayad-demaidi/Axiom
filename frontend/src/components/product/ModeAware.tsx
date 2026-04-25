@@ -168,6 +168,62 @@ export function TechnicalDetails({
 }
 
 /**
+ * Mode-aware "you don't have an active dataset" notice for the tool
+ * pages (Clean / Transform / Visualize / Predict / Statistics / Model).
+ *
+ * - Guided Mode: a warm empty-state card that explains what's missing
+ *   and offers a single "Upload a dataset" CTA that opens the upload
+ *   flow. Matches the friendlier outcome-card style of Guided.
+ * - Expert Mode: keeps the original terse one-line warning so power
+ *   users aren't slowed down by a big card.
+ */
+export function MissingDatasetNotice({
+  projectId,
+  toolName,
+  guidedHint,
+}: {
+  projectId?: number | null;
+  /** Short tool name used in the guided copy, e.g. "cleaning". */
+  toolName?: string;
+  /** Optional override for the guided body copy. */
+  guidedHint?: string;
+}) {
+  const { mode } = useMode(projectId ?? null);
+  const router = useRouter();
+  if (mode === "guided") {
+    return (
+      <div className="card mt-6 p-6 text-center">
+        <div
+          aria-hidden
+          className="mx-auto h-12 w-12 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] flex items-center justify-center mb-3 text-xl"
+        >
+          ↑
+        </div>
+        <div className="font-semibold text-base">No dataset yet</div>
+        <p className="text-sm text-[var(--text-muted)] mt-1 max-w-md mx-auto">
+          {guidedHint ??
+            `Upload a CSV or Excel file to get started${
+              toolName ? ` with ${toolName}` : ""
+            }.`}
+        </p>
+        <button
+          type="button"
+          onClick={() => router.push("/app/upload")}
+          className="btn btn-primary text-sm mt-4"
+        >
+          Upload a dataset
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="card mt-6 text-sm text-red-600">
+      No active dataset — upload one first.
+    </div>
+  );
+}
+
+/**
  * Outcome-first action card used on Guided tool screens. One headline,
  * one short description, and one primary action button.
  */

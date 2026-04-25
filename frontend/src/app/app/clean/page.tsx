@@ -7,6 +7,7 @@ import { useMode } from "@/lib/modeContext";
 import {
   AdvancedExpander,
   GuidedActionCard,
+  MissingDatasetNotice,
   ModeAwareHeading,
   TechnicalDetails,
 } from "@/components/product/ModeAware";
@@ -47,14 +48,16 @@ export default function CleanPage() {
   const [result, setResult] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [hasDataset, setHasDataset] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!getToken()) router.push("/login");
+    if (!getToken()) { router.push("/login"); return; }
+    setHasDataset(getActiveDatasetId() != null);
   }, [router]);
 
   async function run(overrideTasks?: Record<string, boolean>) {
     const id = getActiveDatasetId();
-    if (!id) { setError("No active dataset."); return; }
+    if (!id) { setHasDataset(false); return; }
     const enabled = overrideTasks ?? tasks;
     setBusy(true); setError(null);
     try {
@@ -108,7 +111,13 @@ export default function CleanPage() {
         expertSubtitle="Toggle individual cleaning steps and run them against the active dataset."
       />
 
-      {mode === "guided" ? (
+      {hasDataset === false ? (
+        <MissingDatasetNotice
+          projectId={projectId}
+          toolName="cleaning"
+          guidedHint="Upload a CSV or Excel file and we'll show you the one-click clean-ups for it."
+        />
+      ) : mode === "guided" ? (
         <>
           <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
             {Object.entries(PRESETS).map(([key, p]) => (

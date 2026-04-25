@@ -13,6 +13,7 @@ import { useMode } from "@/lib/modeContext";
 import {
   AdvancedExpander,
   GuidedActionCard,
+  MissingDatasetNotice,
   ModeAwareHeading,
   TechnicalDetails,
 } from "@/components/product/ModeAware";
@@ -172,6 +173,7 @@ export default function VisualizePage() {
   const [data, setData] = useState<VisualizeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [hasDataset, setHasDataset] = useState<boolean | null>(null);
 
   const xDisabled = NO_COLUMN_CHARTS.includes(chart);
   const yDisabled = SINGLE_COLUMN_CHARTS.includes(chart) || NO_COLUMN_CHARTS.includes(chart) || chart === "box";
@@ -179,7 +181,8 @@ export default function VisualizePage() {
   useEffect(() => {
     if (!getToken()) { router.push("/login"); return; }
     const id = getActiveDatasetId();
-    if (!id) { setError("No active dataset — upload one first."); return; }
+    if (!id) { setHasDataset(false); return; }
+    setHasDataset(true);
     api<AxiomDataset>(`/api/datasets/${id}`)
       .then((d) => {
         const cols = extractColumns(d);
@@ -339,7 +342,13 @@ export default function VisualizePage() {
         expertSubtitle="Bar, line, scatter, pie, histogram, box plot and correlation heatmap — aggregated server-side from the active dataset."
       />
 
-      {mode === "guided" ? (
+      {hasDataset === false ? (
+        <MissingDatasetNotice
+          projectId={projectId}
+          toolName="charts"
+          guidedHint="Upload a CSV or Excel file and we'll let you build a chart from it."
+        />
+      ) : mode === "guided" ? (
         <>
           <div className="card mt-6">
             <label className="text-sm block">

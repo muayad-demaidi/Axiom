@@ -5,6 +5,7 @@ import { api, getToken } from "@/lib/api";
 import { getActiveDatasetId, getActiveProjectId } from "@/lib/projectContext";
 import { useMode } from "@/lib/modeContext";
 import {
+  MissingDatasetNotice,
   ModeAwareHeading,
   TechnicalDetails,
 } from "@/components/product/ModeAware";
@@ -84,11 +85,13 @@ export default function StatisticsPage() {
   const [report, setReport] = useState<StatsReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [hasDataset, setHasDataset] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!getToken()) { router.push("/login"); return; }
     const id = getActiveDatasetId();
-    if (!id) { setError("No active dataset — upload one first."); return; }
+    if (!id) { setHasDataset(false); return; }
+    setHasDataset(true);
     setBusy(true);
     api<{ report: StatsReport }>("/api/statistics", { method: "POST", json: { dataset_id: id } })
       .then((r) => setReport(r.report))
@@ -106,6 +109,13 @@ export default function StatisticsPage() {
         guidedSubtitle="A plain-language overview of size, shape and gaps. Open the technical view for the full report."
         expertSubtitle="Computed via data_analyzer.generate_summary_report against the active dataset."
       />
+      {hasDataset === false && (
+        <MissingDatasetNotice
+          projectId={projectId}
+          toolName="statistics"
+          guidedHint="Upload a CSV or Excel file and we'll summarize what's in it."
+        />
+      )}
       {busy && <div className="card mt-6 text-sm text-[var(--text-muted)]">Computing…</div>}
       {error && <div className="card mt-6 text-sm text-red-600">{error}</div>}
       {report && (

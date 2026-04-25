@@ -9,6 +9,7 @@ import { useMode } from "@/lib/modeContext";
 import {
   AdvancedExpander,
   GuidedActionCard,
+  MissingDatasetNotice,
   ModeAwareHeading,
   TechnicalDetails,
 } from "@/components/product/ModeAware";
@@ -37,11 +38,13 @@ export default function TransformPage() {
   const [busy, setBusy] = useState(false);
   // Guided mode targets one column at a time for the quick actions.
   const [guidedColumn, setGuidedColumn] = useState<string>("");
+  const [hasDataset, setHasDataset] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!getToken()) { router.push("/login"); return; }
     const id = getActiveDatasetId();
-    if (!id) { setError("No active dataset."); return; }
+    if (!id) { setHasDataset(false); return; }
+    setHasDataset(true);
     api<AxiomDataset>(`/api/datasets/${id}`)
       .then((d) => {
         const cols = extractColumns(d);
@@ -142,7 +145,13 @@ export default function TransformPage() {
         expertSubtitle="Build a chain of operations and apply them to the active dataset."
       />
 
-      {mode === "guided" ? (
+      {hasDataset === false ? (
+        <MissingDatasetNotice
+          projectId={projectId}
+          toolName="transforms"
+          guidedHint="Upload a CSV or Excel file and we'll list its columns so you can transform them."
+        />
+      ) : mode === "guided" ? (
         <>
           <div className="card mt-6">
             <label className="text-sm block">

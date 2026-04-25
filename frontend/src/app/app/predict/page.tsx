@@ -8,6 +8,7 @@ import { getActiveDatasetId, getActiveProjectId } from "@/lib/projectContext";
 import { useMode } from "@/lib/modeContext";
 import {
   AdvancedExpander,
+  MissingDatasetNotice,
   ModeAwareHeading,
   TechnicalDetails,
 } from "@/components/product/ModeAware";
@@ -69,11 +70,13 @@ export default function PredictPage() {
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [hasDataset, setHasDataset] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!getToken()) { router.push("/login"); return; }
     const id = getActiveDatasetId();
-    if (!id) { setError("No active dataset — upload one first."); return; }
+    if (!id) { setHasDataset(false); return; }
+    setHasDataset(true);
     api<AxiomDataset>(`/api/datasets/${id}`)
       .then((d) => {
         const cols = extractColumns(d);
@@ -129,7 +132,13 @@ export default function PredictPage() {
         expertSubtitle="Short-horizon forecast on a numeric column via predictions.simple_forecast."
       />
 
-      {mode === "guided" ? (
+      {hasDataset === false ? (
+        <MissingDatasetNotice
+          projectId={projectId}
+          toolName="forecasts"
+          guidedHint="Upload a CSV or Excel file with a numeric column and we'll forecast it for you."
+        />
+      ) : mode === "guided" ? (
         <>
           <div className="card mt-6 space-y-3">
             <label className="block text-sm">

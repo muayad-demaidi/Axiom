@@ -9,6 +9,7 @@ import { useMode } from "@/lib/modeContext";
 import {
   AdvancedExpander,
   GuidedActionCard,
+  MissingDatasetNotice,
   ModeAwareHeading,
   TechnicalDetails,
 } from "@/components/product/ModeAware";
@@ -39,11 +40,13 @@ export default function ModelPage() {
   const [result, setResult] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [hasDataset, setHasDataset] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!getToken()) { router.push("/login"); return; }
     const id = getActiveDatasetId();
-    if (!id) { setError("No active dataset."); return; }
+    if (!id) { setHasDataset(false); return; }
+    setHasDataset(true);
     api<AxiomDataset>(`/api/datasets/${id}`)
       .then((d) => {
         const cols = extractColumns(d);
@@ -112,7 +115,13 @@ export default function ModelPage() {
         expertSubtitle="K-Means clustering and Random Forest classification served from the active dataset."
       />
 
-      {mode === "guided" ? (
+      {hasDataset === false ? (
+        <MissingDatasetNotice
+          projectId={projectId}
+          toolName="modeling"
+          guidedHint="Upload a CSV or Excel file and we'll find groups and patterns inside it."
+        />
+      ) : mode === "guided" ? (
         <>
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
             <GuidedActionCard
