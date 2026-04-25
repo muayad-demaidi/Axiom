@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ProductSidebar } from "@/components/product/ProductSidebar";
+import { UserMenu } from "@/components/UserMenu";
 
 export const metadata = { title: "AXIOM — Workspace" };
 
@@ -29,6 +30,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
             <span className="hidden sm:inline">60-day trial active</span>
             <Link href="/" className="btn btn-ghost text-xs">Marketing site</Link>
+            <UserMenu variant="app" />
           </div>
         </div>
       </header>

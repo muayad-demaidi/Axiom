@@ -1,7 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
-import { NAV_LINKS, SITE } from "@/lib/site";
+import { NAV_LINKS } from "@/lib/site";
 import { ThemeToggle } from "./ThemeToggle";
+import { UserMenu } from "./UserMenu";
 
 export function Header({ current = "" }: { current?: string }) {
   return (
@@ -39,8 +40,7 @@ export function Header({ current = "" }: { current?: string }) {
         </nav>
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Link href="/login" className="btn btn-ghost hidden sm:inline-flex">Sign In</Link>
-          <Link href="/signup" className="btn btn-primary">Launch App →</Link>
+          <UserMenu variant="marketing" />
         </div>
       </div>
     </header>
