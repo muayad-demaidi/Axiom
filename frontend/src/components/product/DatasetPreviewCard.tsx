@@ -97,7 +97,7 @@ export function DatasetPreviewCard({
 }: {
   datasetId: number;
   onAskQuestion: (q: string) => void;
-  onAskAboutCell?: (column: string, value: unknown) => void;
+  onAskAboutCell?: (rowIndex: number, column: string, value: unknown) => void;
 }) {
   const [data, setData] = useState<AutoProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
