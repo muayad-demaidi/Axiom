@@ -4,7 +4,14 @@ import { useRouter } from "next/navigation";
 import { api, getToken } from "@/lib/api";
 import type { AxiomDataset, DatasetSummaryColumn } from "@/lib/types";
 import { errMessage } from "@/lib/types";
-import { getActiveDatasetId } from "@/lib/projectContext";
+import { getActiveDatasetId, getActiveProjectId } from "@/lib/projectContext";
+import { useMode } from "@/lib/modeContext";
+import {
+  AdvancedExpander,
+  GuidedActionCard,
+  ModeAwareHeading,
+  TechnicalDetails,
+} from "@/components/product/ModeAware";
 
 type Method = "kmeans" | "randomforest";
 
@@ -23,6 +30,8 @@ function extractColumns(d: AxiomDataset): string[] {
 
 export default function ModelPage() {
   const router = useRouter();
+  const projectId = typeof window !== "undefined" ? getActiveProjectId() : null;
+  const { mode } = useMode(projectId);
   const [columns, setColumns] = useState<string[]>([]);
   const [method, setMethod] = useState<Method>("kmeans");
   const [k, setK] = useState(3);
@@ -44,53 +53,122 @@ export default function ModelPage() {
       .catch((e: unknown) => setError(errMessage(e)));
   }, [router]);
 
-  async function run() {
+  async function runWith(body: Omit<ModelRequestBody, "dataset_id">) {
     const id = getActiveDatasetId();
     if (!id) return;
     setBusy(true); setError(null);
     try {
-      const body: ModelRequestBody = { dataset_id: id, method };
-      if (method === "kmeans") body.k = k;
-      if (method === "randomforest") body.target = target;
-      const r = await api("/api/model", { method: "POST", json: body as unknown as Record<string, unknown> });
+      const r = await api("/api/model", { method: "POST", json: { dataset_id: id, ...body } as unknown as Record<string, unknown> });
       setResult(r);
     } catch (e: unknown) { setError(errMessage(e)); }
     finally { setBusy(false); }
   }
 
-  return (
-    <div className="max-w-3xl">
-      <span className="eyebrow">Analysis · Model</span>
-      <h1 className="text-2xl font-bold mt-2">ML &amp; clustering</h1>
-      <div className="card mt-6 space-y-3">
+  async function run() {
+    const body: Omit<ModelRequestBody, "dataset_id"> = { method };
+    if (method === "kmeans") body.k = k;
+    if (method === "randomforest") body.target = target;
+    await runWith(body);
+  }
+
+  const expertControls = (
+    <div className="card mt-6 space-y-3">
+      <label className="block text-sm">
+        Method
+        <select value={method} onChange={(e) => setMethod(e.target.value as Method)}
+          className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm">
+          <option value="kmeans">K-Means clustering</option>
+          <option value="randomforest">Random Forest</option>
+        </select>
+      </label>
+      {method === "kmeans" ? (
         <label className="block text-sm">
-          Method
-          <select value={method} onChange={(e) => setMethod(e.target.value as Method)}
+          k (clusters)
+          <input type="number" min={2} max={10} value={k}
+            onChange={(e) => setK(Number(e.target.value))}
+            className="block mt-1 w-32 px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm" />
+        </label>
+      ) : (
+        <label className="block text-sm">
+          Target column
+          <select value={target} onChange={(e) => setTarget(e.target.value)}
             className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm">
-            <option value="kmeans">K-Means clustering</option>
-            <option value="randomforest">Random Forest</option>
+            {columns.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </label>
-        {method === "kmeans" ? (
-          <label className="block text-sm">
-            k (clusters)
-            <input type="number" min={2} max={10} value={k}
-              onChange={(e) => setK(Number(e.target.value))}
-              className="block mt-1 w-32 px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm" />
-          </label>
-        ) : (
-          <label className="block text-sm">
-            Target column
-            <select value={target} onChange={(e) => setTarget(e.target.value)}
-              className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm">
-              {columns.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </label>
-        )}
-        <button className="btn btn-primary" onClick={run} disabled={busy}>{busy ? "Running…" : "Run model"}</button>
-      </div>
+      )}
+      <button className="btn btn-primary" onClick={run} disabled={busy}>{busy ? "Running…" : "Run model"}</button>
+    </div>
+  );
+
+  return (
+    <div className="max-w-3xl">
+      <ModeAwareHeading
+        projectId={projectId}
+        eyebrow="Analysis · Model"
+        guidedTitle="Find groups & patterns"
+        expertTitle="ML & clustering"
+        guidedSubtitle="Pick what you'd like to learn about your data. Open the advanced view to choose the algorithm yourself."
+        expertSubtitle="K-Means clustering and Random Forest classification served from the active dataset."
+      />
+
+      {mode === "guided" ? (
+        <>
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <GuidedActionCard
+              title="Group similar rows together"
+              description="Auto-discover 3 natural segments in the data — useful for customer or product clustering."
+              cta="Find 3 groups"
+              busy={busy}
+              onAction={() => runWith({ method: "kmeans", k: 3 })}
+            />
+            <GuidedActionCard
+              title="Find a finer breakdown"
+              description="Same idea, but split into 5 segments to surface smaller pockets."
+              cta="Find 5 groups"
+              busy={busy}
+              onAction={() => runWith({ method: "kmeans", k: 5 })}
+            />
+            <GuidedActionCard
+              title="Predict a column"
+              description="Train a Random Forest to predict the chosen column from the rest of the data."
+              cta="Train predictor"
+              busy={busy}
+              disabled={!target}
+              onAction={() => runWith({ method: "randomforest", target })}
+            />
+          </div>
+          {target && (
+            <div className="text-xs text-[var(--text-muted)] mt-2">
+              The predictor will model <strong>{target}</strong>. Pick a different target in the advanced view.
+            </div>
+          )}
+          <AdvancedExpander projectId={projectId} hint="Choose method, k and target manually">
+            {expertControls}
+          </AdvancedExpander>
+        </>
+      ) : (
+        expertControls
+      )}
+
       {error && <div className="text-sm text-red-600 mt-3">{error}</div>}
-      {result !== null && <pre className="card mt-4 text-xs overflow-auto max-h-[50vh]">{JSON.stringify(result, null, 2)}</pre>}
+      {result !== null && (
+        <div className="card mt-4">
+          {mode === "guided" ? (
+            <>
+              <div className="font-semibold text-sm">Model trained.</div>
+              <p className="text-xs text-[var(--text-muted)] mt-1">
+                Open the technical view for cluster centroids, feature importances and metrics.
+              </p>
+              <TechnicalDetails projectId={projectId}>
+                <pre className="text-[11px] overflow-auto max-h-[50vh] whitespace-pre-wrap">{JSON.stringify(result, null, 2)}</pre>
+              </TechnicalDetails>
+            </>
+          ) : (
+            <pre className="text-xs overflow-auto max-h-[50vh] whitespace-pre-wrap">{JSON.stringify(result, null, 2)}</pre>
+          )}
+        </div>
+      )}
     </div>
   );
 }

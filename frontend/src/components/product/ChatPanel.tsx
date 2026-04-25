@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, getToken, streamPostNDJSON } from "@/lib/api";
 import { errMessage } from "@/lib/types";
 import { getActiveDatasetId, getActiveProjectId } from "@/lib/projectContext";
+import { useMode } from "@/lib/modeContext";
 import { ChartRenderer, type ChartPayload } from "./Charts";
 import { PredictionCard, type PredictionResult } from "./PredictionCard";
 import type { Artifact, PendingTool } from "./ArtifactDrawer";
@@ -14,6 +15,34 @@ type ToolEvent =
 type Msg =
   | { role: "user"; content: string }
   | { role: "assistant"; content: string; tools?: ToolEvent[] };
+
+// Inline AI suggestion chips by mode — these render only on a fresh
+// thread (greeting only) and disappear once a real exchange starts.
+const GUIDED_CHIPS = [
+  "Show me a quick summary",
+  "What stands out in this data?",
+  "Make a chart of the most important trend",
+];
+const EXPERT_CHIPS = [
+  "Profile dtypes & null ratios per column",
+  "Pearson correlation matrix on numeric cols",
+  "Train baseline model + report cross-val metrics",
+];
+
+// Strip the [switch_to_expert] sentinel from a streamed assistant
+// response and return both the cleaned text and a flag the bubble can
+// use to render the inline switch CTA. We accept the marker on its own
+// line or trailing the response.
+function parseSwitchHandoff(text: string): { body: string; cta: string | null } {
+  const re = /\n?\[switch_to_expert\][^\n]*$/i;
+  const match = text.match(re);
+  if (!match) return { body: text, cta: null };
+  const cta = match[0].replace(/^\n?\[switch_to_expert\]\s*/i, "").trim();
+  return {
+    body: text.slice(0, match.index).trimEnd(),
+    cta: cta || "Switch to Expert Mode for the full breakdown",
+  };
+}
 
 type StoredMessage = {
   id: number;
@@ -37,6 +66,9 @@ type ChatPanelProps = {
   /** Notifies the parent each time a tool finishes so it can refresh
    * the artifact list and clear the skeleton. */
   onToolFinished?: (callId: string, artifacts: Artifact[]) => void;
+  /** When set, the chat is scoped to a project and the mode toggle on
+   * the inline "switch" CTA edits the project mode override. */
+  projectId?: number | null;
 };
 
 const GREETING_NEW =
@@ -53,6 +85,7 @@ export function ChatPanel({
   onInitialPromptConsumed,
   onToolStarted,
   onToolFinished,
+  projectId = null,
 }: ChatPanelProps) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -71,6 +104,10 @@ export function ChatPanel({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const consumedPromptRef = useRef<string | null>(null);
   const sendRef = useRef<((text?: string) => Promise<void>) | null>(null);
+  // The toggle inside an actual project edits that project's mode; on
+  // the home page (no projectId) it edits the user-level preference.
+  const { mode, setMode } = useMode(projectId ?? null);
+  const chips = useMemo(() => (mode === "expert" ? EXPERT_CHIPS : GUIDED_CHIPS), [mode]);
 
   useEffect(() => {
     setAuthed(!!getToken());
@@ -153,6 +190,7 @@ export function ChatPanel({
           session_id: sessionId,
           dataset_id: sessionId ? null : getActiveDatasetId(),
           project_id: sessionId ? null : getActiveProjectId(),
+          assistant_mode: mode,
         },
         (ev) => {
           const t = String(ev.type || "");
@@ -261,9 +299,52 @@ export function ChatPanel({
         {loadingHistory ? (
           <div className="text-sm text-[var(--text-muted)]">Loading conversation…</div>
         ) : (
-          messages.map((m, i) => (
-            <MessageBubble key={i} msg={m} streaming={streaming && i === messages.length - 1} />
-          ))
+          <>
+            {messages.map((m, i) => {
+              const isLast = i === messages.length - 1;
+              if (m.role === "assistant") {
+                // Strip the [switch_to_expert] sentinel so the bubble
+                // renders clean text and we can surface the inline CTA
+                // when the user is currently in Guided mode.
+                const { body, cta } = parseSwitchHandoff(m.content);
+                const cleaned: Msg = { ...m, content: body };
+                return (
+                  <div key={i}>
+                    <MessageBubble msg={cleaned} streaming={streaming && isLast} />
+                    {cta && mode === "guided" && (
+                      <div className="mt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => void setMode("expert")}
+                          className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-colors"
+                        >
+                          <span aria-hidden>↗</span> {cta}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              return <MessageBubble key={i} msg={m} streaming={streaming && isLast} />;
+            })}
+            {/* Inline mode-aware suggestion chips on a fresh thread. */}
+            {!streaming &&
+              messages.length <= 1 &&
+              messages[0]?.role !== "user" && (
+                <div className="pt-1 flex flex-wrap gap-1.5">
+                  {chips.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => void send(c)}
+                      className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-[var(--accent)] rounded-full px-2.5 py-1 transition-colors"
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+          </>
         )}
       </div>
       <ChatComposer
@@ -361,8 +442,12 @@ function ChatComposer({
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask anything about your data… · اسأل عن بياناتك"
-          className="px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
+          placeholder={
+            mode === "expert"
+              ? "Describe the analysis (algorithm, params, columns)…"
+              : "Ask anything about your data… · اسأل عن بياناتك"
+          }
+          className="flex-1 px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
           disabled={loadingHistory}
         />
         {uploadErr && (

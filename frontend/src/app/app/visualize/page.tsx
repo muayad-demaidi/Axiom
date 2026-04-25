@@ -8,7 +8,14 @@ import {
 import { api, getToken } from "@/lib/api";
 import type { AxiomDataset, DatasetSummaryColumn } from "@/lib/types";
 import { errMessage } from "@/lib/types";
-import { getActiveDatasetId } from "@/lib/projectContext";
+import { getActiveDatasetId, getActiveProjectId } from "@/lib/projectContext";
+import { useMode } from "@/lib/modeContext";
+import {
+  AdvancedExpander,
+  GuidedActionCard,
+  ModeAwareHeading,
+  TechnicalDetails,
+} from "@/components/product/ModeAware";
 
 type ChartKind = "bar" | "line" | "scatter" | "pie" | "histogram" | "box" | "heatmap";
 
@@ -156,6 +163,8 @@ function Heatmap({ columns, matrix }: { columns: string[]; matrix: number[][] })
 
 export default function VisualizePage() {
   const router = useRouter();
+  const projectId = typeof window !== "undefined" ? getActiveProjectId() : null;
+  const { mode } = useMode(projectId);
   const [columns, setColumns] = useState<string[]>([]);
   const [chart, setChart] = useState<ChartKind>("bar");
   const [x, setX] = useState("");
@@ -181,20 +190,19 @@ export default function VisualizePage() {
       .catch((e: unknown) => setError(errMessage(e)));
   }, [router]);
 
-  async function run() {
+  async function run(override?: { chart: ChartKind; x?: string | null; y?: string | null }) {
     const id = getActiveDatasetId();
     if (!id) return;
-    if (!xDisabled && !x) return;
+    const useChart = override?.chart ?? chart;
+    const useX = override ? (override.x ?? null) : (xDisabled ? null : x || null);
+    const useY = override ? (override.y ?? null) : (yDisabled ? null : y || null);
+    if (!override && !xDisabled && !x) return;
     setBusy(true); setError(null); setData(null);
+    if (override) setChart(override.chart);
     try {
       const r = await api<VisualizeResponse>("/api/visualize", {
         method: "POST",
-        json: {
-          dataset_id: id,
-          chart,
-          x: xDisabled ? null : x || null,
-          y: yDisabled ? null : y || null,
-        },
+        json: { dataset_id: id, chart: useChart, x: useX, y: useY },
       });
       setData(r);
     } catch (e: unknown) { setError(errMessage(e)); }
@@ -280,14 +288,8 @@ export default function VisualizePage() {
       ? "Heatmap uses every numeric column"
       : "";
 
-  return (
-    <div className="max-w-4xl">
-      <span className="eyebrow">Analysis · Visualize</span>
-      <h1 className="text-2xl font-bold mt-2">Visualizations</h1>
-      <p className="text-[var(--text-muted)] mt-2">
-        Bar, line, scatter, pie, histogram, box plot, and correlation heatmap — aggregated server-side
-        from the active dataset.
-      </p>
+  const expertControls = (
+    <>
       <div className="card mt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
         <label className="text-sm">
           Chart
@@ -319,12 +321,86 @@ export default function VisualizePage() {
       </div>
       {xHelp && <p className="text-xs text-[var(--text-muted)] mt-2">{xHelp}</p>}
       <div className="mt-4">
-        <button className="btn btn-primary" onClick={run} disabled={busy || (!xDisabled && !x)}>
+        <button className="btn btn-primary" onClick={() => run()} disabled={busy || (!xDisabled && !x)}>
           {busy ? "Rendering…" : "Render chart"}
         </button>
       </div>
+    </>
+  );
+
+  return (
+    <div className="max-w-4xl">
+      <ModeAwareHeading
+        projectId={projectId}
+        eyebrow="Analysis · Visualize"
+        guidedTitle="Show me a chart"
+        expertTitle="Visualizations"
+        guidedSubtitle="Pick what you want to see. Open the advanced view to choose chart type, x and y columns yourself."
+        expertSubtitle="Bar, line, scatter, pie, histogram, box plot and correlation heatmap — aggregated server-side from the active dataset."
+      />
+
+      {mode === "guided" ? (
+        <>
+          <div className="card mt-6">
+            <label className="text-sm block">
+              Column to visualize
+              <select value={x} onChange={(e) => setX(e.target.value)}
+                className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm">
+                {columns.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <GuidedActionCard
+              title="Show distribution"
+              description="A histogram of how this column is spread out — good for spotting skew or outliers."
+              cta="Show histogram"
+              busy={busy}
+              disabled={!x}
+              onAction={() => run({ chart: "histogram", x })}
+            />
+            <GuidedActionCard
+              title="Show share of total"
+              description="A pie chart of the categories in this column."
+              cta="Show pie chart"
+              busy={busy}
+              disabled={!x}
+              onAction={() => run({ chart: "pie", x })}
+            />
+            <GuidedActionCard
+              title="Find what moves together"
+              description="A correlation heatmap across every numeric column. No column needed."
+              cta="Show heatmap"
+              busy={busy}
+              onAction={() => run({ chart: "heatmap", x: null, y: null })}
+            />
+            <GuidedActionCard
+              title="Spot outliers"
+              description="A box plot summary of every numeric column at once."
+              cta="Show box plot"
+              busy={busy}
+              onAction={() => run({ chart: "box", x: null, y: null })}
+            />
+          </div>
+          <AdvancedExpander projectId={projectId} hint="Choose any chart type and pick x / y manually">
+            {expertControls}
+          </AdvancedExpander>
+        </>
+      ) : (
+        expertControls
+      )}
+
       {error && <div className="text-sm text-red-600 mt-3">{error}</div>}
-      {rendered && <div className="card mt-6">{rendered}</div>}
+      {rendered && (
+        <div className="card mt-6">
+          {rendered}
+          {mode === "guided" && data && (
+            <TechnicalDetails projectId={projectId} label="View the underlying numbers">
+              <pre className="text-[11px] overflow-auto max-h-[40vh] whitespace-pre-wrap">{JSON.stringify(data, null, 2)}</pre>
+            </TechnicalDetails>
+          )}
+        </div>
+      )}
     </div>
   );
 }

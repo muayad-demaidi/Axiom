@@ -4,7 +4,14 @@ import { useRouter } from "next/navigation";
 import { api, getToken } from "@/lib/api";
 import type { AxiomDataset, DatasetSummaryColumn } from "@/lib/types";
 import { errMessage } from "@/lib/types";
-import { getActiveDatasetId } from "@/lib/projectContext";
+import { getActiveDatasetId, getActiveProjectId } from "@/lib/projectContext";
+import { useMode } from "@/lib/modeContext";
+import {
+  AdvancedExpander,
+  GuidedActionCard,
+  ModeAwareHeading,
+  TechnicalDetails,
+} from "@/components/product/ModeAware";
 
 type TransformOp = "rename" | "drop" | "fillna" | "uppercase" | "lowercase" | "filter";
 
@@ -20,12 +27,16 @@ function extractColumns(d: AxiomDataset): string[] {
 
 export default function TransformPage() {
   const router = useRouter();
+  const projectId = typeof window !== "undefined" ? getActiveProjectId() : null;
+  const { mode } = useMode(projectId);
   const [columns, setColumns] = useState<string[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);
   const [draft, setDraft] = useState<Step>({ op: "rename" });
   const [result, setResult] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Guided mode targets one column at a time for the quick actions.
+  const [guidedColumn, setGuidedColumn] = useState<string>("");
 
   useEffect(() => {
     if (!getToken()) { router.push("/login"); return; }
@@ -36,6 +47,7 @@ export default function TransformPage() {
         const cols = extractColumns(d);
         setColumns(cols);
         setDraft((s) => ({ ...s, column: cols[0] }));
+        setGuidedColumn(cols[0] || "");
       })
       .catch((e: unknown) => setError(errMessage(e)));
   }, [router]);
@@ -46,22 +58,23 @@ export default function TransformPage() {
     setDraft({ op: draft.op, column: draft.column });
   }
 
-  async function apply() {
+  async function runSteps(stepsToRun: Step[]) {
     const id = getActiveDatasetId();
     if (!id) return;
     setBusy(true); setError(null);
     try {
-      const r = await api("/api/transform", { method: "POST", json: { dataset_id: id, steps } });
+      const r = await api("/api/transform", { method: "POST", json: { dataset_id: id, steps: stepsToRun } });
       setResult(r);
     } catch (e: unknown) { setError(errMessage(e)); }
     finally { setBusy(false); }
   }
 
-  return (
-    <div className="max-w-3xl">
-      <span className="eyebrow">Data · Transform</span>
-      <h1 className="text-2xl font-bold mt-2">Transform Toolkit</h1>
+  async function apply() {
+    await runSteps(steps);
+  }
 
+  const expertEditor = (
+    <>
       <div className="card mt-6 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <label className="text-sm">
@@ -115,9 +128,94 @@ export default function TransformPage() {
           {busy ? "Applying…" : "Apply steps"}
         </button>
       </div>
+    </>
+  );
+
+  return (
+    <div className="max-w-3xl">
+      <ModeAwareHeading
+        projectId={projectId}
+        eyebrow="Data · Transform"
+        guidedTitle="Tidy a column"
+        expertTitle="Transform Toolkit"
+        guidedSubtitle="Pick a column, then choose what to do with it. Stack as many transforms as you need in the advanced view."
+        expertSubtitle="Build a chain of operations and apply them to the active dataset."
+      />
+
+      {mode === "guided" ? (
+        <>
+          <div className="card mt-6">
+            <label className="text-sm block">
+              Column
+              <select
+                value={guidedColumn}
+                onChange={(e) => setGuidedColumn(e.target.value)}
+                className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
+              >
+                {columns.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <GuidedActionCard
+              title="Lowercase the values"
+              description="Make every value in this column lowercase so they match consistently."
+              cta="Apply"
+              busy={busy}
+              disabled={!guidedColumn}
+              onAction={() => runSteps([{ op: "lowercase", column: guidedColumn }])}
+            />
+            <GuidedActionCard
+              title="Uppercase the values"
+              description="Make every value uppercase — handy for product codes and country labels."
+              cta="Apply"
+              busy={busy}
+              disabled={!guidedColumn}
+              onAction={() => runSteps([{ op: "uppercase", column: guidedColumn }])}
+            />
+            <GuidedActionCard
+              title="Drop this column"
+              description="Remove the column entirely. Use this for IDs and noisy fields."
+              cta="Drop column"
+              busy={busy}
+              disabled={!guidedColumn}
+              onAction={() => runSteps([{ op: "drop", column: guidedColumn }])}
+            />
+            <GuidedActionCard
+              title="Fill empty cells with 0"
+              description="Replace missing values with zero so calculations don't break."
+              cta="Fill blanks"
+              busy={busy}
+              disabled={!guidedColumn}
+              onAction={() => runSteps([{ op: "fillna", column: guidedColumn, value: "0" }])}
+            />
+          </div>
+          <AdvancedExpander
+            projectId={projectId}
+            hint="Chain rename / drop / fillna / filter / uppercase / lowercase steps"
+          >
+            {expertEditor}
+          </AdvancedExpander>
+        </>
+      ) : (
+        expertEditor
+      )}
 
       {error && <div className="text-sm text-red-600 mt-3">{error}</div>}
-      {result !== null && <pre className="card mt-4 text-xs overflow-auto max-h-[50vh]">{JSON.stringify(result, null, 2)}</pre>}
+      {result !== null && (
+        <div className="card mt-4">
+          {mode === "guided" ? (
+            <>
+              <div className="font-semibold text-sm">Done — your column has been transformed.</div>
+              <TechnicalDetails projectId={projectId}>
+                <pre className="text-[11px] overflow-auto max-h-[50vh] whitespace-pre-wrap">{JSON.stringify(result, null, 2)}</pre>
+              </TechnicalDetails>
+            </>
+          ) : (
+            <pre className="text-xs overflow-auto max-h-[50vh] whitespace-pre-wrap">{JSON.stringify(result, null, 2)}</pre>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -4,17 +4,26 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError, getToken } from "@/lib/api";
 import { errMessage } from "@/lib/types";
+import { useMode } from "@/lib/modeContext";
+import { ModeToggle } from "@/components/product/ModeToggle";
 
 type QuickStartResponse = {
   project_id: number;
   session_id: number;
 };
 
-const SUGGESTIONS = [
-  "Run a sales trend analysis on my latest upload",
-  "Find outliers and missing values across my datasets",
-  "Forecast next quarter's revenue from my time series",
-  "Cluster my customers into RFM segments",
+const GUIDED_SUGGESTIONS = [
+  "Show me what's in my latest upload",
+  "Spot anything unusual in my data",
+  "What were my best months last year?",
+  "Group my customers into similar buckets",
+];
+
+const EXPERT_SUGGESTIONS = [
+  "Run STL decomposition on monthly_sales and forecast 6 periods",
+  "Drop columns >40% null, KNN-impute the rest, then profile",
+  "Fit XGBoost regressor with 5-fold CV and report RMSE / MAE",
+  "K-Means RFM segmentation on customers, k=4, return cluster centroids",
 ];
 
 export default function ProductHome() {
@@ -23,6 +32,12 @@ export default function ProductHome() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const { mode } = useMode();
+  const suggestions = mode === "expert" ? EXPERT_SUGGESTIONS : GUIDED_SUGGESTIONS;
+  const placeholder =
+    mode === "expert"
+      ? "Describe the analysis (algorithm, params, columns)…"
+      : "Ask anything about your data… (e.g. forecast next 6 months from sales.csv)";
 
   useEffect(() => {
     if (!getToken()) {
@@ -75,12 +90,21 @@ export default function ProductHome() {
           Project-aware data analyst
         </div>
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
-          What do you want to analyze today?
+          {mode === "expert"
+            ? "What analysis should we run?"
+            : "What do you want to analyze today?"}
         </h1>
         <p className="text-[var(--text-muted)] mt-3 text-sm">
-          Drop a question, attach a file, or pick from a suggestion. Every chat
-          remembers your data and follows a transparent methodology.
+          {mode === "expert"
+            ? "Describe the algorithm, parameters and columns. Methods, metrics and JSON stay visible."
+            : "Drop a question, attach a file, or pick from a suggestion. Every chat remembers your data and follows a transparent methodology."}
         </p>
+        <div className="mt-4 flex items-center justify-center gap-2">
+          <ModeToggle size="sm" />
+          <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
+            applies to new chats
+          </span>
+        </div>
 
         <form
           onSubmit={(e) => {
@@ -95,7 +119,7 @@ export default function ProductHome() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Ask anything about your data… (e.g. forecast next 6 months from sales.csv)"
+              placeholder={placeholder}
               rows={1}
               className="w-full resize-none bg-transparent outline-none text-sm leading-6 text-[var(--text)] placeholder:text-[var(--text-muted)] px-1 py-2"
               disabled={busy}
@@ -132,7 +156,7 @@ export default function ProductHome() {
         {error && <div className="text-red-600 text-sm mt-3">{error}</div>}
 
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {SUGGESTIONS.map((s) => (
+          {suggestions.map((s) => (
             <button
               key={s}
               type="button"

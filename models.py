@@ -107,6 +107,13 @@ class Project(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
     last_opened_at = Column(DateTime, default=datetime.utcnow, index=True)
+    # Per-project override for the AI/UI mode. NULL means "fall back to
+    # the user's assistant_mode preference"; a value here forces this
+    # project into Guided or Expert regardless of the user-level pick.
+    # Stored as the API vocabulary ("guided" / "expert") so the column
+    # is self-explanatory in the database — the legacy `assistant_mode`
+    # column on User keeps using "simple" for backwards compatibility.
+    mode = Column(String(16), nullable=True)
 
 
 class ProjectKnowledgeBase(Base):
@@ -287,6 +294,7 @@ def init_db():
     _migrations = [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_dataset_id INTEGER",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS assistant_mode VARCHAR(16) DEFAULT 'simple'",
+        "ALTER TABLE projects ADD COLUMN IF NOT EXISTS mode VARCHAR(16)",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS source_parquet BYTEA",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS parse_meta JSON",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS step_recipes JSON",
@@ -483,14 +491,16 @@ def set_user_last_dataset(db, user_id, dataset_id):
 def set_user_assistant_mode(db, user_id, mode):
     """Persist the user's preferred AI assistant response mode.
 
-    ``mode`` must be one of ``"simple"`` / ``"expert"``; any other value
-    is silently coerced to ``"simple"`` to match the picker default and
-    avoid storing junk that the system prompt builder would have to
-    re-validate downstream.
+    Accepts any of ``"simple"`` / ``"guided"`` / ``"expert"`` — ``"guided"``
+    is the API/UI label that maps to the legacy ``"simple"`` storage value
+    so old data keeps working without a migration. Any other value is
+    silently coerced to ``"simple"``.
     """
     if user_id is None:
         return None
     cleaned = (str(mode or "")).strip().lower()
+    if cleaned == "guided":
+        cleaned = "simple"
     if cleaned not in ("simple", "expert"):
         cleaned = "simple"
     user = db.query(User).filter(User.id == user_id).first()
@@ -862,6 +872,13 @@ def create_project(db, user_id, name, description=None):
     return proj
 
 
+def get_user(db, user_id):
+    """Fetch a user by id, or None."""
+    if user_id is None:
+        return None
+    return db.query(User).filter(User.id == user_id).first()
+
+
 def list_user_projects(db, user_id):
     """All projects a user owns, newest activity first, with a sheet count.
 
@@ -887,6 +904,7 @@ def list_user_projects(db, user_id):
             "id": proj.id,
             "name": proj.name,
             "description": proj.description,
+            "mode": getattr(proj, "mode", None),
             "created_at": proj.created_at,
             "updated_at": proj.updated_at,
             "last_opened_at": proj.last_opened_at,
@@ -905,8 +923,14 @@ def get_project(db, project_id, user_id):
               .first())
 
 
-def update_project(db, project_id, user_id, name=None, description=None):
-    """Rename / re-describe a project. Returns the project or None."""
+def update_project(db, project_id, user_id, name=None, description=None,
+                   mode=None):
+    """Rename / re-describe / re-mode a project. Returns the project or None.
+
+    ``mode`` accepts the API vocabulary ("guided" / "expert"). Pass an empty
+    string to clear the per-project override (i.e. fall back to the user-level
+    preference). Any other value is ignored.
+    """
     proj = get_project(db, project_id, user_id)
     if proj is None:
         return None
@@ -916,6 +940,12 @@ def update_project(db, project_id, user_id, name=None, description=None):
             proj.name = name[:255]
     if description is not None:
         proj.description = (description or "").strip() or None
+    if mode is not None and hasattr(proj, "mode"):
+        cleaned = (str(mode or "")).strip().lower()
+        if cleaned in ("guided", "expert"):
+            proj.mode = cleaned
+        elif cleaned == "":
+            proj.mode = None
     proj.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(proj)

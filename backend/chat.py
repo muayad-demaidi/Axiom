@@ -638,6 +638,11 @@ class ChatStreamRequest(BaseModel):
     session_id: int | None = None
     dataset_id: int | None = None
     project_id: int | None = None
+    # API vocabulary ("guided" / "expert"). When provided, the chat
+    # stream forwards it through ai_assistant._apply_mode_directive so
+    # the assistant follows the matching response format. Falls back to
+    # the user's preference when omitted.
+    assistant_mode: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -793,7 +798,57 @@ async def stream(
     learned = _recent_learned_notes(db, project_id, user.id) if project_id else []
 
     user_lang = ai_assistant.detect_language(last_user.content)
-    system_parts = [ai_assistant.SYSTEM_PROMPT, METHODOLOGY_PROMPT]
+
+    # Resolve effective Guided/Expert mode: per-project override beats
+    # the request-supplied mode beats the user-level preference. Defaults
+    # to Guided when nothing is set. We then map back to the legacy
+    # "simple" / "expert" labels that ai_assistant._apply_mode_directive
+    # understands.
+    def _normalize_api_mode(value: str | None) -> str | None:
+        cleaned = (str(value or "")).strip().lower()
+        if cleaned in ("guided", "simple"):
+            return "guided"
+        if cleaned == "expert":
+            return "expert"
+        return None
+
+    effective_mode = None
+    if project_id:
+        proj_obj = models.get_project(db, project_id, user.id)
+        effective_mode = _normalize_api_mode(getattr(proj_obj, "mode", None))
+    if effective_mode is None:
+        effective_mode = _normalize_api_mode(req.assistant_mode)
+    if effective_mode is None:
+        effective_mode = _normalize_api_mode(getattr(user, "assistant_mode", None))
+    if effective_mode is None:
+        effective_mode = "guided"
+    storage_mode = "simple" if effective_mode == "guided" else "expert"
+
+    system_parts = [
+        ai_assistant._apply_mode_directive(ai_assistant.SYSTEM_PROMPT, storage_mode),
+        METHODOLOGY_PROMPT,
+    ]
+    # Behavioural deltas the chat UX is built around.
+    if effective_mode == "guided":
+        system_parts.append(
+            "## ACTIVE WORKSPACE MODE — GUIDED\n"
+            "The user is in Guided Mode. Answer in plain, business-friendly\n"
+            "language without code, JSON or technical jargon. End every reply\n"
+            "with exactly one suggested next step. If the user clearly wants\n"
+            "technical depth (R², p-value, hyperparameters, algorithm names,\n"
+            "encoding schemes, manual feature engineering, etc.), still answer\n"
+            "in plain language but append, on its own final line:\n"
+            "[switch_to_expert] Switch to Expert Mode for the full statistical breakdown."
+        )
+    else:
+        system_parts.append(
+            "## ACTIVE WORKSPACE MODE — EXPERT\n"
+            "The user is in Expert Mode. Use full technical vocabulary —\n"
+            "name the algorithm, list its parameters, quote real metrics, and\n"
+            "show JSON / code where it helps. If the user asks a broad or\n"
+            "business-flavoured question, lead with a one-paragraph plain-\n"
+            "language summary, then continue with the technical breakdown."
+        )
     if user_lang == "ar":
         system_parts.append(
             "The user is writing in Arabic; reply in clear Levantine Arabic."

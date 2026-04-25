@@ -113,6 +113,10 @@ async def list_datasets(user=Depends(get_current_user), db=Depends(get_db_sessio
             "rows": r.row_count,
             "cols": r.column_count,
             "project_id": r.project_id,
+            # Include the cached summary so the workspace's Data Context
+            # Bar can show schema/dtype/missingness in Expert mode without
+            # an extra round-trip per dataset.
+            "summary": r.summary_stats or {},
         }
         for r in rows
     ]

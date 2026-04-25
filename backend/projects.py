@@ -22,12 +22,29 @@ class ProjectUpdate(BaseModel):
     mode: str | None = None  # "guided" | "expert"
 
 
+def _project_mode(value) -> str | None:
+    """Normalize a stored project mode for the API surface.
+
+    Project mode is intentionally stored in the API vocabulary
+    (``guided`` / ``expert``) so the column is self-explanatory; this
+    helper just trims and lowercases. Returns ``None`` when no
+    per-project override is set so callers can fall back to the
+    user-level preference.
+    """
+    if value is None:
+        return None
+    cleaned = (str(value or "")).strip().lower()
+    if cleaned in ("guided", "expert"):
+        return cleaned
+    return None
+
+
 def _project_view(p) -> dict:
     return {
         "id": p.id,
         "name": p.name,
         "description": p.description,
-        "mode": getattr(p, "mode", None),
+        "mode": _project_mode(getattr(p, "mode", None)),
         "sheet_count": getattr(p, "sheet_count", None),
     }
 
@@ -48,12 +65,16 @@ async def create_project(req: ProjectCreate, user=Depends(get_current_user), db=
 
 @router.patch("/{project_id}")
 async def update_project(project_id: int, req: ProjectUpdate, user=Depends(get_current_user), db=Depends(get_db_session)):
-    p = models.update_project(db, project_id=project_id, user_id=user.id, name=req.name, description=req.description)
+    p = models.update_project(
+        db,
+        project_id=project_id,
+        user_id=user.id,
+        name=req.name,
+        description=req.description,
+        mode=req.mode,
+    )
     if not p:
         raise HTTPException(404, "Project not found")
-    if req.mode in ("guided", "expert") and hasattr(p, "mode"):
-        p.mode = req.mode
-        db.commit()
     return _project_view(p)
 
 

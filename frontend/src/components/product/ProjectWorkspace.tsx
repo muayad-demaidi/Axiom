@@ -8,6 +8,8 @@ import { setActiveProjectId, setActiveDatasetId, getActiveDatasetId } from "@/li
 import { ChatPanel } from "@/components/product/ChatPanel";
 import { DatasetPreviewCard } from "@/components/product/DatasetPreviewCard";
 import { ArtifactDrawer, type Artifact, type PendingTool } from "@/components/product/ArtifactDrawer";
+import { ModeToggle } from "@/components/product/ModeToggle";
+import { useMode } from "@/lib/modeContext";
 
 type ChatSession = {
   id: number;
@@ -495,6 +497,7 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
                   Final report ↗
                 </Link>
               )}
+              <ModeToggle projectId={projectId} size="sm" label="MODE" />
               <button
                 onClick={() => setDrawerOpen((v) => !v)}
                 className="btn btn-ghost text-xs"
@@ -504,6 +507,12 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
               </button>
             </div>
           </div>
+
+          {/* Adaptive Data Context Bar — wording flexes with mode. */}
+          <DataContextBar
+            projectId={projectId}
+            datasets={datasets}
+          />
 
           {activeDatasetState != null && datasets.length > 0 && (
             <DatasetPreviewCard
@@ -518,6 +527,7 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
             <ChatPanel
               key={activeSessionId}
               sessionId={activeSessionId}
+              projectId={projectId}
               onTurnComplete={onTurnComplete}
               hasData={datasets.length > 0}
               initialPrompt={
@@ -544,6 +554,148 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
         pending={pendingTools}
         initialTab={drawerTab}
       />
+    </div>
+  );
+}
+
+/**
+ * Mode-aware "Data Context Bar" sitting between the chat title and the
+ * conversation. Guided users get a friendly, plain-language sentence;
+ * Expert users get a compact metric strip with row counts and a hint
+ * that JSON / SQL is welcome in the prompt.
+ */
+/** Aggregate dtype + missingness stats across all of a project's datasets.
+ *  Walks the cached `report` payload returned by /api/datasets, which
+ *  contains `numeric_summary` and `categorical_summary` keyed by column.
+ *  Returns a compact view suitable for the Expert context bar. */
+function aggregateDatasetStats(datasets: AxiomDataset[]): {
+  totalRows: number;
+  totalCols: number;
+  numericCols: number;
+  categoricalCols: number;
+  datetimeCols: number;
+  otherCols: number;
+  avgMissingPct: number;
+} {
+  let totalRows = 0;
+  let totalCols = 0;
+  let numericCols = 0;
+  let categoricalCols = 0;
+  let datetimeCols = 0;
+  let otherCols = 0;
+  let missingSum = 0;
+  let missingDen = 0;
+  for (const d of datasets) {
+    totalRows += d.rows || 0;
+    totalCols += d.cols || 0;
+    // Backend now returns the cached summary report on /api/datasets.
+    // Older datasets without a stored report degrade gracefully — we
+    // still show row/col totals.
+    const sum = (d as unknown as { summary?: Record<string, unknown> }).summary;
+    if (!sum) continue;
+    const numeric = (sum.numeric_summary as Record<string, Record<string, unknown>> | undefined) || {};
+    const categorical = (sum.categorical_summary as Record<string, Record<string, unknown>> | undefined) || {};
+    const distributions = (sum.distributions as Record<string, Record<string, unknown>> | undefined) || {};
+    const numericNames = Object.keys(numeric);
+    numericCols += numericNames.length;
+    categoricalCols += Object.keys(categorical).length;
+    // Heuristic: count datetime-like columns from distributions if marked.
+    for (const [, info] of Object.entries(distributions)) {
+      const t = String((info as { type?: unknown }).type ?? "").toLowerCase();
+      if (t.includes("date") || t.includes("time")) datetimeCols += 1;
+    }
+    otherCols += Math.max(
+      0,
+      (d.cols || 0) - numericNames.length - Object.keys(categorical).length
+    );
+    // Average missingness across columns from numeric_summary.missing_pct
+    // (a per-column dict of percentages) and categorical_summary.missing
+    // (counts -> convert to pct using d.rows).
+    for (const stats of Object.values(numeric)) {
+      const m = stats?.["missing_pct"];
+      if (typeof m === "number" && Number.isFinite(m)) {
+        missingSum += m;
+        missingDen += 1;
+      }
+    }
+    if (d.rows && d.rows > 0) {
+      for (const stats of Object.values(categorical)) {
+        const m = stats?.["missing"];
+        if (typeof m === "number" && Number.isFinite(m)) {
+          missingSum += (m / d.rows) * 100;
+          missingDen += 1;
+        }
+      }
+    }
+  }
+  return {
+    totalRows,
+    totalCols,
+    numericCols,
+    categoricalCols,
+    datetimeCols,
+    otherCols: Math.max(0, otherCols - datetimeCols),
+    avgMissingPct: missingDen > 0 ? missingSum / missingDen : 0,
+  };
+}
+
+function DataContextBar({
+  projectId,
+  datasets,
+}: {
+  projectId: number;
+  datasets: AxiomDataset[];
+}) {
+  const { mode } = useMode(projectId);
+  const datasetCount = datasets.length;
+  if (datasetCount === 0) {
+    return (
+      <div className="mb-3 text-xs rounded-md border border-dashed border-[var(--border)] bg-[var(--surface-alt)]/50 px-3 py-2 text-[var(--text-muted)]">
+        {mode === "expert"
+          ? "No datasets bound to this project. Upload a CSV/Parquet/Excel file to enable tool calls."
+          : "No data uploaded yet — drop a file in and the assistant can start analysing it."}
+      </div>
+    );
+  }
+  const agg = aggregateDatasetStats(datasets);
+  if (mode === "expert") {
+    const dtypeChips: string[] = [];
+    if (agg.numericCols) dtypeChips.push(`${agg.numericCols} numeric`);
+    if (agg.categoricalCols) dtypeChips.push(`${agg.categoricalCols} categorical`);
+    if (agg.datetimeCols) dtypeChips.push(`${agg.datetimeCols} datetime`);
+    if (agg.otherCols) dtypeChips.push(`${agg.otherCols} other`);
+    return (
+      <div className="mb-3 text-[11px] font-mono rounded-md border border-[var(--border)] bg-[var(--surface-alt)]/50 px-3 py-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[var(--text-muted)]">
+        <span>
+          <strong className="text-[var(--text)]">{datasetCount}</strong> dataset
+          {datasetCount === 1 ? "" : "s"}
+        </span>
+        <span>
+          <strong className="text-[var(--text)]">{agg.totalRows.toLocaleString()}</strong> rows
+        </span>
+        <span>
+          <strong className="text-[var(--text)]">{agg.totalCols.toLocaleString()}</strong> cols
+        </span>
+        {dtypeChips.length > 0 && (
+          <span title="Column dtypes (numeric / categorical / datetime / other)">
+            {dtypeChips.join(" · ")}
+          </span>
+        )}
+        <span title="Mean per-column missing % across all bound datasets">
+          missing&nbsp;
+          <strong className="text-[var(--text)]">
+            {agg.avgMissingPct.toFixed(1)}%
+          </strong>
+        </span>
+        <span>JSON / SQL / column names accepted</span>
+      </div>
+    );
+  }
+  return (
+    <div className="mb-3 text-xs rounded-md border border-[var(--border)] bg-[var(--surface-alt)]/50 px-3 py-2 text-[var(--text-muted)]">
+      I can see all <strong className="text-[var(--text)]">{datasetCount}</strong> dataset
+      {datasetCount === 1 ? "" : "s"} in this project ({agg.totalRows.toLocaleString()} rows).
+      Ask in plain language and I'll handle the analysis.
     </div>
   );
 }

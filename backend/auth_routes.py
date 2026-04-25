@@ -32,6 +32,20 @@ class TokenResponse(BaseModel):
     user: dict
 
 
+def _api_mode(stored: str | None) -> str:
+    """Translate the DB-stored assistant_mode to the API/UI vocabulary.
+
+    The legacy storage value ``"simple"`` is the same thing as the new
+    ``"guided"`` label; everything else falls through unchanged. We
+    default to ``"guided"`` so first-time users land in Guided per the
+    product spec.
+    """
+    cleaned = (str(stored or "")).strip().lower()
+    if cleaned == "expert":
+        return "expert"
+    return "guided"
+
+
 def _user_view(user) -> dict:
     return {
         "id": user.id,
@@ -39,8 +53,12 @@ def _user_view(user) -> dict:
         "username": user.username,
         "subscription_type": getattr(user, "subscription_type", None),
         "trial_end": str(user.trial_end) if getattr(user, "trial_end", None) else None,
-        "assistant_mode": getattr(user, "assistant_mode", None),
+        "assistant_mode": _api_mode(getattr(user, "assistant_mode", None)),
     }
+
+
+class UpdateMeRequest(BaseModel):
+    assistant_mode: str | None = Field(default=None, max_length=16)
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -68,6 +86,27 @@ async def login(req: LoginRequest, db=Depends(get_db_session)):
 
 @router.get("/me")
 async def me(user=Depends(get_current_user)):
+    return _user_view(user)
+
+
+@router.patch("/me")
+async def update_me(
+    req: UpdateMeRequest,
+    user=Depends(get_current_user),
+    db=Depends(get_db_session),
+):
+    """Update mutable fields on the current user (currently just the
+    Guided/Expert assistant mode preference).
+
+    The ``assistant_mode`` field accepts the API vocabulary
+    (``"guided"`` / ``"expert"``); the helper translates ``"guided"`` back
+    to the legacy ``"simple"`` storage value.
+    """
+    if req.assistant_mode is not None:
+        updated = models.set_user_assistant_mode(db, user.id, req.assistant_mode)
+        if updated is None:
+            raise HTTPException(404, "User not found")
+        user = updated
     return _user_view(user)
 
 
