@@ -107,3 +107,16 @@ async def get_current_user_optional(
         return db.query(models.User).filter(models.User.id == user_id).first()
     except HTTPException:
         return None
+
+
+async def get_current_admin(user=Depends(get_current_user)):
+    """Require the caller to be an admin user.
+
+    Layered on top of ``get_current_user`` so unauthenticated callers still
+    get a 401 (missing/invalid token), while authenticated non-admins get
+    a 403. This mirrors the legacy Streamlit admin gate which only allowed
+    rows where ``users.is_admin`` was true.
+    """
+    if not getattr(user, "is_admin", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user

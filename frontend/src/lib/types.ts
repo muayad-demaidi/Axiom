@@ -5,6 +5,7 @@ export type AxiomUser = {
   subscription_type: string | null;
   trial_end: string | null;
   assistant_mode: string | null;
+  is_admin?: boolean;
 };
 
 export type AxiomProject = {

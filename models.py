@@ -1479,6 +1479,43 @@ def save_support_message(db, email, name, message):
     return msg
 
 
+def list_support_messages(
+    db,
+    only_unhandled: bool = False,
+    limit: int = 100,
+    offset: int = 0,
+):
+    """Return ``(rows, total)`` for the admin support queue, newest first.
+
+    ``only_unhandled`` filters to rows where ``is_read`` is false so admins
+    can focus on the inbox; pass ``False`` to see history. ``total`` is
+    the unpaginated count (respecting ``only_unhandled``) so the caller
+    can render "showing N of M" + load-more without a second round-trip.
+    """
+    q = db.query(SupportMessage)
+    if only_unhandled:
+        q = q.filter(SupportMessage.is_read.is_(False))
+    total = q.count()
+    rows = (
+        q.order_by(SupportMessage.created_at.desc())
+        .offset(int(offset))
+        .limit(int(limit))
+        .all()
+    )
+    return rows, int(total)
+
+
+def set_support_message_handled(db, message_id: int, handled: bool):
+    """Mark a support message handled (or un-handled). Returns the updated row or None."""
+    msg = db.query(SupportMessage).filter(SupportMessage.id == int(message_id)).first()
+    if msg is None:
+        return None
+    msg.is_read = bool(handled)
+    db.commit()
+    db.refresh(msg)
+    return msg
+
+
 def _hash_reset_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 

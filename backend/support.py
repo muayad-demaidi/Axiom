@@ -9,12 +9,12 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
 import models  # type: ignore
 
-from .auth import get_db_session
+from .auth import get_current_admin, get_db_session
 
 router = APIRouter(prefix="/api/support", tags=["support"])
 log = logging.getLogger("axiom.support")
@@ -75,3 +75,64 @@ async def contact(req: ContactRequest, db=Depends(get_db_session)):
         "id": getattr(record, "id", None),
         "email_sent": email_sent,
     }
+
+
+def _serialize_message(msg) -> dict:
+    return {
+        "id": msg.id,
+        "name": msg.name,
+        "email": msg.email,
+        "message": msg.message,
+        "created_at": msg.created_at.isoformat() if msg.created_at else None,
+        "handled": bool(msg.is_read),
+    }
+
+
+@router.get("/messages")
+async def list_messages(
+    only_unhandled: bool = Query(False, description="Only return un-handled messages"),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    _admin=Depends(get_current_admin),
+    db=Depends(get_db_session),
+):
+    """List contact-form submissions for the in-app admin queue.
+
+    Newest-first. Admin only — non-admins receive 403, unauthenticated
+    callers receive 401 (handled by the dependency chain).
+
+    Pagination: pass ``offset`` to walk further into the queue; ``total``
+    in the response is the unpaginated count (respecting ``only_unhandled``)
+    so the UI can show "showing N of M" and a Load-more affordance.
+    """
+    rows, total = models.list_support_messages(
+        db, only_unhandled=only_unhandled, limit=limit, offset=offset
+    )
+    return {
+        "messages": [_serialize_message(m) for m in rows],
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+    }
+
+
+class UpdateMessageRequest(BaseModel):
+    handled: bool
+
+
+@router.patch("/messages/{message_id}")
+async def update_message(
+    message_id: int,
+    req: UpdateMessageRequest,
+    _admin=Depends(get_current_admin),
+    db=Depends(get_db_session),
+):
+    """Mark a support message handled (or un-handled).
+
+    Reuses the existing ``is_read`` column on ``SupportMessage`` as the
+    queue status flag — no schema change needed.
+    """
+    msg = models.set_support_message_handled(db, message_id, req.handled)
+    if msg is None:
+        raise HTTPException(404, "Support message not found")
+    return _serialize_message(msg)

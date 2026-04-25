@@ -54,6 +54,7 @@ def _user_view(user) -> dict:
         "subscription_type": getattr(user, "subscription_type", None),
         "trial_end": str(user.trial_end) if getattr(user, "trial_end", None) else None,
         "assistant_mode": _api_mode(getattr(user, "assistant_mode", None)),
+        "is_admin": bool(getattr(user, "is_admin", False)),
     }
 
 

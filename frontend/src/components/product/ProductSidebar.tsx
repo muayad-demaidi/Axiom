@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { api, getToken } from "@/lib/api";
-import type { AxiomProject } from "@/lib/types";
+import type { AxiomProject, AxiomUser } from "@/lib/types";
 
 type RecentChat = {
   id: number;
@@ -28,6 +28,7 @@ export function ProductSidebar() {
   const router = useRouter();
   const [chats, setChats] = useState<RecentChat[] | null>(null);
   const [projects, setProjects] = useState<AxiomProject[] | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
 
@@ -39,12 +40,14 @@ export function ProductSidebar() {
     Promise.all([
       api<RecentChat[]>("/api/chats/recent?limit=10").catch(() => []),
       api<AxiomProject[]>("/api/projects").catch(() => []),
-    ]).then(([c, p]) => {
+      api<AxiomUser>("/api/auth/me").catch(() => null),
+    ]).then(([c, p, u]) => {
       if (cancelled) return;
       setChats(c as RecentChat[]);
       // Hide the auto-managed Quick Chats bucket from the user-visible
       // Projects list; it still backs the home-screen chats.
       setProjects((p as AxiomProject[]).filter((proj) => proj.name !== "Quick Chats"));
+      setIsAdmin(Boolean((u as AxiomUser | null)?.is_admin));
     });
     return () => {
       cancelled = true;
@@ -173,6 +176,25 @@ export function ProductSidebar() {
           })}
         </ul>
       </Section>
+
+      {isAdmin && (
+        <Section label="Admin">
+          <ul className="space-y-0.5">
+            <li>
+              <Link
+                href="/app/admin/support"
+                className={`block rounded px-2 py-1.5 text-xs ${
+                  pathname?.startsWith("/app/admin/support")
+                    ? "bg-[var(--accent)] text-white"
+                    : "text-[var(--text)] hover:bg-[var(--surface)]"
+                }`}
+              >
+                Support inbox
+              </Link>
+            </li>
+          </ul>
+        </Section>
+      )}
     </aside>
   );
 }
