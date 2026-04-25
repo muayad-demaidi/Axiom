@@ -1,11 +1,20 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Sparkles,
+  Stethoscope,
+} from "lucide-react";
 import { api, getToken, streamPostNDJSON } from "@/lib/api";
 import { errMessage } from "@/lib/types";
 import { getActiveDatasetId, getActiveProjectId } from "@/lib/projectContext";
 import { useMode } from "@/lib/modeContext";
 import { ChartRenderer, type ChartPayload } from "./Charts";
 import { PredictionCard, type PredictionResult } from "./PredictionCard";
+import { FloatingComposer, type FloatingComposerHandle } from "./FloatingComposer";
 import type { Artifact, PendingTool } from "./ArtifactDrawer";
 
 type ToolEvent =
@@ -69,12 +78,22 @@ type ChatPanelProps = {
   /** When set, the chat is scoped to a project and the mode toggle on
    * the inline "switch" CTA edits the project mode override. */
   projectId?: number | null;
+  /** Reports the streaming state up to the parent so the Data context
+   * bar can flip its status pill between Idle / Analyzing. */
+  onStreamingChange?: (streaming: boolean) => void;
 };
 
 const GREETING_NEW =
   "Hey — drop a question about any dataset in this project and I'll walk through the analysis step-by-step. I can run charts, predictions, profiling, and clustering directly from chat.";
 const GREETING_NO_DATA =
   "This project doesn't have any data yet. Upload a CSV or Excel file from the sidebar and I'll start analysing it.";
+
+const FOLLOWUP_CHIPS = [
+  "Show outliers",
+  "Visualize trends",
+  "Forecast next period",
+  "Summarise key insights",
+];
 
 export function ChatPanel({
   sessionId = null,
@@ -86,6 +105,7 @@ export function ChatPanel({
   onToolStarted,
   onToolFinished,
   projectId = null,
+  onStreamingChange,
 }: ChatPanelProps) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -102,16 +122,23 @@ export function ChatPanel({
   const [authed, setAuthed] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(!!sessionId);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const composerRef = useRef<FloatingComposerHandle | null>(null);
   const consumedPromptRef = useRef<string | null>(null);
   const sendRef = useRef<((text?: string) => Promise<void>) | null>(null);
   // The toggle inside an actual project edits that project's mode; on
   // the home page (no projectId) it edits the user-level preference.
   const { mode, setMode } = useMode(projectId ?? null);
   const chips = useMemo(() => (mode === "expert" ? EXPERT_CHIPS : GUIDED_CHIPS), [mode]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
 
   useEffect(() => {
     setAuthed(!!getToken());
   }, []);
+
+  useEffect(() => {
+    onStreamingChange?.(streaming);
+  }, [streaming, onStreamingChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -282,106 +309,15 @@ export function ChatPanel({
         sendRef.current?.(text);
       } else {
         setInput(text);
+        // Focus so the user can refine and hit Enter.
+        setTimeout(() => composerRef.current?.focus(), 0);
       }
     }
     window.addEventListener("axiom:chat:prefill", onPrefill as EventListener);
     return () => window.removeEventListener("axiom:chat:prefill", onPrefill as EventListener);
   }, []);
 
-  return (
-    <div className="card flex flex-col h-[70vh]">
-      {!authed && (
-        <div className="text-xs text-[var(--text-muted)] mb-2">
-          Sign in to enable streaming chat with your data.
-        </div>
-      )}
-      <div ref={scrollRef} className="flex-1 overflow-auto space-y-4 pr-2">
-        {loadingHistory ? (
-          <div className="text-sm text-[var(--text-muted)]">Loading conversation…</div>
-        ) : (
-          <>
-            {messages.map((m, i) => {
-              const isLast = i === messages.length - 1;
-              if (m.role === "assistant") {
-                // Strip the [switch_to_expert] sentinel so the bubble
-                // renders clean text and we can surface the inline CTA
-                // when the user is currently in Guided mode.
-                const { body, cta } = parseSwitchHandoff(m.content);
-                const cleaned: Msg = { ...m, content: body };
-                return (
-                  <div key={i}>
-                    <MessageBubble msg={cleaned} streaming={streaming && isLast} />
-                    {cta && mode === "guided" && (
-                      <div className="mt-1.5">
-                        <button
-                          type="button"
-                          onClick={() => void setMode("expert")}
-                          className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-colors"
-                        >
-                          <span aria-hidden>↗</span> {cta}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-              return <MessageBubble key={i} msg={m} streaming={streaming && isLast} />;
-            })}
-            {/* Inline mode-aware suggestion chips on a fresh thread. */}
-            {!streaming &&
-              messages.length <= 1 &&
-              messages[0]?.role !== "user" && (
-                <div className="pt-1 flex flex-wrap gap-1.5">
-                  {chips.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => void send(c)}
-                      className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-[var(--accent)] rounded-full px-2.5 py-1 transition-colors"
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              )}
-          </>
-        )}
-      </div>
-      <ChatComposer
-        input={input}
-        setInput={setInput}
-        send={() => void send()}
-        streaming={streaming}
-        loadingHistory={loadingHistory}
-      />
-    </div>
-  );
-}
-
-/**
- * Composer with an attach-data paperclip. Picking a file uploads it to
- * `/api/datasets/upload` and then fires a global `axiom:dataset:uploaded`
- * event so the workspace can refresh its dataset list, focus the new
- * dataset, and auto-prompt a profile run.
- */
-function ChatComposer({
-  input,
-  setInput,
-  send,
-  streaming,
-  loadingHistory,
-}: {
-  input: string;
-  setInput: (s: string) => void;
-  send: () => void;
-  streaming: boolean;
-  loadingHistory: boolean;
-}) {
-  const fileRef = useRef<HTMLInputElement | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadErr, setUploadErr] = useState<string | null>(null);
-
-  async function onFile(file: File) {
+  async function handleAttachFile(file: File) {
     setUploading(true);
     setUploadErr(null);
     try {
@@ -407,89 +343,242 @@ function ChatComposer({
       setUploadErr(errMessage(e));
     } finally {
       setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
     }
   }
 
+  function handleChipClick(text: string) {
+    setInput(text);
+    setTimeout(() => composerRef.current?.focus(), 0);
+  }
+
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        send();
-      }}
-      className="mt-3 flex gap-2 items-start"
-    >
-      <input
-        ref={fileRef}
-        type="file"
-        accept=".csv,.tsv,.xlsx,.xls,.json"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) void onFile(f);
-        }}
-      />
-      <button
-        type="button"
-        onClick={() => fileRef.current?.click()}
-        title="Attach a dataset · إرفاق ملف بيانات"
-        disabled={uploading || streaming}
-        className="px-3 py-2 rounded border border-[var(--border)] text-sm bg-[var(--surface)] hover:bg-[var(--surface-alt)]/60 disabled:opacity-50"
-      >
-        {uploading ? "↑…" : "📎"}
-      </button>
-      <div className="flex-1 flex flex-col gap-1">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={
-            mode === "expert"
-              ? "Describe the analysis (algorithm, params, columns)…"
-              : "Ask anything about your data… · اسأل عن بياناتك"
-          }
-          className="flex-1 px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
-          disabled={loadingHistory}
-        />
-        {uploadErr && (
-          <span className="text-[10px] text-red-500">{uploadErr}</span>
+    <div className="flex flex-col gap-4">
+      {!authed && (
+        <div className="text-xs text-[var(--text-muted)]">
+          Sign in to enable streaming chat with your data.
+        </div>
+      )}
+      <div ref={scrollRef} className="space-y-4">
+        {loadingHistory ? (
+          <div className="text-sm text-[var(--text-muted)]">Loading conversation…</div>
+        ) : (
+          <>
+            {messages.map((m, i) => {
+              const isLast = i === messages.length - 1;
+              const isStreamingThis = streaming && isLast;
+              // The very first synthetic greeting doesn't get follow-up
+              // chips — they only appear under real assistant turns.
+              const isGreeting = i === 0 && messages.length === 1;
+              return (
+                <ChatMessage
+                  key={i}
+                  msg={m}
+                  streaming={isStreamingThis}
+                  showChips={
+                    !isStreamingThis &&
+                    !isGreeting &&
+                    m.role === "assistant" &&
+                    !!m.content
+                  }
+                  onChipClick={handleChipClick}
+                  projectId={projectId}
+                  mode={mode}
+                  setMode={setMode}
+                />
+              );
+            })}
+            {/* Inline mode-aware suggestion chips on a fresh thread. */}
+            {!streaming &&
+              messages.length <= 1 &&
+              messages[0]?.role !== "user" && (
+                <div className="pt-1 flex flex-wrap gap-1.5">
+                  {chips.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => void send(c)}
+                      className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-[var(--accent)] rounded-full px-2.5 py-1 transition-colors"
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+          </>
         )}
       </div>
-      <button
-        type="submit"
-        className="btn btn-primary"
-        disabled={streaming || loadingHistory || !input.trim()}
-      >
-        {streaming ? "…" : "Send"}
-      </button>
-    </form>
+      <FloatingComposer
+        ref={composerRef}
+        value={input}
+        onValueChange={setInput}
+        onSubmit={(text) => {
+          setInput(text);
+          void send(text);
+        }}
+        placeholder={
+          mode === "expert"
+            ? "Describe the analysis (algorithm, params, columns)…"
+            : "Ask anything about your data… · اسأل عن بياناتك"
+        }
+        busy={streaming}
+        disabled={loadingHistory}
+        onAttachFile={handleAttachFile}
+        attachBusy={uploading}
+        connectorsHref="/app/connectors"
+        errorText={uploadErr}
+        sendLayoutId="axiom-composer-send"
+      />
+    </div>
   );
 }
 
-function MessageBubble({ msg, streaming }: { msg: Msg; streaming: boolean }) {
+// ---------------------------------------------------------------------------
+// Message rendering
+// ---------------------------------------------------------------------------
+
+function ChatMessage({
+  msg,
+  streaming,
+  showChips,
+  onChipClick,
+  projectId,
+  mode,
+  setMode,
+}: {
+  msg: Msg;
+  streaming: boolean;
+  showChips: boolean;
+  onChipClick: (text: string) => void;
+  projectId?: number | null;
+  mode: string;
+  setMode: (m: "guided" | "expert") => Promise<void>;
+}) {
+  const reduceMotion = useReducedMotion();
   if (msg.role === "user") {
     return (
-      <div className="text-sm text-right">
-        <div className="inline-block px-3 py-2 rounded-lg max-w-[85%] whitespace-pre-wrap bg-[var(--accent)] text-white">
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
+        className="text-sm flex justify-end"
+      >
+        <div
+          className="inline-block px-3 py-2 rounded-2xl rounded-br-sm max-w-[85%] whitespace-pre-wrap bg-[var(--accent)] text-white shadow-sm"
+        >
           {msg.content}
         </div>
-      </div>
+      </motion.div>
     );
   }
+
+  const { body, cta } = parseSwitchHandoff(msg.content);
+  const meta = inferAssistantMeta(body);
+  const Icon = meta.Icon;
   return (
-    <div className="text-sm">
-      <div className="inline-block px-3 py-2 rounded-lg max-w-[92%] whitespace-pre-wrap bg-[var(--surface)] border border-[var(--border)]">
-        {msg.content || (streaming ? "…" : "")}
+    <motion.div
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.16, ease: "easeOut" }}
+      className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm overflow-hidden"
+    >
+      <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+        <span
+          className="inline-flex items-center justify-center h-6 w-6 rounded-full"
+          style={{
+            background: "color-mix(in srgb, var(--accent) 14%, transparent)",
+            color: "var(--accent)",
+          }}
+        >
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
+          {meta.label}
+        </span>
+      </div>
+      <div className="px-4 pb-3 prose-mark text-sm">
+        <div className="whitespace-pre-wrap leading-relaxed">
+          {body || (streaming ? <StreamingDots /> : "")}
+        </div>
+        {cta && mode === "guided" && (
+          <div className="mt-2.5">
+            <button
+              type="button"
+              onClick={() => void setMode("expert")}
+              className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-colors"
+            >
+              <span aria-hidden>↗</span> {cta}
+            </button>
+          </div>
+        )}
       </div>
       {msg.tools && msg.tools.length > 0 && (
-        <div className="mt-2 space-y-2 max-w-[92%]">
+        <div className="px-4 pb-3 space-y-2">
           {msg.tools.map((t) => (
             <ToolEventCard key={t.callId} ev={t} />
           ))}
         </div>
       )}
-    </div>
+      <AnimatePresence initial={false}>
+        {showChips && (
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, y: -2 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -2 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            className="px-4 pb-3 pt-1 border-t border-[var(--border)] flex flex-wrap gap-1.5"
+          >
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)] mr-1 self-center">
+              Try
+            </span>
+            {FOLLOWUP_CHIPS.slice(0, 3).map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => onChipClick(chip)}
+                className="text-[11px] px-2.5 py-1 rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors"
+              >
+                {chip}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
+
+function StreamingDots() {
+  return (
+    <span className="inline-flex items-center gap-1 text-[var(--text-muted)]">
+      <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
+      <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse [animation-delay:120ms]" />
+      <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse [animation-delay:240ms]" />
+    </span>
+  );
+}
+
+type Meta = { label: string; Icon: typeof Sparkles };
+
+function inferAssistantMeta(text: string): Meta {
+  const t = (text || "").toLowerCase();
+  if (/diagnos|scan|profile|missing values|data quality/.test(t)) {
+    return { label: "Diagnostics", Icon: Stethoscope };
+  }
+  if (/warning|caution|outlier|anomal|risk|fail/.test(t)) {
+    return { label: "Warning", Icon: AlertTriangle };
+  }
+  if (/done|complete|success|✓|finished|ready/.test(t)) {
+    return { label: "Success", Icon: CheckCircle2 };
+  }
+  if (/forecast|trend|seasonal|predict|model/.test(t)) {
+    return { label: "Insight", Icon: Activity };
+  }
+  return { label: "Assistant", Icon: Sparkles };
+}
+
+// ---------------------------------------------------------------------------
+// Tool result rendering (kept from previous implementation, retuned)
+// ---------------------------------------------------------------------------
 
 function ToolEventCard({ ev }: { ev: ToolEvent }) {
   const label = toolLabel(ev.tool);
@@ -530,6 +619,15 @@ function toolLabel(tool: string): string {
 function InlineArtifact({ artifact }: { artifact: Artifact }) {
   const [pinned, setPinned] = useState<boolean>(!!artifact.pinned);
   const [busy, setBusy] = useState(false);
+  // Memoize result casts so re-renders don't churn child components.
+  const chartPayload = useMemo(
+    () => artifact.result as unknown as ChartPayload,
+    [artifact.result]
+  );
+  const predictionResult = useMemo(
+    () => artifact.result as unknown as PredictionResult,
+    [artifact.result]
+  );
   async function togglePin() {
     if (busy) return;
     setBusy(true);
@@ -540,8 +638,9 @@ function InlineArtifact({ artifact }: { artifact: Artifact }) {
         json: { pinned: next },
       });
       setPinned(next);
-      // Let the drawer (and report) refresh its pinned-only views.
-      window.dispatchEvent(new CustomEvent("axiom:artifact:pinned", { detail: { id: artifact.id, pinned: next } }));
+      window.dispatchEvent(
+        new CustomEvent("axiom:artifact:pinned", { detail: { id: artifact.id, pinned: next } })
+      );
     } catch {
       /* surface nothing — drawer will reconcile on next refetch */
     } finally {
@@ -549,7 +648,7 @@ function InlineArtifact({ artifact }: { artifact: Artifact }) {
     }
   }
   return (
-    <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--surface)]">
+    <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--surface-alt)]/40">
       <div className="flex items-baseline justify-between mb-2 gap-2">
         <div className="text-xs font-semibold truncate">{artifact.title}</div>
         <div className="flex items-center gap-2 shrink-0">
@@ -572,10 +671,10 @@ function InlineArtifact({ artifact }: { artifact: Artifact }) {
         </div>
       </div>
       {artifact.kind === "chart" && (
-        <ChartRenderer payload={artifact.result as unknown as ChartPayload} height={200} />
+        <ChartRenderer payload={chartPayload} height={200} />
       )}
       {artifact.kind === "prediction" && (
-        <PredictionCard title="" result={artifact.result as unknown as PredictionResult} />
+        <PredictionCard title="" result={predictionResult} />
       )}
       {artifact.kind === "profile" && (
         <div className="text-[11px] text-[var(--text-muted)]">
@@ -608,3 +707,4 @@ function InlineArtifact({ artifact }: { artifact: Artifact }) {
     </div>
   );
 }
+

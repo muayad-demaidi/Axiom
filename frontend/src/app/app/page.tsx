@@ -1,11 +1,12 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError, getToken } from "@/lib/api";
 import { errMessage } from "@/lib/types";
 import { useMode } from "@/lib/modeContext";
 import { ModeToggle } from "@/components/product/ModeToggle";
+import { FloatingComposer } from "@/components/product/FloatingComposer";
 
 type QuickStartResponse = {
   project_id: number;
@@ -31,7 +32,6 @@ export default function ProductHome() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const taRef = useRef<HTMLTextAreaElement | null>(null);
   const { mode } = useMode();
   const suggestions = mode === "expert" ? EXPERT_SUGGESTIONS : GUIDED_SUGGESTIONS;
   const placeholder =
@@ -44,20 +44,11 @@ export default function ProductHome() {
       router.push("/login");
       return;
     }
-    taRef.current?.focus();
   }, [router]);
 
-  // Grow the textarea with content, capped.
-  useEffect(() => {
-    const el = taRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 240) + "px";
-  }, [input]);
-
-  async function start(initial?: string) {
-    const text = (initial ?? input).trim();
-    if (!text || busy) return;
+  async function start(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -66,20 +57,13 @@ export default function ProductHome() {
         json: {},
       });
       router.push(
-        `/app/project/${res.project_id}?session=${res.session_id}&q=${encodeURIComponent(text)}`
+        `/app/project/${res.project_id}?session=${res.session_id}&q=${encodeURIComponent(trimmed)}`
       );
     } catch (e: unknown) {
       if (e instanceof ApiError && e.status === 401) router.push("/login");
       else setError(errMessage(e));
     } finally {
       setBusy(false);
-    }
-  }
-
-  function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      start();
     }
   }
 
@@ -106,52 +90,21 @@ export default function ProductHome() {
           </span>
         </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            start();
-          }}
-          className="mt-8 mx-auto"
-        >
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm p-3 text-left">
-            <textarea
-              ref={taRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder={placeholder}
-              rows={1}
-              className="w-full resize-none bg-transparent outline-none text-sm leading-6 text-[var(--text)] placeholder:text-[var(--text-muted)] px-1 py-2"
-              disabled={busy}
-            />
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <Link
-                  href="/app/upload?back=/app"
-                  className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1.5 rounded-md hover:bg-[var(--surface-alt)]"
-                  title="Upload a CSV or Excel file"
-                >
-                  <PaperclipIcon /> <span>Attach data</span>
-                </Link>
-                <Link
-                  href="/app/connectors"
-                  className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1.5 rounded-md hover:bg-[var(--surface-alt)]"
-                  title="Connect to a data source"
-                >
-                  <PlugIcon /> <span>Connectors</span>
-                </Link>
-              </div>
-              <button
-                type="submit"
-                disabled={busy || !input.trim()}
-                className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-[var(--accent)] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
-                aria-label="Send"
-              >
-                {busy ? "…" : <ArrowUpIcon />}
-              </button>
-            </div>
-          </div>
-        </form>
+        <div className="mt-8 mx-auto">
+          <FloatingComposer
+            value={input}
+            onValueChange={setInput}
+            onSubmit={(text) => {
+              setInput(text);
+              start(text);
+            }}
+            placeholder={placeholder}
+            busy={busy}
+            attachHref="/app/upload?back=/app"
+            connectorsHref="/app/connectors"
+            sendLayoutId="axiom-composer-send"
+          />
+        </div>
 
         {error && <div className="text-red-600 text-sm mt-3">{error}</div>}
 
@@ -178,29 +131,5 @@ export default function ProductHome() {
         </div>
       </div>
     </div>
-  );
-}
-
-function PaperclipIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21.44 11.05 12.25 20.24a6 6 0 1 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-    </svg>
-  );
-}
-
-function PlugIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 2v6M15 2v6M5 8h14v4a7 7 0 0 1-14 0V8zM12 19v3" />
-    </svg>
-  );
-}
-
-function ArrowUpIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 19V5M5 12l7-7 7 7" />
-    </svg>
   );
 }

@@ -7,6 +7,7 @@ import { errMessage, type AxiomDataset, type AxiomProject } from "@/lib/types";
 import { setActiveProjectId, setActiveDatasetId, getActiveDatasetId } from "@/lib/projectContext";
 import { ChatPanel } from "@/components/product/ChatPanel";
 import { DatasetPreviewCard } from "@/components/product/DatasetPreviewCard";
+import { DataContextBar } from "@/components/product/DataContextBar";
 import { ArtifactDrawer, type Artifact, type PendingTool } from "@/components/product/ArtifactDrawer";
 import { ModeToggle } from "@/components/product/ModeToggle";
 import { useMode } from "@/lib/modeContext";
@@ -240,6 +241,10 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
     if (datasets.length > 0) setActiveDatasetState(datasets[0].id);
   }, [datasets, activeDatasetState]);
 
+  // Lifted from ChatPanel so the Data context bar's status pill can
+  // reflect Idle / Analyzing without a second source of truth.
+  const [chatStreaming, setChatStreaming] = useState(false);
+
   // Right-side artifact drawer state.
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTab, setDrawerTab] = useState<
@@ -472,26 +477,20 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
       </aside>
 
       {/* Main pane */}
-      <main className="p-6 overflow-auto">
-        <div className="max-w-4xl space-y-4">
-          {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
-          <div className="flex items-baseline justify-between mb-1">
-            <div>
-              <span className="eyebrow">Project chat</span>
-              <h1 className="text-xl font-semibold mt-1">
-                {activeSession?.title ?? "New chat"}
-              </h1>
-            </div>
+      <main className="overflow-auto bg-[var(--surface)]">
+        <DataContextBar
+          projectName={project?.name ?? activeSession?.title ?? "Project"}
+          projectId={projectId}
+          datasets={datasets}
+          activeDatasetId={activeDatasetState}
+          onPickDataset={pickDataset}
+          streaming={chatStreaming}
+          rightSlot={
             <div className="flex items-center gap-2">
-              {datasets.length > 0 && (
-                <div className="text-xs text-[var(--text-muted)] font-mono">
-                  AI sees all {datasets.length} dataset{datasets.length === 1 ? "" : "s"}
-                </div>
-              )}
               {activeSessionId && (
                 <Link
                   href={`/app/project/${projectId}/report?session=${activeSessionId}`}
-                  className="btn btn-ghost text-xs"
+                  className="hidden md:inline-flex text-[11px] px-2 py-1 rounded-md border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--text-muted)]"
                   title="Open the final report for this chat · التقرير النهائي"
                 >
                   Final report ↗
@@ -500,49 +499,63 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
               <ModeToggle projectId={projectId} size="sm" label="MODE" />
               <button
                 onClick={() => setDrawerOpen((v) => !v)}
-                className="btn btn-ghost text-xs"
+                className="text-[11px] px-2 py-1 rounded-md border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--text-muted)]"
                 title="Toggle artifact drawer"
               >
                 {drawerOpen ? "Hide artifacts" : "Show artifacts"}
               </button>
             </div>
-          </div>
-
-          {/* Adaptive Data Context Bar — wording flexes with mode. */}
-          <DataContextBar
-            projectId={projectId}
-            datasets={datasets}
-          />
-
-          {activeDatasetState != null && datasets.length > 0 && (
-            <DatasetPreviewCard
-              key={activeDatasetState}
-              datasetId={activeDatasetState}
-              onAskQuestion={onSuggestedQuestion}
-              onAskAboutCell={onAskAboutCell}
-            />
-          )}
-
-          {activeSessionId ? (
-            <ChatPanel
-              key={activeSessionId}
-              sessionId={activeSessionId}
-              projectId={projectId}
-              onTurnComplete={onTurnComplete}
-              hasData={datasets.length > 0}
-              initialPrompt={
-                requestedSessionId === activeSessionId ? initialPrompt : null
-              }
-              onInitialPromptConsumed={onInitialPromptConsumed}
-              onToolStarted={onToolStarted}
-              onToolFinished={(callId) => onToolFinished(callId)}
-              onTurnEnded={onChatTurnEnded}
-            />
-          ) : (
-            <div className="card text-sm text-[var(--text-muted)]">
-              Loading chat…
+          }
+        />
+        <div className="px-4 sm:px-6 py-6">
+          <div className="mx-auto w-full max-w-[800px] space-y-4">
+            {error && <div className="text-red-600 text-sm">{error}</div>}
+            <div>
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
+                Conversation
+              </span>
+              <h1 className="text-lg font-semibold mt-0.5 text-[var(--text)]">
+                {activeSession?.title ?? "New chat"}
+              </h1>
             </div>
-          )}
+
+            {/* Mode-aware contextual hint sits inside the centred thread,
+                under the new sticky chips bar. The sticky DataContextBar
+                handles dataset chips + Quick Preview + status pill; this
+                inline strip preserves the Expert/Guided wording flex. */}
+            <ModeAwareContextBar projectId={projectId} datasets={datasets} />
+
+            {activeDatasetState != null && datasets.length > 0 && (
+              <DatasetPreviewCard
+                key={activeDatasetState}
+                datasetId={activeDatasetState}
+                onAskQuestion={onSuggestedQuestion}
+                onAskAboutCell={onAskAboutCell}
+              />
+            )}
+
+            {activeSessionId ? (
+              <ChatPanel
+                key={activeSessionId}
+                sessionId={activeSessionId}
+                projectId={projectId}
+                onTurnComplete={onTurnComplete}
+                hasData={datasets.length > 0}
+                initialPrompt={
+                  requestedSessionId === activeSessionId ? initialPrompt : null
+                }
+                onInitialPromptConsumed={onInitialPromptConsumed}
+                onToolStarted={onToolStarted}
+                onToolFinished={(callId) => onToolFinished(callId)}
+                onTurnEnded={onChatTurnEnded}
+                onStreamingChange={setChatStreaming}
+              />
+            ) : (
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 text-sm text-[var(--text-muted)]">
+                Loading chat…
+              </div>
+            )}
+          </div>
         </div>
       </main>
 
@@ -639,7 +652,14 @@ function aggregateDatasetStats(datasets: AxiomDataset[]): {
   };
 }
 
-function DataContextBar({
+/**
+ * Inline, mode-aware contextual hint that complements the new sticky
+ * DataContextBar above the thread. The sticky bar handles dataset chips
+ * + Quick Preview popover + Idle/Analyzing pill; this strip preserves
+ * HEAD's expert/guided wording flex (column dtype + missingness for
+ * Expert, plain-language sentence for Guided).
+ */
+function ModeAwareContextBar({
   projectId,
   datasets,
 }: {
