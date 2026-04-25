@@ -70,16 +70,26 @@ type ModeContextValue = {
 const ModeContext = createContext<ModeContextValue | null>(null);
 
 export function ModeProvider({ children }: { children: React.ReactNode }) {
-  const [userMode, setUserModeState] = useState<Mode>(() => readCachedUserMode());
+  // Always initialize with the spec default ("guided") so the server
+  // render and the very first client render agree. The cached value
+  // (and then the API value) are layered on inside an effect below,
+  // after hydration has completed.
+  const [userMode, setUserModeState] = useState<Mode>("guided");
   const [projectModes, setProjectModes] = useState<Record<number, Mode | null>>(
     {}
   );
   const [ready, setReady] = useState(false);
 
-  // Initial load — pulls the user mode from the API (so a fresh tab on
-  // another device picks up the right default) and a single round of
-  // project modes so per-project pills don't flash on first paint.
+  // Initial load — first synchronously rehydrate from localStorage so
+  // the toggle doesn't flash "Guided" before snapping to the user's
+  // remembered choice, then fetch the canonical value from the API
+  // (so a fresh tab on another device picks up the right default) plus
+  // a single round of project modes so per-project pills don't flash
+  // on first paint.
   useEffect(() => {
+    const cached = readCachedUserMode();
+    if (cached !== "guided") setUserModeState(cached);
+
     if (!getToken()) {
       setReady(true);
       return;
@@ -188,18 +198,21 @@ export function useMode(projectId?: number | null): {
   const ctx = useContext(ModeContext);
   if (!ctx) {
     // Provider missing — fall back to a read-only stub so components can
-    // still render in stories / outside the app.
+    // still render in stories / outside the app. Always returns the
+    // spec default so server and first-client renders agree.
     return {
-      mode: readCachedUserMode(),
+      mode: "guided",
       setMode: async () => {},
       isProjectScoped: false,
       ready: false,
     };
   }
   if (projectId != null) {
+    // Read only from context state (which is itself hydrated inside an
+    // effect). Reading localStorage here would diverge between server
+    // and first-client renders and re-introduce a hydration warning.
     const override = ctx.projectModes[projectId];
-    const cached = override ?? readCachedProjectMode(projectId);
-    const resolved = cached ?? ctx.userMode;
+    const resolved = override ?? ctx.userMode;
     return {
       mode: resolved,
       setMode: (m: Mode) => ctx.setProjectMode(projectId, m),

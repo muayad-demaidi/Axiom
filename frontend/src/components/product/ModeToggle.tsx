@@ -7,6 +7,7 @@
  * preference); pass ``projectId`` when rendering inside a project to
  * edit that project's per-project mode override.
  */
+import { useEffect, useState } from "react";
 import { useMode, type Mode } from "@/lib/modeContext";
 
 type Size = "md" | "sm";
@@ -32,6 +33,17 @@ export function ModeToggle({
 }: ModeToggleProps) {
   const { mode, setMode } = useMode(projectId);
 
+  // The resolved mode comes from a context whose state is rehydrated
+  // from localStorage / the API inside an effect. Until that first
+  // post-mount tick lands, the active segment may differ between the
+  // server-rendered HTML and the client's eventual choice. Render a
+  // stable placeholder for that first paint to keep React's hydration
+  // happy and avoid a Guided→Expert flash.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const padding =
     size === "sm" ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-xs";
   const dot = size === "sm" ? "h-1.5 w-1.5" : "h-2 w-2";
@@ -45,6 +57,7 @@ export function ModeToggle({
     <div
       role="group"
       aria-label="AXIOM mode"
+      suppressHydrationWarning
       className={`inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] p-0.5 ${className}`}
     >
       {label && (
@@ -53,7 +66,7 @@ export function ModeToggle({
         </span>
       )}
       <Segment
-        active={mode === "guided"}
+        active={mounted && mode === "guided"}
         padding={padding}
         dot={dot}
         onClick={() => pick("guided")}
@@ -62,7 +75,7 @@ export function ModeToggle({
         Guided
       </Segment>
       <Segment
-        active={mode === "expert"}
+        active={mounted && mode === "expert"}
         padding={padding}
         dot={dot}
         onClick={() => pick("expert")}
