@@ -123,6 +123,30 @@ def test_dataset_endpoints_happy_path_and_cross_user_isolation():
     assert "profile" in body and body["profile"]["rows"] == 80
     assert "insights" in body and isinstance(body["insights"], list)
     assert "suggestions" in body and len(body["suggestions"]) > 0
+    # Default lang ("en") => suggestions are pure English (no Arabic chars).
+    for q in body["suggestions"]:
+        assert not any("\u0600" <= ch <= "\u06FF" for ch in q), f"EN suggestion leaked Arabic: {q}"
+
+    # lang=ar returns Levantine Arabic suggestions (contains Arabic chars).
+    r_ar = client.post(
+        f"/api/datasets/{did}/auto-profile?rows=5&lang=ar", headers=ah
+    )
+    assert r_ar.status_code == 200, r_ar.text
+    ar_body = r_ar.json()
+    assert any(
+        any("\u0600" <= ch <= "\u06FF" for ch in q)
+        for q in ar_body["suggestions"]
+    ), f"Arabic suggestions missing Arabic chars: {ar_body['suggestions']}"
+
+    # Same contract on the dedicated /suggestions GET.
+    r_sug_ar = client.get(
+        f"/api/datasets/{did}/suggestions?lang=ar", headers=ah
+    )
+    assert r_sug_ar.status_code == 200
+    assert any(
+        any("\u0600" <= ch <= "\u06FF" for ch in q)
+        for q in r_sug_ar.json()["suggestions"]
+    )
 
     # Cross-user 404 on every dataset endpoint.
     for path, method in [

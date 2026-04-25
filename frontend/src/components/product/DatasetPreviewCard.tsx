@@ -106,9 +106,15 @@ export function DatasetPreviewCard({
     let cancelled = false;
     setError(null);
     setData(null);
-    // One-shot endpoint: preview + profile + insights + suggestions in
-    // a single request, with backend caching on the dataset row.
-    api<AutoProfile>(`/api/datasets/${datasetId}/auto-profile?rows=20`, { method: "POST" })
+    const lang =
+      typeof navigator !== "undefined" &&
+      navigator.language?.toLowerCase().startsWith("ar")
+        ? "ar"
+        : "en";
+    api<AutoProfile>(
+      `/api/datasets/${datasetId}/auto-profile?rows=20&lang=${lang}`,
+      { method: "POST" }
+    )
       .then((d) => {
         if (!cancelled) setData(d);
       })
