@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Sparkles,
   Stethoscope,
+  UploadCloud,
 } from "lucide-react";
 import { api, getToken, streamPostNDJSON } from "@/lib/api";
 import { errMessage } from "@/lib/types";
@@ -131,6 +132,15 @@ export function ChatPanel({
   const chips = useMemo(() => (mode === "expert" ? EXPERT_CHIPS : GUIDED_CHIPS), [mode]);
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  // Counter so nested dragenter/dragleave events on child elements don't
+  // make the overlay flicker. We only hide once the counter hits zero.
+  const dragCounter = useRef(0);
+
+  const ACCEPTED_EXTS = useMemo(
+    () => [".csv", ".tsv", ".xlsx", ".xls", ".json"],
+    []
+  );
 
   useEffect(() => {
     setAuthed(!!getToken());
@@ -351,8 +361,102 @@ export function ChatPanel({
     setTimeout(() => composerRef.current?.focus(), 0);
   }
 
+  function isAcceptedFile(file: File): boolean {
+    const name = file.name.toLowerCase();
+    return ACCEPTED_EXTS.some((ext) => name.endsWith(ext));
+  }
+
+  // Only react to drag events that are actually carrying files — ignore
+  // text selections, dragged links, etc.
+  function dragHasFiles(e: React.DragEvent<HTMLDivElement>): boolean {
+    const types = e.dataTransfer?.types;
+    if (!types) return false;
+    for (let i = 0; i < types.length; i++) {
+      if (types[i] === "Files") return true;
+    }
+    return false;
+  }
+
+  function onDragEnter(e: React.DragEvent<HTMLDivElement>) {
+    if (!dragHasFiles(e)) return;
+    e.preventDefault();
+    dragCounter.current += 1;
+    if (!dragActive) setDragActive(true);
+  }
+
+  function onDragOver(e: React.DragEvent<HTMLDivElement>) {
+    if (!dragHasFiles(e)) return;
+    // Required to let the drop event fire on this surface.
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  }
+
+  function onDragLeave(e: React.DragEvent<HTMLDivElement>) {
+    if (!dragHasFiles(e)) return;
+    e.preventDefault();
+    dragCounter.current = Math.max(0, dragCounter.current - 1);
+    if (dragCounter.current === 0) setDragActive(false);
+  }
+
+  function onDrop(e: React.DragEvent<HTMLDivElement>) {
+    if (!dragHasFiles(e)) return;
+    e.preventDefault();
+    dragCounter.current = 0;
+    setDragActive(false);
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+    // Mirror the paperclip flow: only one file at a time.
+    const file = files[0];
+    if (!isAcceptedFile(file)) {
+      setUploadErr(
+        `Unsupported file type. Drop a CSV, TSV, Excel, or JSON file.`
+      );
+      return;
+    }
+    void handleAttachFile(file);
+  }
+
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      className="relative flex flex-col gap-4"
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      <AnimatePresence>
+        {dragActive && (
+          <motion.div
+            key="dropzone-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
+            // Pointer-events:none so the underlying chat surface still
+            // emits dragover/drop events through the overlay.
+            className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-2xl border-2 border-dashed border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface))]/85 backdrop-blur-sm"
+            aria-hidden="true"
+          >
+            <div className="flex flex-col items-center gap-2 text-center px-6">
+              <span
+                className="inline-flex items-center justify-center h-10 w-10 rounded-full"
+                style={{
+                  background: "color-mix(in srgb, var(--accent) 18%, transparent)",
+                  color: "var(--accent)",
+                }}
+              >
+                <UploadCloud className="h-5 w-5" />
+              </span>
+              <div className="text-sm font-semibold text-[var(--text)]">
+                Drop to upload
+              </div>
+              <div className="text-[11px] text-[var(--text-muted)]">
+                CSV, TSV, Excel, or JSON
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {!authed && (
         <div className="text-xs text-[var(--text-muted)]">
           Sign in to enable streaming chat with your data.
