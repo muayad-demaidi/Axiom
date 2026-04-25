@@ -266,29 +266,117 @@ export function ChatPanel({
           ))
         )}
       </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void send();
+      <ChatComposer
+        input={input}
+        setInput={setInput}
+        send={() => void send()}
+        streaming={streaming}
+        loadingHistory={loadingHistory}
+      />
+    </div>
+  );
+}
+
+/**
+ * Composer with an attach-data paperclip. Picking a file uploads it to
+ * `/api/datasets/upload` and then fires a global `axiom:dataset:uploaded`
+ * event so the workspace can refresh its dataset list, focus the new
+ * dataset, and auto-prompt a profile run.
+ */
+function ChatComposer({
+  input,
+  setInput,
+  send,
+  streaming,
+  loadingHistory,
+}: {
+  input: string;
+  setInput: (s: string) => void;
+  send: () => void;
+  streaming: boolean;
+  loadingHistory: boolean;
+}) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+
+  async function onFile(file: File) {
+    setUploading(true);
+    setUploadErr(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const pid = getActiveProjectId();
+      if (pid) form.append("project_id", String(pid));
+      form.append("dataset_name", file.name.replace(/\.[^.]+$/, ""));
+      const token = getToken();
+      const res = await fetch("/api/datasets/upload", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+      const data = (await res.json()) as { id: number; filename?: string; detail?: string };
+      if (!res.ok) throw new Error(data?.detail || "Upload failed");
+      window.dispatchEvent(
+        new CustomEvent("axiom:dataset:uploaded", {
+          detail: { datasetId: data.id, filename: data.filename || file.name },
+        })
+      );
+    } catch (e) {
+      setUploadErr(errMessage(e));
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        send();
+      }}
+      className="mt-3 flex gap-2 items-start"
+    >
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".csv,.tsv,.xlsx,.xls,.json"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void onFile(f);
         }}
-        className="mt-3 flex gap-2"
+      />
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        title="Attach a dataset · إرفاق ملف بيانات"
+        disabled={uploading || streaming}
+        className="px-3 py-2 rounded border border-[var(--border)] text-sm bg-[var(--surface)] hover:bg-[var(--surface-alt)]/60 disabled:opacity-50"
       >
+        {uploading ? "↑…" : "📎"}
+      </button>
+      <div className="flex-1 flex flex-col gap-1">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask anything about your data…"
-          className="flex-1 px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
+          placeholder="Ask anything about your data… · اسأل عن بياناتك"
+          className="px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
           disabled={loadingHistory}
         />
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={streaming || loadingHistory || !input.trim()}
-        >
-          {streaming ? "…" : "Send"}
-        </button>
-      </form>
-    </div>
+        {uploadErr && (
+          <span className="text-[10px] text-red-500">{uploadErr}</span>
+        )}
+      </div>
+      <button
+        type="submit"
+        className="btn btn-primary"
+        disabled={streaming || loadingHistory || !input.trim()}
+      >
+        {streaming ? "…" : "Send"}
+      </button>
+    </form>
   );
 }
 

@@ -177,6 +177,37 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
     setActiveDatasetState(id);
   }
 
+  // The chat composer's attach button uploads to /api/datasets/upload and
+  // then fires `axiom:dataset:uploaded`. We refetch this project's dataset
+  // list, focus the new file, and prefill a profile prompt that the chat
+  // sends immediately (which triggers the `profile_dataset` tool).
+  useEffect(() => {
+    function onUploaded(e: Event) {
+      const detail = (e as CustomEvent<{ datasetId: number; filename?: string }>).detail;
+      if (!detail || typeof detail.datasetId !== "number") return;
+      (async () => {
+        try {
+          const all = await api<AxiomDataset[]>("/api/datasets");
+          const projOnly = all.filter((d) => d.project_id === projectId);
+          setDatasets(projOnly);
+          const fresh = projOnly.find((d) => d.id === detail.datasetId);
+          if (fresh) {
+            setActiveDatasetId(fresh.id);
+            setActiveDatasetState(fresh.id);
+            const text = `Just uploaded ${fresh.filename || detail.filename || "a file"}. Profile this dataset and surface the most surprising insights.`;
+            window.dispatchEvent(
+              new CustomEvent("axiom:chat:prefill", { detail: { text, send: true } })
+            );
+          }
+        } catch {
+          /* swallow — user can retry from the sidebar */
+        }
+      })();
+    }
+    window.addEventListener("axiom:dataset:uploaded", onUploaded);
+    return () => window.removeEventListener("axiom:dataset:uploaded", onUploaded);
+  }, [projectId]);
+
   // Dataset shown in the chat preview card. Falls back to the project's
   // first dataset on initial load so a freshly-uploaded file shows up
   // immediately without the user having to click anything.

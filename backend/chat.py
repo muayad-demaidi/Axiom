@@ -476,14 +476,27 @@ def _run_predict(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
         }
         for f in feats
     }
+    feature_means = {f: float(X[f].mean()) for f in feats}
+    linear_coefs = {f: float(c) for f, c in coefs}
+    intercept_f = float(model.intercept_)
+    baseline_prediction = intercept_f + sum(
+        linear_coefs[f] * feature_means[f] for f in feats
+    )
     payload = {
         "target": target,
         "model": "LinearRegression",
         "metrics": {"r2": round(r2, 4), "mae": round(mae, 4),
                     "n_train": int(len(X_train)), "n_test": int(len(X_test))},
-        "intercept": float(model.intercept_),
+        "intercept": intercept_f,
         "feature_importance": importance[:25],
         "feature_ranges": feature_ranges,
+        # The next three are what `what_if_recommendations()` needs to
+        # synthesise the deterministic ±10/±25 % "if X changes by Δ,
+        # predicted Y becomes…" table in the Final Report + PDF.
+        "feature_means": feature_means,
+        "linear_coefs": linear_coefs,
+        "baseline_prediction": float(baseline_prediction),
+        "top_features": importance[:8],
     }
     title = f"Predict {target} — {rec.dataset_name or rec.filename}"
     a = models.save_chat_artifact(

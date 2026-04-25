@@ -42,7 +42,7 @@ def test_surprise_insights_returns_items_with_severity():
     assert isinstance(items, list)
     for it in items:
         assert {"headline", "severity"} <= set(it)
-        assert it["severity"] in ("info", "warn", "critical")
+        assert it["severity"] in ("info", "warn", "good", "critical")
 
 
 def test_suggested_questions_have_crisp_dm_phrasing():

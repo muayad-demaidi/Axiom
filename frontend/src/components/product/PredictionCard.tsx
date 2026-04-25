@@ -10,6 +10,7 @@
  * it instantly as the user drags.
  */
 import { useMemo, useState } from "react";
+import { InteractiveTable } from "./InteractiveTable";
 
 type Importance = {
   feature: string;
@@ -26,6 +27,11 @@ export type PredictionResult = {
   intercept: number;
   feature_importance: Importance[];
   feature_ranges: Record<string, Range>;
+  // Optional: shipped by newer prediction artifacts so the report can
+  // synthesise deterministic ±10/±25 % what-if rows.
+  feature_means?: Record<string, number>;
+  linear_coefs?: Record<string, number>;
+  baseline_prediction?: number;
 };
 
 export function PredictionCard({
@@ -94,6 +100,25 @@ export function PredictionCard({
               );
             })}
           </ul>
+        </section>
+
+        <section className="border border-[var(--border)] rounded p-3 bg-[var(--surface)]">
+          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
+            All features (sortable / searchable)
+          </div>
+          <InteractiveTable
+            columns={[
+              { name: "feature", dtype: "string" },
+              { name: "coefficient", dtype: "float" },
+              { name: "importance", dtype: "float" },
+            ]}
+            rows={(result.feature_importance ?? []).map((f) => ({
+              feature: f.feature,
+              coefficient: Number(f.coefficient.toFixed(5)),
+              importance: Number(f.importance.toFixed(5)),
+            }))}
+            maxHeight={180}
+          />
         </section>
 
         <section className="border border-[var(--border)] rounded p-3 bg-[var(--surface)]">
