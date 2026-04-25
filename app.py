@@ -142,6 +142,7 @@ from models import (
     update_dataset_steps, update_dataset_name, dataset_name_exists_in_project,
     get_dataset_record, set_user_last_dataset, set_user_assistant_mode,
     get_user_datasets, get_user_by_email, delete_dataset_record,
+    set_dataset_pinned,
     create_password_reset_token, get_valid_password_reset_token,
     consume_password_reset_token, purge_expired_password_reset_tokens,
     create_project, list_user_projects, get_project, update_project,
@@ -9359,10 +9360,17 @@ def show_dashboard():
                     if _recent:
                         st.markdown("---")
                         st.markdown("##### Recent datasets")
-                        st.caption("Reopen a previously analysed dataset and resume from its last Applied Step. Use ✏️ to rename or 🗑️ to remove.")
+                        st.caption("Reopen a previously analysed dataset and resume from its last Applied Step. Use 📌 to pin it to the top, ✏️ to rename, or 🗑️ to remove.")
                         _proj_id_for_rename = st.session_state.get('current_project_id')
                         for _rec in _recent:
-                            _meta = f"{_rec.row_count:,} rows × {_rec.column_count} cols · {_rec.upload_date.strftime('%Y-%m-%d')}"
+                            _is_pinned = getattr(_rec, "pinned_at", None) is not None
+                            _meta_bits = [
+                                f"{_rec.row_count:,} rows × {_rec.column_count} cols",
+                                _rec.upload_date.strftime('%Y-%m-%d'),
+                            ]
+                            if _is_pinned:
+                                _meta_bits.append("📌 Pinned")
+                            _meta = " · ".join(_meta_bits)
                             _rename_key = f"rename_mode_{_rec.id}"
                             _delete_key = f"delete_confirm_{_rec.id}"
                             _input_key = f"rename_input_{_rec.id}"
@@ -9459,7 +9467,7 @@ def show_dashboard():
                                         st.session_state.pop(_delete_key, None)
                                         st.rerun()
                             else:
-                                _rl, _rb1, _rb2, _rb3 = st.columns([0.58, 0.16, 0.13, 0.13])
+                                _rl, _rb1, _rbp, _rb2, _rb3 = st.columns([0.46, 0.16, 0.12, 0.13, 0.13])
                                 with _rl:
                                     st.markdown(
                                         f"**{_rec.dataset_name}**  \n"
@@ -9473,6 +9481,28 @@ def show_dashboard():
                                             st.rerun()
                                         else:
                                             st.error("Could not rebuild this dataset's history.")
+                                with _rbp:
+                                    # Toggle pin state. Show a filled pin
+                                    # ("📍") when already pinned so users
+                                    # can tell at a glance that clicking
+                                    # again will unpin it.
+                                    _pin_label = "📍" if _is_pinned else "📌"
+                                    _pin_help = ("Unpin from top of recent datasets"
+                                                 if _is_pinned
+                                                 else "Pin to top of recent datasets")
+                                    if st.button(_pin_label, key=f"pin_btn_{_rec.id}",
+                                                 help=_pin_help,
+                                                 use_container_width=True):
+                                        _wdb = get_db()
+                                        try:
+                                            _updated = set_dataset_pinned(
+                                                _wdb, _rec.id, _uid, not _is_pinned)
+                                        finally:
+                                            _wdb.close()
+                                        if _updated:
+                                            st.rerun()
+                                        else:
+                                            st.error("Could not update the pin state.")
                                 with _rb2:
                                     if st.button("✏️", key=f"rename_btn_{_rec.id}",
                                                  help="Rename this dataset",

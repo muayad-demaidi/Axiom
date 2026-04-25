@@ -178,6 +178,10 @@ class DatasetRecord(Base):
     parse_meta = Column(JSON, nullable=True)
     step_recipes = Column(JSON, nullable=True)
     active_step_index = Column(Integer, nullable=True)
+    # When set, this dataset is pinned to the top of the user's recent
+    # list. The timestamp doubles as a sort key so the most recently
+    # pinned items show first within the pinned group.
+    pinned_at = Column(DateTime, nullable=True, index=True)
     
 
 class DatasetRelationship(Base):
@@ -329,6 +333,8 @@ def init_db():
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS active_step_index INTEGER",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id)",
         "CREATE INDEX IF NOT EXISTS ix_dataset_records_project_id ON dataset_records(project_id)",
+        "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMP",
+        "CREATE INDEX IF NOT EXISTS ix_dataset_records_pinned_at ON dataset_records(pinned_at)",
         """CREATE TABLE IF NOT EXISTS password_reset_tokens (
             id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL REFERENCES users(id),
@@ -875,11 +881,42 @@ def get_user_datasets(db, user_id, project_id=None):
     When ``project_id`` is supplied, only datasets explicitly attached to that
     project are returned. When omitted, every dataset owned by the user is
     returned (used by admin / cross-project flows like the build queue).
+
+    Pinned datasets always come first (most recently pinned at the very
+    top), so a user's flagged "working file" stays surfaced even when the
+    Recent list is capped at five entries.
     """
     q = db.query(DatasetRecord).filter(DatasetRecord.user_id == user_id)
     if project_id is not None:
         q = q.filter(DatasetRecord.project_id == project_id)
-    return q.order_by(DatasetRecord.upload_date.desc()).all()
+    return q.order_by(
+        DatasetRecord.pinned_at.desc().nullslast(),
+        DatasetRecord.upload_date.desc(),
+    ).all()
+
+
+def set_dataset_pinned(db, dataset_id, user_id, pinned):
+    """Pin or unpin a dataset for the owning user.
+
+    Returns the updated record on success or ``None`` if the dataset
+    doesn't exist or isn't owned by ``user_id``. Pinning stamps
+    ``pinned_at`` with the current UTC time so the most recently pinned
+    item floats to the top of the Recent list; unpinning clears it.
+    Re-pinning an already-pinned dataset refreshes the timestamp so
+    users can re-prioritise without an unpin step.
+    """
+    if dataset_id is None or user_id is None:
+        return None
+    rec = (db.query(DatasetRecord)
+             .filter(DatasetRecord.id == dataset_id,
+                     DatasetRecord.user_id == user_id)
+             .first())
+    if not rec:
+        return None
+    rec.pinned_at = datetime.utcnow() if pinned else None
+    db.commit()
+    db.refresh(rec)
+    return rec
 
 
 # ─── Project helpers ─────────────────────────────────────────────────────
