@@ -249,11 +249,62 @@ async def report_pdf(
     doc.build(story)
     buf.seek(0)
     filename = f"axiom-report-{record.id}.pdf"
+
+    # Record the generation in the `reports` table so the user can find
+    # and re-download it later. Failures here shouldn't deny the user
+    # the PDF they just generated, so degrade quietly.
+    try:
+        models.save_report_record(
+            db,
+            user_id=user.id,
+            dataset_id=record.id,
+            project_id=getattr(record, "project_id", None),
+            title=req.title,
+            notes=req.notes,
+            dataset_label=str(dataset_label),
+        )
+    except Exception as exc:  # pragma: no cover - best-effort logging
+        print(f"[axiom] save_report_record failed: {exc}")
+
     return StreamingResponse(
         buf,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.get("/api/reports/recent")
+async def reports_recent(
+    project_id: int | None = None,
+    limit: int = 10,
+    user=Depends(get_current_user),
+    db=Depends(get_db_session),
+):
+    """List the user's most recent generated reports.
+
+    When ``project_id`` is supplied the list is scoped to that project,
+    matching the report page's "active project" context. The response
+    only includes metadata; the PDF itself is regenerated on-demand by
+    re-posting to ``/api/report/pdf`` with the saved ``dataset_id`` /
+    ``title`` / ``notes``.
+    """
+    rows = models.list_recent_reports(
+        db, user_id=user.id, project_id=project_id, limit=limit,
+    )
+    return {
+        "reports": [
+            {
+                "id": r.id,
+                "dataset_id": r.dataset_id,
+                "project_id": r.project_id,
+                "title": r.title,
+                "notes": r.notes,
+                "dataset_label": r.dataset_label,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ]
+    }
 
 
 def _escape_for_pdf(text: str) -> str:

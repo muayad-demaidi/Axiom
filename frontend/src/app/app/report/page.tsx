@@ -1,10 +1,20 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, getToken } from "@/lib/api";
 import type { AxiomDataset, DatasetSummaryColumn } from "@/lib/types";
 import { errMessage } from "@/lib/types";
-import { getActiveDatasetId } from "@/lib/projectContext";
+import { getActiveDatasetId, getActiveProjectId } from "@/lib/projectContext";
+
+type RecentReport = {
+  id: number;
+  dataset_id: number | null;
+  project_id: number | null;
+  title: string | null;
+  notes: string | null;
+  dataset_label: string | null;
+  created_at: string | null;
+};
 
 type SectionKey =
   | "include_cover"
@@ -30,11 +40,16 @@ function isNumericDtype(dtype: string): boolean {
 export default function ReportPage() {
   const router = useRouter();
   const [datasetId, setDatasetId] = useState<number | null>(null);
+  const [projectId, setProjectId] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [recent, setRecent] = useState<RecentReport[]>([]);
+  const [recentLoading, setRecentLoading] = useState(false);
+  const [recentError, setRecentError] = useState<string | null>(null);
+  const [regeneratingId, setRegeneratingId] = useState<number | null>(null);
 
   const [sections, setSections] = useState<Record<SectionKey, boolean>>({
     include_cover: true,
@@ -46,10 +61,33 @@ export default function ReportPage() {
   const [numericColumns, setNumericColumns] = useState<string[]>([]);
   const [chartColumn, setChartColumn] = useState<string>("");
 
+  const fetchRecent = useCallback(async (pid: number | null) => {
+    const token = getToken();
+    if (!token) return;
+    setRecentLoading(true);
+    setRecentError(null);
+    try {
+      const qs = pid != null ? `?project_id=${pid}` : "";
+      const res = await fetch(`/api/reports/recent${qs}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`Failed to load recent reports (${res.status})`);
+      const j = (await res.json()) as { reports?: RecentReport[] };
+      setRecent(Array.isArray(j.reports) ? j.reports : []);
+    } catch (e: unknown) {
+      setRecentError(e instanceof Error ? e.message : "Failed to load recent reports");
+    } finally {
+      setRecentLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!getToken()) { router.push("/login"); return; }
     const id = getActiveDatasetId();
+    const pid = getActiveProjectId();
     setDatasetId(id);
+    setProjectId(pid);
+    fetchRecent(pid);
     if (!id) return;
     api<AxiomDataset>(`/api/datasets/${id}`)
       .then((d) => {
@@ -65,7 +103,54 @@ export default function ReportPage() {
         // falls back to the first numeric column.
         setNumericColumns([]);
       });
-  }, [router]);
+  }, [router, fetchRecent]);
+
+  async function downloadPdf(opts: {
+    datasetId: number;
+    title: string | null;
+    notes: string | null;
+    filenameId: number;
+    sections?: Record<SectionKey, boolean>;
+    chartColumn?: string | null;
+  }): Promise<void> {
+    const token = getToken();
+    const body: Record<string, unknown> = {
+      dataset_id: opts.datasetId,
+      title: opts.title,
+      notes: opts.notes,
+    };
+    if (opts.sections) {
+      Object.assign(body, opts.sections);
+      body.chart_column = opts.sections.include_chart ? (opts.chartColumn || null) : null;
+    }
+    const res = await fetch("/api/report/pdf", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/pdf",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      let detail = text;
+      try {
+        const j = JSON.parse(text) as { detail?: string };
+        if (j?.detail) detail = j.detail;
+      } catch { /* keep raw text */ }
+      throw new Error(detail || `Report failed (${res.status})`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `axiom-report-${opts.filenameId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 
   function toggleSection(key: SectionKey) {
     setSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -84,46 +169,45 @@ export default function ReportPage() {
     }
     setBusy(true); setError(null); setStatus("Building report…");
     try {
-      const token = getToken();
-      const res = await fetch("/api/report/pdf", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/pdf",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          dataset_id: datasetId,
-          title: title.trim() || null,
-          notes: notes.trim() || null,
-          ...sections,
-          chart_column: sections.include_chart ? (chartColumn || null) : null,
-        }),
+      await downloadPdf({
+        datasetId,
+        title: title.trim() || null,
+        notes: notes.trim() || null,
+        filenameId: datasetId,
+        sections,
+        chartColumn,
       });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        let detail = text;
-        try {
-          const j = JSON.parse(text) as { detail?: string };
-          if (j?.detail) detail = j.detail;
-        } catch { /* keep raw text */ }
-        throw new Error(detail || `Report failed (${res.status})`);
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `axiom-report-${datasetId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
       setStatus("Report downloaded.");
+      // Refresh the recent list so the new entry appears.
+      fetchRecent(projectId);
     } catch (e: unknown) {
       setError(errMessage(e));
       setStatus(null);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function regenerate(r: RecentReport) {
+    if (!r.dataset_id) {
+      setRecentError("This report's dataset is no longer available.");
+      return;
+    }
+    setRegeneratingId(r.id);
+    setRecentError(null);
+    try {
+      // Regenerate uses the backend's defaults (all sections) since we
+      // don't persist the per-report section selection.
+      await downloadPdf({
+        datasetId: r.dataset_id,
+        title: r.title,
+        notes: r.notes,
+        filenameId: r.dataset_id,
+      });
+    } catch (e: unknown) {
+      setRecentError(e instanceof Error ? e.message : "Re-download failed");
+    } finally {
+      setRegeneratingId(null);
     }
   }
 
@@ -220,6 +304,74 @@ export default function ReportPage() {
       </div>
 
       {error && <div className="card mt-4 text-sm text-red-600">{error}</div>}
+
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-semibold">Recent reports</h2>
+          <button
+            type="button"
+            onClick={() => fetchRecent(projectId)}
+            className="text-xs text-[var(--text-muted)] hover:underline"
+            disabled={recentLoading}
+          >
+            {recentLoading ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
+        <p className="text-xs text-[var(--text-muted)] mb-3">
+          {projectId
+            ? "Reports you've generated for the active project."
+            : "Reports you've generated recently."}
+        </p>
+
+        {recentError && (
+          <div className="card text-sm text-red-600">{recentError}</div>
+        )}
+
+        {!recentError && recent.length === 0 && !recentLoading && (
+          <div className="card text-sm text-[var(--text-muted)]">
+            No reports yet. Generate one above and it will show up here.
+          </div>
+        )}
+
+        {recent.length > 0 && (
+          <div className="card divide-y divide-[var(--border)] p-0">
+            {recent.map((r) => {
+              const created = r.created_at
+                ? new Date(r.created_at).toLocaleString()
+                : "—";
+              const label = r.title?.trim() || "AXIOM Dataset Report";
+              return (
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between gap-3 px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{label}</div>
+                    <div className="text-xs text-[var(--text-muted)] truncate">
+                      {r.dataset_label || `Dataset #${r.dataset_id ?? "?"}`}
+                      {" · "}
+                      {created}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => regenerate(r)}
+                    disabled={regeneratingId === r.id || !r.dataset_id}
+                    className="btn btn-ghost text-xs whitespace-nowrap"
+                    title={
+                      r.dataset_id
+                        ? "Regenerate and download this report"
+                        : "Original dataset is no longer available"
+                    }
+                  >
+                    {regeneratingId === r.id ? "Preparing…" : "Download"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

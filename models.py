@@ -279,6 +279,34 @@ class ChatArtifact(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
+class Report(Base):
+    """Persisted record of a generated PDF report.
+
+    We store metadata only (title, notes, dataset reference, snapshot
+    of the dataset's display name) so users can come back later and
+    re-download a previously generated report by re-running the same
+    PDF endpoint with the saved parameters. Storing the PDF bytes
+    themselves would bloat the DB; the deterministic regeneration is
+    enough to satisfy "re-download".
+    """
+    __tablename__ = "reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"),
+                     nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"),
+                        nullable=True, index=True)
+    dataset_id = Column(Integer, ForeignKey("dataset_records.id"),
+                        nullable=True, index=True)
+    title = Column(String(255), nullable=True)
+    notes = Column(Text, nullable=True)
+    # Snapshot of the dataset's display name at generation time, so the
+    # recent-reports list still has something to show if the dataset is
+    # later renamed or deleted.
+    dataset_label = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 def init_db():
     """Initialize database tables and apply lightweight in-place migrations.
 
@@ -323,7 +351,8 @@ def init_db():
     # New tables for the per-project knowledge base. Created explicitly so
     # older deployments pick them up without needing a migration tool.
     for _t in (ProjectKnowledgeBase.__table__, ProjectLearnedNote.__table__,
-               ChatSession.__table__, ChatArtifact.__table__):
+               ChatSession.__table__, ChatArtifact.__table__,
+               Report.__table__):
         try:
             _t.create(bind=engine, checkfirst=True)
         except Exception:
@@ -1273,6 +1302,58 @@ def delete_dataset_record(db, dataset_id, user_id):
     db.delete(rec)
     db.commit()
     return True
+
+
+def save_report_record(db, user_id, dataset_id, project_id, title, notes,
+                       dataset_label):
+    """Persist a row in ``reports`` for a generated PDF.
+
+    Returns the new ``Report`` instance. Failures are surfaced to the
+    caller (the PDF endpoint already built the bytes by the time we get
+    here, so swallowing errors silently would hide real DB issues).
+    """
+    rec = Report(
+        user_id=user_id,
+        dataset_id=dataset_id,
+        project_id=project_id,
+        title=(title or None),
+        notes=(notes or None),
+        dataset_label=(dataset_label or None),
+    )
+    db.add(rec)
+    db.commit()
+    db.refresh(rec)
+    return rec
+
+
+def list_recent_reports(db, user_id, project_id=None, limit=10):
+    """Return the user's recent reports, optionally scoped to a project.
+
+    Ordered newest-first. ``limit`` is clamped to a sensible range so a
+    badly-behaved client can't ask for the whole table.
+    """
+    if user_id is None:
+        return []
+    try:
+        n = int(limit)
+    except (TypeError, ValueError):
+        n = 10
+    n = max(1, min(50, n))
+    q = db.query(Report).filter(Report.user_id == user_id)
+    if project_id is not None:
+        q = q.filter(Report.project_id == project_id)
+    return (q.order_by(Report.created_at.desc())
+              .limit(n)
+              .all())
+
+
+def get_report_strict(db, report_id, user_id):
+    """Look up a report owned by ``user_id`` (or return None)."""
+    if user_id is None or report_id is None:
+        return None
+    return (db.query(Report)
+              .filter(Report.id == report_id, Report.user_id == user_id)
+              .first())
 
 
 def save_support_message(db, email, name, message):
