@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Database, Loader2, Sparkles, Table2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { errMessage, type AxiomDataset } from "@/lib/types";
+import { cacheKeys, getCached, setCached } from "@/lib/workspaceCache";
 
 type Preview = {
   id: number;
@@ -16,7 +17,9 @@ type Preview = {
   preview: Record<string, unknown>[];
 };
 
-export function DataContextBar({
+const PREVIEW_ROWS = 5;
+
+function DataContextBarBase({
   projectName,
   projectId,
   datasets,
@@ -48,29 +51,29 @@ export function DataContextBar({
 
   return (
     <div className="sticky top-0 z-30 bg-[var(--surface)]/85 backdrop-blur supports-[backdrop-filter]:bg-[var(--surface)]/75 border-b border-[var(--border)]">
-      <div className="px-4 sm:px-6 py-2.5 flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)] hidden sm:inline">
+      <div className="px-4 sm:px-5 py-1.5 flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 shrink-0">
+          <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--text-muted)] hidden sm:inline">
             Project
           </span>
-          <span className="text-sm font-semibold text-[var(--text)] truncate max-w-[180px]">
+          <span className="text-xs font-semibold text-[var(--text)] truncate max-w-[160px]">
             {projectName}
           </span>
         </div>
 
-        <span className="h-4 w-px bg-[var(--border)] hidden sm:inline-block" />
+        <span className="h-3.5 w-px bg-[var(--border)] hidden sm:inline-block shrink-0" />
 
-        <div className="flex items-center gap-2 flex-wrap min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 overflow-x-auto no-scrollbar">
           {datasets.length === 0 ? (
-            <div className="text-xs text-[var(--text-muted)] inline-flex items-center gap-1.5">
-              <Database className="h-3.5 w-3.5" />
+            <div className="text-[11px] text-[var(--text-muted)] inline-flex items-center gap-1.5 whitespace-nowrap">
+              <Database className="h-3 w-3" />
               <span>
                 No dataset attached —{" "}
                 <Link
                   href={`/app/upload?back=/app/project/${projectId}`}
                   className="text-[var(--accent)] hover:underline"
                 >
-                  upload one to start
+                  upload one
                 </Link>
               </span>
             </div>
@@ -94,7 +97,7 @@ export function DataContextBar({
                 <button
                   type="button"
                   onClick={() => setShowAll(true)}
-                  className="text-[11px] px-2 py-1 rounded-full border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                  className="text-[10px] px-2 py-0.5 rounded-full border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] whitespace-nowrap shrink-0"
                 >
                   +{extra} more
                 </button>
@@ -103,7 +106,7 @@ export function DataContextBar({
                 <button
                   type="button"
                   onClick={() => setShowAll(false)}
-                  className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--text)]"
+                  className="text-[9px] uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--text)] whitespace-nowrap shrink-0"
                 >
                   collapse
                 </button>
@@ -112,7 +115,7 @@ export function DataContextBar({
           )}
         </div>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2 shrink-0">
           {rightSlot}
           <StatusPill streaming={streaming} />
         </div>
@@ -159,12 +162,12 @@ function DatasetChip({
   const layoutId = reduceMotion ? undefined : `dataset-chip-${dataset.id}`;
 
   return (
-    <div className="relative" ref={wrapRef}>
+    <div className="relative shrink-0" ref={wrapRef}>
       <motion.button
         type="button"
         layoutId={layoutId}
         onClick={onToggle}
-        className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors ${
+        className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap ${
           active
             ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10"
             : "border-[var(--border)] text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
@@ -172,11 +175,11 @@ function DatasetChip({
         title={`${dataset.dataset_name || dataset.filename} · click to peek at the first rows`}
         aria-expanded={open}
       >
-        <Table2 className="h-3 w-3" />
-        <span className="max-w-[180px] truncate">
+        <Table2 className="h-2.5 w-2.5" />
+        <span className="max-w-[160px] truncate">
           {dataset.dataset_name || dataset.filename}
         </span>
-        <span className="font-mono text-[10px] text-[var(--text-muted)]">
+        <span className="font-mono text-[9px] text-[var(--text-muted)]">
           {dataset.rows.toLocaleString()} × {dataset.cols}
         </span>
       </motion.button>
@@ -199,25 +202,49 @@ function DatasetChip({
   );
 }
 
+/**
+ * Lazy-loaded preview popover.
+ *
+ * Defers the network request until this component mounts (i.e. the
+ * popover is actually opened) and caches the result per dataset. On
+ * subsequent opens of the same dataset's preview the cached payload is
+ * shown instantly with no loading flicker.
+ */
 function QuickPreview({ dataset }: { dataset: AxiomDataset }) {
-  const [data, setData] = useState<Preview | null>(null);
+  const cacheKey = cacheKeys.datasetPreview(dataset.id, PREVIEW_ROWS);
+  const [data, setData] = useState<Preview | null>(
+    () => (getCached<Preview>(cacheKey) as Preview | undefined) ?? null
+  );
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(() => !getCached<Preview>(cacheKey));
 
   useEffect(() => {
     let cancelled = false;
+    const cached = getCached<Preview>(cacheKey);
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+      return;
+    }
     setError(null);
     setData(null);
-    api<Preview>(`/api/datasets/${dataset.id}/preview?rows=5`)
+    setLoading(true);
+    api<Preview>(`/api/datasets/${dataset.id}/preview?rows=${PREVIEW_ROWS}`)
       .then((d) => {
-        if (!cancelled) setData(d);
+        if (cancelled) return;
+        setCached(cacheKey, d);
+        setData(d);
       })
       .catch((e) => {
         if (!cancelled) setError(errMessage(e));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [dataset.id]);
+  }, [dataset.id, cacheKey]);
 
   return (
     <div className="text-xs">
@@ -226,7 +253,7 @@ function QuickPreview({ dataset }: { dataset: AxiomDataset }) {
           {dataset.dataset_name || dataset.filename}
         </div>
         <div className="font-mono text-[10px] text-[var(--text-muted)] shrink-0">
-          peek · first 5 rows
+          peek · first {PREVIEW_ROWS} rows
         </div>
       </div>
       {error ? (
@@ -234,7 +261,7 @@ function QuickPreview({ dataset }: { dataset: AxiomDataset }) {
           Couldn&apos;t load a preview right now.{" "}
           <span className="text-[10px] block mt-1 font-mono">{error}</span>
         </div>
-      ) : !data ? (
+      ) : loading || !data ? (
         <div className="px-3 py-4 text-[var(--text-muted)] inline-flex items-center gap-2">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           Loading preview…
@@ -311,9 +338,9 @@ function StatusPill({ streaming }: { streaming: boolean }) {
           animate={{ opacity: 1 }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0 }}
           transition={{ duration: 0.18 }}
-          className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-full bg-[var(--accent)]/12 text-[var(--accent)] border border-[var(--accent)]/30"
+          className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-[var(--accent)]/12 text-[var(--accent)] border border-[var(--accent)]/30 whitespace-nowrap"
         >
-          <Sparkles className="h-3 w-3" />
+          <Sparkles className="h-2.5 w-2.5" />
           Analyzing…
         </motion.span>
       ) : (
@@ -324,7 +351,7 @@ function StatusPill({ streaming }: { streaming: boolean }) {
           animate={{ opacity: 1 }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0 }}
           transition={{ duration: 0.18 }}
-          className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-full bg-[var(--surface-alt)] text-[var(--text-muted)] border border-[var(--border)]"
+          className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-[var(--surface-alt)] text-[var(--text-muted)] border border-[var(--border)] whitespace-nowrap"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-[var(--text-muted)]" />
           Idle
@@ -333,3 +360,5 @@ function StatusPill({ streaming }: { streaming: boolean }) {
     </AnimatePresence>
   );
 }
+
+export const DataContextBar = memo(DataContextBarBase);

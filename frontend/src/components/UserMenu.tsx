@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, getToken, setToken, ApiError } from "@/lib/api";
+import { clearAllCached } from "@/lib/workspaceCache";
 
 type Me = {
   id: number;
@@ -64,6 +65,7 @@ export function UserMenu({ variant = "marketing" }: { variant?: Variant }) {
 
   function logout() {
     setToken(null);
+    clearAllCached();
     setMe(null);
     setOpen(false);
     router.push("/");

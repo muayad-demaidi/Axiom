@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Suspense } from "react";
 import { ProductSidebar } from "@/components/product/ProductSidebar";
 import { UserMenu } from "@/components/UserMenu";
 import { AppChrome, HeaderToggle } from "@/components/product/AppChrome";
@@ -37,7 +38,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <div className="flex-1 grid grid-cols-[240px_1fr]">
-          <ProductSidebar />
+          <Suspense fallback={<aside className="border-r border-[var(--border)] bg-[var(--surface)]" />}>
+            <ProductSidebar />
+          </Suspense>
           <main className="p-6 overflow-auto">{children}</main>
         </div>
       </div>

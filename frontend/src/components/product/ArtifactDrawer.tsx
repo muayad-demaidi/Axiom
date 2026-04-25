@@ -11,7 +11,7 @@
  * shows up in the Final Report. The drawer pulls fresh artifact data
  * from `/api/chats/{sid}/artifacts` whenever a tool finishes.
  */
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { errMessage } from "@/lib/types";
 import { ChartRenderer, type ChartPayload } from "./Charts";
@@ -47,7 +47,7 @@ const KIND_TO_TAB: Record<string, Tab> = {
 
 export type PendingTool = { id: string; tool: string };
 
-export function ArtifactDrawer({
+function ArtifactDrawerBase({
   open,
   onClose,
   sessionId,
@@ -468,3 +468,5 @@ function InsightBody({ result }: { result: { items: InsightItem[] } }) {
     </ul>
   );
 }
+
+export const ArtifactDrawer = memo(ArtifactDrawerBase);

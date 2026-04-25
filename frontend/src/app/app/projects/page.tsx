@@ -12,6 +12,7 @@ import {
   getProjectMode,
   type Mode,
 } from "@/lib/projectContext";
+import { cacheKeys, patchCached, setCached } from "@/lib/workspaceCache";
 
 export default function ProjectsIndex() {
   const router = useRouter();
@@ -29,12 +30,14 @@ export default function ProjectsIndex() {
     }
     setActiveId(getActiveProjectId());
     api<AxiomProject[]>("/api/projects")
-      .then((arr) =>
+      .then((arr) => {
+        // Keep the shared sidebar cache fresh too.
+        setCached(cacheKeys.projects(), arr);
         // Hide the auto-managed Quick Chats project from the explicit
         // projects index — it's a system bucket for the home-screen
         // chat, not something the user manages here.
-        setProjects(arr.filter((p) => p.name !== "Quick Chats"))
-      )
+        setProjects(arr.filter((p) => p.name !== "Quick Chats"));
+      })
       .catch((e: ApiError) => {
         if (e.status === 401) router.push("/login");
         else setError(e.message);
@@ -51,6 +54,12 @@ export default function ProjectsIndex() {
         json: { name: newName.trim() },
       });
       setProjects((arr) => [p, ...(arr ?? [])]);
+      // Mirror the new project into the shared cache so the unified
+      // sidebar shows it immediately on next render.
+      patchCached<AxiomProject[]>(cacheKeys.projects(), (cur) => [
+        p,
+        ...((cur || []).filter((x) => x.id !== p.id)),
+      ]);
       setNewName("");
       pick(p.id);
       router.push(`/app/project/${p.id}`);
