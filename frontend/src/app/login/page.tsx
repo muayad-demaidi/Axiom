@@ -21,7 +21,7 @@ export default function LoginPage() {
     try {
       const res = await api<AuthResponse>("/api/auth/login", {
         method: "POST",
-        json: { email_or_username: identifier, password },
+        json: { email_or_username: identifier.trim(), password },
       });
       setToken(res.token);
       router.push("/app");
@@ -56,6 +56,11 @@ export default function LoginPage() {
           className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
           placeholder="Email or username"
           value={identifier} onChange={(e) => setIdentifier(e.target.value)} required
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          autoComplete="username"
+          inputMode="email"
         />
         <input
           className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"

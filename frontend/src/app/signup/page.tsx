@@ -22,7 +22,12 @@ export default function SignupPage() {
     try {
       const res = await api<AuthResponse>("/api/auth/register", {
         method: "POST",
-        json: { email, username, password, full_name: fullName || undefined },
+        json: {
+          email: email.trim(),
+          username: username.trim(),
+          password,
+          full_name: fullName.trim() || undefined,
+        },
       });
       setToken(res.token);
       router.push("/app");
@@ -55,9 +60,21 @@ export default function SignupPage() {
         <h1 className="text-xl font-bold">Create your account</h1>
         <p className="text-xs text-[var(--text-muted)]">60 days of full Tier 3 access. No card required.</p>
         <input className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
-          placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          autoComplete="email"
+          inputMode="email"
+        />
         <input className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
-          placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+          placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          autoComplete="username"
+          inputMode="text"
+        />
         <input className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
           placeholder="Full name (optional)" value={fullName} onChange={(e) => setFullName(e.target.value)} />
         <input className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"

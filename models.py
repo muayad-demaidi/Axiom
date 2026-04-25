@@ -772,17 +772,37 @@ def verify_password(password, hashed):
         return False
 
 
+def normalize_identifier(value):
+    """Canonical form for an email or username: trimmed and lowercased.
+
+    Used so iOS Safari quirks (auto-capitalised first letter, autocomplete
+    trailing spaces) and ordinary case differences don't cause logins to
+    miss accounts that obviously match.
+    """
+    if value is None:
+        return ""
+    return str(value).strip().lower()
+
+
 def create_user(db, email, username, password, full_name=None, is_admin=False,
                 phone=None, country=None, gender=None, specialty=None, specialty_other=None):
     """Create a new user"""
-    existing = db.query(User).filter((User.email == email) | (User.username == username)).first()
+    from sqlalchemy import func
+    canonical_email = normalize_identifier(email)
+    canonical_username = normalize_identifier(username)
+    if not canonical_email or not canonical_username:
+        return None
+    existing = db.query(User).filter(
+        (func.lower(User.email) == canonical_email)
+        | (func.lower(User.username) == canonical_username)
+    ).first()
     if existing:
         return None
-    
+
     now = datetime.utcnow()
     user = User(
-        email=email,
-        username=username,
+        email=canonical_email,
+        username=canonical_username,
         password_hash=hash_password(password),
         full_name=full_name,
         is_admin=is_admin,
@@ -802,11 +822,20 @@ def create_user(db, email, username, password, full_name=None, is_admin=False,
 
 
 def authenticate_user(db, email_or_username, password):
-    """Authenticate a user by email/username and password"""
+    """Authenticate a user by email/username and password.
+
+    Comparison is case-insensitive and trims surrounding whitespace so
+    accounts created with mixed-case emails (or typed on iOS Safari with
+    an auto-capitalised first letter / trailing space) still match.
+    """
+    from sqlalchemy import func
+    needle = normalize_identifier(email_or_username)
+    if not needle:
+        return None
     user = db.query(User).filter(
-        (User.email == email_or_username) | (User.username == email_or_username)
+        (func.lower(User.email) == needle) | (func.lower(User.username) == needle)
     ).first()
-    
+
     if user and verify_password(password, user.password_hash):
         user.last_login = datetime.utcnow()
         db.commit()
@@ -850,8 +879,12 @@ def clear_session_token(db, user):
 
 
 def get_user_by_email(db, email):
-    """Get user by email"""
-    return db.query(User).filter(User.email == email).first()
+    """Get user by email (case-insensitive, whitespace-trimmed)."""
+    from sqlalchemy import func
+    needle = normalize_identifier(email)
+    if not needle:
+        return None
+    return db.query(User).filter(func.lower(User.email) == needle).first()
 
 
 def update_user_subscription(db, user_id, subscription_type, end_date=None):

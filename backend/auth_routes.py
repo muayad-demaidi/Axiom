@@ -5,7 +5,7 @@ import logging
 import os
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 import models  # type: ignore
 
@@ -15,16 +15,38 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 log = logging.getLogger("axiom.auth_routes")
 
 
+def _strip_str(value):
+    """Pydantic pre-validator: trim leading/trailing whitespace.
+
+    Applied to identifier fields so direct API callers (curl, mobile
+    autocomplete) don't get a 422 from the strict email regex just
+    because of a trailing space iOS Safari pasted in.
+    """
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
+
 class RegisterRequest(BaseModel):
     email: str = Field(min_length=3, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     username: str = Field(min_length=2, max_length=64)
     password: str = Field(min_length=6, max_length=128)
     full_name: str | None = None
 
+    @field_validator("email", "username", mode="before")
+    @classmethod
+    def _trim_identifier(cls, v):
+        return _strip_str(v)
+
 
 class LoginRequest(BaseModel):
     email_or_username: str
     password: str
+
+    @field_validator("email_or_username", mode="before")
+    @classmethod
+    def _trim_identifier(cls, v):
+        return _strip_str(v)
 
 
 class TokenResponse(BaseModel):
@@ -64,8 +86,12 @@ class UpdateMeRequest(BaseModel):
 
 @router.post("/register", response_model=TokenResponse)
 async def register(req: RegisterRequest, db=Depends(get_db_session)):
+    from sqlalchemy import func
+    canonical_email = models.normalize_identifier(req.email)
+    canonical_username = models.normalize_identifier(req.username)
     existing = db.query(models.User).filter(
-        (models.User.email == req.email) | (models.User.username == req.username)
+        (func.lower(models.User.email) == canonical_email)
+        | (func.lower(models.User.username) == canonical_username)
     ).first()
     if existing:
         raise HTTPException(409, "User with this email or username already exists")
@@ -114,6 +140,11 @@ async def update_me(
 class ForgotRequest(BaseModel):
     email: str = Field(min_length=3, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
+    @field_validator("email", mode="before")
+    @classmethod
+    def _trim_identifier(cls, v):
+        return _strip_str(v)
+
 
 class ResetRequest(BaseModel):
     token: str = Field(min_length=10, max_length=512)
@@ -153,7 +184,14 @@ def _send_reset_email(email: str, raw_token: str) -> None:
 
 @router.post("/forgot")
 async def forgot_password(req: ForgotRequest, db=Depends(get_db_session)):
-    user = db.query(models.User).filter(models.User.email == req.email).first()
+    from sqlalchemy import func
+    needle = models.normalize_identifier(req.email)
+    user = (
+        db.query(models.User)
+          .filter(func.lower(models.User.email) == needle)
+          .first()
+        if needle else None
+    )
     if user:
         raw_token = models.create_password_reset_token(db, user)
         if raw_token:
