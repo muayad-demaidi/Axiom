@@ -86,6 +86,15 @@ type ChatPanelProps = {
   /** Reports the streaming state up to the parent so the Data context
    * bar can flip its status pill between Idle / Analyzing. */
   onStreamingChange?: (streaming: boolean) => void;
+  /** Optional content rendered at the very top of the scrollable
+   * message viewport, above the greeting and the conversation. Used by
+   * the project workspace to embed the dataset preview INSIDE the chat
+   * thread itself (instead of as a separate panel above it), so the
+   * dataset preview, greeting, user turns, and assistant turns all read
+   * as a single unified conversation. The header scrolls with the
+   * messages naturally — as the conversation grows it slides off the
+   * top of the viewport, and the user can scroll back up to it. */
+  headerSlot?: React.ReactNode;
 };
 
 const GREETING_NEW =
@@ -111,6 +120,7 @@ export function ChatPanel({
   onToolFinished,
   projectId = null,
   onStreamingChange,
+  headerSlot,
 }: ChatPanelProps) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -613,6 +623,7 @@ export function ChatPanel({
             <div className="text-sm text-[var(--text-muted)]">Loading conversation…</div>
           ) : (
             <>
+              {headerSlot && <div className="mb-2">{headerSlot}</div>}
               {messages.map((m, i) => {
                 const isLast = i === messages.length - 1;
                 const isStreamingThis = streaming && isLast;
