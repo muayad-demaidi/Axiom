@@ -390,14 +390,14 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
             </div>
 
             {activeDatasetState != null && datasets.length > 0 && (
-              // Cap the dataset preview at ~40% of the viewport and let it
-              // scroll internally. Without this cap a large dataset (e.g.
-              // 45,000-row loan_data with surprise-insight ribbon, 20-row
-              // table preview, and ~7 suggestion chips) consumes nearly
-              // the whole vertical slot above the composer, pushing the
-              // chat thread off-screen and making it look like the
-              // conversation has disappeared.
-              <div className="shrink-0 max-h-[40vh] overflow-y-auto rounded-xl">
+              // Cap the dataset preview at ~20% of the viewport and let
+              // it scroll internally so the chat thread always gets the
+              // majority of the vertical space. With the project header,
+              // mode-aware context bar, composer, and gaps factored in,
+              // a tighter cap is what actually keeps the conversation
+              // visible — earlier 40vh / 28vh caps left only ~44–193px
+              // for the chat itself.
+              <div className="shrink-0 max-h-[20vh] overflow-y-auto rounded-xl">
                 <DatasetPreviewCard
                   key={activeDatasetState}
                   datasetId={activeDatasetState}
@@ -408,6 +408,12 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
             )}
 
             {activeSessionId ? (
+              // `min-h-0` (NOT a fixed min-h) is essential here: the
+              // chat slot is a flex child whose own child (`ChatPanel`)
+              // has its own internal scroller, and the ancestor uses
+              // `overflow-hidden`. A non-zero `min-h` would let this
+              // slot grow past the parent's space and clip the composer
+              // (which is the bottom child inside `ChatPanel`).
               <div className="flex-1 min-h-0 flex flex-col">
                 <ChatPanel
                   key={activeSessionId}
