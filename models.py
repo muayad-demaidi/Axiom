@@ -243,6 +243,35 @@ class ChatHistory(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 
+class ChatArtifact(Base):
+    """Persisted output of a tool the chat model invoked.
+
+    `kind` is one of: profile | prediction | chart | cluster | insight | qa.
+    `params` records the tool inputs (so we can re-run / what-if) and
+    `result` stores the rendered payload the frontend consumes
+    (chart points, prediction coefficients, cluster sizes, etc.). The
+    `pinned` flag controls whether the artifact appears in the Final
+    Report by default.
+    """
+    __tablename__ = "chat_artifacts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("chat_sessions.id"),
+                        nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"),
+                     nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"),
+                        nullable=False, index=True)
+    dataset_id = Column(Integer, ForeignKey("dataset_records.id"),
+                        nullable=True, index=True)
+    kind = Column(String(32), nullable=False, index=True)
+    title = Column(String(255), nullable=False, default="Artifact")
+    params = Column(JSON, nullable=True)
+    result = Column(JSON, nullable=True)
+    pinned = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 def init_db():
     """Initialize database tables and apply lightweight in-place migrations.
 
@@ -286,7 +315,7 @@ def init_db():
     # New tables for the per-project knowledge base. Created explicitly so
     # older deployments pick them up without needing a migration tool.
     for _t in (ProjectKnowledgeBase.__table__, ProjectLearnedNote.__table__,
-               ChatSession.__table__):
+               ChatSession.__table__, ChatArtifact.__table__):
         try:
             _t.create(bind=engine, checkfirst=True)
         except Exception:
@@ -421,6 +450,23 @@ def get_dataset_record(db, dataset_id, user_id=None):
     q = db.query(DatasetRecord).filter(DatasetRecord.id == dataset_id)
     if user_id is not None:
         q = q.filter((DatasetRecord.user_id == user_id) | (DatasetRecord.user_id.is_(None)))
+    return q.first()
+
+
+def get_dataset_record_strict(db, dataset_id, user_id, project_id=None):
+    """Look up a dataset that is strictly owned by the given user (and
+    optionally bound to a specific project). Used by the new
+    chat-artifact endpoints where leaking legacy `user_id IS NULL`
+    rows to other authenticated users would be a real access-control
+    bug."""
+    if user_id is None:
+        return None
+    q = db.query(DatasetRecord).filter(
+        DatasetRecord.id == dataset_id,
+        DatasetRecord.user_id == user_id,
+    )
+    if project_id is not None:
+        q = q.filter(DatasetRecord.project_id == project_id)
     return q.first()
 
 
@@ -596,6 +642,73 @@ def delete_chat_session(db, session_id, user_id):
         synchronize_session=False
     )
     db.delete(sess)
+    db.commit()
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Chat artifacts (tool-call outputs persisted under a chat session)
+# ---------------------------------------------------------------------------
+
+def save_chat_artifact(db, session_id, user_id, project_id, kind, title,
+                       params=None, result=None, dataset_id=None, pinned=True):
+    """Persist a tool-call output under a chat session."""
+    a = ChatArtifact(
+        session_id=session_id,
+        user_id=user_id,
+        project_id=project_id,
+        dataset_id=dataset_id,
+        kind=kind,
+        title=(title or kind)[:255],
+        params=params or {},
+        result=result or {},
+        pinned=bool(pinned),
+    )
+    db.add(a)
+    db.commit()
+    db.refresh(a)
+    return a
+
+
+def list_chat_artifacts(db, session_id, user_id, kind=None, pinned_only=False):
+    """List artifacts for a session the user owns, newest first."""
+    q = (
+        db.query(ChatArtifact)
+        .filter(
+            ChatArtifact.session_id == session_id,
+            ChatArtifact.user_id == user_id,
+        )
+    )
+    if kind:
+        q = q.filter(ChatArtifact.kind == kind)
+    if pinned_only:
+        q = q.filter(ChatArtifact.pinned.is_(True))
+    return q.order_by(ChatArtifact.created_at.desc(), ChatArtifact.id.desc()).all()
+
+
+def get_chat_artifact(db, artifact_id, user_id):
+    return (
+        db.query(ChatArtifact)
+        .filter(ChatArtifact.id == artifact_id, ChatArtifact.user_id == user_id)
+        .first()
+    )
+
+
+def set_artifact_pin(db, artifact_id, user_id, pinned):
+    a = get_chat_artifact(db, artifact_id, user_id)
+    if not a:
+        return None
+    a.pinned = bool(pinned)
+    db.commit()
+    db.refresh(a)
+    return a
+
+
+def delete_chat_artifact(db, artifact_id, user_id):
+    a = get_chat_artifact(db, artifact_id, user_id)
+    if not a:
+        return False
+    db.delete(a)
     db.commit()
     return True
 

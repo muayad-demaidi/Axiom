@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, ApiError, getToken } from "@/lib/api";
 import { errMessage, type AxiomDataset, type AxiomProject } from "@/lib/types";
-import { setActiveProjectId, setActiveDatasetId } from "@/lib/projectContext";
+import { setActiveProjectId, setActiveDatasetId, getActiveDatasetId } from "@/lib/projectContext";
 import { ChatPanel } from "@/components/product/ChatPanel";
+import { DatasetPreviewCard } from "@/components/product/DatasetPreviewCard";
+import { ArtifactDrawer, type Artifact, type PendingTool } from "@/components/product/ArtifactDrawer";
 
 type ChatSession = {
   id: number;
@@ -172,7 +174,70 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
 
   function pickDataset(id: number) {
     setActiveDatasetId(id);
+    setActiveDatasetState(id);
   }
+
+  // Dataset shown in the chat preview card. Falls back to the project's
+  // first dataset on initial load so a freshly-uploaded file shows up
+  // immediately without the user having to click anything.
+  const [activeDatasetState, setActiveDatasetState] = useState<number | null>(null);
+  useEffect(() => {
+    if (activeDatasetState != null) return;
+    const stored = getActiveDatasetId();
+    if (stored && datasets.some((d) => d.id === stored)) {
+      setActiveDatasetState(stored);
+      return;
+    }
+    if (datasets.length > 0) setActiveDatasetState(datasets[0].id);
+  }, [datasets, activeDatasetState]);
+
+  // Right-side artifact drawer state.
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTab, setDrawerTab] = useState<
+    "profile" | "visualize" | "predictions" | "clusters"
+  >("profile");
+  const [pendingTools, setPendingTools] = useState<PendingTool[]>([]);
+  const [artifactRefresh, setArtifactRefresh] = useState(0);
+
+  function pushChatPrompt(text: string, sendNow: boolean) {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(
+      new CustomEvent("axiom:chat:prefill", { detail: { text, send: sendNow } })
+    );
+  }
+  const onSuggestedQuestion = useCallback((q: string) => pushChatPrompt(q, true), []);
+  const onAskAboutCell = useCallback((column: string, value: unknown) => {
+    const v = value == null ? "" : String(value);
+    pushChatPrompt(
+      `Tell me more about the row(s) where \`${column}\` = ${JSON.stringify(v)}.`,
+      false
+    );
+  }, []);
+
+  function onToolStarted(p: PendingTool) {
+    setPendingTools((cur) => [...cur, p]);
+    if (p.tool === "make_chart") setDrawerTab("visualize");
+    else if (p.tool === "predict_column") setDrawerTab("predictions");
+    else if (p.tool === "cluster_dataset") setDrawerTab("clusters");
+    else if (p.tool === "profile_dataset") setDrawerTab("profile");
+    setDrawerOpen(true);
+  }
+  function onToolFinished(callId: string) {
+    setPendingTools((cur) => cur.filter((p) => p.id !== callId));
+    setArtifactRefresh((n) => n + 1);
+  }
+  // Clean up any pending skeletons whenever a stream ends — covers
+  // network errors, aborts, and any tool whose tool_finished event
+  // never arrived. Without this, drawer skeletons could leak forever.
+  function onChatTurnEnded() {
+    setPendingTools([]);
+    setArtifactRefresh((n) => n + 1);
+  }
+  // And reset whenever the user switches to a different chat session so
+  // skeletons from the previous chat can't bleed into the new one.
+  useEffect(() => {
+    setPendingTools([]);
+  }, [activeSessionId]);
 
   // Strip ?q= from the URL after the prompt is consumed so reloading
   // doesn't resend the message.
@@ -197,7 +262,13 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
   );
 
   return (
-    <div className="-m-6 grid grid-cols-[240px_1fr] min-h-[calc(100vh-3.5rem)]">
+    <div
+      className={`-m-6 grid min-h-[calc(100vh-3.5rem)] transition-[grid-template-columns] ${
+        drawerOpen
+          ? "grid-cols-[240px_minmax(0,1fr)_440px]"
+          : "grid-cols-[240px_minmax(0,1fr)]"
+      }`}
+    >
       {/* Project rail — narrow, scoped to this project */}
       <aside className="border-r border-[var(--border)] bg-[var(--surface-alt)] p-4 flex flex-col text-sm overflow-y-auto">
         <div className="font-semibold text-[var(--text)] truncate">
@@ -337,26 +408,52 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
             + Upload more
           </Link>
         </div>
+
+        {activeSessionId && (
+          <Link
+            href={`/app/project/${projectId}/report?session=${activeSessionId}`}
+            className="mt-6 block text-xs px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-center"
+          >
+            Final report →
+          </Link>
+        )}
       </aside>
 
       {/* Main pane */}
       <main className="p-6 overflow-auto">
-        <div className="max-w-4xl">
+        <div className="max-w-4xl space-y-4">
           {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
-          <div className="flex items-baseline justify-between mb-3">
+          <div className="flex items-baseline justify-between mb-1">
             <div>
               <span className="eyebrow">Project chat</span>
               <h1 className="text-xl font-semibold mt-1">
                 {activeSession?.title ?? "New chat"}
               </h1>
             </div>
-            {datasets.length > 0 && (
-              <div className="text-xs text-[var(--text-muted)] font-mono">
-                AI sees all {datasets.length} dataset
-                {datasets.length === 1 ? "" : "s"} in this project
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {datasets.length > 0 && (
+                <div className="text-xs text-[var(--text-muted)] font-mono">
+                  AI sees all {datasets.length} dataset{datasets.length === 1 ? "" : "s"}
+                </div>
+              )}
+              <button
+                onClick={() => setDrawerOpen((v) => !v)}
+                className="btn btn-ghost text-xs"
+                title="Toggle artifact drawer"
+              >
+                {drawerOpen ? "Hide artifacts" : "Show artifacts"}
+              </button>
+            </div>
           </div>
+
+          {activeDatasetState != null && datasets.length > 0 && (
+            <DatasetPreviewCard
+              key={activeDatasetState}
+              datasetId={activeDatasetState}
+              onAskQuestion={onSuggestedQuestion}
+              onAskAboutCell={onAskAboutCell}
+            />
+          )}
 
           {activeSessionId ? (
             <ChatPanel
@@ -368,6 +465,9 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
                 requestedSessionId === activeSessionId ? initialPrompt : null
               }
               onInitialPromptConsumed={onInitialPromptConsumed}
+              onToolStarted={onToolStarted}
+              onToolFinished={(callId) => onToolFinished(callId)}
+              onTurnEnded={onChatTurnEnded}
             />
           ) : (
             <div className="card text-sm text-[var(--text-muted)]">
@@ -376,6 +476,15 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
           )}
         </div>
       </main>
+
+      <ArtifactDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        sessionId={activeSessionId}
+        refreshKey={artifactRefresh}
+        pending={pendingTools}
+        initialTab={drawerTab}
+      />
     </div>
   );
 }

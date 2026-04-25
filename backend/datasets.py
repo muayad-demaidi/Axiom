@@ -82,7 +82,7 @@ async def upload_dataset(
         column_count=summary["cols"],
         columns_info=_columns_info(df),
         data_hash=data_hash,
-        summary_stats=summary["report"],
+        summary_stats=jsonify(summary["report"]),
         user_id=user.id,
         source_parquet=parquet_bytes,
         project_id=project_id,
