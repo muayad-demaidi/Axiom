@@ -141,7 +141,7 @@ from models import (
     issue_session_token, get_user_by_session_token, clear_session_token,
     update_dataset_steps, update_dataset_name, dataset_name_exists_in_project,
     get_dataset_record, set_user_last_dataset, set_user_assistant_mode,
-    get_user_datasets, get_user_by_email,
+    get_user_datasets, get_user_by_email, delete_dataset_record,
     create_password_reset_token, get_valid_password_reset_token,
     consume_password_reset_token, purge_expired_password_reset_tokens,
     create_project, list_user_projects, get_project, update_project,
@@ -9359,20 +9359,132 @@ def show_dashboard():
                     if _recent:
                         st.markdown("---")
                         st.markdown("##### Recent datasets")
-                        st.caption("Reopen a previously analysed dataset and resume from its last Applied Step.")
+                        st.caption("Reopen a previously analysed dataset and resume from its last Applied Step. Use ✏️ to rename or 🗑️ to remove.")
+                        _proj_id_for_rename = st.session_state.get('current_project_id')
                         for _rec in _recent:
                             _meta = f"{_rec.row_count:,} rows × {_rec.column_count} cols · {_rec.upload_date.strftime('%Y-%m-%d')}"
-                            _rl, _rr = st.columns([0.72, 0.28])
-                            with _rl:
-                                st.markdown(f"**{_rec.dataset_name}**  \n<span style='color:#94a3b8;font-size:0.8rem;'>{_meta}</span>",
-                                            unsafe_allow_html=True)
-                            with _rr:
-                                if st.button("Reopen", key=f"reopen_{_rec.id}",
-                                             use_container_width=True):
-                                    if _hydrate_dataset_from_db(_rec.id):
+                            _rename_key = f"rename_mode_{_rec.id}"
+                            _delete_key = f"delete_confirm_{_rec.id}"
+                            _input_key = f"rename_input_{_rec.id}"
+
+                            if st.session_state.get(_rename_key):
+                                # Inline rename row.
+                                _il, _is, _ic = st.columns([0.66, 0.17, 0.17])
+                                with _il:
+                                    st.text_input(
+                                        "New name",
+                                        value=_rec.dataset_name,
+                                        key=_input_key,
+                                        label_visibility="collapsed",
+                                    )
+                                with _is:
+                                    if st.button("Save", key=f"rename_save_{_rec.id}",
+                                                 use_container_width=True, type="primary"):
+                                        _new_name = (st.session_state.get(_input_key) or "").strip()
+                                        if not _new_name:
+                                            st.warning("Name cannot be empty.")
+                                        elif _new_name == _rec.dataset_name:
+                                            st.session_state.pop(_rename_key, None)
+                                            st.session_state.pop(_input_key, None)
+                                            st.rerun()
+                                        else:
+                                            _wdb = get_db()
+                                            try:
+                                                if dataset_name_exists_in_project(
+                                                    _wdb, _proj_id_for_rename, _new_name,
+                                                    exclude_dataset_id=_rec.id,
+                                                    user_id=_uid,
+                                                ):
+                                                    st.warning(f"A dataset named “{_new_name}” already exists in this project.")
+                                                else:
+                                                    _updated = update_dataset_name(
+                                                        _wdb, _rec.id, _uid, _new_name)
+                                                    if _updated:
+                                                        st.session_state.pop(_rename_key, None)
+                                                        st.session_state.pop(_input_key, None)
+                                                        st.success(f"Renamed to {_updated.dataset_name}.")
+                                                        st.rerun()
+                                                    else:
+                                                        st.error("Could not rename this dataset.")
+                                            finally:
+                                                _wdb.close()
+                                with _ic:
+                                    if st.button("Cancel", key=f"rename_cancel_{_rec.id}",
+                                                 use_container_width=True):
+                                        st.session_state.pop(_rename_key, None)
+                                        st.session_state.pop(_input_key, None)
                                         st.rerun()
-                                    else:
-                                        st.error("Could not rebuild this dataset's history.")
+                            elif st.session_state.get(_delete_key):
+                                # Confirm delete row — destructive, two-tap to commit.
+                                _dl, _dy, _dn = st.columns([0.5, 0.25, 0.25])
+                                with _dl:
+                                    st.markdown(
+                                        f"<span style='color:#fca5a5;font-size:0.85rem;'>"
+                                        f"Delete <b>{_rec.dataset_name}</b>? This removes the saved file and Applied Steps."
+                                        f"</span>",
+                                        unsafe_allow_html=True,
+                                    )
+                                with _dy:
+                                    if st.button("Delete", key=f"delete_yes_{_rec.id}",
+                                                 use_container_width=True, type="primary"):
+                                        _wdb = get_db()
+                                        try:
+                                            _ok = delete_dataset_record(_wdb, _rec.id, _uid)
+                                        finally:
+                                            _wdb.close()
+                                        st.session_state.pop(_delete_key, None)
+                                        # Hygiene: drop the per-row rename keys too so a
+                                        # future record reusing the same key namespace
+                                        # doesn't inherit stale state.
+                                        st.session_state.pop(_rename_key, None)
+                                        st.session_state.pop(_input_key, None)
+                                        if _ok:
+                                            # Drop any in-memory state tied to this dataset
+                                            # so the dashboard doesn't keep showing it.
+                                            st.session_state.step_histories.pop(_rec.id, None)
+                                            if st.session_state.get('current_dataset_id') == _rec.id:
+                                                st.session_state.current_dataset_id = None
+                                                st.session_state.df = None
+                                                st.session_state.df_cleaned = None
+                                                st.session_state.cleaning_report = None
+                                                st.session_state.analysis_results = None
+                                                st.session_state.ai_insights = None
+                                            st.success(f"Deleted {_rec.dataset_name}.")
+                                            st.rerun()
+                                        else:
+                                            st.error("Could not delete this dataset.")
+                                with _dn:
+                                    if st.button("Keep", key=f"delete_no_{_rec.id}",
+                                                 use_container_width=True):
+                                        st.session_state.pop(_delete_key, None)
+                                        st.rerun()
+                            else:
+                                _rl, _rb1, _rb2, _rb3 = st.columns([0.58, 0.16, 0.13, 0.13])
+                                with _rl:
+                                    st.markdown(
+                                        f"**{_rec.dataset_name}**  \n"
+                                        f"<span style='color:#94a3b8;font-size:0.8rem;'>{_meta}</span>",
+                                        unsafe_allow_html=True,
+                                    )
+                                with _rb1:
+                                    if st.button("Reopen", key=f"reopen_{_rec.id}",
+                                                 use_container_width=True):
+                                        if _hydrate_dataset_from_db(_rec.id):
+                                            st.rerun()
+                                        else:
+                                            st.error("Could not rebuild this dataset's history.")
+                                with _rb2:
+                                    if st.button("✏️", key=f"rename_btn_{_rec.id}",
+                                                 help="Rename this dataset",
+                                                 use_container_width=True):
+                                        st.session_state[_rename_key] = True
+                                        st.rerun()
+                                with _rb3:
+                                    if st.button("🗑️", key=f"delete_btn_{_rec.id}",
+                                                 help="Delete this dataset",
+                                                 use_container_width=True):
+                                        st.session_state[_delete_key] = True
+                                        st.rerun()
 
         if st.session_state.df is not None:
             _TAB_LABELS = [
