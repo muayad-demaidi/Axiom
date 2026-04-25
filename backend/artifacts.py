@@ -184,6 +184,49 @@ async def seed_profile_artifact(
     return jsonify({"summary": summary, "artifacts": artifacts})
 
 
+@router.post("/api/chats/{session_id}/seed-data-model")
+async def seed_data_model_artifact(
+    session_id: int,
+    user=Depends(get_current_user),
+    db=Depends(get_db_session),
+):
+    """Deterministic counterpart to ``seed-profile`` for multi-CSV
+    projects. The frontend calls this when a chat session opens on a
+    project with ≥2 datasets so the Data model artifact is guaranteed
+    to land in the drawer without depending on the LLM choosing
+    ``list_model``. Idempotent: returns the existing artifact if one
+    already exists for this session.
+    """
+    from . import chat as chat_mod  # local import to avoid circular
+
+    sess = _require_session(db, session_id, user.id)
+    if not sess.project_id:
+        raise HTTPException(400, "Chat is not bound to a project")
+
+    # Re-use the artifact already in this session if there is one.
+    existing = (
+        db.query(models.ChatArtifact)
+        .filter(models.ChatArtifact.session_id == sess.id,
+                models.ChatArtifact.kind == "data_model")
+        .order_by(models.ChatArtifact.id.desc())
+        .first()
+    )
+    if existing is not None:
+        return jsonify({"summary": {"reused": True},
+                        "artifacts": [chat_mod._artifact_view(existing)]})
+
+    ctx = {
+        "user_id": user.id,
+        "project_id": sess.project_id,
+        "session_id": sess.id,
+    }
+    try:
+        summary, artifacts = chat_mod._run_list_model(db, {}, ctx)
+    except Exception as e:
+        raise HTTPException(500, f"Data model seed failed: {e}")
+    return jsonify({"summary": summary, "artifacts": artifacts})
+
+
 @router.post("/api/datasets/{dataset_id}/auto-profile")
 async def dataset_auto_profile(
     dataset_id: int,

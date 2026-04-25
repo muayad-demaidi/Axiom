@@ -28,6 +28,7 @@ from pydantic import BaseModel
 
 import models  # type: ignore
 import ai_assistant  # type: ignore
+import semantic_model as sm  # type: ignore
 
 from .auth import get_current_user, get_db_session
 from .insights import build_profile, surprise_insights, suggested_questions
@@ -67,12 +68,49 @@ B. TOOL USAGE — when the user asks for analysis, prefer to **invoke a
     enough info to power a what-if slider.
   • cluster_dataset(dataset_id, k?) — KMeans on numeric columns;
     returns cluster sizes and centroids.
+  • list_model() — return the project's semantic model (table roles,
+    grains, primary keys, confirmed and proposed relationships, open
+    clarification questions, business description). Call this on first
+    contact when a project has ≥2 datasets so you understand how they
+    fit together.
+  • query_model(spec) — run a safe cross-table aggregation against the
+    semantic model. The engine refuses to row-join summary tables onto
+    detail tables, caps row output, warns on N:N fan-out and weak
+    overlap, and labels inferred (unconfirmed) joins. Always pass a
+    full ``spec`` ({tables, metrics:[{table,column,agg,alias}],
+    group_by:[{table,column}], filters, limit}). Never hand-write the
+    join — this tool picks it from the confirmed relationships first
+    and falls back to inferred only when the user has not confirmed
+    one. Quote the warnings/refusals in your reply verbatim.
+  • explain_model() — return a plain-language summary of the semantic
+    model. Useful when the user asks "what's in my data" or "how do
+    these tables connect".
 
 Each tool persists an artifact in the session, which the UI shows in a
 right-side drawer. After a tool returns, summarise its result in plain
 language. Always pick the tool that matches the question; chain
 multiple tools when it makes sense (e.g. profile then chart then
 predict).
+
+──────────────────────────────────────────────────────────────────────
+B.1 MULTI-TABLE SAFETY RULES — when the project has more than one
+dataset, you MUST follow these rules:
+
+  • Prefer **confirmed** relationships from list_model when joining
+    tables. If only an inferred (unconfirmed) join is available, use
+    it but PREFIX your final answer with the literal phrase
+    "Using inferred link …" and name the columns.
+  • REFUSE to row-join a summary table (role='summary') with a fact
+    or dimension table. Aggregate the detail table to the summary
+    grain first, or query the summary on its own. If the user insists,
+    quote the refusal text returned by query_model.
+  • If query_model returns warnings (low overlap, fan-out, truncation),
+    surface them in your "Caveats" section verbatim — never hide them.
+  • NEVER fabricate joined rows or invented totals. If the engine
+    returns no rows, say "no matching rows" and recommend the next
+    step (confirm a join, fix a column, broaden a filter).
+  • When a clarification question is open against the join you'd need,
+    ASK the user to answer it before running the analysis.
 
 ──────────────────────────────────────────────────────────────────────
 C. STYLE RULES:
@@ -180,6 +218,105 @@ TOOL_SCHEMA: list[dict] = [
                 },
                 "required": ["dataset_id"],
             },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_model",
+            "description": (
+                "Return the project's semantic model: every dataset's "
+                "role (fact/dimension/summary/bridge), grain, primary "
+                "key, confirmed and proposed cross-table relationships "
+                "with confidence + evidence, open clarification "
+                "questions, and the user-supplied business description. "
+                "Call this once on first turn when the project has more "
+                "than one dataset."
+            ),
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_model",
+            "description": (
+                "Run a safe cross-table aggregation against the semantic "
+                "model. Returns rows + warnings + refusals. Refuses to "
+                "row-join summary tables onto detail tables and labels "
+                "inferred (unconfirmed) joins so you can prefix the "
+                "answer with 'Using inferred link …'."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tables": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Dataset names involved in the query. The "
+                            "first entry is the FROM table; the rest "
+                            "are joined."
+                        ),
+                    },
+                    "metrics": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "table": {"type": "string"},
+                                "column": {"type": "string"},
+                                "agg": {
+                                    "type": "string",
+                                    "enum": ["sum", "mean", "avg", "count",
+                                             "min", "max", "median", "nunique"],
+                                },
+                                "alias": {"type": "string"},
+                            },
+                            "required": ["table", "column", "agg"],
+                        },
+                    },
+                    "group_by": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "table": {"type": "string"},
+                                "column": {"type": "string"},
+                            },
+                            "required": ["table", "column"],
+                        },
+                    },
+                    "filters": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "table": {"type": "string"},
+                                "column": {"type": "string"},
+                                "op": {"type": "string"},
+                                "value": {},
+                            },
+                            "required": ["column", "op"],
+                        },
+                    },
+                    "limit": {"type": "integer", "default": 100},
+                },
+                "required": ["tables"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "explain_model",
+            "description": (
+                "Return a plain-language summary of the semantic model — "
+                "table list, roles, grains, joins, and any open "
+                "questions. Use when the user asks 'what's in my data', "
+                "'how do these tables connect', or wants an overview."
+            ),
+            "parameters": {"type": "object", "properties": {}},
         },
     },
 ]
@@ -658,11 +795,213 @@ def _run_cluster(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
     return {"k": k, "sizes": sizes}, [_artifact_view(a)]
 
 
+def _semantic_bundle(db, project_id: int, user_id: int) -> dict:
+    """Local re-export of the data_model bundle so we don't have to
+    pull a router import into chat.py. Mirrors the GET endpoint."""
+    from .data_model import _bundle, refresh_project_model
+    bundle = _bundle(db, project_id, user_id)
+    if not bundle.get("tables"):
+        # First-touch: profile the project so the assistant has
+        # something to work with.
+        bundle = refresh_project_model(db, project_id, user_id)
+    return bundle
+
+
+def _run_list_model(db, args: dict, ctx: dict) -> tuple[dict, list]:
+    project_id = ctx.get("project_id")
+    if not project_id:
+        raise ValueError("list_model requires a project context")
+    bundle = _semantic_bundle(db, project_id, ctx["user_id"])
+    title = "Data model"
+    a = models.save_chat_artifact(
+        db,
+        session_id=ctx["session_id"],
+        user_id=ctx["user_id"],
+        project_id=project_id,
+        kind="data_model",
+        title=title,
+        params={},
+        result=bundle,
+        dataset_id=None,
+        pinned=False,
+    )
+    summary = {
+        "tables": [
+            {"name": t["dataset_name"], "role": t["role"],
+             "rows": t["rows"], "grain": (t.get("grain") or {}).get("label"),
+             "confirmed": t["confirmed"]}
+            for t in bundle.get("tables", [])
+        ],
+        "relationships": [
+            {"left": f"{r['left_table']}.{r['left_column']}",
+             "right": f"{r['right_table']}.{r['right_column']}",
+             "status": r["status"], "band": r["band"],
+             "confidence": r["confidence"], "evidence": r["evidence"]}
+            for r in bundle.get("relationships", [])
+        ],
+        "questions": [
+            {"id": q["id"], "kind": q["kind"], "prompt": q["prompt"]}
+            for q in bundle.get("questions", [])
+        ],
+        "description": bundle.get("description"),
+    }
+    return summary, [_artifact_view(a)]
+
+
+def _run_query_model(db, args: dict, ctx: dict) -> tuple[dict, list]:
+    project_id = ctx.get("project_id")
+    if not project_id:
+        raise ValueError("query_model requires a project context")
+    bundle = _semantic_bundle(db, project_id, ctx["user_id"])
+    name_by_id = {d["id"]: d["name"] for d in bundle.get("datasets", [])}
+
+    # Load frames for every dataset in the project so the join planner
+    # can chain through intermediates if needed.
+    records = (
+        db.query(models.DatasetRecord)
+        .filter(models.DatasetRecord.project_id == project_id,
+                models.DatasetRecord.user_id == ctx["user_id"])
+        .all()
+    )
+    frames_by_name: dict[str, pd.DataFrame] = {}
+    for r in records:
+        if not r.source_parquet:
+            continue
+        try:
+            frames_by_name[r.dataset_name or r.filename or f"dataset_{r.id}"] = \
+                pd.read_parquet(io.BytesIO(r.source_parquet))
+        except Exception:
+            continue
+
+    confirmed = [
+        {
+            "left_table": r["left_table"], "left_column": r["left_column"],
+            "right_table": r["right_table"], "right_column": r["right_column"],
+            "cardinality": r["cardinality"], "overlap_score": r["overlap_score"],
+            "confidence": r.get("confidence"), "band": r.get("band"),
+            "status": r.get("status"),
+        }
+        for r in bundle.get("relationships", [])
+        if r["status"] == "confirmed"
+    ]
+    inferred = [
+        {
+            "left_table": r["left_table"], "left_column": r["left_column"],
+            "right_table": r["right_table"], "right_column": r["right_column"],
+            "cardinality": r["cardinality"], "overlap_score": r["overlap_score"],
+            "confidence": r.get("confidence"), "band": r.get("band"),
+            "status": r.get("status"),
+        }
+        for r in bundle.get("relationships", [])
+        if r["status"] == "proposed" and r["band"] in ("high", "medium", "low", "inferred")
+    ]
+    profiles_for_query = [
+        {
+            "name": t["dataset_name"],
+            "role": t["role"],
+            "grain": t.get("grain") or {},
+            "rows": t["rows"], "cols": t["cols"],
+        }
+        for t in bundle.get("tables", [])
+    ]
+
+    spec = dict(args or {})
+    result = sm.safe_query_model(
+        spec=spec,
+        profiles=profiles_for_query,
+        confirmed=confirmed,
+        inferred=inferred,
+        frames=frames_by_name,
+    )
+    payload = result.to_dict()
+
+    title = "Cross-table query"
+    if spec.get("tables"):
+        title = "Query: " + " + ".join(str(t) for t in spec["tables"])
+    a = models.save_chat_artifact(
+        db,
+        session_id=ctx["session_id"],
+        user_id=ctx["user_id"],
+        project_id=project_id,
+        kind="data_model_query",
+        title=title,
+        params=spec,
+        result=payload,
+        dataset_id=None,
+        pinned=False,
+    )
+    # Build a join-path summary the assistant MUST cite verbatim per
+    # the methodology prompt's safety rules. Each entry includes the
+    # exact left/right pair, the cardinality, status, and the
+    # confidence band so the answer can label its provenance.
+    def _path_entry(r: dict, kind: str) -> dict:
+        return {
+            "kind": kind,  # "confirmed" or "inferred"
+            "left": f"{r.get('left_table')}.{r.get('left_column')}",
+            "right": f"{r.get('right_table')}.{r.get('right_column')}",
+            "cardinality": r.get("cardinality"),
+            "confidence": r.get("confidence"),
+            "band": r.get("band"),
+            "status": r.get("status"),
+        }
+    used_path = (
+        [_path_entry(r, "confirmed") for r in payload.get("used_relationships", [])]
+        + [_path_entry(r, "inferred") for r in payload.get("inferred_joins", [])]
+    )
+    summary = {
+        "row_count": len(payload["rows"]),
+        "columns": payload["columns"],
+        "warnings": payload["warnings"],
+        "refusals": payload["refusals"],
+        "join_path": used_path,
+        "uses_inferred_join": bool(payload.get("inferred_joins")),
+        "inferred_joins": [
+            f"{r['left_table']}.{r['left_column']} ↔ {r['right_table']}.{r['right_column']}"
+            for r in payload["inferred_joins"]
+        ],
+        "preview": payload["rows"][:10],
+        "sql_like": payload["sql_like"],
+    }
+    return summary, [_artifact_view(a)]
+
+
+def _run_explain_model(db, args: dict, ctx: dict) -> tuple[dict, list]:
+    project_id = ctx.get("project_id")
+    if not project_id:
+        raise ValueError("explain_model requires a project context")
+    bundle = _semantic_bundle(db, project_id, ctx["user_id"])
+    profiles = [
+        {
+            "name": t["dataset_name"],
+            "role": t["role"],
+            "rows": t["rows"], "cols": t["cols"],
+            "grain": t.get("grain") or {},
+            "suspicious": t.get("suspicious") or [],
+        }
+        for t in bundle.get("tables", [])
+    ]
+    rels = [
+        {
+            "left_table": r["left_table"], "left_column": r["left_column"],
+            "right_table": r["right_table"], "right_column": r["right_column"],
+            "cardinality": r["cardinality"],
+            "status": r["status"], "band": r["band"],
+            "confidence": r["confidence"],
+        }
+        for r in bundle.get("relationships", [])
+    ]
+    text = sm.explain_model_text(profiles, rels, bundle.get("description"))
+    return {"explanation": text}, []
+
+
 _TOOL_HANDLERS = {
     "profile_dataset": _run_profile,
     "make_chart": _run_make_chart,
     "predict_column": _run_predict,
     "cluster_dataset": _run_cluster,
+    "list_model": _run_list_model,
+    "query_model": _run_query_model,
+    "explain_model": _run_explain_model,
 }
 
 

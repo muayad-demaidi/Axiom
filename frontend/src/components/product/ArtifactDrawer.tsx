@@ -20,8 +20,9 @@ import { PredictionCard, type PredictionResult } from "./PredictionCard";
 export type Artifact = {
   id: number;
   session_id: number;
+  project_id?: number | null;
   dataset_id: number | null;
-  kind: "profile" | "prediction" | "chart" | "cluster" | "insight" | "qa" | string;
+  kind: "profile" | "prediction" | "chart" | "cluster" | "insight" | "qa" | "data_model" | "data_model_query" | string;
   title: string;
   params: Record<string, unknown>;
   result: Record<string, unknown>;
@@ -29,13 +30,14 @@ export type Artifact = {
   created_at: string | null;
 };
 
-type Tab = "profile" | "visualize" | "predictions" | "clusters";
+type Tab = "profile" | "visualize" | "predictions" | "clusters" | "model";
 
 const TABS: { key: Tab; label: string; kind: string }[] = [
   { key: "profile", label: "Profile", kind: "profile" },
   { key: "visualize", label: "Visualize", kind: "chart" },
   { key: "predictions", label: "Predictions", kind: "prediction" },
   { key: "clusters", label: "Clusters", kind: "cluster" },
+  { key: "model", label: "Data model", kind: "data_model" },
 ];
 
 const KIND_TO_TAB: Record<string, Tab> = {
@@ -43,6 +45,8 @@ const KIND_TO_TAB: Record<string, Tab> = {
   chart: "visualize",
   prediction: "predictions",
   cluster: "clusters",
+  data_model: "model",
+  data_model_query: "model",
 };
 
 export type PendingTool = { id: string; tool: string };
@@ -54,6 +58,7 @@ function ArtifactDrawerBase({
   refreshKey,
   pending,
   initialTab,
+  showDataModelTab = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -61,7 +66,12 @@ function ArtifactDrawerBase({
   refreshKey: number;
   pending: PendingTool[];
   initialTab?: Tab;
+  showDataModelTab?: boolean;
 }) {
+  const visibleTabs = useMemo(
+    () => (showDataModelTab ? TABS : TABS.filter((t) => t.key !== "model")),
+    [showDataModelTab],
+  );
   const [tab, setTab] = useState<Tab>(initialTab || "profile");
   const [items, setItems] = useState<Artifact[]>([]);
   const [loading, setLoading] = useState(false);
@@ -93,7 +103,7 @@ function ArtifactDrawerBase({
 
   const grouped = useMemo(() => {
     const out: Record<Tab, Artifact[]> = {
-      profile: [], visualize: [], predictions: [], clusters: [],
+      profile: [], visualize: [], predictions: [], clusters: [], model: [],
     };
     for (const a of items) {
       const t = KIND_TO_TAB[a.kind];
@@ -104,13 +114,19 @@ function ArtifactDrawerBase({
 
   const pendingByTab = useMemo(() => {
     const out: Record<Tab, PendingTool[]> = {
-      profile: [], visualize: [], predictions: [], clusters: [],
+      profile: [], visualize: [], predictions: [], clusters: [], model: [],
     };
     for (const p of pending) {
       if (p.tool === "profile_dataset") out.profile.push(p);
       else if (p.tool === "make_chart") out.visualize.push(p);
       else if (p.tool === "predict_column") out.predictions.push(p);
       else if (p.tool === "cluster_dataset") out.clusters.push(p);
+      else if (
+        p.tool === "list_model" ||
+        p.tool === "query_model" ||
+        p.tool === "explain_model"
+      )
+        out.model.push(p);
     }
     return out;
   }, [pending]);
@@ -157,7 +173,7 @@ function ArtifactDrawerBase({
         </button>
       </div>
       <div className="flex border-b border-[var(--border)]">
-        {TABS.map((t) => {
+        {visibleTabs.map((t) => {
           const count =
             grouped[t.key].length + pendingByTab[t.key].length;
           const active = tab === t.key;
@@ -208,6 +224,9 @@ function Skeleton({ tool }: { tool: string }) {
     : tool === "make_chart" ? "Building chart…"
     : tool === "predict_column" ? "Fitting prediction model…"
     : tool === "cluster_dataset" ? "Clustering rows…"
+    : tool === "list_model" ? "Loading data model…"
+    : tool === "query_model" ? "Running cross-table query…"
+    : tool === "explain_model" ? "Explaining data model…"
     : `Running ${tool}…`;
   return (
     <div className="border border-[var(--border)] rounded-xl p-4 bg-[var(--surface-alt)]/50 animate-pulse">
@@ -276,7 +295,683 @@ function ArtifactBody({ artifact }: { artifact: Artifact }) {
   if (artifact.kind === "insight") {
     return <InsightBody result={artifact.result as { items: InsightItem[] }} />;
   }
+  if (artifact.kind === "data_model") {
+    return <DataModelBody artifact={artifact} />;
+  }
+  if (artifact.kind === "data_model_query") {
+    return <DataModelQueryBody result={artifact.result as DataModelQueryResult} />;
+  }
   return null;
+}
+
+type DataModelTable = {
+  id?: number;
+  dataset_id: number;
+  dataset_name: string;
+  rows: number;
+  cols: number;
+  role: "fact" | "dimension" | "summary" | "bridge" | string;
+  grain?: { label?: string };
+  pk_columns?: string[];
+  fk_columns?: string[];
+  id_columns?: string[];
+  date_columns?: string[];
+  measure_columns?: string[];
+  suspicious?: { column: string; kind: string; detail: string }[];
+  columns?: { name: string; kind?: string; dtype?: string }[];
+  confirmed: boolean;
+};
+
+type DataModelRel = {
+  id: number;
+  left_table: string;
+  left_column: string;
+  right_table: string;
+  right_column: string;
+  cardinality: string;
+  status: "proposed" | "confirmed" | "rejected" | string;
+  band: "high" | "medium" | "low" | "inferred" | string;
+  confidence: number;
+  evidence: string[];
+  explanation?: string;
+};
+
+type DataModelQuestion = {
+  id: number;
+  kind: string;
+  prompt: string;
+  status?: string;
+  options?: { label: string; value: string }[];
+  target?: Record<string, unknown>;
+};
+
+type DataModelBundle = {
+  description?: string | null;
+  confirmed?: boolean;
+  tables: DataModelTable[];
+  relationships: DataModelRel[];
+  questions: DataModelQuestion[];
+};
+
+const ROLE_LABEL: Record<string, string> = {
+  fact: "Fact",
+  dimension: "Dimension",
+  summary: "Summary",
+  bridge: "Bridge",
+};
+
+const BAND_LABEL: Record<string, string> = {
+  high: "high",
+  medium: "medium",
+  low: "low",
+  inferred: "inferred",
+};
+
+const ROLE_OPTIONS = ["fact", "dimension", "summary", "bridge"];
+
+function DataModelBody({ artifact }: { artifact: Artifact }) {
+  // The artifact's `result` is a snapshot taken when the tool ran.
+  // We refetch the live bundle so the user always sees their latest
+  // confirmations and any edits made from this drawer instantly.
+  const projectId = artifact.project_id ?? null;
+  const snapshot = (artifact.result || {}) as Partial<DataModelBundle>;
+  const [bundle, setBundle] = useState<DataModelBundle>({
+    description: snapshot.description ?? "",
+    confirmed: snapshot.confirmed ?? false,
+    tables: snapshot.tables ?? [],
+    relationships: snapshot.relationships ?? [],
+    questions: snapshot.questions ?? [],
+  });
+  const [busy, setBusy] = useState(false);
+  const [draftDesc, setDraftDesc] = useState<string>(snapshot.description ?? "");
+  const [showDescEditor, setShowDescEditor] = useState(false);
+
+  useEffect(() => {
+    if (!projectId) return;
+    let cancelled = false;
+    api<DataModelBundle>(`/api/projects/${projectId}/data-model`)
+      .then((live) => {
+        if (cancelled) return;
+        setBundle(live);
+        setDraftDesc(live.description ?? "");
+      })
+      .catch(() => {
+        /* keep snapshot fallback */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  async function refetch() {
+    if (!projectId) return;
+    try {
+      const live = await api<DataModelBundle>(`/api/projects/${projectId}/data-model`);
+      setBundle(live);
+      setDraftDesc(live.description ?? "");
+    } catch {
+      /* swallow */
+    }
+  }
+
+  async function patchTable(t: DataModelTable, body: Record<string, unknown>) {
+    // Backend route is keyed by dataset_id (the FK), not the
+    // ProjectSemanticTable row id. Send dataset_id.
+    if (!projectId || !t.dataset_id) return;
+    setBusy(true);
+    try {
+      await api(`/api/projects/${projectId}/data-model/tables/${t.dataset_id}`, {
+        method: "PATCH",
+        json: body,
+      });
+      await refetch();
+    } catch {
+      /* swallow */
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function patchRel(r: DataModelRel, body: Record<string, unknown>) {
+    if (!projectId) return;
+    setBusy(true);
+    try {
+      await api(`/api/projects/${projectId}/data-model/relationships/${r.id}`, {
+        method: "PATCH",
+        json: body,
+      });
+      await refetch();
+    } catch {
+      /* swallow */
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function patchQuestion(q: DataModelQuestion, body: Record<string, unknown>) {
+    if (!projectId) return;
+    setBusy(true);
+    try {
+      await api(`/api/projects/${projectId}/data-model/questions/${q.id}`, {
+        method: "PATCH",
+        json: body,
+      });
+      await refetch();
+    } catch {
+      /* swallow */
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveDescription() {
+    if (!projectId) return;
+    setBusy(true);
+    try {
+      await api(`/api/projects/${projectId}/data-model/description`, {
+        method: "PUT",
+        json: { description: draftDesc, confirmed: true },
+      });
+      setShowDescEditor(false);
+      await refetch();
+    } catch {
+      /* swallow */
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function refreshModel() {
+    if (!projectId) return;
+    setBusy(true);
+    try {
+      await api(`/api/projects/${projectId}/data-model/refresh`, { method: "POST" });
+      await refetch();
+    } catch {
+      /* swallow */
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const tables = bundle.tables ?? [];
+  const rels = bundle.relationships ?? [];
+  const questions = bundle.questions ?? [];
+
+  return (
+    <div className="space-y-3">
+      {/* ---- Business description editor ---- */}
+      <div className="rounded border border-[var(--border)] bg-[var(--surface-alt)]/40 p-2">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <div className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)]">
+            Business description
+          </div>
+          <div className="flex gap-1">
+            {projectId != null && (
+              <button
+                onClick={refreshModel}
+                disabled={busy}
+                className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border)] hover:bg-[var(--surface-alt)] text-[var(--text-muted)] disabled:opacity-50"
+                title="Re-profile tables and re-suggest joins"
+              >
+                Refresh
+              </button>
+            )}
+            <button
+              onClick={() => setShowDescEditor((v) => !v)}
+              className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border)] hover:bg-[var(--surface-alt)] text-[var(--text-muted)]"
+            >
+              {showDescEditor ? "Cancel" : "Edit"}
+            </button>
+          </div>
+        </div>
+        {showDescEditor ? (
+          <div className="space-y-1">
+            <textarea
+              value={draftDesc}
+              onChange={(e) => setDraftDesc(e.target.value)}
+              rows={3}
+              placeholder="Describe what this data is about, in plain English. e.g. 'Customers buy products and we track campaigns and KPIs.'"
+              className="w-full text-[11px] p-2 rounded border border-[var(--border)] bg-[var(--surface)] font-sans leading-relaxed"
+            />
+            <div className="flex justify-end">
+              <button
+                onClick={saveDescription}
+                disabled={busy}
+                className="text-[10px] px-2 py-0.5 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--surface-alt)] disabled:opacity-50"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-[11px] leading-relaxed">
+            {bundle.description?.trim()
+              ? bundle.description
+              : <span className="text-[var(--text-muted)] italic">No business context yet — click Edit to add one. The assistant will use it to ground its answers.</span>}
+          </div>
+        )}
+      </div>
+
+      {/* ---- Tables ---- */}
+      <div>
+        <div className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] mb-1">
+          Tables ({tables.length})
+        </div>
+        <div className="space-y-2">
+          {tables.map((t) => (
+            <div key={t.dataset_id}
+                 className="border border-[var(--border)] rounded p-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="font-semibold text-xs truncate" title={t.dataset_name}>
+                  {t.dataset_name}
+                </div>
+                <select
+                  value={t.role}
+                  disabled={busy || !t.id}
+                  onChange={(e) => patchTable(t, { role: e.target.value, confirmed: true })}
+                  className="text-[10px] font-mono px-1 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
+                  aria-label="Override table role"
+                >
+                  {ROLE_OPTIONS.map((r) => (
+                    <option key={r} value={r}>{ROLE_LABEL[r]}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="text-[10px] font-mono text-[var(--text-muted)] mt-0.5">
+                {t.rows.toLocaleString()} rows · {t.cols} cols
+                {t.grain?.label ? ` · ${t.grain.label}` : ""}
+              </div>
+              {t.pk_columns && t.pk_columns.length > 0 && (
+                <div className="text-[10px] mt-1">
+                  <span className="text-[var(--text-muted)]">PK: </span>
+                  <span className="font-mono">{t.pk_columns.join(", ")}</span>
+                </div>
+              )}
+              {t.fk_columns && t.fk_columns.length > 0 && (
+                <div className="text-[10px] mt-0.5">
+                  <span className="text-[var(--text-muted)]">FK candidates: </span>
+                  <span className="font-mono">{t.fk_columns.join(", ")}</span>
+                </div>
+              )}
+              {t.date_columns && t.date_columns.length > 0 && (
+                <div className="text-[10px] mt-0.5">
+                  <span className="text-[var(--text-muted)]">Dates: </span>
+                  <span className="font-mono">{t.date_columns.join(", ")}</span>
+                </div>
+              )}
+              {t.measure_columns && t.measure_columns.length > 0 && (
+                <div className="text-[10px] mt-0.5">
+                  <span className="text-[var(--text-muted)]">Measures: </span>
+                  <span className="font-mono">{t.measure_columns.join(", ")}</span>
+                </div>
+              )}
+              {t.suspicious && t.suspicious.length > 0 && (
+                <div className="text-[10px] mt-1 text-[var(--text-muted)]">
+                  ⚠ {t.suspicious.slice(0, 3).map((s) => `${s.column} (${s.detail})`).join(", ")}
+                </div>
+              )}
+              {t.confirmed && (
+                <div className="text-[9px] font-mono text-[var(--accent)] mt-1">
+                  confirmed
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ---- Relationships with Confirm/Reject controls ---- */}
+      {rels.length > 0 && (
+        <div>
+          <div className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] mb-1">
+            Relationships ({rels.length})
+          </div>
+          <div className="space-y-1.5">
+            {rels.map((r) => (
+              <div key={r.id} className="border border-[var(--border)] rounded p-2">
+                <div className="text-[11px] font-mono flex items-center gap-1 flex-wrap">
+                  <span>{r.left_table}.</span>
+                  {(() => {
+                    const leftCols =
+                      tables.find((t) => t.dataset_name === r.left_table)
+                        ?.columns?.map((c) => c.name) ?? [];
+                    return projectId != null && leftCols.length > 0 ? (
+                      <select
+                        value={r.left_column}
+                        disabled={busy}
+                        onChange={(e) =>
+                          patchRel(r, { left_column: e.target.value })
+                        }
+                        className="text-[11px] font-mono px-1 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
+                        aria-label={`Edit join column for ${r.left_table}`}
+                      >
+                        {leftCols.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span>{r.left_column}</span>
+                    );
+                  })()}
+                  <span className="text-[var(--text-muted)] mx-1">↔</span>
+                  <span>{r.right_table}.</span>
+                  {(() => {
+                    const rightCols =
+                      tables.find((t) => t.dataset_name === r.right_table)
+                        ?.columns?.map((c) => c.name) ?? [];
+                    return projectId != null && rightCols.length > 0 ? (
+                      <select
+                        value={r.right_column}
+                        disabled={busy}
+                        onChange={(e) =>
+                          patchRel(r, { right_column: e.target.value })
+                        }
+                        className="text-[11px] font-mono px-1 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
+                        aria-label={`Edit join column for ${r.right_table}`}
+                      >
+                        {rightCols.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span>{r.right_column}</span>
+                    );
+                  })()}
+                </div>
+                <div className="text-[10px] flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="font-mono text-[var(--text-muted)]">
+                    {r.cardinality}
+                  </span>
+                  <span className={`font-mono px-1 rounded border border-[var(--border)] ${
+                    r.status === "confirmed" ? "text-[var(--accent)]"
+                    : r.status === "rejected" ? "text-[var(--text-muted)] line-through"
+                    : "text-[var(--text-muted)]"
+                  }`}>
+                    {r.status}
+                  </span>
+                  <span className="font-mono text-[var(--text-muted)]">
+                    {BAND_LABEL[r.band] ?? r.band} · {Math.round((r.confidence ?? 0) * 100)}%
+                  </span>
+                </div>
+                {r.explanation && (
+                  <div className="text-[10px] text-[var(--text)] mt-1">
+                    {r.explanation}
+                  </div>
+                )}
+                {r.evidence?.length > 0 && (
+                  <div className="text-[10px] text-[var(--text-muted)] mt-1">
+                    {r.evidence.join(" · ")}
+                  </div>
+                )}
+                {projectId != null && (
+                  <div className="flex gap-1 mt-1.5 items-center flex-wrap">
+                    <button
+                      onClick={() => patchRel(r, { status: "confirmed" })}
+                      disabled={busy || r.status === "confirmed"}
+                      className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => patchRel(r, { status: "rejected" })}
+                      disabled={busy || r.status === "rejected"}
+                      className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => patchRel(r, { status: "proposed", user_locked: false })}
+                      disabled={busy || r.status === "proposed"}
+                      className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
+                      title="Reset to proposed and unlock for re-scoring"
+                    >
+                      Reset
+                    </button>
+                    <select
+                      value={r.cardinality}
+                      disabled={busy}
+                      onChange={(e) => patchRel(r, { cardinality: e.target.value })}
+                      className="text-[10px] font-mono px-1 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] ml-auto"
+                      aria-label="Edit join cardinality"
+                      title="Edit cardinality"
+                    >
+                      {["1:1", "1:N", "N:1", "N:N"].map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ---- Open questions wired to the proactive question bar ---- */}
+      {questions.length > 0 && (
+        <div>
+          <div className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)] mb-1">
+            Open questions ({questions.length})
+          </div>
+          <div className="space-y-1.5">
+            {questions.map((q) => (
+              <QuestionRow
+                key={q.id}
+                q={q}
+                projectId={projectId}
+                busy={busy}
+                onAnswer={(body) => patchQuestion(q, body)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QuestionRow({
+  q,
+  projectId,
+  busy,
+  onAnswer,
+}: {
+  q: DataModelQuestion;
+  projectId: number | null;
+  busy: boolean;
+  onAnswer: (body: Record<string, unknown>) => Promise<void> | void;
+}) {
+  const [freeText, setFreeText] = useState("");
+  const [showFreeText, setShowFreeText] = useState(false);
+  const opts = q.options ?? [];
+  const hasOptions = opts.length > 0;
+
+  return (
+    <div className="border border-dashed border-[var(--border)] rounded p-2 text-[11px] leading-snug">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-mono text-[9px] text-[var(--text-muted)] uppercase">
+          {q.kind}
+        </span>
+        {projectId != null && (
+          <button
+            onClick={() => onAnswer({ status: "dismissed" })}
+            disabled={busy}
+            className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
+          >
+            Dismiss
+          </button>
+        )}
+      </div>
+      <div className="mt-1">{q.prompt}</div>
+
+      {projectId != null && hasOptions && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {opts.map((o) => (
+            <button
+              key={o.value}
+              onClick={() =>
+                onAnswer({
+                  status: "answered",
+                  answer: { value: o.value, label: o.label },
+                })
+              }
+              disabled={busy}
+              className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {projectId != null && !hasOptions && !showFreeText && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          <button
+            onClick={() => setShowFreeText(true)}
+            disabled={busy}
+            className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
+          >
+            Write an answer
+          </button>
+          <button
+            onClick={() => {
+              // Drop the question into the chat composer so the user
+              // can discuss it conversationally. Question stays open
+              // until they explicitly answer or dismiss.
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("axiom:chat:prefill", {
+                  detail: { text: q.prompt, send: false },
+                }));
+              }
+            }}
+            disabled={busy}
+            className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
+          >
+            Discuss in chat
+          </button>
+        </div>
+      )}
+
+      {projectId != null && !hasOptions && showFreeText && (
+        <div className="mt-1.5 space-y-1">
+          <textarea
+            value={freeText}
+            onChange={(e) => setFreeText(e.target.value)}
+            rows={2}
+            placeholder="Your answer…"
+            className="w-full text-[11px] p-1.5 rounded border border-[var(--border)] bg-[var(--surface)] font-sans"
+          />
+          <div className="flex gap-1 justify-end">
+            <button
+              onClick={() => {
+                setShowFreeText(false);
+                setFreeText("");
+              }}
+              disabled={busy}
+              className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                if (!freeText.trim()) return;
+                await onAnswer({
+                  status: "answered",
+                  answer: { text: freeText.trim() },
+                });
+                setShowFreeText(false);
+                setFreeText("");
+              }}
+              disabled={busy || !freeText.trim()}
+              className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
+            >
+              Submit
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type DataModelQueryResult = {
+  rows: Record<string, unknown>[];
+  columns: string[];
+  warnings: string[];
+  refusals: string[];
+  inferred_joins: Array<{
+    left_table: string; left_column: string;
+    right_table: string; right_column: string;
+  }>;
+  used_relationships: Array<{
+    left_table: string; left_column: string;
+    right_table: string; right_column: string;
+  }>;
+  sql_like: string;
+};
+
+function DataModelQueryBody({ result }: { result: DataModelQueryResult }) {
+  const rows = result?.rows ?? [];
+  const cols = result?.columns ?? [];
+  return (
+    <div className="space-y-2">
+      {(result?.refusals ?? []).map((m, i) => (
+        <div key={`r${i}`} className="text-[11px] border border-[var(--border)] rounded p-2 text-red-500 bg-[var(--surface-alt)]/40">
+          {m}
+        </div>
+      ))}
+      {(result?.warnings ?? []).map((m, i) => (
+        <div key={`w${i}`} className="text-[11px] border border-[var(--border)] rounded p-2 text-[var(--text-muted)] bg-[var(--surface-alt)]/40">
+          ⚠ {m}
+        </div>
+      ))}
+      {(result?.inferred_joins ?? []).length > 0 && (
+        <div className="text-[10px] font-mono text-[var(--text-muted)]">
+          Inferred joins:{" "}
+          {result.inferred_joins
+            .map((r) => `${r.left_table}.${r.left_column}↔${r.right_table}.${r.right_column}`)
+            .join(", ")}
+        </div>
+      )}
+      {rows.length > 0 && cols.length > 0 && (
+        <div className="max-h-72 overflow-auto border border-[var(--border)] rounded">
+          <table className="w-full text-[11px]">
+            <thead className="sticky top-0 bg-[var(--surface-alt)]">
+              <tr>
+                {cols.map((c) => (
+                  <th key={c} className="text-left px-2 py-1.5">{c}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.slice(0, 200).map((row, i) => (
+                <tr key={i} className="border-t border-[var(--border)]/50">
+                  {cols.map((c) => {
+                    const v = row[c];
+                    const display =
+                      v == null ? ""
+                      : typeof v === "number" ? Number(v).toLocaleString(undefined, { maximumFractionDigits: 3 })
+                      : String(v);
+                    return (
+                      <td key={c} className="px-2 py-1 font-mono text-[10px] truncate max-w-[160px]">
+                        {display}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {result?.sql_like && (
+        <pre className="text-[10px] font-mono whitespace-pre-wrap text-[var(--text-muted)] border border-[var(--border)] rounded p-2 bg-[var(--surface-alt)]/30">
+          {result.sql_like}
+        </pre>
+      )}
+    </div>
+  );
 }
 
 type ProfileResult = {

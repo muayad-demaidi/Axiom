@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -15,6 +15,7 @@ import { ChatPanel } from "@/components/product/ChatPanel";
 import { DatasetPreviewCard } from "@/components/product/DatasetPreviewCard";
 import { DataContextBar } from "@/components/product/DataContextBar";
 import { ArtifactDrawer, type PendingTool } from "@/components/product/ArtifactDrawer";
+import { OpenQuestionsBar } from "@/components/product/OpenQuestionsBar";
 import { ModeToggle } from "@/components/product/ModeToggle";
 import { useMode } from "@/lib/modeContext";
 
@@ -181,6 +182,8 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
     return () => window.removeEventListener("axiom:dataset:uploaded", onUploaded);
   }, [activeSessionId, refreshDatasets]);
 
+  const seededModelForSessionRef = useRef<number | null>(null);
+
   // ---- Active dataset for the chat preview card ----
   const [activeDatasetState, setActiveDatasetState] = useState<number | null>(null);
   useEffect(() => {
@@ -245,10 +248,31 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
   }, []);
 
   const [drawerTab, setDrawerTab] = useState<
-    "profile" | "visualize" | "predictions" | "clusters"
+    "profile" | "visualize" | "predictions" | "clusters" | "model"
   >("profile");
   const [pendingTools, setPendingTools] = useState<PendingTool[]>([]);
   const [artifactRefresh, setArtifactRefresh] = useState(0);
+
+  // Multi-CSV projects (≥2 datasets) get a deterministic Data model
+  // artifact seeded into the chat session so users see the proposed
+  // joins / open questions in the drawer without depending on the LLM
+  // choosing the `list_model` tool. Idempotent on the backend.
+  useEffect(() => {
+    if (!activeSessionId || datasets.length < 2) return;
+    if (seededModelForSessionRef.current === activeSessionId) return;
+    seededModelForSessionRef.current = activeSessionId;
+    (async () => {
+      try {
+        await api(
+          `/api/chats/${activeSessionId}/seed-data-model`,
+          { method: "POST" }
+        );
+        setArtifactRefresh((n) => n + 1);
+      } catch {
+        seededModelForSessionRef.current = null;
+      }
+    })();
+  }, [activeSessionId, datasets.length]);
 
   const pushChatPrompt = useCallback((text: string, sendNow: boolean) => {
     if (typeof window === "undefined") return;
@@ -277,6 +301,12 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
     else if (p.tool === "predict_column") setDrawerTab("predictions");
     else if (p.tool === "cluster_dataset") setDrawerTab("clusters");
     else if (p.tool === "profile_dataset") setDrawerTab("profile");
+    else if (
+      p.tool === "list_model" ||
+      p.tool === "query_model" ||
+      p.tool === "explain_model"
+    )
+      setDrawerTab("model");
     setDrawerOpen(true);
     try {
       window.sessionStorage.setItem(DRAWER_PREF_KEY, "1");
@@ -418,14 +448,21 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
                   onTurnEnded={onChatTurnEnded}
                   onStreamingChange={setChatStreaming}
                   headerSlot={
-                    activeDatasetState != null && datasets.length > 0 ? (
-                      <DatasetPreviewCard
-                        key={activeDatasetState}
-                        datasetId={activeDatasetState}
+                    <>
+                      <OpenQuestionsBar
+                        projectId={projectId}
                         onAskQuestion={onSuggestedQuestion}
-                        onAskAboutCell={onAskAboutCell}
+                        refreshKey={artifactRefresh}
                       />
-                    ) : null
+                      {activeDatasetState != null && datasets.length > 0 ? (
+                        <DatasetPreviewCard
+                          key={activeDatasetState}
+                          datasetId={activeDatasetState}
+                          onAskQuestion={onSuggestedQuestion}
+                          onAskAboutCell={onAskAboutCell}
+                        />
+                      ) : null}
+                    </>
                   }
                 />
               </div>
@@ -445,6 +482,7 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
         refreshKey={artifactRefresh}
         pending={pendingTools}
         initialTab={drawerTab}
+        showDataModelTab={datasets.length >= 2}
       />
     </div>
   );

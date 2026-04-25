@@ -206,6 +206,104 @@ class DatasetRelationship(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ProjectSemanticTable(Base):
+    """Per-dataset role/grain/PK metadata used by the multi-CSV copilot.
+
+    One row per dataset attached to a project. Holds the auto-detected
+    role and grain plus the user-confirmed overrides — `confirmed=True`
+    means the user has explicitly accepted the role/grain/PK on this
+    table, otherwise the chat is free to refresh them on its own."""
+    __tablename__ = "project_semantic_tables"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"),
+                        nullable=False, index=True)
+    dataset_id = Column(Integer, ForeignKey("dataset_records.id"),
+                        nullable=False, index=True, unique=True)
+    role = Column(String(16), nullable=False, default="fact")
+    grain = Column(JSON, nullable=True)
+    pk_columns = Column(JSON, nullable=True)
+    fk_columns = Column(JSON, nullable=True)
+    suspicious = Column(JSON, nullable=True)
+    role_signals = Column(JSON, nullable=True)
+    columns_meta = Column(JSON, nullable=True)
+    confirmed = Column(Boolean, default=False, nullable=False)
+    profiled_at = Column(DateTime, default=datetime.utcnow)
+    confirmed_at = Column(DateTime, nullable=True)
+
+
+class ProjectRelationship(Base):
+    """Persisted cross-dataset join with confidence/evidence/status.
+
+    Coexists with the legacy ``DatasetRelationship`` (which only stored
+    user-confirmed edges). This table keeps the full proposal history so
+    the analyst copilot can re-show evidence and the chat can label
+    inferred vs. confirmed joins at query time.
+    """
+    __tablename__ = "project_relationships"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"),
+                        nullable=False, index=True)
+    left_dataset_id = Column(Integer, ForeignKey("dataset_records.id"),
+                             nullable=False, index=True)
+    left_column = Column(String(255), nullable=False)
+    right_dataset_id = Column(Integer, ForeignKey("dataset_records.id"),
+                              nullable=False, index=True)
+    right_column = Column(String(255), nullable=False)
+    cardinality = Column(String(8), nullable=False, default="1:N")
+    join_type = Column(String(16), nullable=False, default="left")
+    # status: "proposed" | "confirmed" | "rejected"
+    status = Column(String(16), nullable=False, default="proposed", index=True)
+    # band: "high" | "medium" | "low" | "inferred"
+    band = Column(String(16), nullable=False, default="medium")
+    confidence = Column(Float, nullable=False, default=0.0)
+    evidence = Column(JSON, nullable=True)
+    overlap_score = Column(Float, nullable=True)
+    name_score = Column(Float, nullable=True)
+    dtype_score = Column(Float, nullable=True)
+    # When the user confirms a relationship we keep their explicit
+    # choice frozen — subsequent re-profiles never overwrite it.
+    user_locked = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ProjectSemanticModel(Base):
+    """Project-level semantic model: free-text business description +
+    confirmation flag. One row per project."""
+    __tablename__ = "project_semantic_models"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"),
+                        nullable=False, unique=True, index=True)
+    description = Column(Text, nullable=True)
+    confirmed = Column(Boolean, default=False, nullable=False)
+    last_refreshed_at = Column(DateTime, default=datetime.utcnow)
+    confirmed_at = Column(DateTime, nullable=True)
+
+
+class ProjectModelQuestion(Base):
+    """Open clarification question the chat surfaces in the proactive
+    question bar (weak join, ambiguous grain, summary-link, role-pick).
+
+    `status` lifecycle: open → answered | dismissed."""
+    __tablename__ = "project_model_questions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"),
+                        nullable=False, index=True)
+    kind = Column(String(32), nullable=False)
+    prompt = Column(Text, nullable=False)
+    target = Column(JSON, nullable=True)
+    options = Column(JSON, nullable=True)
+    status = Column(String(16), nullable=False, default="open", index=True)
+    answer = Column(JSON, nullable=True)
+    external_id = Column(String(128), nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    answered_at = Column(DateTime, nullable=True)
+
+
 class AnalysisHistory(Base):
     """Model to store analysis history"""
     __tablename__ = "analysis_history"
@@ -358,7 +456,11 @@ def init_db():
     # older deployments pick them up without needing a migration tool.
     for _t in (ProjectKnowledgeBase.__table__, ProjectLearnedNote.__table__,
                ChatSession.__table__, ChatArtifact.__table__,
-               Report.__table__):
+               Report.__table__,
+               ProjectSemanticTable.__table__,
+               ProjectRelationship.__table__,
+               ProjectSemanticModel.__table__,
+               ProjectModelQuestion.__table__):
         try:
             _t.create(bind=engine, checkfirst=True)
         except Exception:
@@ -368,6 +470,10 @@ def init_db():
     _migrations.extend([
         "ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS session_id INTEGER REFERENCES chat_sessions(id)",
         "CREATE INDEX IF NOT EXISTS ix_chat_history_session_id ON chat_history(session_id)",
+        # Multi-CSV semantic model: clarification questions need a
+        # stable identifier so we can recognize re-generated rows.
+        "ALTER TABLE project_model_questions ADD COLUMN IF NOT EXISTS external_id VARCHAR(128)",
+        "CREATE INDEX IF NOT EXISTS ix_project_model_questions_external_id ON project_model_questions(external_id)",
         # Make the per-user "Quick Chats" auto-project idempotent under
         # concurrent landing-page submissions.
         "CREATE UNIQUE INDEX IF NOT EXISTS ux_projects_user_quick_chats "
