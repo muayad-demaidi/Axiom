@@ -1,0 +1,56 @@
+واضح جداً الفرق بين "جمالية" الصفحة الرئيسية (Landing) وبين "جمود" صفحة الشات الحالية. الصفحة الأولى تعطيك شعور **Perplexity** أو **Claude**، لكن صفحة الشات حالياً تبدو كأنها "صندوق محادثة" تقليدي يفتقر إلى روح تحليل البيانات.
+
+إليك خطة **Axiom UX Refactor** لنقل واجهة الشات إلى مستوى احترافية يضاهي **Julius.ai**، مع التركيز على جعل البيانات هي "بطلة المشهد":
+
+---
+
+## 1. هيكلة الشاشة (The 3-Column Layout)
+بدلاً من وجود الشات في المنتصف مع فراغات كبيرة، سنعتمد تقسيم الشاشة الذكي:
+* **اليسار (Sidebar):** يبقى كما هو لإدارة المشاريع والدردشات.
+* **الوسط (The Interactive Stage):** منطقة الشات، لكن بعرض مريح للنظر (Optimized Readable Width)، حيث تظهر الردود والبيانات.
+* **اليمين (The Analytics Drawer):** (هذا هو التغيير الجذري) درج جانبي يفتح تلقائياً عند وجود بيانات، يحتوي على:
+    * **Data Health:** ملخص سريع (Profile).
+    * **Quick Actions:** أزرار ذكية مثل "Clean Data", "Forecast", "Visualize".
+
+## 2. تحويل الرسائل إلى "Cards" (Message Design)
+بدلاً من النص السادة، كل رد من الـ AI يجب أن يكون منظماً:
+* **Header للرسالة:** يوضح العملية (مثل: 🔍 Initial Diagnostics).
+* **Body:** استخدام الـ **Markdown** بشكل أجمل (جداول ملونة، قوائم بمسافات مريحة).
+* **Footer:** أزرار اقتراح (Suggested Chips) مثل: *"Show me the outliers"* أو *"Create a correlation heatmap"*.
+
+## 3. الـ Context Awareness (حل مشكلة "I can't see your dataset")
+من الصورة، الـ AI يقول إنه لا يرى البيانات. الحل هو **Data Header** دائم:
+* في أعلى الشات، يجب وجود **Sticky Bar** صغير يظهر فيه اسم الملف المرفوع حالياً (مثل: 📄 `loan_data.csv`) مع حجمه. هذا يعطي المستخدم ثقة بأن الـ AI "مدرك" للبيانات التي يتم النقاش حولها.
+
+## 4. خطة التطوير (Phase-by-Phase)
+
+### المرحلة الأولى: تجميل الشات (The Face-lift)
+* **الخلفية:** استخدام نفس لون الصفحة الرئيسية (Deep Matte Gray `#111827`).
+* **صندوق الإدخال (Input Box):** اجعله يشبه الصندوق في الصفحة الرئيسية (Floating Input) مع أيقونة "Attach" واضحة جداً.
+* **الخطوط:** التأكد من استخدام **Inter** للواجهة و **JetBrains Mono** فقط داخل مربعات الكود.
+
+### المرحلة الثانية: الدرج الجانبي (The Magic Drawer)
+* عند رفع ملف، يفتح درج جهة اليمين يعرض **Data Preview** (أول 5 صفوف).
+* إضافة ميزة **"Pinned Insights"**: أي رسم بياني يطلبه المستخدم من الشات، يمكنه عمل "Pin" له ليظهر دائماً في الدرج الجانبي بدلاً من البحث عنه في تاريخ الشات.
+
+### المرحلة الثالثة: التفاعل البصري (Micro-interactions)
+* عندما يقوم الـ AI بتحليل بيانات، لا تترك الشاشة فارغة. أضف **Progress Bar** بسيط أو "Skeleton Screen" توحي بأن هناك عمليات حسابية تجري خلف الكواليس.
+
+---
+
+## 5. نصيحة "محلل بيانات" لريبليت (The Implementation Prompt)
+
+انسخ هذا الأمر لريبليت ليقوم بالتعديلات فوراً:
+
+> **"Refactor the Chat UI to match the Axiom Marketing design language:**
+> 1. **Visual Consistency:** Use the same dark palette (`#111827`) and typography (Inter) from the landing page.
+> 2. **Message Styling:** Wrap AI responses in clean containers with subtle borders. Use 'Lucide-react' icons for diagnostics, warnings, and success messages.
+> 3. **The Data Context Bar:** Add a sticky header inside the chat area that shows the currently active dataset name and status (e.g., 'Analyzing loan_data.csv').
+> 4. **Modern Input:** Replace the current input box with the floating, centered input design from the `/app` landing page, including the 'Attach Data' and 'Connectors' buttons.
+> 5. **Layout:** Center the chat thread with a max-width of 800px to prevent the text from stretching too far, making it easier to read."
+
+---
+
+**ملاحظة منّي:** الواجهة الحالية في الصفحة الرئيسية "عالمية"، المشكلة فقط في انتقال المستخدم لداخل الشات وشعوره بأنه عاد لتطبيق قديم. بتطبيق هذه التغييرات، سيشعر المستخدم أن **Axiom** أداة متماسكة وقوية جداً.
+
+**هل تريدني أن أركز لك على كود معين لتحسين شكل الجداول داخل الشات؟**
