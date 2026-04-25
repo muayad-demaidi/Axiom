@@ -136,6 +136,18 @@ export function ChatPanel({
   // Tracks whether the initial (instant) scroll-to-bottom on mount has
   // already fired so a long history doesn't visibly auto-scroll on entry.
   const didInitialScrollRef = useRef(false);
+  // One-shot flag set by the user-initiated `send()` so the next render
+  // is guaranteed to scroll to bottom even if the reader is scrolled up.
+  // We can't infer this from the message list alone because `send()`
+  // immediately seeds an empty assistant bubble after the user message,
+  // so the *last* message after submit is always `assistant`, not `user`.
+  const forceFollowRef = useRef(false);
+  // Becomes true the moment assistant content lands while the reader is
+  // scrolled away from the bottom. Drives the "Jump to latest" pill
+  // *after* streaming ends — without it the pill would vanish the
+  // instant the stream finished and strand the reader mid-history.
+  // Reset to false whenever the reader returns to (or jumps to) bottom.
+  const [hasMissedContent, setHasMissedContent] = useState(false);
   const composerRef = useRef<FloatingComposerHandle | null>(null);
   const consumedPromptRef = useRef<string | null>(null);
   const sendRef = useRef<((text?: string) => Promise<void>) | null>(null);
@@ -207,6 +219,9 @@ export function ChatPanel({
     const near = distance <= 150;
     nearBottomRef.current = near;
     setIsNearBottom((cur) => (cur === near ? cur : near));
+    // Returning to bottom dismisses the missed-content flag so the
+    // "Jump to latest" pill hides automatically once you catch up.
+    if (near) setHasMissedContent((cur) => (cur ? false : cur));
   }, []);
 
   // Geometry can change without a scroll event firing — most notably
@@ -239,18 +254,30 @@ export function ChatPanel({
   // so long viewports stay efficient.
   useEffect(() => {
     if (loadingHistory) return;
-    const last = messages[messages.length - 1];
-    const isUserTurn = last?.role === "user";
-    if (isUserTurn) {
-      // The user just acted — always pull their bubble into view, even
-      // if they were scrolled up reading history.
+    // Force-follow path: the user just submitted via `send()`. This MUST
+    // win over the reader's scroll position (per spec: "Sending a new
+    // user message always scrolls to the bottom regardless of current
+    // scroll position"). Checked before the near-bottom branch because
+    // after submit the last message is the seeded empty assistant
+    // bubble, not the user's — a role-based heuristic would miss it.
+    if (forceFollowRef.current) {
+      forceFollowRef.current = false;
       nearBottomRef.current = true;
       setIsNearBottom(true);
+      setHasMissedContent(false);
       messagesEndRef.current?.scrollIntoView({ behavior: scrollBehavior, block: "end" });
       return;
     }
     if (nearBottomRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: scrollBehavior, block: "end" });
+    } else {
+      // The reader is scrolled up and new content just landed without
+      // their consent — flag it so the pill stays visible after the
+      // stream finishes.
+      const last = messages[messages.length - 1];
+      if (last && last.role === "assistant") {
+        setHasMissedContent((cur) => (cur ? cur : true));
+      }
     }
   }, [messages, streaming, loadingHistory, scrollBehavior]);
 
@@ -271,6 +298,11 @@ export function ChatPanel({
   async function send(forceText?: string) {
     const text = (forceText ?? input).trim();
     if (!text || streaming) return;
+    // Signal to the smart auto-scroll effect that the upcoming
+    // setMessages was user-initiated and must scroll to bottom even if
+    // the reader had scrolled up. Consumed (and cleared) on the very
+    // next render of the effect.
+    forceFollowRef.current = true;
     const userMsg: Msg = { role: "user", content: text };
     const baseHistory =
       messages.length === 1 && messages[0].role === "assistant" ? [] : messages;
@@ -501,14 +533,17 @@ export function ChatPanel({
   const jumpToLatest = useCallback(() => {
     nearBottomRef.current = true;
     setIsNearBottom(true);
+    setHasMissedContent(false);
     messagesEndRef.current?.scrollIntoView({ behavior: scrollBehavior, block: "end" });
   }, [scrollBehavior]);
 
-  // Pill should appear whenever the reader is scrolled away from the
-  // bottom while there's actual content beyond the viewport. We hide it
-  // on a fresh thread (single greeting) where there's nothing to jump to.
+  // Pill appears specifically when new assistant content is arriving
+  // (or has arrived) while the reader is scrolled up — NOT just because
+  // a long thread is sitting paused. The `hasMissedContent` half keeps
+  // the pill visible briefly after streaming ends so a reader who
+  // scrolled up mid-stream still has a one-click way back.
   const showJumpPill =
-    !loadingHistory && !isNearBottom && (streaming || messages.length > 1);
+    !loadingHistory && !isNearBottom && (streaming || hasMissedContent);
 
   return (
     <div
