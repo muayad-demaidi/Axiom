@@ -856,7 +856,7 @@ function inferAssistantMeta(text: string): Meta {
   if (/forecast|trend|seasonal|predict|model/.test(t)) {
     return { label: "Insight", Icon: Activity };
   }
-  return { label: "Assistant", Icon: Sparkles };
+  return { label: "AXIOM", Icon: Sparkles };
 }
 
 // ---------------------------------------------------------------------------
