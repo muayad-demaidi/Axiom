@@ -251,10 +251,6 @@ def _run_profile(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
 
 
 def _run_make_chart(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
-    from .analysis import (
-        VisualizeRequest, visualize as visualize_handler,  # type: ignore
-    )
-
     rec, df = _load_df(db, int(args["dataset_id"]), ctx["user_id"], project_id=ctx.get("project_id"))
     chart = str(args.get("chart") or "bar").lower()
     payload = _compute_chart_payload(df, chart, args.get("x"), args.get("y"),
@@ -277,7 +273,7 @@ def _run_make_chart(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
         },
         result=payload,
         dataset_id=rec.id,
-        pinned=True,
+        pinned=False,
     )
     summary = {
         "chart": chart,
@@ -500,7 +496,7 @@ def _run_predict(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
         params={"dataset_id": rec.id, "target": target},
         result=payload,
         dataset_id=rec.id,
-        pinned=True,
+        pinned=False,
     )
     return {
         "target": target,
@@ -559,7 +555,7 @@ def _run_cluster(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
         params={"dataset_id": rec.id, "k": k},
         result=payload,
         dataset_id=rec.id,
-        pinned=True,
+        pinned=False,
     )
     return {"k": k, "sizes": sizes}, [_artifact_view(a)]
 

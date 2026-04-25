@@ -23,6 +23,7 @@ from ._json import jsonify
 from .auth import get_current_user, get_db_session
 from .datasets import load_dataset_dataframe
 from .insights import build_profile, surprise_insights, suggested_questions
+from . import insights as insights_mod
 
 router = APIRouter(tags=["artifacts"])
 
@@ -247,6 +248,25 @@ def _gather_report_payload(
             }
         )
 
+    # Session-wide LLM synthesis (cached as a hidden artifact so we don't
+    # reburn tokens every time the user refreshes the report page).
+    synthesis = _get_or_build_synthesis(db, sess, user_id, by_kind)
+
+    # Deterministic ±10/±25 % what-if recommendations for every prediction
+    # artifact (computed here so both the JSON view and the PDF stay in
+    # lockstep).
+    what_if: list[dict] = []
+    for art in by_kind.get("prediction", []):
+        rows = insights_mod.what_if_recommendations(art.get("result") or {})
+        if rows:
+            what_if.append(
+                {
+                    "title": art.get("title") or "Prediction",
+                    "target": (art.get("result") or {}).get("target"),
+                    "rows": rows,
+                }
+            )
+
     return {
         "session": {
             "id": sess.id,
@@ -257,8 +277,46 @@ def _gather_report_payload(
         "datasets": datasets,
         "artifacts": by_kind,
         "qa": qa,
+        "synthesis": synthesis,
+        "what_if": what_if,
         "generated_at": datetime.utcnow().isoformat(),
     }
+
+
+def _get_or_build_synthesis(db, sess, user_id: int, by_kind: dict) -> dict:
+    """Cache the LLM synthesis as a kind='synthesis' artifact on the session.
+
+    The cache key is the sorted tuple of artifact ids contributing to the
+    summary, so adding/removing a pin invalidates it automatically.
+    """
+    contributors = []
+    for kind in ("profile", "insight", "chart", "prediction", "cluster"):
+        for a in by_kind.get(kind, []):
+            contributors.append(int(a.get("id") or 0))
+    cache_key = ",".join(str(x) for x in sorted(contributors))
+
+    existing = models.list_chat_artifacts(db, sess.id, user_id, kind="synthesis")
+    for a in existing:
+        if (a.params or {}).get("cache_key") == cache_key:
+            return a.result or {}
+
+    synthesis = insights_mod.synthesize_session_insights(by_kind)
+    try:
+        models.save_chat_artifact(
+            db,
+            session_id=sess.id,
+            user_id=user_id,
+            project_id=sess.project_id,
+            kind="synthesis",
+            title="Session synthesis",
+            params={"cache_key": cache_key},
+            result=synthesis,
+            dataset_id=None,
+            pinned=False,
+        )
+    except Exception:
+        pass
+    return synthesis
 
 
 @router.get("/api/chats/{session_id}/report")
@@ -336,23 +394,23 @@ async def report_pdf(
 
     # -------- Cover ----------------------------------------------------
     story.append(Spacer(1, 3 * cm))
-    story.append(Paragraph("AXIOM Final Report", styles["Title"]))
+    story.append(Paragraph("AXIOM Final Report &nbsp;·&nbsp; التقرير النهائي", styles["Title"]))
     story.append(Spacer(1, 0.4 * cm))
     story.append(
         Paragraph(
-            f"<b>Session:</b> {esc(payload['session']['title'] or 'Untitled')}",
+            f"<b>Session / الجلسة:</b> {esc(payload['session']['title'] or 'Untitled')}",
             styles["BodyText"],
         )
     )
     story.append(
         Paragraph(
-            f"Generated {payload['generated_at'][:19]} UTC",
+            f"Generated / أنشئ بتاريخ {payload['generated_at'][:19]} UTC",
             styles["BodyText"],
         )
     )
     if payload["datasets"]:
         story.append(Spacer(1, 0.3 * cm))
-        story.append(Paragraph("<b>Datasets</b>", styles["Heading3"]))
+        story.append(Paragraph("<b>Datasets / مجموعات البيانات</b>", styles["Heading3"]))
         for d in payload["datasets"]:
             story.append(
                 Paragraph(
@@ -362,11 +420,30 @@ async def report_pdf(
             )
     story.append(PageBreak())
 
+    # -------- Session synthesis (LLM) ----------------------------------
+    syn = payload.get("synthesis") or {}
+    if syn.get("executive_summary") or syn.get("key_findings"):
+        body_added = True
+        story.append(Paragraph("<b>Insights synthesis / خلاصة الجلسة</b>", styles["Heading2"]))
+        if syn.get("executive_summary"):
+            story.append(Paragraph(esc(syn["executive_summary"]), styles["BodyText"]))
+            story.append(Spacer(1, 0.2 * cm))
+        if syn.get("key_findings"):
+            story.append(Paragraph("<b>Key findings / أبرز النتائج</b>", styles["Heading3"]))
+            for k in syn["key_findings"]:
+                story.append(Paragraph(f"• {esc(str(k))}", styles["BodyText"]))
+        if syn.get("recommendations"):
+            story.append(Spacer(1, 0.2 * cm))
+            story.append(Paragraph("<b>Recommendations / التوصيات</b>", styles["Heading3"]))
+            for r in syn["recommendations"]:
+                story.append(Paragraph(f"• {esc(str(r))}", styles["BodyText"]))
+        story.append(Spacer(1, 0.4 * cm))
+
     # -------- Surprise insights ----------------------------------------
     insights = payload["artifacts"].get("insight", [])
     if insights:
         body_added = True
-        story.append(Paragraph("<b>Surprise insights</b>", styles["Heading2"]))
+        story.append(Paragraph("<b>Surprise insights / رؤى مفاجئة</b>", styles["Heading2"]))
         for art in insights:
             for it in (art.get("result") or {}).get("items", []):
                 line = f"• [{(it.get('severity') or 'info').upper()}] {it.get('headline','')}"
@@ -384,7 +461,7 @@ async def report_pdf(
     profiles = payload["artifacts"].get("profile", [])
     if profiles:
         body_added = True
-        story.append(Paragraph("<b>Data profile</b>", styles["Heading2"]))
+        story.append(Paragraph("<b>Data profile / تعريف البيانات</b>", styles["Heading2"]))
         for art in profiles:
             res = art.get("result") or {}
             story.append(
@@ -411,7 +488,7 @@ async def report_pdf(
     if payload["qa"]:
         body_added = True
         story.append(PageBreak())
-        story.append(Paragraph("<b>Conversation transcript</b>", styles["Heading2"]))
+        story.append(Paragraph("<b>Conversation transcript / نص المحادثة</b>", styles["Heading2"]))
         for turn in payload["qa"][:80]:
             story.append(
                 Paragraph(
@@ -430,7 +507,7 @@ async def report_pdf(
     if charts:
         body_added = True
         story.append(PageBreak())
-        story.append(Paragraph("<b>Charts</b>", styles["Heading2"]))
+        story.append(Paragraph("<b>Charts / المخططات</b>", styles["Heading2"]))
         for art in charts:
             png = _render_chart_png(art.get("result") or {})
             title = esc(art.get("title") or "Chart")
@@ -451,7 +528,7 @@ async def report_pdf(
     if preds:
         body_added = True
         story.append(PageBreak())
-        story.append(Paragraph("<b>Predictions</b>", styles["Heading2"]))
+        story.append(Paragraph("<b>Predictions / التنبؤات</b>", styles["Heading2"]))
         for art in preds:
             res = art.get("result") or {}
             story.append(
@@ -480,12 +557,57 @@ async def report_pdf(
                 story.append(Paragraph(f"What-if recommendation: {esc(recs)}", styles["BodyText"]))
             story.append(Spacer(1, 0.4 * cm))
 
+    # -------- What-if recommendations ----------------------------------
+    wifs = payload.get("what_if") or []
+    if wifs:
+        body_added = True
+        story.append(PageBreak())
+        story.append(
+            Paragraph(
+                "<b>What-if recommendations / توصيات افتراضية</b>",
+                styles["Heading2"],
+            )
+        )
+        for w in wifs:
+            story.append(
+                Paragraph(
+                    f"<b>{esc(w.get('title') or 'Prediction')}</b> "
+                    f"<font color='#6b7280'>(target / الهدف: {esc(str(w.get('target') or ''))})</font>",
+                    styles["Heading3"],
+                )
+            )
+            for feat in w.get("rows", []):
+                data = [["Shift %", "New value", "Δ predicted", "Predicted value"]]
+                for row in feat.get("rows", []):
+                    data.append(
+                        [
+                            f"{row.get('shift_pct'):+d}%",
+                            f"{row.get('new_value')}",
+                            f"{row.get('predicted_delta'):+.4f}",
+                            f"{row.get('predicted_value'):.4f}",
+                        ]
+                    )
+                story.append(
+                    Paragraph(
+                        f"<b>{esc(str(feat.get('feature')))}</b> "
+                        f"<font size=8 color='#6b7280'>(baseline {feat.get('baseline_value')})</font>",
+                        styles["BodyText"],
+                    )
+                )
+                tbl = Table(
+                    data,
+                    colWidths=[2.5 * cm, 3.5 * cm, 3.5 * cm, 4 * cm],
+                )
+                tbl.setStyle(_table_style())
+                story.append(tbl)
+                story.append(Spacer(1, 0.3 * cm))
+
     # -------- Clusters -------------------------------------------------
     clusters = payload["artifacts"].get("cluster", [])
     if clusters:
         body_added = True
         story.append(PageBreak())
-        story.append(Paragraph("<b>Clusters</b>", styles["Heading2"]))
+        story.append(Paragraph("<b>Clusters / المجموعات</b>", styles["Heading2"]))
         for art in clusters:
             res = art.get("result") or {}
             story.append(

@@ -268,7 +268,7 @@ class ChatArtifact(Base):
     title = Column(String(255), nullable=False, default="Artifact")
     params = Column(JSON, nullable=True)
     result = Column(JSON, nullable=True)
-    pinned = Column(Boolean, default=True, nullable=False)
+    pinned = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
