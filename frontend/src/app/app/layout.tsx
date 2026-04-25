@@ -32,7 +32,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
               <HeaderToggle />
               <span className="hidden sm:inline">60-day trial active</span>
-              <Link href="/" className="btn btn-ghost text-xs">Marketing site</Link>
               <UserMenu variant="app" />
             </div>
           </div>
