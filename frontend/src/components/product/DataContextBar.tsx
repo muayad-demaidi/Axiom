@@ -26,6 +26,7 @@ function DataContextBarBase({
   activeDatasetId,
   onPickDataset,
   streaming,
+  predictionRunning,
   rightSlot,
 }: {
   projectName: string;
@@ -34,6 +35,7 @@ function DataContextBarBase({
   activeDatasetId: number | null;
   onPickDataset?: (id: number) => void;
   streaming: boolean;
+  predictionRunning?: boolean;
   rightSlot?: React.ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
@@ -117,7 +119,10 @@ function DataContextBarBase({
 
         <div className="ml-auto flex items-center gap-2 shrink-0">
           {rightSlot}
-          <StatusPill streaming={streaming} />
+          <StatusPill
+            streaming={streaming}
+            predictionRunning={!!predictionRunning}
+          />
         </div>
       </div>
     </div>
@@ -325,12 +330,32 @@ function formatCell(v: unknown): string {
   return String(v);
 }
 
-function StatusPill({ streaming }: { streaming: boolean }) {
+function StatusPill({
+  streaming,
+  predictionRunning,
+}: {
+  streaming: boolean;
+  predictionRunning: boolean;
+}) {
   const reduceMotion = useReducedMotion();
   const layoutId = reduceMotion ? undefined : "axiom-status-pill";
   return (
     <AnimatePresence mode="wait" initial={false}>
-      {streaming ? (
+      {predictionRunning ? (
+        <motion.span
+          key="predicting"
+          dir="rtl"
+          layoutId={layoutId}
+          initial={reduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={reduceMotion ? { opacity: 0 } : { opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--accent)]/12 text-[var(--accent)] border border-[var(--accent)]/30 whitespace-nowrap"
+        >
+          <Sparkles className="h-2.5 w-2.5" />
+          جاري التنبؤ…
+        </motion.span>
+      ) : streaming ? (
         <motion.span
           key="busy"
           layoutId={layoutId}

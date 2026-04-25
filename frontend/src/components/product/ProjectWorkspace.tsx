@@ -214,6 +214,24 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
   // Status pill source of truth lifted from ChatPanel.
   const [chatStreaming, setChatStreaming] = useState(false);
 
+  // Guided-prediction wizard surfaces its own running state via a
+  // window event so the Data Context Bar can show "جاري التنبؤ…"
+  // without prop-drilling through ChatPanel / drawer internals.
+  const [predictionRunning, setPredictionRunning] = useState(false);
+  useEffect(() => {
+    function onState(e: Event) {
+      const detail = (e as CustomEvent<{ phase?: string }>).detail;
+      setPredictionRunning(detail?.phase === "running" || detail?.phase === "scanning");
+    }
+    window.addEventListener("axiom:guided-predict:state", onState);
+    return () => window.removeEventListener("axiom:guided-predict:state", onState);
+  }, []);
+
+  const activeDatasetMeta = useMemo(
+    () => datasets.find((d) => d.id === activeDatasetState) ?? null,
+    [datasets, activeDatasetState]
+  );
+
   // ---- Right-side artifact drawer ----
   // Drawer is collapsed by default on first visit; we remember the
   // user's last toggled state for the rest of the tab session so it
@@ -397,6 +415,7 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
           activeDatasetId={activeDatasetState}
           onPickDataset={pickDataset}
           streaming={chatStreaming}
+          predictionRunning={predictionRunning}
           rightSlot={dataContextRight}
         />
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-4 sm:px-6 py-6">
@@ -483,6 +502,11 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
         pending={pendingTools}
         initialTab={drawerTab}
         showDataModelTab={datasets.length >= 2}
+        activeDatasetId={activeDatasetState}
+        activeDatasetName={
+          activeDatasetMeta?.dataset_name ?? activeDatasetMeta?.filename ?? undefined
+        }
+        onArtifactCreated={() => setArtifactRefresh((n) => n + 1)}
       />
     </div>
   );

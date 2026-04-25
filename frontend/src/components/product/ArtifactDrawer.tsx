@@ -16,6 +16,8 @@ import { api } from "@/lib/api";
 import { errMessage } from "@/lib/types";
 import { ChartRenderer, type ChartPayload } from "./Charts";
 import { PredictionCard, type PredictionResult } from "./PredictionCard";
+import { GuidedPredictionCard, type GuidedPredictionResult } from "./GuidedPredictionCard";
+import { GuidedPredictionWizard } from "./GuidedPredictionWizard";
 
 export type Artifact = {
   id: number;
@@ -59,6 +61,9 @@ function ArtifactDrawerBase({
   pending,
   initialTab,
   showDataModelTab = true,
+  activeDatasetId,
+  activeDatasetName,
+  onArtifactCreated,
 }: {
   open: boolean;
   onClose: () => void;
@@ -67,6 +72,9 @@ function ArtifactDrawerBase({
   pending: PendingTool[];
   initialTab?: Tab;
   showDataModelTab?: boolean;
+  activeDatasetId?: number | null;
+  activeDatasetName?: string;
+  onArtifactCreated?: () => void;
 }) {
   const visibleTabs = useMemo(
     () => (showDataModelTab ? TABS : TABS.filter((t) => t.key !== "model")),
@@ -76,6 +84,7 @@ function ArtifactDrawerBase({
   const [items, setItems] = useState<Artifact[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [guidedActive, setGuidedActive] = useState(false);
 
   useEffect(() => {
     if (initialTab) setTab(initialTab);
@@ -200,6 +209,26 @@ function ArtifactDrawerBase({
         {pendingByTab[tab].map((p) => (
           <Skeleton key={p.id} tool={p.tool} />
         ))}
+        {tab === "predictions" && guidedActive && activeDatasetId != null && (
+          <GuidedPredictionWizard
+            key={`wizard-${activeDatasetId}`}
+            datasetId={activeDatasetId}
+            datasetName={activeDatasetName}
+            sessionId={sessionId}
+            onArtifactCreated={() => {
+              // Refresh the drawer's artifact list so the saved
+              // prediction also shows up below — but keep the wizard
+              // mounted so the user can read the Result phase. They
+              // dismiss it explicitly via "تشغيل تنبؤ جديد" or ✕.
+              onArtifactCreated?.();
+            }}
+            onClose={() => setGuidedActive(false)}
+          />
+        )}
+        {tab === "predictions" && !guidedActive && activeDatasetId != null
+          && !hasGuidedArtifactForDataset(grouped.predictions, activeDatasetId) && (
+          <GuidedStartCTA onStart={() => setGuidedActive(true)} />
+        )}
         {grouped[tab].map((a) => (
           <ArtifactCard
             key={a.id}
@@ -208,7 +237,8 @@ function ArtifactDrawerBase({
             onDelete={() => removeArtifact(a)}
           />
         ))}
-        {!loading && pendingByTab[tab].length === 0 && grouped[tab].length === 0 && (
+        {!loading && pendingByTab[tab].length === 0 && grouped[tab].length === 0
+          && !(tab === "predictions" && (guidedActive || activeDatasetId != null)) && (
           <div className="text-xs text-[var(--text-muted)] border border-dashed border-[var(--border)] rounded p-4 text-center">
             Ask the chat for a {tab === "visualize" ? "chart" : tab.replace(/s$/, "")} and it will appear here.
           </div>
@@ -284,6 +314,14 @@ function ArtifactBody({ artifact }: { artifact: Artifact }) {
     return <ChartRenderer payload={artifact.result as unknown as ChartPayload} height={220} />;
   }
   if (artifact.kind === "prediction") {
+    const flow = (artifact.result as { flow?: string } | null)?.flow;
+    if (flow === "guided") {
+      return (
+        <GuidedPredictionCard
+          result={artifact.result as unknown as GuidedPredictionResult}
+        />
+      );
+    }
     return <PredictionCard title="" result={artifact.result as unknown as PredictionResult} />;
   }
   if (artifact.kind === "profile") {
@@ -1161,6 +1199,44 @@ function InsightBody({ result }: { result: { items: InsightItem[] } }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+function hasGuidedArtifactForDataset(
+  predictions: Artifact[],
+  datasetId: number
+): boolean {
+  return predictions.some((a) => {
+    const flow = (a.result as { flow?: string } | null)?.flow;
+    return flow === "guided" && a.dataset_id === datasetId;
+  });
+}
+
+function GuidedStartCTA({ onStart }: { onStart: () => void }) {
+  return (
+    <div
+      dir="rtl"
+      className="border border-dashed border-[var(--accent)]/40 rounded-xl p-5 text-right bg-[var(--accent)]/5"
+    >
+      <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
+        التنبؤ الموجّه · جديد
+      </div>
+      <div className="text-sm font-semibold mt-1">
+        دعنا نتنبأ بناءً على بياناتك بثلاث خطوات بسيطة.
+      </div>
+      <p className="text-xs text-[var(--text-muted)] mt-2 leading-relaxed">
+        نقوم بفحص الأعمدة، نسأل بعض الأسئلة التوضيحية بالعربية، ثم
+        نعرض النتيجة مع شرح ودرجة ثقة.
+      </p>
+      <div className="mt-3 flex justify-end">
+        <button
+          onClick={onStart}
+          className="text-xs font-semibold px-4 py-1.5 rounded-full bg-[var(--accent)] text-white hover:opacity-90"
+        >
+          ابدأ التنبؤ
+        </button>
+      </div>
+    </div>
   );
 }
 

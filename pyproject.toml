@@ -17,6 +17,7 @@ dependencies = [
     "pandas>=2.3.3",
     "passlib[bcrypt]>=1.7.4",
     "plotly>=6.5.2",
+    "prophet>=1.1.5",
     "psycopg2-binary>=2.9.11",
     "pypdf>=6.10.2",
     "python-bidi>=0.6.7",
