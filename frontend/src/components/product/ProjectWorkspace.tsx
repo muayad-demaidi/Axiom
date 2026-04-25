@@ -467,6 +467,15 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
                   AI sees all {datasets.length} dataset{datasets.length === 1 ? "" : "s"}
                 </div>
               )}
+              {activeSessionId && (
+                <Link
+                  href={`/app/project/${projectId}/report?session=${activeSessionId}`}
+                  className="btn btn-ghost text-xs"
+                  title="Open the final report for this chat · التقرير النهائي"
+                >
+                  Final report ↗
+                </Link>
+              )}
               <button
                 onClick={() => setDrawerOpen((v) => !v)}
                 className="btn btn-ghost text-xs"

@@ -150,6 +150,56 @@ async def dataset_suggestions(
     return jsonify({"suggestions": suggested_questions(df)})
 
 
+@router.post("/api/datasets/{dataset_id}/auto-profile")
+async def dataset_auto_profile(
+    dataset_id: int,
+    rows: int = 20,
+    user=Depends(get_current_user),
+    db=Depends(get_db_session),
+):
+    """One-shot endpoint the chat fires the moment a file lands.
+
+    Returns preview + profile + surprise insights + suggested questions
+    in a single payload. Profile + insights are cached on the dataset's
+    `summary_stats` JSON blob so subsequent calls are instant.
+    """
+    record = _require_dataset_for_user(db, dataset_id, user.id)
+    df = load_dataset_dataframe(record)
+    n = max(1, min(rows, 200))
+
+    ss = dict(record.summary_stats or {})
+    profile = ss.get("_axiom_profile")
+    if not profile:
+        profile = build_profile(df)
+        ss["_axiom_profile"] = profile
+    insights_items = ss.get("_axiom_insights")
+    if insights_items is None:
+        insights_items = surprise_insights(df)
+        ss["_axiom_insights"] = insights_items
+    try:
+        record.summary_stats = ss
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    return jsonify(
+        {
+            "id": record.id,
+            "filename": record.filename,
+            "dataset_name": record.dataset_name,
+            "rows": int(len(df)),
+            "cols": int(df.shape[1]),
+            "columns": [
+                {"name": str(c), "dtype": str(df[c].dtype)} for c in df.columns
+            ],
+            "preview": df.head(n).to_dict(orient="records"),
+            "profile": profile,
+            "insights": insights_items,
+            "suggestions": suggested_questions(df),
+        }
+    )
+
+
 # ---------------------------------------------------------------------------
 # Artifact CRUD
 # ---------------------------------------------------------------------------
