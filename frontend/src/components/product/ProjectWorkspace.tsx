@@ -390,7 +390,14 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
             </div>
 
             {activeDatasetState != null && datasets.length > 0 && (
-              <div className="shrink-0">
+              // Cap the dataset preview at ~40% of the viewport and let it
+              // scroll internally. Without this cap a large dataset (e.g.
+              // 45,000-row loan_data with surprise-insight ribbon, 20-row
+              // table preview, and ~7 suggestion chips) consumes nearly
+              // the whole vertical slot above the composer, pushing the
+              // chat thread off-screen and making it look like the
+              // conversation has disappeared.
+              <div className="shrink-0 max-h-[40vh] overflow-y-auto rounded-xl">
                 <DatasetPreviewCard
                   key={activeDatasetState}
                   datasetId={activeDatasetState}
