@@ -42,12 +42,15 @@ const EXPERT_CHIPS = [
 // Strip the [switch_to_expert] sentinel from a streamed assistant
 // response and return both the cleaned text and a flag the bubble can
 // use to render the inline switch CTA. We accept the marker on its own
-// line or trailing the response.
+// line or trailing the response, with optional trailing whitespace /
+// punctuation the model sometimes appends.
 function parseSwitchHandoff(text: string): { body: string; cta: string | null } {
-  const re = /\n?\[switch_to_expert\][^\n]*$/i;
+  const re = /\n?\[switch_to_expert\][^\n]*\s*$/i;
   const match = text.match(re);
   if (!match) return { body: text, cta: null };
-  const cta = match[0].replace(/^\n?\[switch_to_expert\]\s*/i, "").trim();
+  const cta = match[0]
+    .replace(/^\n?\[switch_to_expert\]\s*/i, "")
+    .trim();
   return {
     body: text.slice(0, match.index).trimEnd(),
     cta: cta || "Switch to Expert Mode for the full breakdown",
