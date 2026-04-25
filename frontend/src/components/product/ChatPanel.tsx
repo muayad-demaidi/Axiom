@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Activity,
   AlertTriangle,
+  ArrowDown,
   CheckCircle2,
   Sparkles,
   Stethoscope,
@@ -126,6 +127,15 @@ export function ChatPanel({
   const [authed, setAuthed] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(!!sessionId);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  // Mutable near-bottom flag — read inside the auto-scroll effect
+  // without re-binding the scroll listener every render. Mirrored into
+  // `isNearBottom` state so the "Jump to latest" pill can re-render.
+  const nearBottomRef = useRef(true);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  // Tracks whether the initial (instant) scroll-to-bottom on mount has
+  // already fired so a long history doesn't visibly auto-scroll on entry.
+  const didInitialScrollRef = useRef(false);
   const composerRef = useRef<FloatingComposerHandle | null>(null);
   const consumedPromptRef = useRef<string | null>(null);
   const sendRef = useRef<((text?: string) => Promise<void>) | null>(null);
@@ -187,10 +197,76 @@ export function ChatPanel({
     };
   }, [sessionId, hasData]);
 
+  // Recompute "near bottom" on every scroll. ~150px threshold matches
+  // the spec — anything closer than that means the reader is effectively
+  // pinned to the latest content and wants to keep following.
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const near = distance <= 150;
+    nearBottomRef.current = near;
+    setIsNearBottom((cur) => (cur === near ? cur : near));
+  }, []);
+
+  // Geometry can change without a scroll event firing — most notably
+  // when the artifact drawer opens/closes (it changes the chat slot's
+  // width and therefore the message layout height) or when the user
+  // resizes the window. ResizeObserver covers both because the scroll
+  // viewport itself reflows in those cases. Without this, the pill and
+  // auto-follow gating would stay stale until the user touched scroll.
   useEffect(() => {
     const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => handleScroll());
+    ro.observe(el);
+    window.addEventListener("resize", handleScroll);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [handleScroll]);
+
+  // Honour the user's reduced-motion preference for the auto-follow
+  // animation. `useReducedMotion` is already imported for the composer
+  // morph; reusing it keeps a single source of truth.
+  const reduceMotion = useReducedMotion();
+  const scrollBehavior: ScrollBehavior = reduceMotion ? "auto" : "smooth";
+
+  // Smart auto-scroll: follow new content when the reader is near the
+  // bottom or has just sent a message; stay put when they've scrolled
+  // up to read history. Uses native `scrollIntoView` (no custom JS loop)
+  // so long viewports stay efficient.
+  useEffect(() => {
+    if (loadingHistory) return;
+    const last = messages[messages.length - 1];
+    const isUserTurn = last?.role === "user";
+    if (isUserTurn) {
+      // The user just acted — always pull their bubble into view, even
+      // if they were scrolled up reading history.
+      nearBottomRef.current = true;
+      setIsNearBottom(true);
+      messagesEndRef.current?.scrollIntoView({ behavior: scrollBehavior, block: "end" });
+      return;
+    }
+    if (nearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: scrollBehavior, block: "end" });
+    }
+  }, [messages, streaming, loadingHistory, scrollBehavior]);
+
+  // First paint: jump straight to the bottom (no smooth animation) so
+  // opening a long thread doesn't visibly auto-scroll on entry. Runs
+  // once per mount; ProjectWorkspace re-keys this component on session
+  // change so the next chat re-runs this effect cleanly.
+  useEffect(() => {
+    if (loadingHistory) return;
+    if (didInitialScrollRef.current) return;
+    didInitialScrollRef.current = true;
+    const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages]);
+    nearBottomRef.current = true;
+    setIsNearBottom(true);
+  }, [loadingHistory, messages.length]);
 
   async function send(forceText?: string) {
     const text = (forceText ?? input).trim();
@@ -419,9 +495,24 @@ export function ChatPanel({
     void handleAttachFile(file);
   }
 
+  // Manually trigger the jump-to-latest pill action: re-engage auto-follow
+  // and scroll to the end of the conversation (smoothly unless the user
+  // prefers reduced motion).
+  const jumpToLatest = useCallback(() => {
+    nearBottomRef.current = true;
+    setIsNearBottom(true);
+    messagesEndRef.current?.scrollIntoView({ behavior: scrollBehavior, block: "end" });
+  }, [scrollBehavior]);
+
+  // Pill should appear whenever the reader is scrolled away from the
+  // bottom while there's actual content beyond the viewport. We hide it
+  // on a fresh thread (single greeting) where there's nothing to jump to.
+  const showJumpPill =
+    !loadingHistory && !isNearBottom && (streaming || messages.length > 1);
+
   return (
     <div
-      className="relative flex flex-col gap-4"
+      className="relative flex flex-col h-full min-h-0 gap-4"
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -461,80 +552,119 @@ export function ChatPanel({
         )}
       </AnimatePresence>
       {!authed && (
-        <div className="text-xs text-[var(--text-muted)]">
+        <div className="text-xs text-[var(--text-muted)] shrink-0">
           Sign in to enable streaming chat with your data.
         </div>
       )}
-      <div ref={scrollRef} className="space-y-4">
-        {loadingHistory ? (
-          <div className="text-sm text-[var(--text-muted)]">Loading conversation…</div>
-        ) : (
-          <>
-            {messages.map((m, i) => {
-              const isLast = i === messages.length - 1;
-              const isStreamingThis = streaming && isLast;
-              // The very first synthetic greeting doesn't get follow-up
-              // chips — they only appear under real assistant turns.
-              const isGreeting = i === 0 && messages.length === 1;
-              return (
-                <ChatMessage
-                  key={i}
-                  msg={m}
-                  streaming={isStreamingThis}
-                  showChips={
-                    !isStreamingThis &&
-                    !isGreeting &&
-                    m.role === "assistant" &&
-                    !!m.content
-                  }
-                  onChipClick={handleChipClick}
-                  projectId={projectId}
-                  mode={mode}
-                  setMode={setMode}
-                />
-              );
-            })}
-            {/* Inline mode-aware suggestion chips on a fresh thread. */}
-            {!streaming &&
-              messages.length <= 1 &&
-              messages[0]?.role !== "user" && (
-                <div className="pt-1 flex flex-wrap gap-1.5">
-                  {chips.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => void send(c)}
-                      className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-[var(--accent)] rounded-full px-2.5 py-1 transition-colors"
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              )}
-          </>
-        )}
+      {/* Message viewport wrapper. The wrapper itself is `relative` and
+          does NOT scroll — its child is the scroll container. This lets
+          the "Jump to latest" pill be absolutely positioned relative to
+          the visible viewport (`bottom-3 right-3`) rather than scrolling
+          with the message content. */}
+      <div className="relative flex-1 min-h-0 flex flex-col">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1"
+        >
+          {loadingHistory ? (
+            <div className="text-sm text-[var(--text-muted)]">Loading conversation…</div>
+          ) : (
+            <>
+              {messages.map((m, i) => {
+                const isLast = i === messages.length - 1;
+                const isStreamingThis = streaming && isLast;
+                // The very first synthetic greeting doesn't get follow-up
+                // chips — they only appear under real assistant turns.
+                const isGreeting = i === 0 && messages.length === 1;
+                return (
+                  <ChatMessage
+                    key={i}
+                    msg={m}
+                    streaming={isStreamingThis}
+                    showChips={
+                      !isStreamingThis &&
+                      !isGreeting &&
+                      m.role === "assistant" &&
+                      !!m.content
+                    }
+                    onChipClick={handleChipClick}
+                    projectId={projectId}
+                    mode={mode}
+                    setMode={setMode}
+                  />
+                );
+              })}
+              {/* Inline mode-aware suggestion chips on a fresh thread. */}
+              {!streaming &&
+                messages.length <= 1 &&
+                messages[0]?.role !== "user" && (
+                  <div className="pt-1 flex flex-wrap gap-1.5">
+                    {chips.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => void send(c)}
+                        className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-[var(--accent)] rounded-full px-2.5 py-1 transition-colors"
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              {/* Sentinel for the smart auto-scroll effect. Kept as the
+                  very last child of the scroll container. */}
+              <div ref={messagesEndRef} aria-hidden="true" />
+            </>
+          )}
+        </div>
+        {/* Jump-to-latest pill: anchored to the visible bottom-right of
+            the viewport wrapper (NOT inside the scroller, so it doesn't
+            scroll with content). z-10 keeps it above message bubbles;
+            the composer sibling below has no positive z-index so it
+            naturally renders on top of everything in this column. */}
+        <AnimatePresence>
+          {showJumpPill && (
+            <motion.button
+              key="jump-to-latest"
+              type="button"
+              onClick={jumpToLatest}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur px-3 py-1.5 text-[11px] font-medium text-[var(--text)] shadow-sm hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              aria-label="Jump to latest message"
+            >
+              <ArrowDown className="h-3 w-3" />
+              <span>Jump to latest</span>
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
-      <FloatingComposer
-        ref={composerRef}
-        value={input}
-        onValueChange={setInput}
-        onSubmit={(text) => {
-          setInput(text);
-          void send(text);
-        }}
-        placeholder={
-          mode === "expert"
-            ? "Describe the analysis (algorithm, params, columns)…"
-            : "Ask anything about your data… · اسأل عن بياناتك"
-        }
-        busy={streaming}
-        disabled={loadingHistory}
-        onAttachFile={handleAttachFile}
-        attachBusy={uploading}
-        connectorsHref="/app/connectors"
-        errorText={uploadErr}
-        sendLayoutId="axiom-composer-send"
-      />
+      <div className="shrink-0">
+        <FloatingComposer
+          ref={composerRef}
+          value={input}
+          onValueChange={setInput}
+          onSubmit={(text) => {
+            setInput(text);
+            void send(text);
+          }}
+          placeholder={
+            mode === "expert"
+              ? "Describe the analysis (algorithm, params, columns)…"
+              : "Ask anything about your data… · اسأل عن بياناتك"
+          }
+          busy={streaming}
+          disabled={loadingHistory}
+          onAttachFile={handleAttachFile}
+          attachBusy={uploading}
+          connectorsHref="/app/connectors"
+          errorText={uploadErr}
+          sendLayoutId="axiom-composer-send"
+        />
+      </div>
     </div>
   );
 }

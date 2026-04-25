@@ -355,11 +355,11 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
 
   return (
     <div
-      className={`-m-6 min-h-[calc(100vh-3.5rem)] transition-[padding] ${
+      className={`-m-6 h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden transition-[padding] ${
         drawerOpen ? "pr-[440px]" : ""
       }`}
     >
-      <main className="overflow-auto bg-[var(--surface)]">
+      <main className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[var(--surface)]">
         <DataContextBar
           projectName={project?.name ?? activeSession?.title ?? "Project"}
           projectId={projectId}
@@ -369,10 +369,10 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
           streaming={chatStreaming}
           rightSlot={dataContextRight}
         />
-        <div className="px-4 sm:px-6 py-6">
-          <div className="mx-auto w-full max-w-[800px] space-y-4">
-            {error && <div className="text-red-600 text-sm">{error}</div>}
-            <div>
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-4 sm:px-6 py-6">
+          <div className="mx-auto w-full max-w-[800px] flex-1 min-h-0 flex flex-col gap-4">
+            {error && <div className="text-red-600 text-sm shrink-0">{error}</div>}
+            <div className="shrink-0">
               <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
                 Conversation
               </span>
@@ -385,35 +385,41 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
                 under the new sticky chips bar. The sticky DataContextBar
                 handles dataset chips + Quick Preview + status pill; this
                 inline strip preserves the Expert/Guided wording flex. */}
-            <ModeAwareContextBar projectId={projectId} datasets={datasets} />
+            <div className="shrink-0">
+              <ModeAwareContextBar projectId={projectId} datasets={datasets} />
+            </div>
 
             {activeDatasetState != null && datasets.length > 0 && (
-              <DatasetPreviewCard
-                key={activeDatasetState}
-                datasetId={activeDatasetState}
-                onAskQuestion={onSuggestedQuestion}
-                onAskAboutCell={onAskAboutCell}
-              />
+              <div className="shrink-0">
+                <DatasetPreviewCard
+                  key={activeDatasetState}
+                  datasetId={activeDatasetState}
+                  onAskQuestion={onSuggestedQuestion}
+                  onAskAboutCell={onAskAboutCell}
+                />
+              </div>
             )}
 
             {activeSessionId ? (
-              <ChatPanel
-                key={activeSessionId}
-                sessionId={activeSessionId}
-                projectId={projectId}
-                onTurnComplete={onTurnComplete}
-                hasData={datasets.length > 0}
-                initialPrompt={
-                  requestedSessionId === activeSessionId ? initialPrompt : null
-                }
-                onInitialPromptConsumed={onInitialPromptConsumed}
-                onToolStarted={onToolStarted}
-                onToolFinished={onToolFinished}
-                onTurnEnded={onChatTurnEnded}
-                onStreamingChange={setChatStreaming}
-              />
+              <div className="flex-1 min-h-0 flex flex-col">
+                <ChatPanel
+                  key={activeSessionId}
+                  sessionId={activeSessionId}
+                  projectId={projectId}
+                  onTurnComplete={onTurnComplete}
+                  hasData={datasets.length > 0}
+                  initialPrompt={
+                    requestedSessionId === activeSessionId ? initialPrompt : null
+                  }
+                  onInitialPromptConsumed={onInitialPromptConsumed}
+                  onToolStarted={onToolStarted}
+                  onToolFinished={onToolFinished}
+                  onTurnEnded={onChatTurnEnded}
+                  onStreamingChange={setChatStreaming}
+                />
+              </div>
             ) : (
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 text-sm text-[var(--text-muted)]">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 text-sm text-[var(--text-muted)] shrink-0">
                 Loading chat…
               </div>
             )}
