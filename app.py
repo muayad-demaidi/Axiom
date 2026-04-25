@@ -142,7 +142,7 @@ from models import (
     update_dataset_steps, update_dataset_name, dataset_name_exists_in_project,
     get_dataset_record, set_user_last_dataset, set_user_assistant_mode,
     get_user_datasets, get_user_by_email, delete_dataset_record,
-    set_dataset_pinned,
+    bulk_delete_dataset_records, set_dataset_pinned,
     create_password_reset_token, get_valid_password_reset_token,
     consume_password_reset_token, purge_expired_password_reset_tokens,
     create_project, list_user_projects, get_project, update_project,
@@ -9360,8 +9360,163 @@ def show_dashboard():
                     if _recent:
                         st.markdown("---")
                         st.markdown("##### Recent datasets")
-                        st.caption("Reopen a previously analysed dataset and resume from its last Applied Step. Use 📌 to pin it to the top, ✏️ to rename, or 🗑️ to remove.")
+                        st.caption("Reopen a previously analysed dataset and resume from its last Applied Step. Tick rows to bulk-delete, or use 📌 to pin / ✏️ to rename / 🗑️ to remove individually.")
                         _proj_id_for_rename = st.session_state.get('current_project_id')
+
+                        # ── Bulk-select toolbar ─ aggregate the checkboxes on
+                        # the visible rows, expose a "Delete N selected" action,
+                        # and confirm before committing the single-transaction
+                        # bulk delete. Selection lives in st.session_state under
+                        # `bulk_select_<id>` keys (one per checkbox).
+                        _recent_ids = [r.id for r in _recent]
+                        _recent_id_set = set(_recent_ids)
+                        # Drop stale selection keys for rows that no longer
+                        # appear in the list (e.g. just deleted on a prior
+                        # rerun) so the toolbar count stays honest.
+                        for _k in [
+                            k for k in list(st.session_state.keys())
+                            if isinstance(k, str) and k.startswith("bulk_select_")
+                        ]:
+                            try:
+                                _kid = int(_k.split("_", 2)[2])
+                            except (ValueError, IndexError):
+                                continue
+                            if _kid not in _recent_id_set:
+                                st.session_state.pop(_k, None)
+
+                        _selected_recs = [
+                            r for r in _recent
+                            if st.session_state.get(f"bulk_select_{r.id}", False)
+                        ]
+                        _selected_ids = [r.id for r in _selected_recs]
+                        _selected_bytes = sum(
+                            len(r.source_parquet or b"") for r in _selected_recs
+                        )
+                        _bulk_confirm_key = "_recent_bulk_delete_confirm"
+
+                        def _fmt_storage(_n: int) -> str:
+                            if _n < 1024:
+                                return f"{_n} B"
+                            if _n < 1024 * 1024:
+                                return f"{_n / 1024:.1f} KB"
+                            if _n < 1024 * 1024 * 1024:
+                                return f"{_n / (1024 * 1024):.1f} MB"
+                            return f"{_n / (1024 * 1024 * 1024):.2f} GB"
+
+                        if _selected_ids:
+                            _t1, _t2, _t3 = st.columns([0.55, 0.23, 0.22])
+                            with _t1:
+                                st.markdown(
+                                    f"<div style='padding:0.45rem 0.7rem;"
+                                    f"border-radius:8px;"
+                                    f"background:rgba(96,165,250,0.10);"
+                                    f"border:1px solid rgba(96,165,250,0.25);"
+                                    f"font-size:0.85rem;color:#cbd5e1;'>"
+                                    f"<b>{len(_selected_ids)}</b> selected"
+                                    f" · {_fmt_storage(_selected_bytes)} stored"
+                                    f"</div>",
+                                    unsafe_allow_html=True,
+                                )
+                            with _t2:
+                                if st.button(
+                                    f"🗑️ Delete {len(_selected_ids)} selected",
+                                    key="bulk_delete_open",
+                                    use_container_width=True,
+                                    type="primary",
+                                ):
+                                    st.session_state[_bulk_confirm_key] = True
+                                    st.rerun()
+                            with _t3:
+                                if st.button(
+                                    "Clear selection",
+                                    key="bulk_select_clear",
+                                    use_container_width=True,
+                                ):
+                                    for _i in _recent_ids:
+                                        st.session_state.pop(f"bulk_select_{_i}", None)
+                                    st.session_state.pop(_bulk_confirm_key, None)
+                                    st.rerun()
+
+                            if st.session_state.get(_bulk_confirm_key):
+                                _cl, _cy, _cn = st.columns([0.5, 0.25, 0.25])
+                                _plural = "s" if len(_selected_ids) != 1 else ""
+                                with _cl:
+                                    st.markdown(
+                                        f"<div style='padding:0.55rem 0.75rem;"
+                                        f"border-radius:8px;"
+                                        f"background:rgba(248,113,113,0.10);"
+                                        f"border:1px solid rgba(248,113,113,0.30);"
+                                        f"font-size:0.85rem;color:#fca5a5;'>"
+                                        f"Permanently delete <b>{len(_selected_ids)}</b>"
+                                        f" dataset{_plural}? This frees up "
+                                        f"<b>{_fmt_storage(_selected_bytes)}</b>"
+                                        f" and removes their Applied Steps."
+                                        f"</div>",
+                                        unsafe_allow_html=True,
+                                    )
+                                with _cy:
+                                    if st.button(
+                                        "Delete all",
+                                        key="bulk_delete_yes",
+                                        use_container_width=True,
+                                        type="primary",
+                                    ):
+                                        _wdb = get_db()
+                                        _summary = None
+                                        _bulk_err = None
+                                        try:
+                                            try:
+                                                _summary = bulk_delete_dataset_records(
+                                                    _wdb, _selected_ids, _uid)
+                                            except Exception as _exc:
+                                                # Keep the traceback visible
+                                                # in the server console for
+                                                # ops debugging; show the
+                                                # user a concise message
+                                                # below.
+                                                import traceback as _tb
+                                                _tb.print_exc()
+                                                _bulk_err = str(_exc) or _exc.__class__.__name__
+                                                _summary = None
+                                        finally:
+                                            _wdb.close()
+                                        if _summary and _summary.get("deleted_count"):
+                                            for _did in _summary["deleted_ids"]:
+                                                st.session_state.pop(f"bulk_select_{_did}", None)
+                                                st.session_state.pop(f"rename_mode_{_did}", None)
+                                                st.session_state.pop(f"rename_input_{_did}", None)
+                                                st.session_state.pop(f"delete_confirm_{_did}", None)
+                                                st.session_state.step_histories.pop(_did, None)
+                                                if st.session_state.get('current_dataset_id') == _did:
+                                                    st.session_state.current_dataset_id = None
+                                                    st.session_state.df = None
+                                                    st.session_state.df_cleaned = None
+                                                    st.session_state.cleaning_report = None
+                                                    st.session_state.analysis_results = None
+                                                    st.session_state.ai_insights = None
+                                            st.session_state.pop(_bulk_confirm_key, None)
+                                            _del_n = _summary['deleted_count']
+                                            _del_plural = "s" if _del_n != 1 else ""
+                                            st.success(
+                                                f"Deleted {_del_n} dataset{_del_plural}"
+                                                f" · freed {_fmt_storage(_summary['total_bytes'])}."
+                                            )
+                                            st.rerun()
+                                        elif _bulk_err:
+                                            st.error(
+                                                "Could not delete the selected datasets: "
+                                                f"{_bulk_err}")
+                                        else:
+                                            st.error("Could not delete the selected datasets.")
+                                with _cn:
+                                    if st.button(
+                                        "Keep all",
+                                        key="bulk_delete_no",
+                                        use_container_width=True,
+                                    ):
+                                        st.session_state.pop(_bulk_confirm_key, None)
+                                        st.rerun()
+
                         for _rec in _recent:
                             _is_pinned = getattr(_rec, "pinned_at", None) is not None
                             _meta_bits = [
@@ -9467,7 +9622,14 @@ def show_dashboard():
                                         st.session_state.pop(_delete_key, None)
                                         st.rerun()
                             else:
-                                _rl, _rb1, _rbp, _rb2, _rb3 = st.columns([0.46, 0.16, 0.12, 0.13, 0.13])
+                                _rc, _rl, _rb1, _rbp, _rb2, _rb3 = st.columns(
+                                    [0.06, 0.40, 0.16, 0.12, 0.13, 0.13])
+                                with _rc:
+                                    st.checkbox(
+                                        f"Select {_rec.dataset_name}",
+                                        key=f"bulk_select_{_rec.id}",
+                                        label_visibility="collapsed",
+                                    )
                                 with _rl:
                                     st.markdown(
                                         f"**{_rec.dataset_name}**  \n"

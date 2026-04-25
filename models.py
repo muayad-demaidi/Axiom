@@ -1341,6 +1341,62 @@ def delete_dataset_record(db, dataset_id, user_id):
     return True
 
 
+def bulk_delete_dataset_records(db, dataset_ids, user_id):
+    """Delete several datasets owned by ``user_id`` in a single transaction.
+
+    Removes any ``DatasetRelationship`` rows that reference the deleted
+    datasets (either side of the join) as well as the ``DatasetRecord``
+    rows themselves. Datasets that don't belong to the user are silently
+    skipped — the caller never gets to delete other people's data.
+
+    Returns a summary dict::
+
+        {
+            "deleted_count": int,
+            "deleted_ids":  [int, ...],
+            "total_bytes":  int,   # combined source_parquet size
+        }
+    """
+    from sqlalchemy import func
+
+    if not dataset_ids:
+        return {"deleted_count": 0, "deleted_ids": [], "total_bytes": 0}
+
+    ids = list({int(i) for i in dataset_ids})
+    rows = (db.query(DatasetRecord.id,
+                     func.coalesce(
+                         func.octet_length(DatasetRecord.source_parquet), 0))
+              .filter(DatasetRecord.id.in_(ids),
+                      DatasetRecord.user_id == user_id)
+              .all())
+    owned_ids = [r[0] for r in rows]
+    total_bytes = int(sum((r[1] or 0) for r in rows))
+
+    if not owned_ids:
+        return {"deleted_count": 0, "deleted_ids": [], "total_bytes": 0}
+
+    try:
+        (db.query(DatasetRelationship)
+           .filter(DatasetRelationship.user_id == user_id,
+                   DatasetRelationship.left_dataset_id.in_(owned_ids)
+                   | DatasetRelationship.right_dataset_id.in_(owned_ids))
+           .delete(synchronize_session=False))
+        (db.query(DatasetRecord)
+           .filter(DatasetRecord.id.in_(owned_ids),
+                   DatasetRecord.user_id == user_id)
+           .delete(synchronize_session=False))
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    return {
+        "deleted_count": len(owned_ids),
+        "deleted_ids": owned_ids,
+        "total_bytes": total_bytes,
+    }
+
+
 # Default caps for how many report rows we keep around per user / per
 # project. These bound the ``reports`` table so a user who repeatedly
 # clicks Generate (or scripts the endpoint) can't grow the table
