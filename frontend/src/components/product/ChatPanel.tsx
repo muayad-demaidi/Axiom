@@ -690,7 +690,11 @@ export function ChatPanel({
           value={input}
           onValueChange={setInput}
           onSubmit={(text) => {
-            setInput(text);
+            // Clear the composer first so the user gets immediate
+            // feedback that their message was sent — `send(text)` reads
+            // its own copy of the text via the forceText arg, so this
+            // doesn't drop the message.
+            setInput("");
             void send(text);
           }}
           placeholder={
