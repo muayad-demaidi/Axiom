@@ -88,6 +88,16 @@ class ReportPdfRequest(BaseModel):
     dataset_id: int
     title: str | None = None
     notes: str | None = None
+    # Section toggles. Defaults preserve the legacy "everything on" behavior
+    # so existing callers keep getting the same PDF.
+    include_cover: bool = True
+    include_columns: bool = True
+    include_numeric_summary: bool = True
+    include_chart: bool = True
+    include_ai_insights: bool = True
+    # Optional: which numeric column the distribution chart should plot.
+    # When None/blank we fall back to the first numeric column (legacy behavior).
+    chart_column: str | None = None
 
 
 @app.post("/api/report/pdf")
@@ -138,82 +148,103 @@ async def report_pdf(
     story: list = []
 
     # ---- Cover ----------------------------------------------------------
-    story.append(Spacer(1, 4 * cm))
-    story.append(Paragraph(safe_title, styles["Title"]))
-    story.append(Spacer(1, 0.4 * cm))
-    story.append(Paragraph(
-        f"Dataset: <b>{safe_dataset_label}</b>",
-        styles["BodyText"],
-    ))
-    story.append(Paragraph(
-        f"{len(df):,} rows × {df.shape[1]:,} columns",
-        styles["BodyText"],
-    ))
-    story.append(Paragraph(
-        f"Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
-        styles["BodyText"],
-    ))
-    if req.notes:
+    if req.include_cover:
+        story.append(Spacer(1, 4 * cm))
+        story.append(Paragraph(safe_title, styles["Title"]))
         story.append(Spacer(1, 0.4 * cm))
-        story.append(Paragraph(_escape_for_pdf(req.notes), styles["BodyText"]))
-    story.append(PageBreak())
+        story.append(Paragraph(
+            f"Dataset: <b>{safe_dataset_label}</b>",
+            styles["BodyText"],
+        ))
+        story.append(Paragraph(
+            f"{len(df):,} rows × {df.shape[1]:,} columns",
+            styles["BodyText"],
+        ))
+        story.append(Paragraph(
+            f"Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
+            styles["BodyText"],
+        ))
+        if req.notes:
+            story.append(Spacer(1, 0.4 * cm))
+            story.append(Paragraph(_escape_for_pdf(req.notes), styles["BodyText"]))
+        # Only break to a new page if at least one more section will follow,
+        # so a cover-only export doesn't end with a trailing blank page.
+        if (req.include_columns or req.include_numeric_summary
+                or req.include_chart or req.include_ai_insights):
+            story.append(PageBreak())
 
     # ---- Summary stats: columns table ----------------------------------
-    story.append(Paragraph("<b>Columns</b>", styles["Heading2"]))
-    cols_data = [["Column", "Dtype", "Non-null", "Missing"]]
-    for col in df.columns[:50]:
-        non_null = int(df[col].notna().sum())
-        missing = int(len(df) - non_null)
-        cols_data.append([str(col), str(df[col].dtype), f"{non_null:,}", f"{missing:,}"])
-    tbl = Table(cols_data, colWidths=[6.5 * cm, 3 * cm, 3 * cm, 3 * cm])
-    tbl.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1d4ed8")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f3f4f6")]),
-        ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-    ]))
-    story.append(tbl)
-
-    numeric = df.select_dtypes(include="number")
-    if not numeric.empty:
-        story.append(Spacer(1, 0.6 * cm))
-        story.append(Paragraph("<b>Numeric summary</b>", styles["Heading2"]))
-        desc = numeric.describe().round(3)
-        head = ["stat"] + [str(c) for c in desc.columns[:6]]
-        rows = [head]
-        for stat, row in desc.iterrows():
-            rows.append([str(stat)] + [str(v) for v in row.values[:6]])
-        ntbl = Table(rows)
-        ntbl.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+    if req.include_columns:
+        story.append(Paragraph("<b>Columns</b>", styles["Heading2"]))
+        cols_data = [["Column", "Dtype", "Non-null", "Missing"]]
+        for col in df.columns[:50]:
+            non_null = int(df[col].notna().sum())
+            missing = int(len(df) - non_null)
+            cols_data.append([str(col), str(df[col].dtype), f"{non_null:,}", f"{missing:,}"])
+        tbl = Table(cols_data, colWidths=[6.5 * cm, 3 * cm, 3 * cm, 3 * cm])
+        tbl.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1d4ed8")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f3f4f6")]),
             ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
         ]))
-        story.append(ntbl)
+        story.append(tbl)
+
+    if req.include_numeric_summary:
+        numeric = df.select_dtypes(include="number")
+        if not numeric.empty:
+            story.append(Spacer(1, 0.6 * cm))
+            story.append(Paragraph("<b>Numeric summary</b>", styles["Heading2"]))
+            desc = numeric.describe().round(3)
+            head = ["stat"] + [str(c) for c in desc.columns[:6]]
+            rows = [head]
+            for stat, row in desc.iterrows():
+                rows.append([str(stat)] + [str(v) for v in row.values[:6]])
+            ntbl = Table(rows)
+            ntbl.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ]))
+            story.append(ntbl)
 
     # ---- Chart (if applicable) -----------------------------------------
-    chart_png = _build_report_chart(df)
-    if chart_png is not None:
-        story.append(Spacer(1, 0.6 * cm))
-        story.append(Paragraph("<b>Distribution preview</b>", styles["Heading2"]))
-        story.append(Image(BytesIO(chart_png), width=15 * cm, height=8 * cm))
+    if req.include_chart:
+        chart_png = _build_report_chart(df, req.chart_column)
+        if chart_png is not None:
+            story.append(Spacer(1, 0.6 * cm))
+            story.append(Paragraph("<b>Distribution preview</b>", styles["Heading2"]))
+            story.append(Image(BytesIO(chart_png), width=15 * cm, height=8 * cm))
 
     # ---- AI insights ---------------------------------------------------
-    insights_text = _build_ai_insights(df)
-    if insights_text:
-        story.append(PageBreak())
-        story.append(Paragraph("<b>AI insights</b>", styles["Heading2"]))
-        story.append(Spacer(1, 0.2 * cm))
-        for para in insights_text.split("\n"):
-            line = para.strip()
-            if not line:
-                story.append(Spacer(1, 0.15 * cm))
-                continue
-            story.append(Paragraph(_escape_for_pdf(line), styles["BodyText"]))
+    if req.include_ai_insights:
+        insights_text = _build_ai_insights(df)
+        if insights_text:
+            # Only break to a new page when something has been rendered
+            # already; otherwise (AI-only export) we'd start with a blank
+            # leading page.
+            if story:
+                story.append(PageBreak())
+            story.append(Paragraph("<b>AI insights</b>", styles["Heading2"]))
+            story.append(Spacer(1, 0.2 * cm))
+            for para in insights_text.split("\n"):
+                line = para.strip()
+                if not line:
+                    story.append(Spacer(1, 0.15 * cm))
+                    continue
+                story.append(Paragraph(_escape_for_pdf(line), styles["BodyText"]))
+
+    if not story:
+        # Edge case: every section was disabled. Drop in a tiny placeholder
+        # so reportlab doesn't choke on an empty story.
+        story.append(Paragraph(
+            "No sections were selected for this report.",
+            styles["BodyText"],
+        ))
 
     doc.build(story)
     buf.seek(0)
@@ -234,11 +265,14 @@ def _escape_for_pdf(text: str) -> str:
     )
 
 
-def _build_report_chart(df) -> bytes | None:
-    """Render a small distribution chart for the first numeric column.
+def _build_report_chart(df, column: str | None = None) -> bytes | None:
+    """Render a small distribution chart for a numeric column.
 
-    Falls back to ``None`` when no numeric column is available or the
-    plotting backend isn't usable, so the PDF still builds.
+    When ``column`` is provided and refers to a numeric column in ``df``
+    we plot that column; otherwise we fall back to the first numeric
+    column (legacy behavior). Returns ``None`` when no numeric column is
+    available or the plotting backend isn't usable, so the PDF still
+    builds.
     """
     numeric = df.select_dtypes(include="number")
     if numeric.empty:
@@ -250,7 +284,11 @@ def _build_report_chart(df) -> bytes | None:
     except Exception:
         return None
 
-    col = numeric.columns[0]
+    chosen = (column or "").strip()
+    if chosen and chosen in numeric.columns:
+        col = chosen
+    else:
+        col = numeric.columns[0]
     series = numeric[col].dropna()
     if series.empty:
         return None

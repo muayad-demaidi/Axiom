@@ -1,8 +1,31 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getToken } from "@/lib/api";
+import { api, getToken } from "@/lib/api";
+import type { AxiomDataset, DatasetSummaryColumn } from "@/lib/types";
+import { errMessage } from "@/lib/types";
 import { getActiveDatasetId } from "@/lib/projectContext";
+
+type SectionKey =
+  | "include_cover"
+  | "include_columns"
+  | "include_numeric_summary"
+  | "include_chart"
+  | "include_ai_insights";
+
+const SECTIONS: { key: SectionKey; label: string; hint: string }[] = [
+  { key: "include_cover", label: "Cover page", hint: "Title, dataset name, row/column count, notes." },
+  { key: "include_columns", label: "Columns table", hint: "Per-column dtype, non-null and missing counts." },
+  { key: "include_numeric_summary", label: "Numeric summary", hint: "Describe() table for numeric columns." },
+  { key: "include_chart", label: "Distribution chart", hint: "Histogram for one numeric column." },
+  { key: "include_ai_insights", label: "AI insights", hint: "Generated narrative write-up." },
+];
+
+const NUMERIC_DTYPE_RE = /^(u?int\d*|float\d*|number|decimal|long|short)$/i;
+function isNumericDtype(dtype: string): boolean {
+  const d = (dtype || "").trim();
+  return NUMERIC_DTYPE_RE.test(d) || d.toLowerCase().includes("int") || d.toLowerCase().includes("float");
+}
 
 export default function ReportPage() {
   const router = useRouter();
@@ -13,14 +36,50 @@ export default function ReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
+  const [sections, setSections] = useState<Record<SectionKey, boolean>>({
+    include_cover: true,
+    include_columns: true,
+    include_numeric_summary: true,
+    include_chart: true,
+    include_ai_insights: true,
+  });
+  const [numericColumns, setNumericColumns] = useState<string[]>([]);
+  const [chartColumn, setChartColumn] = useState<string>("");
+
   useEffect(() => {
     if (!getToken()) { router.push("/login"); return; }
-    setDatasetId(getActiveDatasetId());
+    const id = getActiveDatasetId();
+    setDatasetId(id);
+    if (!id) return;
+    api<AxiomDataset>(`/api/datasets/${id}`)
+      .then((d) => {
+        const raw = (d.summary?.columns as Array<DatasetSummaryColumn | string> | undefined) ?? [];
+        const numeric = raw
+          .map((c) => (typeof c === "string" ? { name: c, dtype: "" } : c))
+          .filter((c) => !c.dtype || isNumericDtype(c.dtype))
+          .map((c) => c.name);
+        setNumericColumns(numeric);
+      })
+      .catch(() => {
+        // Non-fatal: the chart selector just stays empty and the backend
+        // falls back to the first numeric column.
+        setNumericColumns([]);
+      });
   }, [router]);
+
+  function toggleSection(key: SectionKey) {
+    setSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  const anySelected = Object.values(sections).some(Boolean);
 
   async function generate() {
     if (!datasetId) {
       setError("No active dataset — upload one first.");
+      return;
+    }
+    if (!anySelected) {
+      setError("Pick at least one section to include in the report.");
       return;
     }
     setBusy(true); setError(null); setStatus("Building report…");
@@ -37,6 +96,8 @@ export default function ReportPage() {
           dataset_id: datasetId,
           title: title.trim() || null,
           notes: notes.trim() || null,
+          ...sections,
+          chart_column: sections.include_chart ? (chartColumn || null) : null,
         }),
       });
       if (!res.ok) {
@@ -59,7 +120,7 @@ export default function ReportPage() {
       URL.revokeObjectURL(url);
       setStatus("Report downloaded.");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Report failed");
+      setError(errMessage(e));
       setStatus(null);
     } finally {
       setBusy(false);
@@ -104,11 +165,52 @@ export default function ReportPage() {
             disabled={busy}
           />
         </div>
+
+        <div>
+          <div className="text-xs font-medium mb-2">Sections to include</div>
+          <div className="space-y-2">
+            {SECTIONS.map((s) => (
+              <label key={s.key} className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={sections[s.key]}
+                  onChange={() => toggleSection(s.key)}
+                  disabled={busy}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="font-medium">{s.label}</span>
+                  <span className="text-[var(--text-muted)]"> — {s.hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {sections.include_chart && (
+          <div>
+            <label className="block text-xs font-medium mb-1">Chart column (numeric)</label>
+            <select
+              value={chartColumn}
+              onChange={(e) => setChartColumn(e.target.value)}
+              disabled={busy || numericColumns.length === 0}
+              className="w-full border border-[var(--border)] rounded px-3 py-2 text-sm bg-transparent"
+            >
+              <option value="">
+                {numericColumns.length === 0 ? "No numeric columns detected" : "First numeric column (default)"}
+              </option>
+              {numericColumns.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={generate}
-            disabled={busy || !datasetId}
+            disabled={busy || !datasetId || !anySelected}
             className="btn btn-primary text-sm"
           >
             {busy ? "Generating…" : "Generate report"}
