@@ -1304,6 +1304,64 @@ def delete_dataset_record(db, dataset_id, user_id):
     return True
 
 
+# Default caps for how many report rows we keep around per user / per
+# project. These bound the ``reports`` table so a user who repeatedly
+# clicks Generate (or scripts the endpoint) can't grow the table
+# without limit. Overridable via environment variables so an operator
+# can dial them up or down without a code change.
+def _report_cap(env_name: str, default: int) -> int:
+    raw = os.environ.get(env_name)
+    if not raw:
+        return default
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return default
+    # Anything <= 0 effectively disables pruning, which is a footgun.
+    # Force at least 1 so we always keep the row we just inserted.
+    return max(1, n)
+
+
+REPORTS_PER_USER_CAP = _report_cap("AXIOM_REPORTS_PER_USER_CAP", 50)
+REPORTS_PER_PROJECT_CAP = _report_cap("AXIOM_REPORTS_PER_PROJECT_CAP", 25)
+
+
+def _prune_reports_beyond_cap(db, *, user_id, project_id):
+    """Delete the oldest rows in ``reports`` once the user/project cap
+    is exceeded. Operates on the current open transaction (no commit
+    here) so the caller can wrap the insert + prune atomically.
+    """
+    if user_id is None:
+        return
+
+    def _prune(filter_q, cap):
+        # Pick the IDs we want to keep (newest first, up to ``cap``)
+        # and then delete everything else in the same scope. Doing the
+        # keep-set lookup explicitly avoids relying on subquery + LIMIT
+        # in DELETE which not every dialect supports.
+        keep_ids = [
+            rid for (rid,) in (
+                filter_q.with_entities(Report.id)
+                        .order_by(Report.created_at.desc(), Report.id.desc())
+                        .limit(cap)
+                        .all()
+            )
+        ]
+        if not keep_ids:
+            return
+        (filter_q.filter(~Report.id.in_(keep_ids))
+                 .delete(synchronize_session=False))
+
+    user_q = db.query(Report).filter(Report.user_id == user_id)
+    _prune(user_q, REPORTS_PER_USER_CAP)
+
+    if project_id is not None:
+        project_q = (db.query(Report)
+                       .filter(Report.user_id == user_id,
+                               Report.project_id == project_id))
+        _prune(project_q, REPORTS_PER_PROJECT_CAP)
+
+
 def save_report_record(db, user_id, dataset_id, project_id, title, notes,
                        dataset_label):
     """Persist a row in ``reports`` for a generated PDF.
@@ -1311,6 +1369,11 @@ def save_report_record(db, user_id, dataset_id, project_id, title, notes,
     Returns the new ``Report`` instance. Failures are surfaced to the
     caller (the PDF endpoint already built the bytes by the time we get
     here, so swallowing errors silently would hide real DB issues).
+
+    After insert, prunes older rows for this user (and project) beyond
+    the configured caps so the ``reports`` table stays bounded. The
+    insert and prune share one transaction: if the prune blows up the
+    insert is rolled back too, so we never half-apply.
     """
     rec = Report(
         user_id=user_id,
@@ -1321,7 +1384,17 @@ def save_report_record(db, user_id, dataset_id, project_id, title, notes,
         dataset_label=(dataset_label or None),
     )
     db.add(rec)
-    db.commit()
+    try:
+        # Flush so the new row has an ID and participates in the
+        # keep-set selection below, but keep the transaction open so
+        # the prune can be rolled back together with the insert on
+        # failure.
+        db.flush()
+        _prune_reports_beyond_cap(db, user_id=user_id, project_id=project_id)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(rec)
     return rec
 
