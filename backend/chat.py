@@ -172,6 +172,20 @@ TOOL_SCHEMA: list[dict] = [
                     },
                     "x": {"type": "string"},
                     "y": {"type": "string"},
+                    "aggregation": {
+                        "type": "string",
+                        "description": (
+                            "How to aggregate Y for bar/line charts. "
+                            "Defaults to the field's role-aware default "
+                            "(SUM for additive measures like revenue, "
+                            "AVG for percentages, COUNT for "
+                            "non-numeric)."
+                        ),
+                        "enum": [
+                            "sum", "avg", "count", "count_distinct",
+                            "min", "max", "median",
+                        ],
+                    },
                     "bins": {"type": "integer", "default": 20},
                     "title": {"type": "string"},
                 },
@@ -391,9 +405,14 @@ def _run_profile(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
 def _run_make_chart(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
     rec, df = _load_df(db, int(args["dataset_id"]), ctx["user_id"], project_id=ctx.get("project_id"))
     chart = str(args.get("chart") or "bar").lower()
-    payload = _compute_chart_payload(df, chart, args.get("x"), args.get("y"),
-                                     int(args.get("bins") or 20))
-    title = args.get("title") or _default_chart_title(chart, args)
+    aggregation = (args.get("aggregation") or "").lower() or None
+    payload = _compute_chart_payload(
+        df, chart, args.get("x"), args.get("y"),
+        int(args.get("bins") or 20),
+        aggregation=aggregation,
+        record=rec,
+    )
+    title = args.get("title") or _default_chart_title(chart, args, payload)
     payload["title"] = title
     a = models.save_chat_artifact(
         db,
@@ -407,6 +426,7 @@ def _run_make_chart(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
             "chart": chart,
             "x": args.get("x"),
             "y": args.get("y"),
+            "aggregation": payload.get("aggregation"),
             "bins": args.get("bins"),
         },
         result=payload,
@@ -417,18 +437,22 @@ def _run_make_chart(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
         "chart": chart,
         "x": args.get("x"),
         "y": args.get("y"),
+        "aggregation": payload.get("aggregation"),
+        "y_label": payload.get("y_label"),
+        "warnings": payload.get("warnings") or [],
         "points_count": len(payload.get("points") or payload.get("matrix") or []),
     }
     return summary, [_artifact_view(a)]
 
 
-def _default_chart_title(chart: str, args: dict) -> str:
+def _default_chart_title(chart: str, args: dict, payload: dict | None = None) -> str:
     x = args.get("x")
     y = args.get("y")
+    y_label = (payload or {}).get("y_label") or y
     if chart == "scatter" and x and y:
         return f"{y} vs {x}"
     if chart in ("bar", "line") and x and y:
-        return f"{y} by {x}"
+        return f"{y_label} by {x}"
     if chart == "histogram" and (x or y):
         return f"Distribution of {x or y}"
     if chart == "pie" and x:
@@ -442,14 +466,36 @@ def _default_chart_title(chart: str, args: dict) -> str:
 
 def _compute_chart_payload(df: pd.DataFrame, chart: str,
                            x: str | None, y: str | None,
-                           bins: int) -> dict:
-    """Reuses the same aggregation rules as /api/visualize."""
+                           bins: int,
+                           aggregation: str | None = None,
+                           record: Any | None = None) -> dict:
+    """Reuses the same aggregation rules as /api/visualize.
+
+    For ``bar`` and ``line`` charts this delegates to the central
+    :mod:`backend.aggregation` engine so the chosen aggregation
+    matches the field's role-aware default (SUM for additive
+    measures, AVG for percentages with a warning, COUNT for
+    non-numeric).  Histograms / pies / scatters / box / heatmap keep
+    their existing inline logic since none of them aggregate a
+    measure across categories.
+    """
     import numpy as np
+    from . import aggregation as _agg
 
     def _ensure(col: str | None) -> str:
         if not col or col not in df.columns:
             raise ValueError(f"column '{col}' not in dataset")
         return col
+
+    field_meta: dict[str, dict[str, Any]] = {}
+    if record is not None:
+        try:
+            field_meta = _agg.merge_field_meta(
+                _agg.infer_field_meta(df),
+                (record.summary_stats or {}).get("_axiom_field_meta") or {},
+            )
+        except Exception:
+            field_meta = {}
 
     if chart == "histogram":
         col = _ensure(x or y)
@@ -511,11 +557,13 @@ def _compute_chart_payload(df: pd.DataFrame, chart: str,
         c = df[xc].dropna().astype(str).value_counts().head(30)
         return {
             "chart": "bar", "x": xc, "y": "count",
+            "y_label": "Count", "aggregation": "count",
             "points": [{"x": str(k), "y": int(v)} for k, v in c.items()],
+            "warnings": [],
         }
     yc = _ensure(y)
-    pair = pd.DataFrame({"x": df[xc].values, "y": df[yc].values}).dropna()
     if chart == "scatter":
+        pair = pd.DataFrame({"x": df[xc].values, "y": df[yc].values}).dropna()
         px = pd.to_numeric(pair["x"], errors="coerce")
         py = pd.to_numeric(pair["y"], errors="coerce")
         sub = pd.DataFrame({"x": px, "y": py}).dropna()
@@ -528,43 +576,54 @@ def _compute_chart_payload(df: pd.DataFrame, chart: str,
             "points": [{"x": float(rx), "y": float(ry)}
                        for rx, ry in sub.itertuples(index=False, name=None)],
         }
-    if chart == "bar":
-        if pair.empty:
-            raise ValueError("no rows after dropping nulls")
-        yn = pd.to_numeric(pair["y"], errors="coerce")
-        if yn.notna().any():
-            sub = pair.assign(_y=yn).dropna(subset=["_y"])
-            g = sub.groupby(sub["x"].astype(str))["_y"].mean().sort_values(ascending=False).head(30)
-            return {"chart": "bar", "x": xc, "y": f"mean({yc})",
-                    "points": [{"x": str(k), "y": float(v)} for k, v in g.items()]}
-        c = pair["x"].astype(str).value_counts().head(30)
-        return {"chart": "bar", "x": xc, "y": "count",
-                "points": [{"x": str(k), "y": int(v)} for k, v in c.items()]}
-    if chart == "line":
-        if pair.empty:
-            raise ValueError("no rows after dropping nulls")
-        yn = pd.to_numeric(pair["y"], errors="coerce")
-        if not yn.notna().any():
-            raise ValueError("line chart needs numeric y")
-        sub = pair.assign(_y=yn).dropna(subset=["_y"])
-        x_dt = pd.to_datetime(sub["x"], errors="coerce")
-        x_num = pd.to_numeric(sub["x"], errors="coerce")
-        thr = max(3, int(0.6 * len(sub)))
-        if x_dt.notna().sum() >= thr:
-            ord_ = sub.assign(_x=x_dt).dropna(subset=["_x"]).sort_values("_x")
-            pts = [{"x": d.isoformat(), "y": float(v)}
-                   for d, v in zip(ord_["_x"], ord_["_y"])]
-        elif x_num.notna().sum() >= thr:
-            ord_ = sub.assign(_x=x_num).dropna(subset=["_x"]).sort_values("_x")
-            pts = [{"x": float(d), "y": float(v)}
-                   for d, v in zip(ord_["_x"], ord_["_y"])]
+    if chart in ("bar", "line"):
+        # Route through the central aggregation engine so the chat
+        # answer matches the pivot table & dashboard for the same
+        # (x, y) pair.
+        y_meta = field_meta.get(yc) or {}
+        if aggregation and aggregation in _agg.AGGREGATIONS and aggregation != "none":
+            agg_kind = aggregation
         else:
-            g = sub.groupby(sub["x"].astype(str))["_y"].mean()
-            pts = [{"x": str(k), "y": float(v)} for k, v in g.items()]
-        if len(pts) > 500:
-            step = max(1, len(pts) // 500)
-            pts = pts[::step]
-        return {"chart": "line", "x": xc, "y": yc, "points": pts}
+            agg_kind = (y_meta.get("default_agg") or "sum")
+            if agg_kind == "none":
+                agg_kind = "sum"
+        date_grains: dict[str, str] = {}
+        if chart == "line":
+            xm = field_meta.get(xc) or {}
+            if xm.get("role") == "date" or xm.get("format_kind") == "date":
+                date_grains[xc] = "month"
+        # Pre-flight validation routes through the same engine as the
+        # pivot + dashboard endpoints — every BI surface emits the same
+        # "you're summing a percentage" warnings.
+        pre = _agg.validate_request(
+            [xc], [],
+            [{"column": yc, "aggregation": agg_kind}],
+            field_meta, df.columns,
+        )
+        result = _agg.aggregate(
+            df,
+            rows=[xc],
+            cols=[],
+            measures=[{"column": yc, "aggregation": agg_kind}],
+            date_grains=date_grains,
+            field_meta=field_meta,
+        )
+        max_pts = 30 if chart == "bar" else 500
+        rows = result["rows"][:max_pts]
+        m0 = result["measures"][0] if result["measures"] else {}
+        warnings = list(dict.fromkeys((pre or []) + (result.get("warnings") or [])))
+        return {
+            "chart": chart, "x": xc, "y": yc,
+            "y_label": m0.get("label") or yc,
+            "aggregation": agg_kind,
+            "format_kind": m0.get("format_kind"),
+            "points": [
+                {"x": r["_dims"].get(xc), "y": r.get("m0")}
+                for r in rows if r.get("m0") is not None
+            ],
+            "warnings": warnings,
+            "grand_total": result.get("grand_total", {}).get("m0"),
+        }
     raise ValueError(f"unknown chart '{chart}'")
 
 

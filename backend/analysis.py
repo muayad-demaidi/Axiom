@@ -19,6 +19,7 @@ from data_cleaner import clean_data  # type: ignore
 from data_analyzer import generate_summary_report  # type: ignore
 from predictions import simple_forecast  # type: ignore
 
+from . import aggregation as agg
 from ._json import jsonify
 from .auth import get_current_user, get_db_session
 from .datasets import load_dataset_dataframe
@@ -190,8 +191,19 @@ class VisualizeRequest(BaseModel):
     x: str | None = None
     y: str | None = None
     bins: int = 20
+    # Optional explicit override; when omitted the engine uses the
+    # field's role-aware default aggregation (e.g. SUM for revenue,
+    # AVG for percentages, COUNT for non-numeric).
+    aggregation: str | None = None
 
     model_config = {"protected_namespaces": ()}
+
+
+def _resolved_field_meta(record, df: pd.DataFrame) -> dict:
+    """Inferred + user-overridden field metadata for a dataset."""
+    inferred = agg.infer_field_meta(df)
+    overrides = (record.summary_stats or {}).get("_axiom_field_meta") or {}
+    return agg.merge_field_meta(inferred, overrides if isinstance(overrides, dict) else {})
 
 
 _MAX_CATEGORIES = 30
@@ -207,11 +219,17 @@ async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=De
     needs to render — never the raw dataset. Mirrors the chart palette in
     legacy `visualizations.py` (bar/line/scatter/box/pie/heatmap) plus a
     histogram for numeric distributions.
+
+    Bar / line are routed through the central :mod:`backend.aggregation`
+    engine so the chosen aggregation (SUM by default for additive
+    measures like revenue, AVG with a warning for percentages, COUNT
+    for non-numeric) matches what the pivot table and dashboard show.
     """
     import numpy as np
 
-    _, df = _require_dataset(db, req.dataset_id, user.id)
+    record, df = _require_dataset(db, req.dataset_id, user.id)
     chart = req.chart.lower()
+    field_meta = _resolved_field_meta(record, df)
 
     def _ensure(col: str | None) -> str:
         if not col or col not in df.columns:
@@ -300,49 +318,70 @@ async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=De
         points = [{"x": float(rx), "y": float(ry)} for rx, ry in sub.itertuples(index=False, name=None)]
         return jsonify({"chart": "scatter", "x": x, "y": y, "points": points})
 
-    if chart == "bar":
+    if chart in ("bar", "line"):
         if pair.empty:
             raise HTTPException(400, "No rows to plot after dropping nulls")
         y_numeric = pd.to_numeric(pair["y"], errors="coerce")
-        if y_numeric.notna().any():
-            sub = pair.assign(_y=y_numeric).dropna(subset=["_y"])
-            grouped = (
-                sub.groupby(sub["x"].astype(str))["_y"].mean()
-                .sort_values(ascending=False)
-                .head(_MAX_CATEGORIES)
-            )
-            points = [{"x": str(k), "y": float(v)} for k, v in grouped.items()]
-            return jsonify({"chart": "bar", "x": x, "y": f"mean({y})", "points": points})
-        # Both columns categorical — fall back to a frequency bar chart of X.
-        counts = pair["x"].astype(str).value_counts().head(_MAX_CATEGORIES)
-        points = [{"x": str(k), "y": int(v)} for k, v in counts.items()]
-        return jsonify({"chart": "bar", "x": x, "y": "count", "points": points})
-
-    if chart == "line":
-        if pair.empty:
-            raise HTTPException(400, "No rows to plot after dropping nulls")
-        y_numeric = pd.to_numeric(pair["y"], errors="coerce")
-        if not y_numeric.notna().any():
+        # For bar with both axes categorical, fall back to a frequency
+        # bar chart of X (no measure metadata to drive a sum).
+        if chart == "bar" and not y_numeric.notna().any():
+            counts = pair["x"].astype(str).value_counts().head(_MAX_CATEGORIES)
+            points = [{"x": str(k), "y": int(v)} for k, v in counts.items()]
+            return jsonify({
+                "chart": "bar", "x": x, "y": "count",
+                "y_label": "Count", "aggregation": "count",
+                "points": points,
+                "warnings": [],
+            })
+        if chart == "line" and not y_numeric.notna().any():
             raise HTTPException(400, f"Line chart needs a numeric Y column ('{y}' is non-numeric)")
-        sub = pair.assign(_y=y_numeric).dropna(subset=["_y"])
-        x_dt = pd.to_datetime(sub["x"], errors="coerce")
-        x_num = pd.to_numeric(sub["x"], errors="coerce")
-        threshold = max(3, int(0.6 * len(sub)))
-        if x_dt.notna().sum() >= threshold:
-            ordered = sub.assign(_x=x_dt).dropna(subset=["_x"]).sort_values("_x")
-            points = [
-                {"x": d.isoformat(), "y": float(v)}
-                for d, v in zip(ordered["_x"], ordered["_y"])
-            ]
-        elif x_num.notna().sum() >= threshold:
-            ordered = sub.assign(_x=x_num).dropna(subset=["_x"]).sort_values("_x")
-            points = [{"x": float(d), "y": float(v)} for d, v in zip(ordered["_x"], ordered["_y"])]
-        else:
-            grouped = sub.groupby(sub["x"].astype(str))["_y"].mean()
-            points = [{"x": str(k), "y": float(v)} for k, v in grouped.items()]
-        if len(points) > _MAX_LINE_POINTS:
-            step = max(1, len(points) // _MAX_LINE_POINTS)
-            points = points[::step]
-        return jsonify({"chart": "line", "x": x, "y": y, "points": points})
+        # Pick the aggregation: explicit override → field default → SUM.
+        y_meta = field_meta.get(y) or {}
+        agg_kind = (req.aggregation or y_meta.get("default_agg") or "sum").lower()
+        if agg_kind not in agg.AGGREGATIONS or agg_kind == "none":
+            agg_kind = "sum"
+        # For line charts, bucket the X axis by the natural date grain
+        # if the column is datetime-like; for bar, we group on the raw X.
+        date_grains: dict[str, str] = {}
+        if chart == "line":
+            x_meta = field_meta.get(x) or {}
+            if x_meta.get("role") == "date" or x_meta.get("format_kind") == "date":
+                date_grains[x] = "month"
+        # Pre-flight validation routes through the same engine as the
+        # pivot, dashboard and chat make_chart so every BI surface
+        # emits the same warnings.
+        pre = agg.validate_request(
+            [x], [],
+            [{"column": y, "aggregation": agg_kind}],
+            field_meta, df.columns,
+        )
+        result = agg.aggregate(
+            df,
+            rows=[x],
+            cols=[],
+            measures=[{"column": y, "aggregation": agg_kind}],
+            date_grains=date_grains,
+            field_meta=field_meta,
+            include_subtotals=False,
+        )
+        max_points = _MAX_CATEGORIES if chart == "bar" else _MAX_LINE_POINTS
+        rows_out = result["rows"][:max_points]
+        points = [
+            {"x": r["_dims"].get(x), "y": r.get("m0")} for r in rows_out
+            if r.get("m0") is not None
+        ]
+        m0 = (result["measures"][0] if result["measures"] else {})
+        warnings = list(dict.fromkeys((pre or []) + (result.get("warnings") or [])))
+        return jsonify({
+            "chart": chart,
+            "x": x,
+            "y": y,
+            "y_label": m0.get("label") or y,
+            "aggregation": agg_kind,
+            "format_kind": m0.get("format_kind"),
+            "points": points,
+            "warnings": warnings,
+            "grand_total": result.get("grand_total", {}).get("m0"),
+        })
 
     raise HTTPException(400, f"Unknown chart type '{req.chart}'")

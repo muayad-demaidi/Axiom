@@ -34,14 +34,38 @@ type BoxPoint = {
   count: number;
 };
 
+type AggregatedXY = {
+  chart: "bar" | "line";
+  x: string;
+  y: string;
+  y_label?: string;
+  aggregation?: string;
+  format_kind?: string;
+  points: XYPoint[];
+  warnings?: string[];
+  grand_total?: number | null;
+};
+
 type VisualizeResponse =
   | { chart: "histogram"; x: string; points: HistPoint[] }
   | { chart: "pie"; x: string; points: PiePoint[] }
-  | { chart: "bar"; x: string; y: string; points: XYPoint[] }
-  | { chart: "line"; x: string; y: string; points: XYPoint[] }
+  | AggregatedXY
   | { chart: "scatter"; x: string; y: string; points: ScatterPoint[] }
   | { chart: "box"; points: BoxPoint[] }
   | { chart: "heatmap"; columns: string[]; matrix: number[][] };
+
+type AggregationKind = "default" | "sum" | "avg" | "count" | "count_distinct" | "min" | "max" | "median";
+
+const AGG_LABELS: Record<AggregationKind, string> = {
+  default: "Auto (field default)",
+  sum: "Sum",
+  avg: "Average",
+  count: "Count",
+  count_distinct: "Distinct count",
+  min: "Min",
+  max: "Max",
+  median: "Median",
+};
 
 const PALETTE = ["#2563eb", "#60a5fa", "#3b82f6", "#1d4ed8", "#93c5fd", "#0ea5e9", "#1e40af"];
 const SINGLE_COLUMN_CHARTS: ChartKind[] = ["pie", "histogram"];
@@ -170,6 +194,7 @@ export default function VisualizePage() {
   const [chart, setChart] = useState<ChartKind>("bar");
   const [x, setX] = useState("");
   const [y, setY] = useState("");
+  const [aggregation, setAggregation] = useState<AggregationKind>("default");
   const [data, setData] = useState<VisualizeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -203,9 +228,13 @@ export default function VisualizePage() {
     setBusy(true); setError(null); setData(null);
     if (override) setChart(override.chart);
     try {
+      const body: Record<string, unknown> = { dataset_id: id, chart: useChart, x: useX, y: useY };
+      if ((useChart === "bar" || useChart === "line") && aggregation !== "default") {
+        body.aggregation = aggregation;
+      }
       const r = await api<VisualizeResponse>("/api/visualize", {
         method: "POST",
-        json: { dataset_id: id, chart: useChart, x: useX, y: useY },
+        json: body,
       });
       setData(r);
     } catch (e: unknown) { setError(errMessage(e)); }
@@ -261,7 +290,7 @@ export default function VisualizePage() {
             <XAxis dataKey="x" />
             <YAxis />
             <Tooltip />
-            <Line type="monotone" dataKey="y" stroke={PALETTE[0]} dot={false} />
+            <Line type="monotone" dataKey="y" stroke={PALETTE[0]} dot={false} name={data.y_label || data.y} />
           </LineChart>
         </ResponsiveContainer>
       );
@@ -279,10 +308,28 @@ export default function VisualizePage() {
           <XAxis dataKey="x" />
           <YAxis />
           <Tooltip />
-          <Bar dataKey="y" fill={PALETTE[0]} name={data.y} />
+          <Bar
+            dataKey="y"
+            fill={PALETTE[0]}
+            name={"y_label" in data && data.y_label ? data.y_label : data.y}
+          />
         </BarChart>
       </ResponsiveContainer>
     );
+  }, [data]);
+
+  // Aggregation warnings + resolved label live underneath the chart so
+  // it's obvious when the API quietly used SUM (not MEAN) or warned
+  // about averaging a percentage column.
+  const aggMeta = useMemo(() => {
+    if (!data || (data.chart !== "bar" && data.chart !== "line")) return null;
+    return {
+      label: data.y_label,
+      aggregation: data.aggregation,
+      warnings: data.warnings || [],
+      grand_total: data.grand_total ?? null,
+      format: data.format_kind,
+    };
   }, [data]);
 
   const xHelp = chart === "box"
@@ -323,6 +370,27 @@ export default function VisualizePage() {
         </label>
       </div>
       {xHelp && <p className="text-xs text-[var(--text-muted)] mt-2">{xHelp}</p>}
+      {(chart === "bar" || chart === "line") && (
+        <div className="card mt-3">
+          <label className="text-sm block">
+            Aggregation for Y
+            <select
+              value={aggregation}
+              onChange={(e) => setAggregation(e.target.value as AggregationKind)}
+              className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
+            >
+              {(Object.keys(AGG_LABELS) as AggregationKind[]).map((k) => (
+                <option key={k} value={k}>{AGG_LABELS[k]}</option>
+              ))}
+            </select>
+          </label>
+          <p className="text-xs text-[var(--text-muted)] mt-2">
+            &quot;Auto&quot; uses the field&apos;s role-aware default — Sum for additive measures
+            like revenue, Average for percentages (with a warning), Count for non-numeric.
+            The pivot, dashboard and chat assistant all share this engine.
+          </p>
+        </div>
+      )}
       <div className="mt-4">
         <button className="btn btn-primary" onClick={() => run()} disabled={busy || (!xDisabled && !x)}>
           {busy ? "Rendering…" : "Render chart"}
@@ -403,6 +471,30 @@ export default function VisualizePage() {
       {rendered && (
         <div className="card mt-6">
           {rendered}
+          {aggMeta && (
+            <div className="mt-3 flex items-center gap-3 flex-wrap text-xs">
+              {aggMeta.label && (
+                <span className="font-mono px-2 py-1 rounded bg-[var(--surface)] text-[var(--text-muted)]">
+                  Y: <span className="text-[var(--text)]">{aggMeta.label}</span>
+                </span>
+              )}
+              {aggMeta.aggregation && (
+                <span className="font-mono px-2 py-1 rounded bg-[var(--surface)] text-[var(--text-muted)]">
+                  agg: <span className="text-[var(--text)]">{aggMeta.aggregation}</span>
+                </span>
+              )}
+              {aggMeta.grand_total !== null && aggMeta.grand_total !== undefined && (
+                <span className="font-mono px-2 py-1 rounded bg-[var(--surface)] text-[var(--text-muted)]">
+                  total: <span className="text-[var(--text)]">{Number(aggMeta.grand_total).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                </span>
+              )}
+            </div>
+          )}
+          {aggMeta && aggMeta.warnings.length > 0 && (
+            <ul className="mt-2 text-xs text-amber-600 list-disc list-inside space-y-0.5">
+              {aggMeta.warnings.map((w, i) => <li key={i}>{w}</li>)}
+            </ul>
+          )}
           {mode === "guided" && data && (
             <TechnicalDetails projectId={projectId} label="View the underlying numbers">
               <pre className="text-[11px] overflow-auto max-h-[40vh] whitespace-pre-wrap">{JSON.stringify(data, null, 2)}</pre>

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, getToken } from "@/lib/api";
-import type { AxiomDataset, DatasetSummaryColumn } from "@/lib/types";
+import type { AxiomDataset, AxiomModelingSafeguards, DatasetSummaryColumn } from "@/lib/types";
 import { errMessage } from "@/lib/types";
 import { getActiveDatasetId, getActiveProjectId } from "@/lib/projectContext";
 import { useMode } from "@/lib/modeContext";
@@ -41,6 +41,7 @@ export default function ModelPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [hasDataset, setHasDataset] = useState<boolean | null>(null);
+  const [safeguards, setSafeguards] = useState<AxiomModelingSafeguards | null>(null);
 
   useEffect(() => {
     if (!getToken()) { router.push("/login"); return; }
@@ -54,6 +55,11 @@ export default function ModelPage() {
         setTarget(cols[0] || "");
       })
       .catch((e: unknown) => setError(errMessage(e)));
+    // Modeling safeguards run alongside the dataset load — they
+    // surface fan-out / non-unique grain risks before the user trains.
+    api<AxiomModelingSafeguards>(`/api/bi/${id}/modeling`)
+      .then(setSafeguards)
+      .catch(() => setSafeguards(null));
   }, [router]);
 
   async function runWith(body: Omit<ModelRequestBody, "dataset_id">) {
@@ -114,6 +120,28 @@ export default function ModelPage() {
         guidedSubtitle="Pick what you'd like to learn about your data. Open the advanced view to choose the algorithm yourself."
         expertSubtitle="K-Means clustering and Random Forest classification served from the active dataset."
       />
+
+      {safeguards && (safeguards.fanout.length > 0 || !safeguards.grain.is_unique) && (
+        <div className="mt-4 card border-amber-500/60">
+          <div className="text-xs font-semibold text-amber-600 mb-1">
+            Modeling safeguards
+          </div>
+          <ul className="text-xs space-y-0.5 list-disc list-inside text-amber-700">
+            {!safeguards.grain.is_unique && (
+              <li>
+                Grain is not unique — {safeguards.grain.duplicate_count.toLocaleString()} duplicate rows.
+                Train/test splits and cluster sizes may be skewed.
+              </li>
+            )}
+            {safeguards.grain.is_unique && safeguards.grain.keys.length > 0 && (
+              <li className="text-[var(--text-muted)]">
+                Grain: <span className="font-mono">{safeguards.grain.keys.join(" + ")}</span>
+              </li>
+            )}
+            {safeguards.fanout.map((f, i) => <li key={i}>{f.warning}</li>)}
+          </ul>
+        </div>
+      )}
 
       {hasDataset === false ? (
         <MissingDatasetNotice

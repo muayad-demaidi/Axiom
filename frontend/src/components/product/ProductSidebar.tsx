@@ -51,6 +51,9 @@ type QuickStartResponse = {
 const TOOL_LINKS: { href: string; label: string }[] = [
   { href: "/app/upload", label: "Files" },
   { href: "/app/connectors", label: "Data Connectors" },
+  { href: "/app/dashboard", label: "Dashboard" },
+  { href: "/app/pivot", label: "Pivot" },
+  { href: "/app/fields", label: "Field Settings" },
 ];
 
 function ProductSidebarBase() {

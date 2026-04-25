@@ -36,6 +36,7 @@ from .artifacts import router as artifacts_router  # noqa: E402
 from .data_model import router as data_model_router  # noqa: E402
 from .predict_guided import router as predict_guided_router  # noqa: E402
 from .support import router as support_router  # noqa: E402
+from .bi import router as bi_router  # noqa: E402
 
 app = FastAPI(title="AXIOM API", version="0.2.0")
 
@@ -78,6 +79,7 @@ app.include_router(artifacts_router)
 app.include_router(data_model_router)
 app.include_router(predict_guided_router)
 app.include_router(support_router)
+app.include_router(bi_router)
 
 
 from fastapi import Depends, HTTPException  # noqa: E402
