@@ -150,6 +150,39 @@ async def dataset_suggestions(
     return jsonify({"suggestions": suggested_questions(df)})
 
 
+@router.post("/api/chats/{session_id}/seed-profile")
+async def seed_profile_artifact(
+    session_id: int,
+    dataset_id: int = Query(..., description="Dataset to profile + pin into this chat."),
+    user=Depends(get_current_user),
+    db=Depends(get_db_session),
+):
+    """Deterministically run the `profile_dataset` tool inside a chat
+    session and persist a pinned profile + insight artifact pair.
+
+    The chat composer's paperclip upload calls this immediately so the
+    profile lands as a real, pinned artifact even if the LLM follow-up
+    is delayed or fails. Returns the new artifact rows so the workspace
+    can refresh its drawer without polling.
+    """
+    from . import chat as chat_mod  # local import to avoid circular
+
+    sess = _require_session(db, session_id, user.id)
+    rec = _require_dataset_for_user(db, dataset_id, user.id)
+    ctx = {
+        "user_id": user.id,
+        "project_id": sess.project_id,
+        "session_id": sess.id,
+    }
+    try:
+        summary, artifacts = chat_mod._run_profile(
+            db, {"dataset_id": rec.id}, ctx
+        )
+    except Exception as e:
+        raise HTTPException(500, f"Profile failed: {e}")
+    return jsonify({"summary": summary, "artifacts": artifacts})
+
+
 @router.post("/api/datasets/{dataset_id}/auto-profile")
 async def dataset_auto_profile(
     dataset_id: int,

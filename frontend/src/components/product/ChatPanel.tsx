@@ -443,12 +443,47 @@ function toolLabel(tool: string): string {
 }
 
 function InlineArtifact({ artifact }: { artifact: Artifact }) {
+  const [pinned, setPinned] = useState<boolean>(!!artifact.pinned);
+  const [busy, setBusy] = useState(false);
+  async function togglePin() {
+    if (busy) return;
+    setBusy(true);
+    const next = !pinned;
+    try {
+      await api(`/api/artifacts/${artifact.id}/pin`, {
+        method: "PATCH",
+        json: { pinned: next },
+      });
+      setPinned(next);
+      // Let the drawer (and report) refresh its pinned-only views.
+      window.dispatchEvent(new CustomEvent("axiom:artifact:pinned", { detail: { id: artifact.id, pinned: next } }));
+    } catch {
+      /* surface nothing — drawer will reconcile on next refetch */
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--surface)]">
-      <div className="flex items-baseline justify-between mb-2">
+      <div className="flex items-baseline justify-between mb-2 gap-2">
         <div className="text-xs font-semibold truncate">{artifact.title}</div>
-        <div className="text-[9px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
-          {artifact.kind}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={togglePin}
+            disabled={busy}
+            title={pinned ? "Pinned to report · مثبَّت بالتقرير" : "Pin to report · ثبِّت بالتقرير"}
+            className={`text-[11px] px-2 py-0.5 rounded border ${
+              pinned
+                ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/5"
+                : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            } disabled:opacity-50`}
+          >
+            {pinned ? "📌 Pinned" : "📌 Pin"}
+          </button>
+          <div className="text-[9px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
+            {artifact.kind}
+          </div>
         </div>
       </div>
       {artifact.kind === "chart" && (

@@ -194,7 +194,23 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
           if (fresh) {
             setActiveDatasetId(fresh.id);
             setActiveDatasetState(fresh.id);
-            const text = `Just uploaded ${fresh.filename || detail.filename || "a file"}. Profile this dataset and surface the most surprising insights.`;
+            // 1) Deterministically pin a profile artifact via the seed
+            //    endpoint so the workflow is guaranteed even if the LLM
+            //    follow-up is delayed or fails. The drawer notices via
+            //    the artifact-list refresh below.
+            if (activeSessionId) {
+              try {
+                await api(
+                  `/api/chats/${activeSessionId}/seed-profile?dataset_id=${fresh.id}`,
+                  { method: "POST" }
+                );
+              } catch {
+                /* non-fatal — chat prefill below is still triggered */
+              }
+            }
+            // 2) Send a narrative chat message so the assistant explains
+            //    the profile in conversation.
+            const text = `Just uploaded ${fresh.filename || detail.filename || "a file"}. Walk me through what's interesting in this dataset.`;
             window.dispatchEvent(
               new CustomEvent("axiom:chat:prefill", { detail: { text, send: true } })
             );
@@ -206,7 +222,7 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
     }
     window.addEventListener("axiom:dataset:uploaded", onUploaded);
     return () => window.removeEventListener("axiom:dataset:uploaded", onUploaded);
-  }, [projectId]);
+  }, [projectId, activeSessionId]);
 
   // Dataset shown in the chat preview card. Falls back to the project's
   // first dataset on initial load so a freshly-uploaded file shows up

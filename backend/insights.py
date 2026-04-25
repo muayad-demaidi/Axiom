@@ -308,9 +308,9 @@ def _detect_datetime_column(df: pd.DataFrame) -> str | None:
 def suggested_questions(df: pd.DataFrame, max_items: int = 8) -> list[str]:
     """Return 5-8 CRISP-DM-aligned starter questions tailored to the data.
 
-    The questions phrase concrete actions the chat can perform via its
-    tool-calls (visualize, predict, cluster) so each chip is one click
-    away from a real artifact.
+    Each question is bilingual (English · Levantine Arabic) so the
+    suggestion chips render naturally for both audiences without an
+    extra language-detection step.
     """
     qs: list[str] = []
     numeric = df.select_dtypes(include="number").columns.tolist()
@@ -322,30 +322,48 @@ def suggested_questions(df: pd.DataFrame, max_items: int = 8) -> list[str]:
     ]
     dt_col = _detect_datetime_column(df)
 
-    qs.append("Profile this dataset and call out the biggest data-quality issues.")
+    qs.append(
+        "Profile this dataset and call out the biggest data-quality issues. · "
+        "حلّل هالداتا وطلّعلي أهم مشاكل الجودة."
+    )
 
     if numeric:
         target = _pick_target_column(numeric)
-        qs.append(f"Show the distribution of {target}.")
+        qs.append(
+            f"Show the distribution of {target}. · "
+            f"فرجيني توزيع عمود {target}."
+        )
         if cats:
-            qs.append(f"Compare average {target} across {cats[0]}.")
+            qs.append(
+                f"Compare average {target} across {cats[0]}. · "
+                f"قارن متوسط {target} حسب {cats[0]}."
+            )
         if len(numeric) >= 2:
             qs.append(
-                f"Is {numeric[0]} correlated with {numeric[1]}? Plot a scatter."
+                f"Is {numeric[0]} correlated with {numeric[1]}? Plot a scatter. · "
+                f"في علاقة بين {numeric[0]} و{numeric[1]}؟ ارسم scatter."
             )
-        qs.append(f"Build a model to predict {target} from the other columns.")
+        qs.append(
+            f"Build a model to predict {target} from the other columns. · "
+            f"ابني موديل يتنبأ بـ {target} من باقي الأعمدة."
+        )
 
     if dt_col and numeric:
         qs.append(
-            f"Forecast {numeric[0]} over time using {dt_col}."
+            f"Forecast {numeric[0]} over time using {dt_col}. · "
+            f"توقّع {numeric[0]} مع الوقت بالاعتماد على {dt_col}."
         )
 
     if numeric and len(numeric) >= 2:
-        qs.append("Cluster the rows into 3 segments and describe each one.")
+        qs.append(
+            "Cluster the rows into 3 segments and describe each one. · "
+            "قسّم الصفوف لـ 3 مجموعات ووصِّف كل وحدة."
+        )
 
     if cats:
         qs.append(
-            f"Which {cats[0]} categories drive 80% of the rows? Apply a Pareto cut."
+            f"Which {cats[0]} categories drive 80% of the rows? Apply a Pareto cut. · "
+            f"أيّ تصنيفات {cats[0]} بتغطّي 80% من الصفوف؟ طبّق Pareto."
         )
 
     # De-dupe while preserving order, cap to max.
