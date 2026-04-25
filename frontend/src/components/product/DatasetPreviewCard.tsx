@@ -9,7 +9,23 @@ import { api } from "@/lib/api";
 import { errMessage } from "@/lib/types";
 import { InteractiveTable } from "./InteractiveTable";
 
-type Preview = {
+type ProfileColumn = {
+  name: string;
+  dtype: string;
+  kind?: "numeric" | "datetime" | "categorical";
+  missing_pct?: number;
+  unique?: number;
+};
+
+type Profile = {
+  rows: number;
+  cols: number;
+  duplicate_rows?: number;
+  memory_kb?: number;
+  columns: ProfileColumn[];
+};
+
+type AutoProfile = {
   id: number;
   filename: string;
   dataset_name: string;
@@ -17,6 +33,9 @@ type Preview = {
   cols: number;
   columns: { name: string; dtype: string }[];
   preview: Record<string, unknown>[];
+  profile: Profile;
+  insights: Insight[];
+  suggestions: string[];
 };
 
 type Insight = {
@@ -25,6 +44,45 @@ type Insight = {
   headline: string;
   subtitle?: string;
 };
+
+function profileNarrative(p: Profile | undefined): string {
+  if (!p) return "";
+  const parts: string[] = [];
+  parts.push(
+    `This dataset has ${p.rows.toLocaleString()} rows across ${p.cols} columns`
+  );
+  const numeric = p.columns.filter((c) => c.kind === "numeric").length;
+  const cats = p.columns.filter((c) => c.kind === "categorical").length;
+  const dts = p.columns.filter((c) => c.kind === "datetime").length;
+  const mix: string[] = [];
+  if (numeric) mix.push(`${numeric} numeric`);
+  if (cats) mix.push(`${cats} categorical`);
+  if (dts) mix.push(`${dts} datetime`);
+  if (mix.length) parts.push(` (${mix.join(", ")})`);
+  parts.push(".");
+  if (p.duplicate_rows && p.duplicate_rows > 0) {
+    const pct = ((p.duplicate_rows / Math.max(1, p.rows)) * 100).toFixed(1);
+    parts.push(` Found ${p.duplicate_rows.toLocaleString()} duplicate rows (${pct}%).`);
+  } else {
+    parts.push(" No duplicate rows detected.");
+  }
+  const worstMissing = [...p.columns]
+    .filter((c) => (c.missing_pct ?? 0) > 0)
+    .sort((a, b) => (b.missing_pct ?? 0) - (a.missing_pct ?? 0))
+    .slice(0, 3);
+  if (worstMissing.length === 0) {
+    parts.push(" No missing values across any column.");
+  } else {
+    const summary = worstMissing
+      .map((c) => `${c.name} (${(c.missing_pct ?? 0).toFixed(1)}%)`)
+      .join(", ");
+    parts.push(` Highest missingness: ${summary}.`);
+  }
+  if (p.memory_kb) {
+    parts.push(` In-memory size ≈ ${p.memory_kb.toLocaleString()} KB.`);
+  }
+  return parts.join("");
+}
 
 const SEV_BG: Record<string, string> = {
   info: "bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/30",
@@ -41,27 +99,18 @@ export function DatasetPreviewCard({
   onAskQuestion: (q: string) => void;
   onAskAboutCell?: (column: string, value: unknown) => void;
 }) {
-  const [preview, setPreview] = useState<Preview | null>(null);
-  const [insights, setInsights] = useState<Insight[] | null>(null);
-  const [suggestions, setSuggestions] = useState<string[] | null>(null);
+  const [data, setData] = useState<AutoProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setError(null);
-    setPreview(null);
-    setInsights(null);
-    setSuggestions(null);
-    Promise.all([
-      api<Preview>(`/api/datasets/${datasetId}/preview?rows=20`),
-      api<{ insights: Insight[] }>(`/api/datasets/${datasetId}/insights`),
-      api<{ suggestions: string[] }>(`/api/datasets/${datasetId}/suggestions`),
-    ])
-      .then(([p, i, s]) => {
-        if (cancelled) return;
-        setPreview(p);
-        setInsights(i.insights ?? []);
-        setSuggestions(s.suggestions ?? []);
+    setData(null);
+    // One-shot endpoint: preview + profile + insights + suggestions in
+    // a single request, with backend caching on the dataset row.
+    api<AutoProfile>(`/api/datasets/${datasetId}/auto-profile?rows=20`, { method: "POST" })
+      .then((d) => {
+        if (!cancelled) setData(d);
       })
       .catch((e) => {
         if (!cancelled) setError(errMessage(e));
@@ -70,6 +119,11 @@ export function DatasetPreviewCard({
       cancelled = true;
     };
   }, [datasetId]);
+
+  const preview = data;
+  const insights = data?.insights ?? null;
+  const suggestions = data?.suggestions ?? null;
+  const narrative = profileNarrative(data?.profile);
 
   return (
     <div className="border border-[var(--border)] rounded-xl bg-[var(--surface)] p-4 space-y-4">
@@ -92,6 +146,18 @@ export function DatasetPreviewCard({
       {error && (
         <div className="text-xs text-red-500 border border-red-500/30 rounded p-2">
           {error}
+        </div>
+      )}
+
+      {/* Professional profile paragraph */}
+      {data?.profile && narrative && (
+        <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--surface-alt)]">
+          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-1.5">
+            Profile · ملف الداتا
+          </div>
+          <p className="text-[12px] leading-relaxed text-[var(--text)]">
+            {narrative}
+          </p>
         </div>
       )}
 

@@ -20,6 +20,7 @@ import json
 import os
 from typing import Any, Iterator
 
+import numpy as np
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -521,6 +522,7 @@ def _run_predict(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
 
 def _run_cluster(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
     from sklearn.cluster import KMeans
+    from sklearn.decomposition import PCA
     from sklearn.preprocessing import StandardScaler
 
     rec, df = _load_df(db, int(args["dataset_id"]), ctx["user_id"], project_id=ctx.get("project_id"))
@@ -550,12 +552,38 @@ def _run_cluster(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
                 },
             }
         )
+    # 2D PCA projection so the drawer can render a real cluster
+    # scatter plot instead of just numeric centroid tables. Down-
+    # sample to ~400 points to keep the JSON payload tiny.
+    pca = PCA(n_components=2, random_state=42)
+    coords = pca.fit_transform(X)
+    n_pts = len(coords)
+    if n_pts > 400:
+        rng = np.random.default_rng(42)
+        idx = rng.choice(n_pts, size=400, replace=False)
+    else:
+        idx = np.arange(n_pts)
+    scatter = [
+        {
+            "x": round(float(coords[i, 0]), 4),
+            "y": round(float(coords[i, 1]), 4),
+            "cluster": int(labels[i]),
+        }
+        for i in idx
+    ]
+    explained = pca.explained_variance_ratio_.tolist()
     payload = {
         "method": "kmeans",
         "k": k,
         "cluster_sizes": sizes,
         "centroids": centroids,
         "features_used": list(numeric.columns),
+        "scatter": scatter,
+        "pca": {
+            "explained_variance_ratio": [round(float(v), 4) for v in explained],
+            "sampled": int(len(scatter)),
+            "total": int(n_pts),
+        },
     }
     title = f"Cluster (k={k}) — {rec.dataset_name or rec.filename}"
     a = models.save_chat_artifact(

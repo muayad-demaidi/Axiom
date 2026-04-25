@@ -162,6 +162,14 @@ export default function ReportPage() {
     );
   }, [report]);
 
+  const pinnedCount = useMemo(() => {
+    if (!report) return 0;
+    return Object.values(report.artifacts || {}).reduce(
+      (n, arr) => n + (arr || []).filter((a) => a.pinned).length,
+      0
+    );
+  }, [report]);
+
   return (
     <div className="-m-6 min-h-[calc(100vh-3.5rem)] bg-[var(--surface)]">
       <div className="border-b border-[var(--border)] px-6 py-4 flex items-center justify-between gap-4 sticky top-14 bg-[var(--surface)]/95 backdrop-blur z-10">
@@ -170,6 +178,16 @@ export default function ReportPage() {
           <h1 className="text-xl font-semibold mt-0.5">
             {report?.session.title || "Loading…"}
           </h1>
+          {report && (
+            <div className="mt-1 flex items-center gap-2 text-[11px] font-mono">
+              <span className="px-2 py-0.5 rounded-full border border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--accent)]">
+                📌 {pinnedCount} pinned · مثبَّت
+              </span>
+              <span className="text-[var(--text-muted)]">
+                of {totalArtifacts} total · من {totalArtifacts} الكلّي
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <label className="text-xs flex items-center gap-1.5 text-[var(--text-muted)]">

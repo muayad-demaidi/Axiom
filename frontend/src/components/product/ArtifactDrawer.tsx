@@ -334,15 +334,92 @@ type ClusterResult = {
   cluster_sizes: Record<string, number>;
   centroids: Array<{ cluster: number; size: number; values: Record<string, number> }>;
   features_used: string[];
+  scatter?: Array<{ x: number; y: number; cluster: number }>;
+  pca?: { explained_variance_ratio: number[]; sampled: number; total: number };
 };
+
+const CLUSTER_COLORS = [
+  "#60A5FA", "#F472B6", "#34D399", "#FBBF24", "#A78BFA",
+  "#F87171", "#22D3EE", "#FB923C", "#4ADE80", "#E879F9",
+];
+
+function ClusterScatter({
+  points,
+  width = 320,
+  height = 220,
+}: {
+  points: Array<{ x: number; y: number; cluster: number }>;
+  width?: number;
+  height?: number;
+}) {
+  if (!points || points.length === 0) return null;
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const yMin = Math.min(...ys), yMax = Math.max(...ys);
+  const pad = 12;
+  const sx = (v: number) =>
+    pad + ((v - xMin) / (xMax - xMin || 1)) * (width - 2 * pad);
+  const sy = (v: number) =>
+    height - pad - ((v - yMin) / (yMax - yMin || 1)) * (height - 2 * pad);
+  return (
+    <svg width={width} height={height} role="img" aria-label="Cluster PCA scatter">
+      <rect x={0} y={0} width={width} height={height} fill="transparent" />
+      <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad}
+            stroke="var(--border)" strokeWidth={1} />
+      <line x1={pad} y1={pad} x2={pad} y2={height - pad}
+            stroke="var(--border)" strokeWidth={1} />
+      {points.map((p, i) => (
+        <circle
+          key={i}
+          cx={sx(p.x)}
+          cy={sy(p.y)}
+          r={2.5}
+          fill={CLUSTER_COLORS[p.cluster % CLUSTER_COLORS.length]}
+          fillOpacity={0.7}
+        />
+      ))}
+    </svg>
+  );
+}
 
 function ClusterBody({ result }: { result: ClusterResult }) {
   const total = Object.values(result.cluster_sizes || {}).reduce((a, b) => a + b, 0) || 1;
+  const ev = result.pca?.explained_variance_ratio ?? [];
+  const evLabel = ev.length >= 2
+    ? `PCA · PC1 ${(ev[0] * 100).toFixed(1)}% / PC2 ${(ev[1] * 100).toFixed(1)}%`
+    : "PCA";
   return (
     <div className="space-y-3">
       <div className="text-[11px] text-[var(--text-muted)] font-mono">
         k = {result.k} · {result.features_used?.length ?? 0} features
       </div>
+      {result.scatter && result.scatter.length > 0 && (
+        <div className="border border-[var(--border)] rounded p-2">
+          <div className="flex items-baseline justify-between mb-1">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
+              {evLabel}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {Array.from({ length: result.k }).map((_, i) => (
+                <div key={i} className="flex items-center gap-1 text-[10px]">
+                  <span
+                    className="inline-block w-2 h-2 rounded-full"
+                    style={{ backgroundColor: CLUSTER_COLORS[i % CLUSTER_COLORS.length] }}
+                  />
+                  <span className="text-[var(--text-muted)]">#{i}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <ClusterScatter points={result.scatter} />
+          {result.pca && (
+            <div className="text-[9px] font-mono text-[var(--text-muted)] mt-1">
+              Showing {result.pca.sampled.toLocaleString()} of {result.pca.total.toLocaleString()} rows
+            </div>
+          )}
+        </div>
+      )}
       <div className="space-y-2">
         {(result.centroids || []).map((c) => (
           <div key={c.cluster} className="border border-[var(--border)] rounded p-2">
