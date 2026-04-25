@@ -254,6 +254,13 @@ export function ChatPanel({
   // so long viewports stay efficient.
   useEffect(() => {
     if (loadingHistory) return;
+    // Effects run in declaration order, so on the very first paint this
+    // effect would otherwise smooth-scroll to bottom milliseconds before
+    // the initial-jump effect below instant-snaps to the same place,
+    // producing a tiny visible animation on entry. Skip until the
+    // initial instant-jump has run; it sets nearBottomRef = true and
+    // any subsequent message change will be handled by this effect.
+    if (!didInitialScrollRef.current) return;
     // Force-follow path: the user just submitted via `send()`. This MUST
     // win over the reader's scroll position (per spec: "Sending a new
     // user message always scrolls to the bottom regardless of current
