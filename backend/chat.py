@@ -431,6 +431,48 @@ def _compute_chart_payload(df: pd.DataFrame, chart: str,
     raise ValueError(f"unknown chart '{chart}'")
 
 
+PREDICT_MIN_ROWS = 10
+
+
+def _small_sample_predict_notice(
+    rows_available: int,
+    target: str,
+    min_required: int = PREDICT_MIN_ROWS,
+) -> dict:
+    """Friendly bilingual (EN + Levantine Arabic) note explaining why the
+    prediction tool can't run on a tiny dataset. Returned in place of an
+    exception so the chat surfaces a calm assistant message instead of a
+    red "Fit prediction model failed: ..." stack-trace box.
+    """
+    rows_available = int(rows_available)
+    min_required = int(min_required)
+    en = (
+        f"I can't fit a prediction model for `{target}` on this dataset — "
+        f"only {rows_available} usable row"
+        f"{'s' if rows_available != 1 else ''} are left after dropping "
+        f"missing values, and the model needs at least {min_required}. "
+        "Try uploading a larger dataset, or pick another tool — for "
+        "example, profile the dataset or build a chart to explore what "
+        "you have."
+    )
+    ar = (
+        f"ما فيني أبني موديل تنبؤ لـ `{target}` على هاي الداتا — "
+        f"في {rows_available} صفّ مفيد بس بعد ما شِلنا القيم الناقصة، "
+        f"والموديل بدّو على الأقل {min_required} صفّ. "
+        "جرّب ترفع داتاسِت أكبر، أو استخدم أداة تانية متل عمل بروفايل "
+        "للداتاسِت أو رسم تشارت لتستكشف اللي عندك."
+    )
+    return {
+        "kind": "small_sample_notice",
+        "target": target,
+        "rows_available": rows_available,
+        "rows_required": min_required,
+        "message_en": en,
+        "message_ar": ar,
+        "suggested_tools": ["profile_dataset", "make_chart"],
+    }
+
+
 def _run_predict(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
     from sklearn.linear_model import LinearRegression
     from sklearn.metrics import mean_absolute_error, r2_score
@@ -450,8 +492,23 @@ def _run_predict(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
         raise ValueError("need at least one other numeric column")
     X = numeric[feats]
     y = numeric[target]
-    if len(X) < 10:
-        raise ValueError("need at least 10 rows after dropna")
+    if len(X) < PREDICT_MIN_ROWS:
+        # Don't raise — a "tiny sample" is a user-input issue, not a bug.
+        # Return a friendly bilingual notice (and no artifact) so the
+        # chat shows a readable assistant note instead of a red error.
+        notice = _small_sample_predict_notice(len(X), target, PREDICT_MIN_ROWS)
+        return (
+            {
+                "ok": True,
+                "skipped": "small_sample",
+                "kind": "small_sample_notice",
+                "target": target,
+                "rows_available": notice["rows_available"],
+                "rows_required": notice["rows_required"],
+                "notice": notice,
+            },
+            [],
+        )
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42

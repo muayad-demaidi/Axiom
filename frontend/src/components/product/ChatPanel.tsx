@@ -706,11 +706,40 @@ function ToolEventCard({ ev }: { ev: ToolEvent }) {
       </div>
     );
   }
+  const summary = (ev.summary ?? null) as null | {
+    kind?: string;
+    notice?: { message_en?: string; message_ar?: string };
+  };
+  if (summary && summary.kind === "small_sample_notice" && summary.notice) {
+    return <SmallSampleNotice notice={summary.notice} />;
+  }
   return (
     <div className="space-y-2">
       {(ev.artifacts ?? []).map((a) => (
         <InlineArtifact key={a.id} artifact={a} />
       ))}
+    </div>
+  );
+}
+
+function SmallSampleNotice({
+  notice,
+}: {
+  notice: { message_en?: string; message_ar?: string };
+}) {
+  return (
+    <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--surface-alt)]/40 text-xs space-y-2">
+      <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
+        Note · ملاحظة
+      </div>
+      {notice.message_en && (
+        <p className="leading-snug text-[var(--text)]">{notice.message_en}</p>
+      )}
+      {notice.message_ar && (
+        <p className="leading-snug text-[var(--text)]" dir="rtl" lang="ar">
+          {notice.message_ar}
+        </p>
+      )}
     </div>
   );
 }
