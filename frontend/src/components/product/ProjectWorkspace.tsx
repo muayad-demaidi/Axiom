@@ -253,13 +253,16 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
     );
   }
   const onSuggestedQuestion = useCallback((q: string) => pushChatPrompt(q, true), []);
-  const onAskAboutCell = useCallback((column: string, value: unknown) => {
-    const v = value == null ? "" : String(value);
-    pushChatPrompt(
-      `Tell me more about the row(s) where \`${column}\` = ${JSON.stringify(v)}.`,
-      false
-    );
-  }, []);
+  const onAskAboutCell = useCallback(
+    (rowIndex: number, column: string, value: unknown) => {
+      const v = value == null ? "" : String(value);
+      pushChatPrompt(
+        `Tell me about row ${rowIndex + 1} where \`${column}\` = ${JSON.stringify(v)}. Why does this value stand out, and what surrounds it?`,
+        false
+      );
+    },
+    []
+  );
 
   function onToolStarted(p: PendingTool) {
     setPendingTools((cur) => [...cur, p]);

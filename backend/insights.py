@@ -305,13 +305,14 @@ def _detect_datetime_column(df: pd.DataFrame) -> str | None:
 # Suggested CRISP-DM-aligned questions
 # ---------------------------------------------------------------------------
 
-def suggested_questions(df: pd.DataFrame, max_items: int = 8) -> list[str]:
+def suggested_questions(
+    df: pd.DataFrame, max_items: int = 8, lang: str = "en"
+) -> list[str]:
     """Return 5-8 CRISP-DM-aligned starter questions tailored to the data.
 
-    Each question is bilingual (English · Levantine Arabic) so the
-    suggestion chips render naturally for both audiences without an
-    extra language-detection step.
+    Set ``lang="ar"`` for Levantine Arabic, anything else returns English.
     """
+    is_ar = str(lang).lower().startswith("ar")
     qs: list[str] = []
     numeric = df.select_dtypes(include="number").columns.tolist()
     cats = [
@@ -323,50 +324,49 @@ def suggested_questions(df: pd.DataFrame, max_items: int = 8) -> list[str]:
     dt_col = _detect_datetime_column(df)
 
     qs.append(
-        "Profile this dataset and call out the biggest data-quality issues. · "
-        "حلّل هالداتا وطلّعلي أهم مشاكل الجودة."
+        "حلّل هالداتا وطلّعلي أهم مشاكل الجودة." if is_ar
+        else "Profile this dataset and call out the biggest data-quality issues."
     )
 
     if numeric:
         target = _pick_target_column(numeric)
         qs.append(
-            f"Show the distribution of {target}. · "
-            f"فرجيني توزيع عمود {target}."
+            f"فرجيني توزيع عمود {target}." if is_ar
+            else f"Show the distribution of {target}."
         )
         if cats:
             qs.append(
-                f"Compare average {target} across {cats[0]}. · "
-                f"قارن متوسط {target} حسب {cats[0]}."
+                f"قارن متوسط {target} حسب {cats[0]}." if is_ar
+                else f"Compare average {target} across {cats[0]}."
             )
         if len(numeric) >= 2:
             qs.append(
-                f"Is {numeric[0]} correlated with {numeric[1]}? Plot a scatter. · "
-                f"في علاقة بين {numeric[0]} و{numeric[1]}؟ ارسم scatter."
+                f"في علاقة بين {numeric[0]} و{numeric[1]}؟ ارسم scatter." if is_ar
+                else f"Is {numeric[0]} correlated with {numeric[1]}? Plot a scatter."
             )
         qs.append(
-            f"Build a model to predict {target} from the other columns. · "
-            f"ابني موديل يتنبأ بـ {target} من باقي الأعمدة."
+            f"ابني موديل يتنبأ بـ {target} من باقي الأعمدة." if is_ar
+            else f"Build a model to predict {target} from the other columns."
         )
 
     if dt_col and numeric:
         qs.append(
-            f"Forecast {numeric[0]} over time using {dt_col}. · "
-            f"توقّع {numeric[0]} مع الوقت بالاعتماد على {dt_col}."
+            f"توقّع {numeric[0]} مع الوقت بالاعتماد على {dt_col}." if is_ar
+            else f"Forecast {numeric[0]} over time using {dt_col}."
         )
 
     if numeric and len(numeric) >= 2:
         qs.append(
-            "Cluster the rows into 3 segments and describe each one. · "
-            "قسّم الصفوف لـ 3 مجموعات ووصِّف كل وحدة."
+            "قسّم الصفوف لـ 3 مجموعات ووصِّف كل وحدة." if is_ar
+            else "Cluster the rows into 3 segments and describe each one."
         )
 
     if cats:
         qs.append(
-            f"Which {cats[0]} categories drive 80% of the rows? Apply a Pareto cut. · "
-            f"أيّ تصنيفات {cats[0]} بتغطّي 80% من الصفوف؟ طبّق Pareto."
+            f"أيّ تصنيفات {cats[0]} بتغطّي 80% من الصفوف؟ طبّق Pareto." if is_ar
+            else f"Which {cats[0]} categories drive 80% of the rows? Apply a Pareto cut."
         )
 
-    # De-dupe while preserving order, cap to max.
     seen: set[str] = set()
     out: list[str] = []
     for q in qs:

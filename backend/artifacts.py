@@ -142,12 +142,13 @@ async def dataset_insights(
 @router.get("/api/datasets/{dataset_id}/suggestions")
 async def dataset_suggestions(
     dataset_id: int,
+    lang: str = "en",
     user=Depends(get_current_user),
     db=Depends(get_db_session),
 ):
     record = _require_dataset_for_user(db, dataset_id, user.id)
     df = load_dataset_dataframe(record)
-    return jsonify({"suggestions": suggested_questions(df)})
+    return jsonify({"suggestions": suggested_questions(df, lang=lang)})
 
 
 @router.post("/api/chats/{session_id}/seed-profile")
@@ -187,15 +188,11 @@ async def seed_profile_artifact(
 async def dataset_auto_profile(
     dataset_id: int,
     rows: int = 20,
+    lang: str = "en",
     user=Depends(get_current_user),
     db=Depends(get_db_session),
 ):
-    """One-shot endpoint the chat fires the moment a file lands.
-
-    Returns preview + profile + surprise insights + suggested questions
-    in a single payload. Profile + insights are cached on the dataset's
-    `summary_stats` JSON blob so subsequent calls are instant.
-    """
+    """One-shot preview + profile + insights + suggestions in a single call."""
     record = _require_dataset_for_user(db, dataset_id, user.id)
     df = load_dataset_dataframe(record)
     n = max(1, min(rows, 200))
@@ -228,7 +225,7 @@ async def dataset_auto_profile(
             "preview": df.head(n).to_dict(orient="records"),
             "profile": profile,
             "insights": insights_items,
-            "suggestions": suggested_questions(df),
+            "suggestions": suggested_questions(df, lang=lang),
         }
     )
 

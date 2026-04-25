@@ -1,9 +1,4 @@
 "use client";
-/**
- * Sortable, searchable table for the dataset preview. Clicking a cell
- * fires `onAskAboutCell` so the parent can pre-fill the chat input with
- * a natural-language question about that value.
- */
 import { useMemo, useState } from "react";
 
 type Row = Record<string, unknown>;
@@ -18,26 +13,32 @@ export function InteractiveTable({
   columns: Column[];
   rows: Row[];
   maxHeight?: number;
-  onAskAboutCell?: (column: string, value: unknown) => void;
+  onAskAboutCell?: (rowIndex: number, column: string, value: unknown) => void;
 }) {
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<{ col: string; dir: "asc" | "desc" } | null>(null);
+  const [highlight, setHighlight] = useState<{ ri: number; col: string } | null>(null);
+
+  const indexed = useMemo(
+    () => rows.map((r, i) => ({ row: r, origIdx: i })),
+    [rows]
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) =>
-      columns.some((c) => String(r[c.name] ?? "").toLowerCase().includes(q))
+    if (!q) return indexed;
+    return indexed.filter(({ row }) =>
+      columns.some((c) => String(row[c.name] ?? "").toLowerCase().includes(q))
     );
-  }, [rows, columns, query]);
+  }, [indexed, columns, query]);
 
   const sorted = useMemo(() => {
     if (!sortBy) return filtered;
     const { col, dir } = sortBy;
     const factor = dir === "asc" ? 1 : -1;
     return filtered.slice().sort((a, b) => {
-      const av = a[col];
-      const bv = b[col];
+      const av = a.row[col];
+      const bv = b.row[col];
       if (av == null && bv == null) return 0;
       if (av == null) return 1;
       if (bv == null) return -1;
@@ -98,16 +99,26 @@ export function InteractiveTable({
             </tr>
           </thead>
           <tbody>
-            {sorted.map((r, ri) => (
-              <tr key={ri} className="odd:bg-[var(--surface)] even:bg-[var(--surface-alt)]/40">
+            {sorted.map(({ row: r, origIdx }) => (
+              <tr key={origIdx} className="odd:bg-[var(--surface)] even:bg-[var(--surface-alt)]/40">
                 {columns.map((c) => {
                   const v = r[c.name];
+                  const isHL =
+                    highlight?.ri === origIdx && highlight?.col === c.name;
                   return (
                     <td
                       key={c.name}
-                      onClick={() => onAskAboutCell?.(c.name, v)}
-                      className="px-2 py-1 border-b border-[var(--border)]/50 whitespace-nowrap cursor-pointer hover:bg-[var(--accent)]/10"
-                      title="Ask about this value"
+                      onClick={() => {
+                        setHighlight({ ri: origIdx, col: c.name });
+                        onAskAboutCell?.(origIdx, c.name, v);
+                      }}
+                      className={
+                        "px-2 py-1 border-b border-[var(--border)]/50 whitespace-nowrap cursor-pointer transition-colors " +
+                        (isHL
+                          ? "bg-[var(--accent)]/25 ring-1 ring-inset ring-[var(--accent)]"
+                          : "hover:bg-[var(--accent)]/10")
+                      }
+                      title={`Row ${origIdx + 1} · ${c.name} — click to ask`}
                     >
                       {formatCell(v)}
                     </td>
