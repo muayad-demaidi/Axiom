@@ -1403,17 +1403,12 @@ def delete_project(db, project_id, user_id):
     (db.query(ChatSession)
        .filter(ChatSession.project_id == project_id)
        .delete(synchronize_session=False))
-    if ds_ids:
-        (db.query(DatasetRelationship)
-           .filter(DatasetRelationship.user_id == user_id,
-                   (DatasetRelationship.left_dataset_id.in_(ds_ids))
-                   | (DatasetRelationship.right_dataset_id.in_(ds_ids)))
-           .delete(synchronize_session=False))
-        (db.query(DatasetRecord)
-           .filter(DatasetRecord.id.in_(ds_ids))
-           .delete(synchronize_session=False))
     # Knowledge-base, semantic-model, relationships and clarification
-    # questions all reference the project with NOT NULL FKs.
+    # questions all reference the project with NOT NULL FKs. The
+    # semantic-model + relationship rows ALSO carry NOT NULL FKs into
+    # `dataset_records.id`, so they MUST be deleted before any
+    # DatasetRecord row goes away — otherwise the dataset delete itself
+    # raises a foreign-key violation (which is the bug the user hit).
     (db.query(ProjectLearnedNote)
        .filter(ProjectLearnedNote.project_id == project_id)
        .delete(synchronize_session=False))
@@ -1432,11 +1427,32 @@ def delete_project(db, project_id, user_id):
     (db.query(ProjectModelQuestion)
        .filter(ProjectModelQuestion.project_id == project_id)
        .delete(synchronize_session=False))
-    # Reports' project_id is nullable; null it out instead of dropping
-    # the row so the user's "recent reports" list still shows them.
+    # Reports' project_id AND dataset_id are both nullable; null them
+    # out instead of dropping the row so the user's "recent reports"
+    # list still shows them as historical entries (the dataset is
+    # about to be deleted, so the report can no longer be regenerated,
+    # but the snapshot dataset_label keeps the row legible).
     (db.query(Report)
        .filter(Report.project_id == project_id)
-       .update({Report.project_id: None}, synchronize_session=False))
+       .update({Report.project_id: None,
+                Report.dataset_id: None},
+               synchronize_session=False))
+    if ds_ids:
+        # Some Report rows may reference these datasets without
+        # carrying the project_id (legacy data, or detached reports);
+        # null those too before the FK constraint kicks in.
+        (db.query(Report)
+           .filter(Report.dataset_id.in_(ds_ids))
+           .update({Report.dataset_id: None},
+                   synchronize_session=False))
+        (db.query(DatasetRelationship)
+           .filter(DatasetRelationship.user_id == user_id,
+                   (DatasetRelationship.left_dataset_id.in_(ds_ids))
+                   | (DatasetRelationship.right_dataset_id.in_(ds_ids)))
+           .delete(synchronize_session=False))
+        (db.query(DatasetRecord)
+           .filter(DatasetRecord.id.in_(ds_ids))
+           .delete(synchronize_session=False))
     db.delete(proj)
     db.commit()
     return True
@@ -1699,7 +1715,21 @@ def delete_relationship(db, user_id, relationship_id):
 
 def delete_dataset_record(db, dataset_id, user_id):
     """Remove a dataset the user owns and any relationships referencing it.
-    Returns True on success."""
+    Returns True on success.
+
+    Cascades every FK that points at ``dataset_records.id``:
+      - DatasetRelationship (NOT NULL FK, both sides) → delete
+      - ProjectSemanticTable (NOT NULL FK)            → delete
+      - ProjectRelationship  (NOT NULL FK, both sides)→ delete
+      - ChatArtifact.dataset_id (nullable)            → null out so the
+        artifact (e.g. a chart) survives even after its underlying
+        dataset is gone
+      - Report.dataset_id (nullable)                  → null out so the
+        recent-reports list keeps the historical entry visible
+    Without these, the final ``db.delete(rec)`` would hit a
+    ForeignKeyViolation on any dataset that had ever been used inside
+    a semantic model, a join, a chat artifact, or a report.
+    """
     rec = (db.query(DatasetRecord)
              .filter(DatasetRecord.id == dataset_id,
                      DatasetRecord.user_id == user_id)
@@ -1711,6 +1741,21 @@ def delete_dataset_record(db, dataset_id, user_id):
                (DatasetRelationship.left_dataset_id == dataset_id)
                | (DatasetRelationship.right_dataset_id == dataset_id))
        .delete(synchronize_session=False))
+    (db.query(ProjectSemanticTable)
+       .filter(ProjectSemanticTable.dataset_id == dataset_id)
+       .delete(synchronize_session=False))
+    (db.query(ProjectRelationship)
+       .filter((ProjectRelationship.left_dataset_id == dataset_id)
+               | (ProjectRelationship.right_dataset_id == dataset_id))
+       .delete(synchronize_session=False))
+    (db.query(ChatArtifact)
+       .filter(ChatArtifact.dataset_id == dataset_id)
+       .update({ChatArtifact.dataset_id: None},
+               synchronize_session=False))
+    (db.query(Report)
+       .filter(Report.dataset_id == dataset_id)
+       .update({Report.dataset_id: None},
+               synchronize_session=False))
     db.delete(rec)
     db.commit()
     return True
@@ -1751,11 +1796,30 @@ def bulk_delete_dataset_records(db, dataset_ids, user_id):
         return {"deleted_count": 0, "deleted_ids": [], "total_bytes": 0}
 
     try:
+        # Same FK fan-out as the single-row delete_dataset_record:
+        # every table that points at dataset_records.id needs to be
+        # cleared (or nulled, for the nullable FKs) before the
+        # DatasetRecord rows themselves can be removed.
         (db.query(DatasetRelationship)
            .filter(DatasetRelationship.user_id == user_id,
                    DatasetRelationship.left_dataset_id.in_(owned_ids)
                    | DatasetRelationship.right_dataset_id.in_(owned_ids))
            .delete(synchronize_session=False))
+        (db.query(ProjectSemanticTable)
+           .filter(ProjectSemanticTable.dataset_id.in_(owned_ids))
+           .delete(synchronize_session=False))
+        (db.query(ProjectRelationship)
+           .filter(ProjectRelationship.left_dataset_id.in_(owned_ids)
+                   | ProjectRelationship.right_dataset_id.in_(owned_ids))
+           .delete(synchronize_session=False))
+        (db.query(ChatArtifact)
+           .filter(ChatArtifact.dataset_id.in_(owned_ids))
+           .update({ChatArtifact.dataset_id: None},
+                   synchronize_session=False))
+        (db.query(Report)
+           .filter(Report.dataset_id.in_(owned_ids))
+           .update({Report.dataset_id: None},
+                   synchronize_session=False))
         (db.query(DatasetRecord)
            .filter(DatasetRecord.id.in_(owned_ids),
                    DatasetRecord.user_id == user_id)
