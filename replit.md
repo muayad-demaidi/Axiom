@@ -38,3 +38,13 @@ The design theme, "Data Noir," features a dark aesthetic with deep navy and AXIO
 - **SQLAlchemy**: ORM for database interaction.
 - **bcrypt**: Password hashing.
 - **ReportLab**: PDF generation.
+
+## Testing
+- The full backend test suite lives under `tests/` and is driven by `pytest`. New AXIOM-wide coverage modules (added in Task #219) are:
+  - `tests/conftest.py` — shared fixtures (auth/register, project, dataset upload, chat session, sample CSVs, OpenAI stub) plus an `_db_isolation` autouse session fixture that records every test-created user ID and purges them (cascade) at session teardown.
+  - `tests/test_units_semantic_model.py`, `test_units_predictions.py`, `test_units_data_modules.py` — pure-unit coverage for `backend/semantic_model.py`, `backend/predictions.py`, and the `data_*` modules.
+  - `tests/test_api_endpoints.py` — request/response coverage for every FastAPI router, including all data-model variants (PATCH tables, POST relationships, PUT description, PATCH questions) and every chat tool dispatcher kind (`profile_dataset`, `make_chart`, `predict_column`, `cluster_dataset`, `query_model`, `list_model`, `explain_model`).
+  - `tests/test_error_handling.py` — 400/401/404/422/500 JSON envelope guarantees. The 500-envelope test strictly requires both `error` and `detail` keys per the documented contract.
+  - `tests/test_e2e_journey.py` — strict 10-step end-to-end journey (register → predict → chat → report) that asserts cross-table query produced rows, no refusals, artifacts persisted, and the report PDF is non-trivial in size.
+  - `tests/test_frontend_components.py` — emits `MANUAL_REVIEW_REQUIRED` because no React test runner (Jest/Vitest/Playwright) is wired up in `frontend/package.json`.
+- Run the whole suite with the consolidated runner: `python scripts/run_full_suite.py tests/`. It uses `pytest-json-report` to print totals, failures with file:line, a structured "Broken endpoints / components" list, and any `MANUAL_REVIEW_REQUIRED` markers.

@@ -1,0 +1,19 @@
+
+==============================================================================
+AXIOM consolidated test report (Task #219)
+==============================================================================
+  total=202  passed=201  failed=1  errors=0  skipped=0  duration=60.03s
+
+Failures:
+  - tests/test_error_handling.py:233  (tests/test_error_handling.py::test_500_envelope_is_documented_shape)
+      AssertionError: 500 body was not JSON; content-type=text/plain; charset=utf-8
+
+Broken endpoints / components:
+  - ALL endpoints (500 JSON envelope)  ←  tests/test_error_handling.py:233
+
+Manual-review flags:
+  - MANUAL_REVIEW_REQUIRED: POST/GET /api/reports as a CRUD resource — no such endpoint exists. The report surface is split across GET /api/chats/{sid}/report (rendered envelope), POST /api/chats/{sid}/report.pdf (covered in tests/test_artifacts_api.py), POST /api/report/pdf (covered in tests/test_api_endpoints.py), and GET /api/reports/recent (covered above). If a unified /api/reports CRUD is intended, it must be added to backend/main.py and covered here
+  - MANUAL_REVIEW_REQUIRED: a dedicated /api/cluster HTTP route does not exist — clustering is reachable only through the chat tool dispatcher (cluster_dataset). The HTTP-level surface is exercised via POST /api/chat/stream in tests/test_api_endpoints.py::test_chat_tool_cluster_dataset; if a stand-alone REST route is desired it must be added and covered here
+  - MANUAL_REVIEW_REQUIRED: DELETE /api/datasets/{id} — no such endpoint exists. Datasets are detached implicitly when their owning project is deleted via DELETE /api/projects/{id}. If the product wants per-dataset deletion, it must be added to backend/datasets.py and covered by a new test here
+  - MANUAL_REVIEW_REQUIRED: frontend component tests — no React test runner (Jest/Vitest/Playwright) is configured in frontend/package.json. The following components ship to users and need direct coverage once a runner is wired up:\n
+==============================================================================
