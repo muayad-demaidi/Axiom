@@ -25,6 +25,7 @@ import {
 } from "react";
 import { api, ApiError, getToken } from "@/lib/api";
 import type { AxiomProject, AxiomUser } from "@/lib/types";
+import { cacheKeys, setCached } from "@/lib/workspaceCache";
 
 export type Mode = "guided" | "expert";
 
@@ -96,20 +97,33 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
     }
     let cancelled = false;
     (async () => {
-      try {
-        const me = await api<AxiomUser>("/api/auth/me");
-        if (cancelled) return;
+      // Kick both startup requests off in parallel — they're independent
+      // and previously serialized, paying the round-trip latency twice.
+      // Settled (not all) so a 401 on one doesn't suppress the other,
+      // and we still write whatever we got into the shared cache so the
+      // sidebar's `useCachedItem(cacheKeys.user())` and the workspace's
+      // `useCachedList(cacheKeys.projects())` both hit warm.
+      const [meRes, projectsRes] = await Promise.allSettled([
+        api<AxiomUser>("/api/auth/me"),
+        api<AxiomProject[]>("/api/projects"),
+      ]);
+      if (cancelled) return;
+
+      if (meRes.status === "fulfilled") {
+        const me = meRes.value;
         const m: Mode = me.assistant_mode === "expert" ? "expert" : "guided";
         setUserModeState(m);
         writeCachedUserMode(m);
-      } catch (e: unknown) {
+        setCached(cacheKeys.user(), me);
+      } else {
+        const e = meRes.reason;
         if (e instanceof ApiError && e.status === 401) {
           // Soft-fail: chrome will route to /login on its own.
         }
       }
-      try {
-        const projects = await api<AxiomProject[]>("/api/projects");
-        if (cancelled) return;
+
+      if (projectsRes.status === "fulfilled") {
+        const projects = projectsRes.value;
         const next: Record<number, Mode | null> = {};
         for (const p of projects) {
           const m = p.mode === "expert" ? "expert" : p.mode === "guided" ? "guided" : null;
@@ -117,10 +131,10 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
           writeCachedProjectMode(p.id, m);
         }
         setProjectModes(next);
-      } catch {
-        /* ignore */
+        setCached(cacheKeys.projects(), projects);
       }
-      if (!cancelled) setReady(true);
+
+      setReady(true);
     })();
     return () => {
       cancelled = true;

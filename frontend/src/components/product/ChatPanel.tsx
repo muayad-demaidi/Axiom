@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Activity,
@@ -109,7 +109,7 @@ const FOLLOWUP_CHIPS = [
   "Summarise key insights",
 ];
 
-export function ChatPanel({
+function ChatPanelInner({
   sessionId = null,
   onTurnComplete,
   onTurnEnded,
@@ -725,6 +725,13 @@ export function ChatPanel({
     </div>
   );
 }
+
+// React.memo lets ProjectWorkspace re-render (e.g. when its drawer
+// state changes) without rerunning ChatPanel — provided the parent
+// passes stable callbacks and a memoized headerSlot, both of which are
+// now true. Heavy children (ChartRenderer, PredictionCard) live inside
+// here, so skipping this subtree skips them too.
+export const ChatPanel = memo(ChatPanelInner);
 
 // ---------------------------------------------------------------------------
 // Message rendering

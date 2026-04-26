@@ -25,6 +25,10 @@ type Listener = () => void;
 const store = new Map<string, unknown>();
 const subs = new Map<string, Set<Listener>>();
 const inflight = new Map<string, Promise<unknown>>();
+// Per-key write timestamps (ms since epoch). Used by `useCachedList` to
+// skip a background revalidate when the cached value is still inside
+// the caller-supplied stale window.
+const writtenAt = new Map<string, number>();
 
 export function getCached<T>(key: string): T | undefined {
   return store.get(key) as T | undefined;
@@ -32,6 +36,7 @@ export function getCached<T>(key: string): T | undefined {
 
 export function setCached<T>(key: string, value: T): void {
   store.set(key, value);
+  writtenAt.set(key, Date.now());
   subs.get(key)?.forEach((fn) => {
     try {
       fn();
@@ -48,6 +53,7 @@ export function patchCached<T>(key: string, updater: (cur: T | undefined) => T):
 
 export function clearCached(key: string): void {
   store.delete(key);
+  writtenAt.delete(key);
   subs.get(key)?.forEach((fn) => fn());
 }
 
@@ -56,6 +62,7 @@ export function clearCached(key: string): void {
 export function clearAllCached(): void {
   const keys = Array.from(store.keys());
   store.clear();
+  writtenAt.clear();
   for (const k of keys) {
     subs.get(k)?.forEach((fn) => fn());
   }
@@ -84,10 +91,12 @@ export function subscribeCached(key: string, fn: Listener): () => void {
  * Pass `enabled: false` (or a null key) to skip the fetch entirely —
  * useful when the screen is auth-gated and we haven't decided yet.
  */
+const DEFAULT_STALE_MS = 5000;
+
 export function useCachedList<T>(
   key: string | null,
   fetcher: () => Promise<T>,
-  opts: { enabled?: boolean } = {}
+  opts: { enabled?: boolean; staleMs?: number } = {}
 ): {
   data: T | undefined;
   loading: boolean;
@@ -95,6 +104,7 @@ export function useCachedList<T>(
   refresh: () => Promise<T | undefined>;
 } {
   const enabled = opts.enabled !== false && !!key;
+  const staleMs = opts.staleMs ?? DEFAULT_STALE_MS;
   const [, force] = useState(0);
   const [error, setError] = useState<unknown>(null);
 
@@ -129,9 +139,24 @@ export function useCachedList<T>(
   }, [key]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !key) return;
+    // Skip the background revalidate when we already have a fresh
+    // cached value. Two consecutive mounts of the same key (sidebar +
+    // workspace, or rapid project switches) don't double-fetch as a
+    // result. Callers can shrink the window per call site via
+    // `staleMs: 0` to opt back into the always-revalidate behavior.
+    const cached = store.get(key);
+    const ts = writtenAt.get(key);
+    if (
+      cached !== undefined &&
+      ts !== undefined &&
+      staleMs > 0 &&
+      Date.now() - ts < staleMs
+    ) {
+      return;
+    }
     void refresh();
-  }, [enabled, refresh]);
+  }, [enabled, refresh, key, staleMs]);
 
   const data = key ? (store.get(key) as T | undefined) : undefined;
   return {
@@ -142,11 +167,28 @@ export function useCachedList<T>(
   };
 }
 
+/**
+ * Subscribe to a single cached value (no fetcher). Use this when the
+ * data is written into the cache by some other code path — e.g. the
+ * mode context fetches `/api/auth/me` once and writes it to
+ * `cacheKeys.user()`, and the sidebar reads it via this hook so it
+ * doesn't issue a second request.
+ */
+export function useCachedItem<T>(key: string | null): T | undefined {
+  const [, force] = useState(0);
+  useEffect(() => {
+    if (!key) return;
+    return subscribeCached(key, () => force((n) => n + 1));
+  }, [key]);
+  return key ? (store.get(key) as T | undefined) : undefined;
+}
+
 // ----------------- Cache key factories -----------------
 // Centralised so both the sidebar and the workspace agree on the key
 // shape; rename safely from one place.
 
 export const cacheKeys = {
+  user: () => "user:me",
   projects: () => "projects",
   // Archived projects are fetched separately so the active grid never
   // pays the cost of pulling them in by default; the management page

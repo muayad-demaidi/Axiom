@@ -10,6 +10,7 @@ import sys
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 # Make the project root importable so we can reuse existing modules without
@@ -63,6 +64,11 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
+
+# Compress JSON responses (the dominant API payload shape) to shrink the
+# wire bytes for dataset lists, artifact bundles, and chat history. The
+# 500-byte floor avoids paying compression overhead for tiny envelopes.
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 
 @app.exception_handler(Exception)

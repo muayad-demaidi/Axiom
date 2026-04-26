@@ -349,6 +349,13 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
     setPendingTools([]);
   }, [activeSessionId]);
 
+  // Stable callback so ChatPanel (now React.memo'd) doesn't re-render
+  // every time the workspace re-renders for unrelated reasons.
+  const onArtifactCreated = useCallback(
+    () => setArtifactRefresh((n) => n + 1),
+    []
+  );
+
   // Strip ?q= from the URL after the prompt is consumed so reloading
   // doesn't resend the message.
   const onInitialPromptConsumed = useCallback(() => {
@@ -368,6 +375,37 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
   const activeSession = useMemo(
     () => sessions?.find((s) => s.id === activeSessionId) ?? null,
     [sessions, activeSessionId]
+  );
+
+  // Memoize the chat header so ChatPanel (now React.memo'd) sees a
+  // stable `headerSlot` reference across unrelated parent re-renders
+  // (drawer toggling, mode pill flip, etc.) and can short-circuit.
+  const chatHeaderSlot = useMemo(
+    () => (
+      <>
+        <OpenQuestionsBar
+          projectId={projectId}
+          onAskQuestion={onSuggestedQuestion}
+          refreshKey={artifactRefresh}
+        />
+        {activeDatasetState != null && datasets.length > 0 ? (
+          <DatasetPreviewCard
+            key={activeDatasetState}
+            datasetId={activeDatasetState}
+            onAskQuestion={onSuggestedQuestion}
+            onAskAboutCell={onAskAboutCell}
+          />
+        ) : null}
+      </>
+    ),
+    [
+      projectId,
+      onSuggestedQuestion,
+      artifactRefresh,
+      activeDatasetState,
+      datasets.length,
+      onAskAboutCell,
+    ]
   );
 
   const dataContextRight = useMemo(
@@ -466,23 +504,7 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
                   onToolFinished={onToolFinished}
                   onTurnEnded={onChatTurnEnded}
                   onStreamingChange={setChatStreaming}
-                  headerSlot={
-                    <>
-                      <OpenQuestionsBar
-                        projectId={projectId}
-                        onAskQuestion={onSuggestedQuestion}
-                        refreshKey={artifactRefresh}
-                      />
-                      {activeDatasetState != null && datasets.length > 0 ? (
-                        <DatasetPreviewCard
-                          key={activeDatasetState}
-                          datasetId={activeDatasetState}
-                          onAskQuestion={onSuggestedQuestion}
-                          onAskAboutCell={onAskAboutCell}
-                        />
-                      ) : null}
-                    </>
-                  }
+                  headerSlot={chatHeaderSlot}
                 />
               </div>
             ) : (
@@ -506,7 +528,7 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
         activeDatasetName={
           activeDatasetMeta?.dataset_name ?? activeDatasetMeta?.filename ?? undefined
         }
-        onArtifactCreated={() => setArtifactRefresh((n) => n + 1)}
+        onArtifactCreated={onArtifactCreated}
       />
     </div>
   );

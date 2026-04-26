@@ -32,6 +32,7 @@ import {
   cacheKeys,
   patchCached,
   setCached,
+  useCachedItem,
   useCachedList,
 } from "@/lib/workspaceCache";
 
@@ -93,23 +94,30 @@ function ProductSidebarBase() {
     [projectsRaw]
   );
 
-  const [me, setMe] = useState<AxiomUser | null>(null);
-  useEffect(() => {
-    if (!authed) return;
-    api<AxiomUser>("/api/auth/me").then(setMe).catch(() => setMe(null));
-  }, [authed]);
+  // Read the user from the shared cache. ModeProvider fetches
+  // `/api/auth/me` once at startup and stores it under
+  // `cacheKeys.user()`, so the sidebar's mount no longer issues a second
+  // request for the same payload.
+  const me = useCachedItem<AxiomUser>(cacheKeys.user()) ?? null;
   const isAdmin = !!me?.is_admin;
 
   // Track which non-active projects the user has manually expanded.
   const [openIds, setOpenIds] = useState<Set<number>>(new Set());
-  function toggleProject(id: number) {
+  const toggleProject = useCallback((id: number) => {
     setOpenIds((cur) => {
       const next = new Set(cur);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  }
+  }, []);
+  // Stable `(id) => toggleProject(id)` reference passed to memoized
+  // ProjectNode children so they can short-circuit re-renders on
+  // unrelated state changes (e.g. the user typing in the chat composer).
+  const handleToggle = useCallback(
+    (id: number) => toggleProject(id),
+    [toggleProject]
+  );
 
   const newChat = useCallback(async () => {
     if (busy) return;
@@ -150,7 +158,7 @@ function ProductSidebarBase() {
                 project={p}
                 isActive={activeProjectId === p.id}
                 isOpen={activeProjectId === p.id || openIds.has(p.id)}
-                onToggle={() => toggleProject(p.id)}
+                onToggle={handleToggle}
                 activeSessionId={activeProjectId === p.id ? activeSessionId : null}
               />
             ))}
@@ -243,12 +251,16 @@ const ProjectNode = memo(function ProjectNode({
   project: AxiomProject;
   isActive: boolean;
   isOpen: boolean;
-  onToggle: () => void;
+  // Receives the project id so the parent can pass a single stable
+  // callback for every row instead of an inline arrow per row (which
+  // would otherwise defeat React.memo here).
+  onToggle: (id: number) => void;
   activeSessionId: number | null;
 }) {
   const router = useRouter();
   const pid = project.id;
   const headerActive = isActive;
+  const handleClick = useCallback(() => onToggle(pid), [onToggle, pid]);
 
   return (
     <li>
@@ -261,7 +273,7 @@ const ProjectNode = memo(function ProjectNode({
       >
         <button
           aria-label={isOpen ? "Collapse project" : "Expand project"}
-          onClick={onToggle}
+          onClick={handleClick}
           className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] shrink-0"
         >
           <ChevronRight

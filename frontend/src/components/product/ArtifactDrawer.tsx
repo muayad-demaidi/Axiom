@@ -12,11 +12,29 @@
  * from `/api/chats/{sid}/artifacts` whenever a tool finishes.
  */
 import { memo, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { api } from "@/lib/api";
 import { errMessage } from "@/lib/types";
-import { ChartRenderer, type ChartPayload } from "./Charts";
-import { PredictionCard, type PredictionResult } from "./PredictionCard";
-import { GuidedPredictionCard, type GuidedPredictionResult } from "./GuidedPredictionCard";
+// Heavy artifact renderers (recharts-based, ~tens of KB each) are
+// dynamically imported so they aren't pulled into the initial /app
+// bundle. The drawer is only opened on demand, and these tabs only
+// render when their kind appears, so SSR is unnecessary here.
+import type { ChartPayload } from "./Charts";
+import type { PredictionResult } from "./PredictionCard";
+import type { GuidedPredictionResult } from "./GuidedPredictionCard";
+
+const ChartRenderer = dynamic(
+  () => import("./Charts").then((m) => m.ChartRenderer),
+  { ssr: false }
+);
+const PredictionCard = dynamic(
+  () => import("./PredictionCard").then((m) => m.PredictionCard),
+  { ssr: false }
+);
+const GuidedPredictionCard = dynamic(
+  () => import("./GuidedPredictionCard").then((m) => m.GuidedPredictionCard),
+  { ssr: false }
+);
 import { GuidedPredictionWizard } from "./GuidedPredictionWizard";
 
 export type Artifact = {
