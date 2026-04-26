@@ -1,0 +1,116 @@
+Run a full end-to-end test suite for the entire Axiom application. Cover every feature, endpoint, and UI flow. Do the following:
+
+## 1. BACKEND UNIT TESTS
+Test every Python module in isolation:
+- `semantic_model.py`: profile_table, propose_relationships_for_project, generate_clarification_questions, safe_query_model (happy path, refusal path, fan-trap mitigation, N:N warning, inferred join labeling)
+- `predictions.py`: predict_column with time-series data, with regression data, with insufficient data (expect graceful Arabic message, not a crash)
+- `analysis.py`: build_profile, surprise_insights, suggested_questions
+- `data_modelling.py`: suggest_relationships, materialize_join, validate_relationship
+- All tests must stub/mock the OpenAI client — do NOT call the live API
+
+## 2. BACKEND API INTEGRATION TESTS
+Spin up the FastAPI app with a test database and hit every endpoint:
+
+### Auth
+- POST /api/auth/register → 201
+- POST /api/auth/login → 200 + token
+- GET /api/auth/me → 200 with user info
+
+### Datasets
+- POST /api/datasets (upload CSV) → 201
+- GET /api/datasets → list
+- GET /api/datasets/{id} → detail
+- DELETE /api/datasets/{id} → 204
+
+### Projects
+- POST /api/projects → 201
+- GET /api/projects → list
+- POST /api/projects/{id}/datasets → attach dataset
+- DELETE /api/projects → 204
+
+### Chat & Artifacts
+- POST /api/chats → 201
+- POST /api/chats/{id}/messages with tool call → profile_dataset artifact created
+- POST /api/chats/{id}/messages with tool call → make_chart artifact created  
+- POST /api/chats/{id}/messages with tool call → predict_column artifact created
+- POST /api/chats/{id}/messages with tool call → cluster_dataset artifact created
+- GET /api/chats/{id}/artifacts → returns all artifact kinds
+- POST /api/chats/{id}/seed-data-model → idempotent (call twice, expect same result)
+
+### Data Model (multi-CSV)
+- POST /api/projects/{id}/data-model/refresh → profiles tables, proposes relationships
+- GET /api/projects/{id}/data-model → returns tables + relationships + questions
+- PATCH /api/projects/{id}/data-model/tables/{dataset_id} → confirm role
+- PATCH /api/projects/{id}/data-model/relationships/{rel_id} → confirm join
+- PATCH /api/projects/{id}/data-model/relationships/{rel_id} → reject join
+- POST /api/projects/{id}/data-model/relationships → add custom join
+- PUT /api/projects/{id}/data-model/description → saves + parses role/join overrides
+- PATCH /api/projects/{id}/data-model/questions/{id} → answer + dismiss
+
+### Analysis & Predictions
+- POST /api/datasets/{id}/auto-profile → 200
+- POST /api/datasets/{id}/predict → happy path (time-series CSV)
+- POST /api/datasets/{id}/predict → small dataset path (expect Arabic explanation, no crash)
+- POST /api/datasets/{id}/cluster → 200 with centroids
+
+### Reports
+- POST /api/reports → create final report
+- GET /api/reports/{id} → 200
+
+## 3. SEMANTIC MODEL EDGE CASES
+Write dedicated tests for these failure modes:
+- `safe_query_model` refuses summary↔fact join → refusals list non-empty, rows empty
+- `safe_query_model` with no confirmed or inferred relationship → refusal returned
+- `safe_query_model` N:N join → warning added to result
+- `safe_query_model` overlap < 30% → warning added
+- `propose_relationships_for_project` with identical column names → high band
+- `propose_relationships_for_project` with no overlap → inferred band
+- `generate_clarification_questions` returns max 12 questions
+- `profile_table` on empty DataFrame → no crash, returns role=dimension
+
+## 4. PREDICTION EDGE CASES
+- Prophet forecast on 24-month sales data → returns forecast + confidence score
+- scikit-learn regression on driver-based data → returns coefficients + R²
+- Dataset with 90%+ missing in target column → returns Arabic explanation not stack trace
+- Dataset with only 3 rows → returns "insufficient data" message in Arabic
+- Confidence score formula: verify it blends data_volume + quality + signal + time_coverage correctly
+
+## 5. ERROR HANDLING VERIFICATION
+Confirm every endpoint returns JSON (never plain text) on failure:
+- Upload non-CSV file → 400 JSON
+- Predict on non-existent dataset → 404 JSON
+- Any internal server error → 500 JSON with {"error": "...", "detail": "..."}
+- Invalid JWT token → 401 JSON
+- Missing required field → 422 JSON
+
+## 6. FRONTEND COMPONENT TESTS (if React testing is available)
+- ArtifactDrawer renders all 5 tabs: Profile, Visualize, Predictions, Clusters, Data model
+- Data model tab hidden when project has < 2 datasets
+- PredictionCard renders confidence gauge correctly
+- DataModelBody renders tables, relationships, questions
+- QuestionRow renders option buttons and calls onAnswer
+- OpenQuestionsBar hides when < 2 datasets or no open questions
+
+## 7. END-TO-END SMOKE TEST
+Simulate a complete user session programmatically:
+1. Register user
+2. Upload two related CSVs (customers + orders)
+3. Create project, attach both CSVs
+4. Create chat session
+5. Seed data model → verify artifact appears
+6. Refresh data model → verify relationships proposed
+7. Confirm one relationship via PATCH
+8. Run query_model across both tables → verify result has rows, no refusals
+9. Run predict_column on orders → verify Arabic narrative returned
+10. Generate final report → verify it includes prediction + data model artifacts
+
+## EXECUTION RULES
+- Use pytest for backend tests
+- Use fixtures and factories — never depend on production data
+- Stub OpenAI with a fixture that returns a realistic fake response
+- Each test must be independent (no shared state between tests)
+- Print a final summary: total tests, passed, failed, and a list of any broken endpoints or components
+- If a test fails, print the exact error + the file + line number
+- Do NOT skip any feature — if something can't be tested automatically, flag it explicitly with: MANUAL_REVIEW_REQUIRED: [reason]
+
+Run all tests now and show me the full results.
