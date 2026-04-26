@@ -33,7 +33,13 @@ export function DataStreamBackground({ className = "" }: { className?: string })
     let width = 0;
     let height = 0;
 
-    function resize() {
+    // NOTE: these are arrow functions assigned to const (not nested
+    // `function` declarations) so TypeScript preserves the non-null
+    // narrowing of `canvas` and `ctx` from the early-return checks
+    // above. Function declarations would re-widen the captured types
+    // back to `HTMLCanvasElement | null` and fail `next build`'s
+    // strict type-check, which is what blocked the publish.
+    const resize = () => {
       const rect = canvas.getBoundingClientRect();
       width = Math.floor(rect.width);
       height = Math.floor(rect.height);
@@ -50,17 +56,17 @@ export function DataStreamBackground({ className = "" }: { className?: string })
         speed: 0.22 + Math.random() * 0.4,
         trail: 22 + Math.floor(Math.random() * 38),
       }));
-    }
+    };
 
-    function readVar(name: string, fallback: string) {
+    const readVar = (name: string, fallback: string) => {
       const v = getComputedStyle(document.documentElement)
         .getPropertyValue(name)
         .trim();
       return v || fallback;
-    }
+    };
 
     let last = 0;
-    function frame(now: number) {
+    const frame = (now: number) => {
       // ~14fps — calm, ambient feel
       if (now - last < 70) {
         rafRef.current = requestAnimationFrame(frame);

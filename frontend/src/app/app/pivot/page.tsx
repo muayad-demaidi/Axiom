@@ -26,7 +26,7 @@
  * engine — same engine that powers the visualize page, the dashboard
  * and the chat ``make_chart`` tool.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   BarChart, Bar, LineChart, Line,
@@ -70,7 +70,7 @@ function fmtValue(v: unknown, kind: string | undefined, precision = 2): string {
   return String(v);
 }
 
-export default function PivotPage() {
+function PivotPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = typeof window !== "undefined" ? getActiveProjectId() : null;
@@ -1128,5 +1128,18 @@ function ExplainModal({
         )}
       </div>
     </div>
+  );
+}
+
+// Wrap in <Suspense> so Next.js 14 doesn't fail the production build with
+// "useSearchParams() should be wrapped in a suspense boundary". Without
+// this, `next build` aborts during static-page generation for /app/pivot
+// because useSearchParams forces a client-side bailout that needs an
+// explicit fallback.
+export default function PivotPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-muted">Loading pivot…</div>}>
+      <PivotPageInner />
+    </Suspense>
   );
 }
