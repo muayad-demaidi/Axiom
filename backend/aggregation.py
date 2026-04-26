@@ -34,6 +34,14 @@ from typing import Any, Iterable, Optional
 import numpy as np
 import pandas as pd
 
+from context.type_inference import (  # type: ignore
+    PARSE_STATUS_OK,
+    PARSE_STATUS_NULL,
+    PARSE_STATUS_BAD,
+    parse_numeric_series,
+    to_numeric_canonical,
+)
+
 
 # ---------------------------------------------------------------------------
 # Vocabulary
@@ -74,13 +82,19 @@ DATE_GRAINS = ("day", "week", "month", "quarter", "year")
 # Words in a column name that strongly suggest an additive business
 # measure (default aggregation = SUM).  Lower-cased, partial match.
 _ADDITIVE_MEASURE_KEYWORDS = (
-    "revenue", "sales", "amount", "value", "total", "subtotal", "gross", "net",
-    "cost", "expense", "expenses", "spend", "spent", "budget", "profit",
+    "revenue", "sales", "amount", "amt", "value", "total", "subtotal",
+    "gross", "net", "cost", "expense", "expenses", "spend", "spent",
+    "budget", "profit",
     "margin_amount", "income", "deal_value", "opportunity_value", "pipeline",
     "won_amount", "lost_amount", "qty", "quantity", "units", "count",
     "sessions", "clicks", "impressions", "views", "visits", "pageviews",
     "leads", "conversions", "signups", "subscribers", "downloads",
     "orders", "transactions", "tickets", "calls", "messages", "emails",
+    # SAP / ERP amount columns — DMBTR is "Amount in local currency",
+    # WRBTR is "Amount in document currency".  Without these the engine
+    # mis-classifies them as identifiers and refuses to SUM them.
+    "dmbtr", "wrbtr", "kbetr", "netwr", "brtwr", "mwsts", "umrsl",
+    "hwbas", "fwbas", "skfbt", "wmwst", "btr", "_amt", "amt_",
 )
 
 # Words that indicate an ID-like / key column — never summed, never
@@ -221,6 +235,20 @@ def infer_field_meta(df: pd.DataFrame) -> dict[str, dict[str, Any]]:
                 precision = 0
             else:
                 precision = 2
+        elif (not is_numeric) and _name_has(name, _ADDITIVE_MEASURE_KEYWORDS):
+            # Amount-like column that *looks* like text because the CSV
+            # used mixed-locale strings (e.g. "1,583", "ERROR").  The
+            # canonical numeric parser will handle the values; treat the
+            # column as a measure with SUM by default so the BI surfaces
+            # don't silently fall back to AVG or refuse to sum it.
+            role = "measure"
+            default_agg = "sum"
+            format_kind = "currency" if _name_has(name, _CURRENCY_KEYWORDS) else "number"
+            precision = 2
+            warnings.append(
+                "Stored as text but the column name reads like an amount;"
+                " parsed via the canonical numeric parser before SUM."
+            )
         elif is_numeric:
             # Generic numeric — default to SUM if it looks additive
             # (small range, large count), otherwise AVG.
@@ -448,8 +476,16 @@ def _agg_key(name: str) -> str:
     return (name or "sum").lower()
 
 
-def _apply_single_agg(series: pd.Series, agg: str) -> Any:
-    """Apply one aggregation to a (sub-)series, returning a scalar."""
+def _apply_single_agg(
+    series: pd.Series, agg: str, parse_mode: str = "auto"
+) -> Any:
+    """Apply one aggregation to a (sub-)series, returning a scalar.
+
+    ``parse_mode`` is forwarded to the canonical numeric parser so per-
+    column overrides set on the field metadata (``decimal_comma`` for an
+    EU-formatted spreadsheet, ``thousands_comma`` for a US one, etc.)
+    take effect everywhere — pivot, KPI, chart, chat.
+    """
     a = _agg_key(agg)
     if a == "none":
         # "Do not summarize" — return the first value if it's a single
@@ -461,7 +497,11 @@ def _apply_single_agg(series: pd.Series, agg: str) -> Any:
         return int(series.shape[0])
     if a == "count_distinct":
         return int(series.nunique(dropna=True))
-    numeric = pd.to_numeric(series, errors="coerce")
+    # Canonical parser is the only entry point for numeric coercion in any
+    # aggregation/grouping/charting/KPI/chat code path.  Mixed-locale
+    # values like "1,583" and "865,518" land as 1583 and 865518 here, so
+    # SUM/AVG/MIN/MAX/MEDIAN agree across every BI surface.
+    numeric = to_numeric_canonical(series, mode=parse_mode)
     if a == "sum":
         return float(numeric.sum(skipna=True))
     if a == "avg":
@@ -615,6 +655,60 @@ def aggregate(
     if drop_nulls_in_dims and dim_cols:
         work = work.dropna(subset=dim_cols)
 
+    # Pre-aggregation numeric validation (the "validation gate").  For
+    # every additive measure that ends up summed/averaged we re-parse the
+    # source column through the canonical parser and refuse the run when
+    # the result is implausible (huge null rate, only one valid row,
+    # absurd magnitude relative to the row-level median).  Without this
+    # gate, mixed-locale CSVs silently dropped rows and inflated totals.
+    parse_modes: dict[str, str] = {
+        c: (m or {}).get("parse_mode") or "auto"
+        for c, m in (field_meta or {}).items()
+        if isinstance(m, dict)
+    }
+    parse_traces: list[dict[str, Any]] = []
+    blocking_error: str | None = None
+    for spec in parsed:
+        if spec.aggregation == "ratio":
+            continue
+        col = spec.column
+        a = _agg_key(spec.aggregation)
+        if not col or col not in work.columns:
+            continue
+        if a in ("count", "count_distinct", "none"):
+            continue
+        meta = (field_meta or {}).get(col) or {}
+        if meta.get("role") == "key":
+            continue
+        trace = _build_calc_trace(
+            work, col, a, dim_cols, meta,
+            parse_mode=parse_modes.get(col, "auto"),
+        )
+        parse_traces.append(trace)
+        if a == "sum" and trace.get("blocked"):
+            blocking_error = trace["blocked"]
+            warnings.append(trace["blocked"])
+        elif trace.get("warning"):
+            warnings.append(trace["warning"])
+
+    if blocking_error:
+        # Surface a structured response so the UI keeps its existing
+        # result-panel rendering — no new modals, no layout change.
+        return {
+            "rows": [],
+            "row_dims": rows,
+            "col_dims": cols,
+            "measures": [],
+            "grand_total": {},
+            "subtotals": [],
+            "warnings": _dedupe(warnings),
+            "row_count": int(len(work)),
+            "result_count": 0,
+            "calc_trace": parse_traces,
+            "blocked": True,
+            "error": blocking_error,
+        }
+
     # Validate measures and resolve labels / formats.
     measure_views: list[dict[str, Any]] = []
     for i, spec in enumerate(parsed):
@@ -643,6 +737,7 @@ def aggregate(
                 "format_kind": fmt["format_kind"],
                 "precision": fmt["precision"],
                 "spec": spec,
+                "parse_modes": parse_modes,
             }
         )
 
@@ -766,9 +861,11 @@ def aggregate(
                                 break
             result_rows = merged
 
-    # Strip the spec object from the response (not JSON-serialisable).
+    # Strip the spec object and per-column parse_modes map from the
+    # response — neither is JSON-friendly nor part of the public API.
     public_measures = [
-        {k: v for k, v in mv.items() if k != "spec"} for mv in measure_views
+        {k: v for k, v in mv.items() if k not in ("spec", "parse_modes")}
+        for mv in measure_views
     ]
 
     return {
@@ -781,18 +878,184 @@ def aggregate(
         "warnings": _dedupe(warnings),
         "row_count": int(len(work)),
         "result_count": len(result_rows),
+        "calc_trace": parse_traces,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Calculation trace + numeric validation gate
+# ---------------------------------------------------------------------------
+
+# Only block a SUM if the parsed-success rate is below this floor *and*
+# at least one row was rejected.  Above this rate the column is treated
+# as cleanly parsed — a few junk tokens shouldn't kill the answer.
+_MIN_PARSE_SUCCESS_RATE = 0.5
+
+# Maximum allowed inflation factor of ``sum / valid_rows`` over the
+# median row-level magnitude.  Cleanly parsed columns sit at ~1× — for
+# the bundled DMBTR fixture the implied per-row contribution is
+# 3,534.41 against a median row magnitude of 3,202.60 (×1.10).  When
+# the parser disagrees across rows (a "1,583" read as 1.583 in some
+# rows and 1583 in others, or one row read as 865,518 and another as
+# 865.518), the implied per-row balloons by an order of magnitude or
+# more.  50× catches every realistic mixed-locale bug pattern while
+# still leaving headroom for legitimately heavy-tailed columns where
+# the mean is much larger than the median.
+_MAX_PLAUSIBLE_INFLATION = 50.0
+
+
+def _build_calc_trace(
+    df: pd.DataFrame,
+    column: str,
+    aggregation: str,
+    grouping: list[str],
+    meta: dict[str, Any] | None,
+    parse_mode: str = "auto",
+) -> dict[str, Any]:
+    """Run the canonical parser on ``column`` and report the verdict.
+
+    Returns a dict with::
+
+        {
+          "column": str,
+          "parsed_column": "<column>__parsed",
+          "aggregation": str,
+          "grouping": [str, ...],
+          "total_rows": int, "valid_rows": int, "invalid_rows": int,
+          "null_rows": int,
+          "parse_success_rate": float,        # 0..1
+          "min": float|None, "max": float|None,
+          "median_abs": float|None,           # row-level magnitude
+          "implied_per_row": float|None,      # sum / valid_rows
+          "warning": str|None,                # advisory only
+          "blocked": str|None,                # set ⇒ aggregation refused
+          "format_kind": str,
+        }
+    """
+    series = df[column]
+    total = int(len(series))
+    parsed, status = parse_numeric_series(series, mode=parse_mode)
+    valid_mask = status == PARSE_STATUS_OK
+    valid = int(valid_mask.sum())
+    null_rows = int((status == PARSE_STATUS_NULL).sum())
+    invalid = total - valid
+    # ``unparseable`` is the only failure mode the gate cares about —
+    # legitimately empty cells (NaN/blank/null) are *expected* for sparse
+    # financial columns and must not count against parse success.
+    # Otherwise a column where 60% of rows are blank (e.g. an
+    # optional surcharge field) would always trip the validation gate
+    # even though every populated row parsed fine.
+    parseable_total = max(total - null_rows, 0)
+    success_rate = (
+        (valid / parseable_total) if parseable_total else 1.0
+    )
+    unparseable_rows = int((status == PARSE_STATUS_BAD).sum())
+    parsed_ok = parsed[valid_mask]
+    if parsed_ok.empty:
+        # No row contributed a number — for an additive measure that
+        # is the worst possible parser verdict.  Refuse the SUM with
+        # the canonical structured message instead of returning a
+        # silent zero/null total that the user can't tell apart from
+        # "every row really was zero".
+        block_msg = (
+            f"Possible numeric parsing issue detected in {column}. "
+            "Aggregation blocked until values are normalized."
+        ) if aggregation == "sum" else None
+        warning_msg = None if block_msg else (
+            f"Column `{column}` has no values the canonical numeric"
+            " parser could read; aggregation will return null."
+        )
+        return {
+            "column": column,
+            "parsed_column": f"{column}__parsed",
+            "aggregation": aggregation,
+            "grouping": list(grouping),
+            "total_rows": total,
+            "valid_rows": 0,
+            "invalid_rows": invalid,
+            "null_rows": null_rows,
+            "parse_success_rate": 0.0,
+            "min": None, "max": None, "median_abs": None,
+            "implied_per_row": None,
+            "warning": warning_msg,
+            "blocked": block_msg,
+            "format_kind": (meta or {}).get("format_kind", "number"),
+            "null_handling": "Junk tokens (NaN/ERROR/blank) excluded.",
+            "parse_mode": parse_mode,
+        }
+
+    total_sum = float(parsed_ok.sum())
+    median_abs = float(parsed_ok.abs().median())
+    implied_per_row = (total_sum / valid) if valid else 0.0
+    inflation = abs(implied_per_row) / median_abs if median_abs > 0 else 0.0
+
+    warning: str | None = None
+    blocked: str | None = None
+
+    if success_rate < _MIN_PARSE_SUCCESS_RATE and unparseable_rows > 0:
+        # Big chunk of *populated* rows the canonical parser refused —
+        # refuse to sum because the answer would silently miss them.
+        # This is the original DMBTR bug pattern.  We deliberately key
+        # off ``unparseable_rows`` (not all invalids) so that sparse
+        # financial columns whose blanks are legitimate nulls don't
+        # trip the gate.
+        blocked = (
+            f"Possible numeric parsing issue detected in {column}. "
+            "Aggregation blocked until values are normalized."
+        )
+    elif inflation > _MAX_PLAUSIBLE_INFLATION and aggregation == "sum":
+        # The implied per-row contribution is wildly larger than the
+        # median row magnitude — this only happens when the parser was
+        # inconsistent (e.g. one row read "1,583" as 1.583 and another
+        # as 1583).  Refuse rather than show an inflated total.
+        blocked = (
+            f"Possible numeric parsing issue detected in {column}. "
+            "Aggregation blocked until values are normalized."
+        )
+    elif invalid > 0:
+        warning = (
+            f"`{column}` parsed {valid}/{total} rows; {invalid} were"
+            f" excluded as junk tokens (NaN/ERROR/blank/unparseable)."
+        )
+
+    return {
+        "column": column,
+        "parsed_column": f"{column}__parsed",
+        "aggregation": aggregation,
+        "grouping": list(grouping),
+        "total_rows": total,
+        "valid_rows": valid,
+        "invalid_rows": invalid,
+        "null_rows": null_rows,
+        "parse_success_rate": round(success_rate, 4),
+        "min": float(parsed_ok.min()),
+        "max": float(parsed_ok.max()),
+        "median_abs": median_abs,
+        "implied_per_row": implied_per_row,
+        "warning": warning,
+        "blocked": blocked,
+        "format_kind": (meta or {}).get("format_kind", "number"),
+        "null_handling": "Junk tokens (NaN/ERROR/blank) excluded.",
+        "parse_mode": parse_mode,
     }
 
 
 def _compute_measure(sub: pd.DataFrame, mv: dict[str, Any]) -> Any:
     spec: MeasureSpec = mv["spec"]
+    parse_modes = mv.get("parse_modes") or {}
     if mv["aggregation"] == "ratio":
         num_col = spec.numerator
         den_col = spec.denominator
         if not num_col or not den_col or num_col not in sub.columns or den_col not in sub.columns:
             return None
-        num = _apply_single_agg(sub[num_col], spec.numerator_agg)
-        den = _apply_single_agg(sub[den_col], spec.denominator_agg)
+        num = _apply_single_agg(
+            sub[num_col], spec.numerator_agg,
+            parse_mode=parse_modes.get(num_col, "auto"),
+        )
+        den = _apply_single_agg(
+            sub[den_col], spec.denominator_agg,
+            parse_mode=parse_modes.get(den_col, "auto"),
+        )
         try:
             if not den or (isinstance(den, float) and (np.isnan(den) or den == 0)):
                 return None
@@ -805,7 +1068,10 @@ def _compute_measure(sub: pd.DataFrame, mv: dict[str, Any]) -> Any:
         if _agg_key(spec.aggregation) == "count":
             return int(len(sub))
         return None
-    return _apply_single_agg(sub[col], spec.aggregation)
+    return _apply_single_agg(
+        sub[col], spec.aggregation,
+        parse_mode=parse_modes.get(col, "auto"),
+    )
 
 
 def _safe_num(v: Any) -> float | None:
@@ -854,6 +1120,58 @@ def _dedupe(seq: list[str]) -> list[str]:
             seen.add(s)
             out.append(s)
     return out
+
+
+# ---------------------------------------------------------------------------
+# Numeric-only view for correlation / heatmap
+# ---------------------------------------------------------------------------
+
+# When at least this fraction of an object column's non-null values
+# parse cleanly through the canonical parser we treat the column as
+# numeric for correlation purposes.  Below this we drop it — partial
+# parses on a free-text column would just create misleading
+# correlations.
+_CORRELATION_NUMERIC_THRESHOLD = 0.5
+
+
+def numeric_frame_for_correlation(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a numeric-only DataFrame suitable for ``DataFrame.corr``.
+
+    Already-numeric columns are kept as-is.  Object-typed columns
+    (the headline failure mode for mixed-locale amount fields like
+    ``DMBTR`` / ``WRBTR``) are routed through the canonical numeric
+    parser; if at least :data:`_CORRELATION_NUMERIC_THRESHOLD` of
+    their non-null values parse cleanly we keep the parsed series,
+    otherwise we drop the column.
+
+    This exists so heatmap / correlation views surface mixed-locale
+    amount columns the user actually cares about — the previous
+    ``df.select_dtypes(include="number")`` filter silently excluded
+    them.
+    """
+
+    if df.empty:
+        return df.select_dtypes(include="number")
+
+    out: dict[str, pd.Series] = {}
+    for col in df.columns:
+        s = df[col]
+        if pd.api.types.is_numeric_dtype(s):
+            out[str(col)] = s
+            continue
+        if not pd.api.types.is_object_dtype(s):
+            continue
+        non_null_total = int(s.notna().sum())
+        if non_null_total == 0:
+            continue
+        parsed, status = parse_numeric_series(s)
+        ok = int((status == PARSE_STATUS_OK).sum())
+        if ok / non_null_total >= _CORRELATION_NUMERIC_THRESHOLD:
+            out[str(col)] = parsed
+
+    if not out:
+        return pd.DataFrame(index=df.index)
+    return pd.DataFrame(out, index=df.index)
 
 
 # ---------------------------------------------------------------------------

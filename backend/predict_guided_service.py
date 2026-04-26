@@ -30,6 +30,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from context.type_inference import to_numeric_canonical as _canonical_num  # type: ignore
+
 log = logging.getLogger("axiom.predict_guided")
 
 
@@ -125,7 +127,7 @@ def rank_drivers(
     excluded = {target}
     if time_column:
         excluded.add(time_column)
-    target_series = pd.to_numeric(df[target], errors="coerce")
+    target_series = _canonical_num(df[target])
     if target_series.dropna().size < 3:
         return []
 
@@ -135,7 +137,7 @@ def rank_drivers(
             continue
         if not pd.api.types.is_numeric_dtype(df[col]):
             continue
-        x = pd.to_numeric(df[col], errors="coerce")
+        x = _canonical_num(df[col])
         joined = pd.concat([x, target_series], axis=1).dropna()
         if len(joined) < 3:
             continue
@@ -236,7 +238,7 @@ def _fit_prophet(
     work = pd.DataFrame(
         {
             "ds": pd.to_datetime(df[time_column], errors="coerce"),
-            "y": pd.to_numeric(df[target], errors="coerce"),
+            "y": _canonical_num(df[target]),
         }
     ).dropna()
     work = work.sort_values("ds").reset_index(drop=True)
@@ -378,7 +380,7 @@ def _fit_driver_model(
     feats = [c for c in drivers if c in df.columns and c != target]
     if not feats:
         raise ValueError("no usable driver columns")
-    work = df[feats + [target]].apply(pd.to_numeric, errors="coerce").dropna()
+    work = df[feats + [target]].apply(_canonical_num).dropna()
     if len(work) < MIN_ROWS_REGRESSION:
         raise ValueError(
             f"need at least {MIN_ROWS_REGRESSION} complete rows, "
@@ -880,7 +882,7 @@ def run_prediction(
         forecast_values = [p["yhat"] for p in model_payload["forecast"]]
         baseline_value = (
             float(forecast_values[0]) if forecast_values
-            else float(pd.to_numeric(df[target], errors="coerce").mean())
+            else float(_canonical_num(df[target]).mean())
         )
         forecast_avg = (
             float(np.mean(forecast_values)) if forecast_values else baseline_value

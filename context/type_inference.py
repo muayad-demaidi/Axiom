@@ -25,9 +25,21 @@ import pandas as pd
 
 _BOOL_TRUE = {"true", "false", "yes", "no", "y", "n", "0", "1",
               "نعم", "لا", "صح", "خطأ"}
-_JUNK_TOKENS = {"", "nan", "na", "n/a", "null", "none", "-", "--", "?",
-                "error", "err", "#n/a", "#error", "#null!", "#div/0!",
-                "#value!", "#ref!", "#name?", "#num!", "missing", "unknown"}
+# Empty/missing-value markers — these are *expected* sparse cells and
+# get classified as ``null_token`` so they don't trip the validation
+# gate.  An optional surcharge column where 90% of rows are blank is
+# fine; only truly broken rows should hurt parse-success.
+_NULL_TOKENS = {"", "nan", "na", "n/a", "null", "none", "-", "--", "?",
+                "missing", "unknown"}
+# Spreadsheet/system error markers — distinct from missing values.
+# These signal a known fault upstream and get classified as
+# ``unparseable`` so the validation gate flags the column.
+_ERROR_TOKENS = {"error", "err", "#n/a", "#error", "#null!", "#div/0!",
+                 "#value!", "#ref!", "#name?", "#num!"}
+# Backwards-compatibility alias used by callers that just want "is this
+# token non-numeric junk of any kind" without caring about the
+# null-vs-error distinction.
+_JUNK_TOKENS = _NULL_TOKENS | _ERROR_TOKENS
 _CURRENCY_SYMBOLS = "$€£¥₪₺₩₽﷼"
 _CURRENCY_CODES = {"USD", "EUR", "GBP", "SAR", "AED", "JPY", "CNY",
                    "KWD", "QAR", "BHD", "OMR", "JOD", "EGP", "ILS", "TRY"}
@@ -277,31 +289,281 @@ def schema_to_dataframe(schema: list[ColumnType]) -> pd.DataFrame:
 # Casting
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# Canonical numeric parser
+#
+# Single deterministic entry point used by every BI consumer (aggregation,
+# pivot, charts, KPIs, chat, insights).  Mixed-locale safe: a value like
+# ``"1,583"`` (no decimal point) is treated as the integer 1583, not the
+# decimal 1.583, because rows in the same column also carry plain decimals
+# like ``3378.49`` — silently swapping the comma to a dot would give wildly
+# inconsistent magnitudes.  Rules (auto / mixed_smart):
+#
+#   * Strip currency symbols / ISO codes / NBSPs / percent signs / parens.
+#   * If the cleaned token matches a junk literal (``NaN``, ``ERROR``, ``-``…)
+#     → null with status ``null_token``.
+#   * Both ``,`` and ``.`` present → the rightmost one is the decimal,
+#     the other is a thousands grouping (Excel rule).
+#   * Only ``,`` present:
+#         - if there's exactly one comma followed by 1 or 2 digits → decimal
+#           comma (European style), e.g. ``"1,5"`` → 1.5
+#         - otherwise treat every ``,`` as a thousands grouping, e.g.
+#           ``"1,583"`` → 1583, ``"865,518"`` → 865518.
+#   * Only ``.`` present:
+#         - if there's exactly one dot followed by 1 or 2 digits → decimal
+#         - if multiple dots, all groups of 3 → thousands dots
+#         - otherwise → decimal point
+#   * Negative sign anywhere is preserved (``"-1,200"`` → -1200,
+#     ``"(123.45)"`` → -123.45).
+#
+# Explicit modes bypass the heuristics:
+#   ``decimal_point``     — ``,`` is thousands, ``.`` is decimal.
+#   ``decimal_comma``     — ``.`` is thousands, ``,`` is decimal.
+#   ``thousands_comma``   — every ``,`` is stripped, ``.`` is decimal.
+#   ``thousands_dot``     — every ``.`` is stripped, ``,`` is decimal.
+#   ``mixed_smart``/``auto`` — the rules above.
+# --------------------------------------------------------------------------
+
+PARSE_MODES = (
+    "auto", "mixed_smart", "decimal_point", "decimal_comma",
+    "thousands_comma", "thousands_dot",
+)
+PARSE_STATUS_OK = "ok"
+PARSE_STATUS_NULL = "null_token"
+PARSE_STATUS_BAD = "unparseable"
+
+_NBSP = "\u00a0"
+_RE_PARENS_NEG = re.compile(r"^\((.+)\)$")
+_RE_NON_NUMERIC = re.compile(r"[^0-9,.\-+eE]")
+
+
+def _strip_currency(token: str) -> str:
+    out = token
+    for sym in _CURRENCY_SYMBOLS:
+        out = out.replace(sym, "")
+    # Strip ISO codes only when bracketed by spaces / start / end so we
+    # don't eat the ``E`` of ``1e3``.
+    for code in _CURRENCY_CODES:
+        out = re.sub(rf"(?<![A-Za-z0-9]){code}(?![A-Za-z0-9])", "", out)
+    return out
+
+
+def parse_numeric_value(value: Any, mode: str = "auto") -> tuple[Optional[float], str]:
+    """Parse a single value into (float|None, status).
+
+    ``status`` is one of ``ok`` / ``null_token`` / ``unparseable`` and
+    lets callers explain *why* a row was excluded.
+    """
+    if value is None:
+        return None, PARSE_STATUS_NULL
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        try:
+            f = float(value)
+        except (TypeError, ValueError):
+            return None, PARSE_STATUS_BAD
+        if not np.isfinite(f):
+            return None, PARSE_STATUS_NULL
+        return f, PARSE_STATUS_OK
+
+    s = str(value).strip().replace(_NBSP, "").replace(" ", "")
+    if not s or s.lower() in _NULL_TOKENS:
+        return None, PARSE_STATUS_NULL
+    if s.lower() in _ERROR_TOKENS:
+        return None, PARSE_STATUS_BAD
+
+    is_neg = False
+    m = _RE_PARENS_NEG.match(s)
+    if m:
+        is_neg = True
+        s = m.group(1)
+    if s.startswith("-"):
+        is_neg = True
+        s = s[1:]
+    elif s.startswith("+"):
+        s = s[1:]
+
+    is_pct = False
+    if s.endswith("%"):
+        is_pct = True
+        s = s[:-1]
+
+    s = _strip_currency(s).strip()
+    if not s or s.lower() in _NULL_TOKENS:
+        return None, PARSE_STATUS_NULL
+    if s.lower() in _ERROR_TOKENS:
+        return None, PARSE_STATUS_BAD
+
+    if _RE_NON_NUMERIC.search(s):
+        return None, PARSE_STATUS_BAD
+
+    m = (mode or "auto").lower()
+    has_comma = "," in s
+    has_dot = "." in s
+
+    try:
+        if m == "decimal_point":
+            normalized = s.replace(",", "")
+        elif m == "decimal_comma":
+            normalized = s.replace(".", "").replace(",", ".")
+        elif m == "thousands_comma":
+            normalized = s.replace(",", "")
+        elif m == "thousands_dot":
+            normalized = s.replace(".", "").replace(",", ".")
+        else:
+            # mixed_smart / auto
+            if has_comma and has_dot:
+                if s.rfind(".") > s.rfind(","):
+                    normalized = s.replace(",", "")
+                else:
+                    normalized = s.replace(".", "").replace(",", ".")
+            elif has_comma:
+                # Single comma followed by 1 or 2 digits → decimal comma
+                comma_count = s.count(",")
+                last = s.rsplit(",", 1)[-1]
+                if comma_count == 1 and 1 <= len(last) <= 2 and last.isdigit():
+                    normalized = s.replace(",", ".")
+                else:
+                    normalized = s.replace(",", "")
+            elif has_dot:
+                dot_count = s.count(".")
+                last = s.rsplit(".", 1)[-1]
+                head_before_last_dot = s.rsplit(".", 1)[0]
+                if dot_count == 1:
+                    # Mirror the comma logic so the dot-only branch is
+                    # symmetric.  A single dot followed by *exactly* 3
+                    # digits (and a digit head) is a thousands separator
+                    # in the EU convention — "1.583" means 1583, not
+                    # 1.583 — unless the user explicitly picked
+                    # ``decimal_point``/``thousands_dot``.  1- or 2-digit
+                    # tails stay as decimal ("123.45" → 123.45, "1.5" →
+                    # 1.5).  Heads like "0.583" stay decimal because a
+                    # leading zero with thousands grouping would be
+                    # written as "0" with no dot.
+                    if (
+                        len(last) == 3
+                        and last.isdigit()
+                        and head_before_last_dot.isdigit()
+                        and head_before_last_dot not in ("0", "")
+                    ):
+                        normalized = head_before_last_dot + last
+                    else:
+                        normalized = s
+                else:
+                    # Multiple dots — likely European thousands dots if every
+                    # non-leading group is exactly 3 digits.
+                    parts = s.split(".")
+                    if all(len(p) == 3 for p in parts[1:]) and parts[0].isdigit():
+                        normalized = "".join(parts)
+                    else:
+                        # fall back to using the rightmost dot as decimal
+                        head, _, tail = s.rpartition(".")
+                        normalized = head.replace(".", "") + "." + tail
+            else:
+                normalized = s
+
+        f = float(normalized)
+    except (TypeError, ValueError):
+        return None, PARSE_STATUS_BAD
+    if not np.isfinite(f):
+        return None, PARSE_STATUS_NULL
+    if is_neg:
+        f = -f
+    if is_pct:
+        f = f / 100.0
+    return f, PARSE_STATUS_OK
+
+
+def parse_numeric_series(
+    series: pd.Series, mode: str = "auto",
+) -> tuple[pd.Series, pd.Series]:
+    """Vectorised wrapper around :func:`parse_numeric_value`.
+
+    Returns ``(values, statuses)`` aligned to the input index.  ``values``
+    is a ``float64`` Series with NaN for any non-OK row; ``statuses`` is an
+    object Series with one of the ``PARSE_STATUS_*`` constants.
+    """
+    if series is None or len(series) == 0:
+        return pd.Series([], dtype="float64"), pd.Series([], dtype="object")
+
+    # Fast path: already numeric, no parsing needed.  We still emit a
+    # status series so callers get a uniform shape.
+    #
+    # Edge case: if pandas already coerced ambiguous locale strings to
+    # floats during CSV ingestion (e.g. read_csv saw "1,583" with
+    # ``thousands=","`` and stored 1583.0), the user's later
+    # ``parse_mode`` override has no string left to reinterpret — the
+    # original lexical form is gone.  In practice this does not arise
+    # for AXIOM uploads because we do not pass ``thousands=`` to
+    # ``read_csv``, so any locale-mixed amount column stays as
+    # ``object`` dtype and reaches the slow path.  Callers who want to
+    # honor a parse-mode override on already-numeric data must round-
+    # trip through ``astype(str)`` first.
+    if pd.api.types.is_numeric_dtype(series) and not pd.api.types.is_bool_dtype(series):
+        vals = series.astype("float64")
+        status = pd.Series(
+            np.where(vals.notna(), PARSE_STATUS_OK, PARSE_STATUS_NULL),
+            index=series.index, dtype="object",
+        )
+        return vals, status
+
+    parsed_values: list[Optional[float]] = []
+    statuses: list[str] = []
+    for v in series.tolist():
+        f, st = parse_numeric_value(v, mode=mode)
+        parsed_values.append(f if f is not None else np.nan)
+        statuses.append(st)
+    return (
+        pd.Series(parsed_values, index=series.index, dtype="float64"),
+        pd.Series(statuses, index=series.index, dtype="object"),
+    )
+
+
+def to_numeric_canonical(series: pd.Series, mode: str = "auto") -> pd.Series:
+    """Drop-in replacement for ``pd.to_numeric(series, errors='coerce')``.
+
+    Routes through the canonical parser so every BI surface (chart, pivot,
+    KPI, chat, insight) interprets locale-mixed values the same way.
+    """
+    vals, _ = parse_numeric_series(series, mode=mode)
+    return vals
+
+
 def _clean_numeric(s: pd.Series) -> pd.Series:
-    out = s.astype(str).str.strip()
-    out = out.where(~out.str.lower().isin(_JUNK_TOKENS), other="")
-    return (out.str.replace(",", "", regex=False)
-               .str.replace(r"\s+", "", regex=True))
+    """Legacy helper kept for backward compat — delegates to the canonical
+    parser and returns a *string* series so existing callers that still
+    pipe through ``pd.to_numeric`` get the correct value."""
+    vals, _ = parse_numeric_series(s)
+    out = vals.astype(object).where(vals.notna(), other="")
+    return out.astype(str)
 
 
 def cast_column(series: pd.Series, target_type: str) -> pd.Series:
-    """Coerce a single column to its inferred type. Uncoercible cells become NaN/NaT."""
+    """Coerce a single column to its inferred type. Uncoercible cells become NaN/NaT.
+
+    Numeric branches (``integer``/``decimal``/``percentage``/``currency``)
+    route through the canonical :func:`parse_numeric_series` so casts
+    here see the same mixed-locale rules as aggregation/pivot/KPI/chat.
+    """
     t = (target_type or "text").lower()
     try:
         if t == "integer":
-            return pd.to_numeric(_clean_numeric(series), errors="coerce").astype("Int64")
+            vals, _ = parse_numeric_series(series)
+            return vals.astype("Int64")
         if t == "decimal":
-            return pd.to_numeric(_clean_numeric(series), errors="coerce")
+            vals, _ = parse_numeric_series(series)
+            return vals
         if t == "percentage":
-            cleaned = (series.astype(str).str.replace("%", "", regex=False))
-            return pd.to_numeric(_clean_numeric(cleaned), errors="coerce") / 100.0
+            cleaned = series.astype(str).str.replace("%", "", regex=False)
+            vals, _ = parse_numeric_series(cleaned)
+            return vals / 100.0
         if t == "currency":
             cleaned = series.astype(str)
             for sym in _CURRENCY_SYMBOLS:
                 cleaned = cleaned.str.replace(sym, "", regex=False)
             for code in _CURRENCY_CODES:
                 cleaned = cleaned.str.replace(rf"\b{code}\b", "", regex=True)
-            return pd.to_numeric(_clean_numeric(cleaned), errors="coerce")
+            vals, _ = parse_numeric_series(cleaned)
+            return vals
         if t in ("date", "datetime"):
             s = series.astype(str).str.strip()
             s = s.where(~s.str.lower().isin(_JUNK_TOKENS), other=pd.NA)

@@ -23,6 +23,13 @@ from pydantic import BaseModel
 
 import models  # type: ignore
 
+from context.type_inference import (  # type: ignore
+    PARSE_MODES,
+    PARSE_STATUS_OK,
+    parse_numeric_series,
+    to_numeric_canonical as _canonical,
+)
+
 from . import aggregation as agg
 from ._json import jsonify
 from .auth import get_current_user, get_db_session
@@ -91,6 +98,7 @@ async def get_field_meta(
             "agg_labels": agg.AGG_LABELS,
             "roles": list(agg.ROLES),
             "format_kinds": list(agg.FORMAT_KINDS),
+            "parse_modes": list(PARSE_MODES),
         },
     })
 
@@ -105,6 +113,10 @@ class FieldMetaUpdate(BaseModel):
     description: str | None = None
     visible: bool | None = None
     sort_by: str | None = None
+    # Per-column override that forces the canonical numeric parser into
+    # a specific locale interpretation (auto / decimal_point /
+    # decimal_comma / thousands_comma / thousands_dot / mixed_smart).
+    parse_mode: str | None = None
 
 
 class FieldMetaPatch(BaseModel):
@@ -135,6 +147,12 @@ async def patch_field_meta(
                 raise HTTPException(400, f"Invalid role '{v}' for column '{col}'")
             if k == "format_kind" and v not in agg.FORMAT_KINDS:
                 raise HTTPException(400, f"Invalid format_kind '{v}' for column '{col}'")
+            if k == "parse_mode" and v not in PARSE_MODES:
+                raise HTTPException(
+                    400,
+                    f"Invalid parse_mode '{v}' for column '{col}'."
+                    f" Allowed: {', '.join(PARSE_MODES)}",
+                )
             existing[k] = v
         overrides[col] = existing
     _save_meta(db, record, overrides)
@@ -155,6 +173,143 @@ async def reset_field_meta(
     overrides.pop(column, None)
     _save_meta(db, record, overrides)
     return jsonify({"dataset_id": dataset_id, "column": column, "reset": True})
+
+
+# ---------------------------------------------------------------------------
+# Reconciliation view — raw vs canonical-parsed numbers
+# ---------------------------------------------------------------------------
+
+@router.get("/{dataset_id}/reconciliation")
+async def reconciliation(
+    dataset_id: int,
+    column: str | None = None,
+    sample: int = 25,
+    user=Depends(get_current_user),
+    db=Depends(get_db_session),
+):
+    """Return a side-by-side view of raw vs parsed numeric columns.
+
+    The shape is intentionally compact so the UI can render it inside
+    the existing pivot ``calc_trace`` panel without new components::
+
+        {
+          "dataset_id": 7,
+          "columns": [
+            {
+              "column": "DMBTR",
+              "parse_mode": "auto",
+              "total_rows": 1200, "valid_rows": 1200,
+              "invalid_rows": 0, "null_rows": 0,
+              "raw_sum": null, "parsed_sum": 4241288.49,
+              "min": 107.22, "max": 9977.0,
+              "samples": [{"row": 0, "raw": "1,583", "parsed": 1583.0,
+                           "status": "ok"}, ...],
+              "excluded": [{"row": 42, "raw": "ERROR",
+                            "status": "null_token"}, ...],
+              "duplicates_in_raw": 18
+            }, ...
+          ]
+        }
+    """
+    record, df = _require_dataset(db, dataset_id, user.id)
+    meta = _resolved_meta(record, df)
+    sample = max(1, min(int(sample or 25), 200))
+
+    if column:
+        targets = [column] if column in df.columns else []
+    else:
+        # Default to every column that the engine considers a measure
+        # (or whose name reads like an amount).  This keeps the response
+        # bounded while still surfacing every numeric column the user
+        # actually relies on for totals.
+        targets = [
+            c for c, m in meta.items()
+            if (m or {}).get("role") == "measure"
+        ]
+
+    cols_out: list[dict[str, Any]] = []
+    for col in targets:
+        if col not in df.columns:
+            continue
+        m = meta.get(col) or {}
+        mode = (m.get("parse_mode") or "auto")
+        raw = df[col]
+        parsed, status = parse_numeric_series(raw, mode=mode)
+        ok_mask = status == PARSE_STATUS_OK
+        bad_mask = ~ok_mask
+
+        # `raw_sum` is *intentionally* computed with the legacy
+        # `pd.to_numeric` path — it exists to expose what naive
+        # pre-canonical-parser code would have summed so the
+        # reconciliation view can show the diff side-by-side with
+        # `parsed_sum`.  Replacing this with the canonical parser would
+        # make the two columns always equal and erase the whole point
+        # of the reconciliation diagnostic.  This is the only
+        # `pd.to_numeric` call left in the BI surface and it is
+        # diagnostic-only, never feeding aggregation/pivot/KPI/chat.
+        #
+        # We deliberately compute it for *every* dtype (not just
+        # already-numeric).  Object-typed mixed-locale amount columns
+        # are the headline failure class — restricting `raw_sum` to
+        # numeric dtypes would hide the diff in exactly the cases
+        # users care about.  `pd.to_numeric(errors="coerce")` silently
+        # NaN-drops mixed-locale strings, which is the legacy bug
+        # behaviour we want to surface.
+        raw_sum: float | None = None
+        try:
+            raw_sum = float(
+                pd.to_numeric(raw, errors="coerce").sum(skipna=True)
+            )
+        except Exception:
+            raw_sum = None
+
+        def _row_payload(label: Any) -> dict[str, Any]:
+            rv = raw.at[label]
+            pv = parsed.at[label]
+            return {
+                "row": int(label) if hasattr(label, "__int__") else str(label),
+                "raw": None if pd.isna(rv) else str(rv),
+                "parsed": None if pd.isna(pv) else float(pv),
+                "status": str(status.at[label]),
+            }
+
+        sample_rows = [_row_payload(i) for i in raw.head(sample).index]
+        excluded: list[dict[str, Any]] = []
+        if bad_mask.any():
+            for label in raw[bad_mask].head(sample).index:
+                excluded.append({
+                    "row": int(label) if hasattr(label, "__int__") else str(label),
+                    "raw": (None if pd.isna(raw.at[label])
+                            else str(raw.at[label])),
+                    "status": str(status.at[label]),
+                })
+
+        try:
+            duplicates = int(int(len(raw)) - int(raw.nunique(dropna=True)))
+        except Exception:
+            duplicates = 0
+
+        parsed_ok = parsed[ok_mask]
+        cols_out.append({
+            "column": col,
+            "parse_mode": mode,
+            "total_rows": int(len(raw)),
+            "valid_rows": int(ok_mask.sum()),
+            "invalid_rows": int(bad_mask.sum()),
+            "null_rows": int((status == "null_token").sum()),
+            "raw_sum": raw_sum,
+            "parsed_sum": (float(parsed_ok.sum()) if not parsed_ok.empty else None),
+            "min": (float(parsed_ok.min()) if not parsed_ok.empty else None),
+            "max": (float(parsed_ok.max()) if not parsed_ok.empty else None),
+            "samples": sample_rows,
+            "excluded": excluded,
+            "duplicates_in_raw": duplicates,
+        })
+
+    return jsonify({
+        "dataset_id": dataset_id,
+        "columns": cols_out,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -227,10 +382,10 @@ def _detect_fanout(df: pd.DataFrame, meta: dict[str, dict[str, Any]]) -> list[di
     ]
     if not dim_cols:
         return out
-    base_sums = {m: float(pd.to_numeric(df[m], errors="coerce").sum()) for m in measures}
+    base_sums = {m: float(_canonical(df[m]).sum()) for m in measures}
     for d in dim_cols:
         try:
-            grouped = df.groupby(d, dropna=False).agg({m: lambda s: pd.to_numeric(s, errors="coerce").sum() for m in measures})
+            grouped = df.groupby(d, dropna=False).agg({m: lambda s: _canonical(s).sum() for m in measures})
         except Exception:
             continue
         # If joining a dim row in causes some measures to repeat

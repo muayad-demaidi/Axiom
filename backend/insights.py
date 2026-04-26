@@ -12,6 +12,12 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from context.type_inference import (  # type: ignore
+    PARSE_STATUS_OK,
+    parse_numeric_series,
+    to_numeric_canonical as _canonical_num,
+)
+
 
 # ---------------------------------------------------------------------------
 # Profile
@@ -38,7 +44,7 @@ def build_profile(df: pd.DataFrame) -> dict[str, Any]:
             "unique": int(s.nunique(dropna=True)),
         }
         if pd.api.types.is_numeric_dtype(s):
-            x = pd.to_numeric(s, errors="coerce").dropna()
+            x = _canonical_num(s).dropna()
             if not x.empty:
                 col.update(
                     {
@@ -141,6 +147,45 @@ def surprise_insights(df: pd.DataFrame, max_items: int = 8) -> list[dict[str, An
             }
         )
 
+    # 2b. Numeric parsing diagnostics — flag amount-like columns where
+    # the canonical parser had to drop rows (mixed-locale strings, junk
+    # tokens like "ERROR" / "NaN", trailing units) so the chat answer
+    # can quote the parser verdict instead of pretending all rows were
+    # summed.  This is the long-tail of the DMBTR/GJAHR pivot bug.
+    _AMT_HINTS = (
+        "amount", "amt", "value", "total", "cost", "expense", "spend",
+        "revenue", "sales", "profit", "margin", "balance", "price",
+        "dmbtr", "wrbtr", "kbetr", "netwr", "brtwr", "mwsts", "btr",
+    )
+    for col in df.columns:
+        cname = str(col)
+        ln = cname.lower()
+        if not any(h in ln for h in _AMT_HINTS):
+            continue
+        try:
+            _, status = parse_numeric_series(df[col])
+        except Exception:
+            continue
+        invalid = int((status != PARSE_STATUS_OK).sum())
+        if invalid <= 0:
+            continue
+        rate = round(invalid / n * 100, 1)
+        out.append({
+            "kind": "numeric_parsing",
+            "severity": "warn" if rate >= 5 else "info",
+            "headline": (
+                f"{cname}: {invalid:,} rows ({rate}%) excluded by the"
+                " canonical numeric parser"
+            ),
+            "subtitle": (
+                "Junk tokens (NaN/ERROR/blank/unparseable) won't be"
+                " counted in totals. Open the calc trace for samples,"
+                " or override parse_mode if the locale is wrong."
+            ),
+            "column": cname,
+            "value": invalid,
+        })
+
     # 3. Strong correlations between numeric pairs
     numeric = df.select_dtypes(include="number")
     if numeric.shape[1] >= 2:
@@ -188,7 +233,7 @@ def surprise_insights(df: pd.DataFrame, max_items: int = 8) -> list[dict[str, An
         v_col, k_col = pareto_cands[0], cat_cands[0]
         try:
             grp = (
-                pd.to_numeric(df[v_col], errors="coerce")
+                _canonical_num(df[v_col])
                 .groupby(df[k_col].astype(str)).sum()
                 .sort_values(ascending=False)
             )
@@ -215,7 +260,7 @@ def surprise_insights(df: pd.DataFrame, max_items: int = 8) -> list[dict[str, An
 
     # 5. Outlier hot column (z-score)
     for c in numeric.columns[:6]:
-        x = pd.to_numeric(df[c], errors="coerce").dropna()
+        x = _canonical_num(df[c]).dropna()
         if x.size < 8 or x.std() == 0:
             continue
         z = ((x - x.mean()) / x.std()).abs()

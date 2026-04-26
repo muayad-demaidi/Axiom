@@ -29,6 +29,7 @@ from pydantic import BaseModel
 import models  # type: ignore
 import ai_assistant  # type: ignore
 import semantic_model as sm  # type: ignore
+from context.type_inference import to_numeric_canonical as _canonical_num  # type: ignore
 
 from .auth import get_current_user, get_db_session
 from .insights import build_profile, surprise_insights, suggested_questions
@@ -440,6 +441,9 @@ def _run_make_chart(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
         "aggregation": payload.get("aggregation"),
         "y_label": payload.get("y_label"),
         "warnings": payload.get("warnings") or [],
+        "calc_trace": payload.get("calc_trace") or [],
+        "blocked": bool(payload.get("blocked")),
+        "error": payload.get("error"),
         "points_count": len(payload.get("points") or payload.get("matrix") or []),
     }
     return summary, [_artifact_view(a)]
@@ -499,7 +503,7 @@ def _compute_chart_payload(df: pd.DataFrame, chart: str,
 
     if chart == "histogram":
         col = _ensure(x or y)
-        s = pd.to_numeric(df[col], errors="coerce").dropna()
+        s = _canonical_num(df[col]).dropna()
         if s.empty:
             raise ValueError(f"column '{col}' has no numeric values")
         h, edges = np.histogram(s, bins=max(2, min(bins, 50)))
@@ -527,7 +531,7 @@ def _compute_chart_payload(df: pd.DataFrame, chart: str,
             raise ValueError("no numeric columns available for box plot")
         pts = []
         for c in cols:
-            s = pd.to_numeric(df[c], errors="coerce").dropna()
+            s = _canonical_num(df[c]).dropna()
             if s.empty:
                 continue
             q1, m, q3 = (float(s.quantile(q)) for q in (0.25, 0.5, 0.75))
@@ -538,7 +542,8 @@ def _compute_chart_payload(df: pd.DataFrame, chart: str,
             })
         return {"chart": "box", "points": pts}
     if chart == "heatmap":
-        nd = df.select_dtypes(include="number")
+        from . import aggregation as _agg
+        nd = _agg.numeric_frame_for_correlation(df)
         if nd.shape[1] > 12:
             nd = nd.iloc[:, :12]
         if nd.shape[1] < 2:
@@ -564,8 +569,8 @@ def _compute_chart_payload(df: pd.DataFrame, chart: str,
     yc = _ensure(y)
     if chart == "scatter":
         pair = pd.DataFrame({"x": df[xc].values, "y": df[yc].values}).dropna()
-        px = pd.to_numeric(pair["x"], errors="coerce")
-        py = pd.to_numeric(pair["y"], errors="coerce")
+        px = _canonical_num(pair["x"])
+        py = _canonical_num(pair["y"])
         sub = pd.DataFrame({"x": px, "y": py}).dropna()
         if sub.empty:
             raise ValueError("scatter needs numeric x and y")
@@ -612,6 +617,10 @@ def _compute_chart_payload(df: pd.DataFrame, chart: str,
         rows = result["rows"][:max_pts]
         m0 = result["measures"][0] if result["measures"] else {}
         warnings = list(dict.fromkeys((pre or []) + (result.get("warnings") or [])))
+        # Pull the calc trace for the measure column so the chart-level
+        # explainer can cite parser diagnostics (valid_rows, parse_mode,
+        # implied per-row magnitude) the same way the pivot table does.
+        calc_trace = result.get("calc_trace") or []
         return {
             "chart": chart, "x": xc, "y": yc,
             "y_label": m0.get("label") or yc,
@@ -623,6 +632,9 @@ def _compute_chart_payload(df: pd.DataFrame, chart: str,
             ],
             "warnings": warnings,
             "grand_total": result.get("grand_total", {}).get("m0"),
+            "calc_trace": calc_trace,
+            "blocked": bool(result.get("blocked")),
+            "error": result.get("error"),
         }
     raise ValueError(f"unknown chart '{chart}'")
 

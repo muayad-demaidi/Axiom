@@ -20,6 +20,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from context.type_inference import to_numeric_canonical as _canonical_num  # type: ignore
+
 # --------------------------------------------------------------------------
 # Add Column from Examples
 # --------------------------------------------------------------------------
@@ -99,19 +101,32 @@ def _apply_examples_op(df: pd.DataFrame, source_columns: List[str], op: str,
 
     if op == "arithmetic":
         operator = op_params.get("operator", "+")
-        a = pd.to_numeric(df[cols[0]], errors="coerce")
-        b = pd.to_numeric(df[cols[1]], errors="coerce") if len(cols) > 1 else None
+        a = _canonical_num(df[cols[0]])
+        b = _canonical_num(df[cols[1]]) if len(cols) > 1 else None
         if b is None:
             return a
         if operator == "+":
-            return a + b
-        if operator == "-":
-            return a - b
-        if operator == "*":
-            return a * b
-        if operator == "/":
-            return a / b
-        return a
+            result = a + b
+        elif operator == "-":
+            result = a - b
+        elif operator == "*":
+            result = a * b
+        elif operator == "/":
+            result = a / b
+        else:
+            result = a
+        # The canonical parser always yields ``float64`` for safety
+        # against mixed-locale strings.  When the inputs were integer-
+        # like and the result has no fractional part, cast back to a
+        # nullable Int64 so ``str(11.0)`` does not surprise downstream
+        # comparisons (e.g. example-driven inference where the user
+        # typed ``"11"``).
+        try:
+            if result.notna().all() and (result == result.round()).all():
+                return result.astype("Int64")
+        except Exception:
+            pass
+        return result
 
     return pd.Series([None] * len(df), index=df.index)
 
@@ -351,7 +366,7 @@ def _eval_condition(series: pd.Series, op: str, value: Any) -> pd.Series:
         if op == "ends_with":
             return s.str.endswith(v, na=False)
         # Numeric comparators
-        num = pd.to_numeric(series, errors="coerce")
+        num = _canonical_num(series)
         try:
             target = float(value)
         except (TypeError, ValueError):

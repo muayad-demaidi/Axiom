@@ -19,6 +19,8 @@ from data_cleaner import clean_data  # type: ignore
 from data_analyzer import generate_summary_report  # type: ignore
 from predictions import simple_forecast  # type: ignore
 
+from context.type_inference import to_numeric_canonical as _canonical_num  # type: ignore
+
 from . import aggregation as agg
 from ._json import jsonify
 from .auth import get_current_user, get_db_session
@@ -127,7 +129,7 @@ async def predict(req: PredictRequest, user=Depends(get_current_user), db=Depend
     _, df = _require_dataset(db, req.dataset_id, user.id)
     if req.column not in df.columns:
         raise HTTPException(400, f"Column '{req.column}' not in dataset")
-    series = pd.to_numeric(df[req.column], errors="coerce").dropna().tolist()
+    series = _canonical_num(df[req.column]).dropna().tolist()
     if len(series) < 3:
         raise HTTPException(400, "Need at least 3 numeric points to forecast")
     return jsonify({"column": req.column, "forecast": simple_forecast(series, periods=req.periods)})
@@ -238,7 +240,7 @@ async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=De
 
     if chart == "histogram":
         col = _ensure(req.x or req.y)
-        series = pd.to_numeric(df[col], errors="coerce").dropna()
+        series = _canonical_num(df[col]).dropna()
         if series.empty:
             raise HTTPException(400, f"Column '{col}' has no numeric values")
         h, edges = np.histogram(series, bins=max(2, min(req.bins, 50)))
@@ -270,7 +272,7 @@ async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=De
             raise HTTPException(400, "No numeric columns available for a box plot")
         points = []
         for col in numeric_cols:
-            series = pd.to_numeric(df[col], errors="coerce").dropna()
+            series = _canonical_num(df[col]).dropna()
             if series.empty:
                 continue
             q1, median, q3 = (float(series.quantile(q)) for q in (0.25, 0.5, 0.75))
@@ -288,7 +290,9 @@ async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=De
         return jsonify({"chart": "box", "points": points})
 
     if chart == "heatmap":
-        numeric_df = df.select_dtypes(include="number")
+        # Route through the canonical numeric view so mixed-locale
+        # amount columns (object dtype) are not silently excluded.
+        numeric_df = agg.numeric_frame_for_correlation(df)
         # Cap to 12 columns so the matrix stays readable in the UI.
         if numeric_df.shape[1] > 12:
             numeric_df = numeric_df.iloc[:, :12]
@@ -308,8 +312,8 @@ async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=De
     pair = pd.DataFrame({"x": x_series.values, "y": y_series.values}).dropna()
 
     if chart == "scatter":
-        pair_x = pd.to_numeric(pair["x"], errors="coerce")
-        pair_y = pd.to_numeric(pair["y"], errors="coerce")
+        pair_x = _canonical_num(pair["x"])
+        pair_y = _canonical_num(pair["y"])
         sub = pd.DataFrame({"x": pair_x, "y": pair_y}).dropna()
         if sub.empty:
             raise HTTPException(400, f"Scatter needs numeric values in both '{x}' and '{y}'")
@@ -321,7 +325,7 @@ async def visualize(req: VisualizeRequest, user=Depends(get_current_user), db=De
     if chart in ("bar", "line"):
         if pair.empty:
             raise HTTPException(400, "No rows to plot after dropping nulls")
-        y_numeric = pd.to_numeric(pair["y"], errors="coerce")
+        y_numeric = _canonical_num(pair["y"])
         # For bar with both axes categorical, fall back to a frequency
         # bar chart of X (no measure metadata to drive a sum).
         if chart == "bar" and not y_numeric.notna().any():

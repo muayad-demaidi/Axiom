@@ -742,6 +742,79 @@ def test_bi_pivot_endpoint(client, project, upload_dataset,
     assert isinstance(body["measures"], list)
 
 
+def test_bi_pivot_dmbtr_parity_kpi_pivot_canonical(
+    client, project, upload_dataset
+):
+    """End-to-end parity for Task #231: SUM(DMBTR) returned by the
+    pivot endpoint (group by GJAHR, plus the KPI rollup) must equal
+    the canonical-parser sum of the same column on the same uploaded
+    bytes. Locks the fix in at the HTTP boundary, not just the unit
+    boundary."""
+    import math
+    from pathlib import Path
+
+    import pandas as pd
+
+    from context.type_inference import to_numeric_canonical
+
+    csv_path = Path(
+        "attached_assets/acdoca_dirty_1200_rows_1777196337943.csv"
+    )
+    csv_bytes = csv_path.read_bytes()
+
+    u, pid = project("dmbtr_parity")
+    dsid = upload_dataset(u["headers"], pid, "acdoca_dirty", csv_bytes)
+
+    # Ground truth: canonical parser sum on the raw bytes.
+    canonical_sum = float(
+        to_numeric_canonical(pd.read_csv(csv_path)["DMBTR"]).sum(skipna=True)
+    )
+
+    # KPI: SUM(DMBTR) with no grouping.
+    r = client.post(
+        "/api/bi/pivot",
+        json={
+            "dataset_id": dsid, "rows": [], "cols": [],
+            "measures": [{"column": "DMBTR", "aggregation": "sum"}],
+        },
+        headers=u["headers"],
+    )
+    assert r.status_code == 200 and _is_json(r), r.text
+    kpi_body = r.json()
+    assert not kpi_body.get("blocked"), kpi_body
+    kpi_total = float(kpi_body["rows"][0]["m0"])
+
+    # Pivot: SUM(DMBTR) GROUP BY GJAHR — grand total must match KPI.
+    r = client.post(
+        "/api/bi/pivot",
+        json={
+            "dataset_id": dsid, "rows": ["GJAHR"], "cols": [],
+            "measures": [{"column": "DMBTR", "aggregation": "sum"}],
+            "include_grand_total": True,
+        },
+        headers=u["headers"],
+    )
+    assert r.status_code == 200 and _is_json(r), r.text
+    pivot_body = r.json()
+    assert not pivot_body.get("blocked"), pivot_body
+    pivot_total = float(
+        (pivot_body.get("grand_total") or {}).get("m0") or 0.0
+    )
+
+    # All three numbers must agree to the cent.
+    assert math.isclose(kpi_total, canonical_sum, abs_tol=0.01), (
+        f"KPI {kpi_total} != canonical {canonical_sum}"
+    )
+    assert math.isclose(pivot_total, canonical_sum, abs_tol=0.01), (
+        f"Pivot grand total {pivot_total} != canonical {canonical_sum}"
+    )
+
+    # And calc_trace must be present on the pivot result so the UI can
+    # render it.
+    assert "calc_trace" in pivot_body, pivot_body
+    assert pivot_body["calc_trace"], pivot_body["calc_trace"]
+
+
 def test_bi_explain_and_dashboard_get(client, project, upload_dataset,
                                       driver_regression_csv):
     u, pid = project("dash")

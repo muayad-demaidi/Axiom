@@ -53,7 +53,14 @@ _MEASURE_HINT_TOKENS = ("amount", "amt", "revenue", "price", "cost",
                         "qty", "quantity", "count", "total", "sum",
                         "value", "spend", "budget", "actual", "sales",
                         "profit", "margin", "kpi", "rate", "ratio",
-                        "score", "balance", "fee")
+                        "score", "balance", "fee",
+                        # SAP / ERP amount fields — kept in sync with
+                        # backend.aggregation._ADDITIVE_MEASURE_KEYWORDS
+                        # so the semantic model and the BI engine agree
+                        # on what counts as a measure.
+                        "dmbtr", "wrbtr", "kbetr", "netwr", "brtwr",
+                        "mwsts", "umrsl", "hwbas", "fwbas", "skfbt",
+                        "wmwst", "btr")
 
 
 def _name_has_token(name: str, tokens: Iterable[str]) -> bool:
