@@ -1,5 +1,5 @@
 ........................................................................ [ 35%]
-.............FMANUAL_REVIEW_REQUIRED: frontend component tests — no React test runner (Jest/Vitest/Playwright) is configured in frontend/package.json. The following components ship to users and need direct coverage once a runner is wired up:
+..............MANUAL_REVIEW_REQUIRED: frontend component tests — no React test runner (Jest/Vitest/Playwright) is configured in frontend/package.json. The following components ship to users and need direct coverage once a runner is wired up:
   - src/components/product/AppChrome.tsx — top-level shell + auth/route guards
   - src/components/product/ProjectWorkspace.tsx — project page state machine (datasets ↔ chats ↔ artifacts)
   - src/components/product/ChatPanel.tsx — POST /api/chat/stream NDJSON consumer — handles tool_started/tool_finished/text/done events and re-renders on each frame
@@ -20,11 +20,6 @@
   - src/app/app (data-model page) — drives PATCH/POST/PUT calls against /api/projects/<pid>/data-model
 .......................................................... [ 71%]
 ..........................................................               [100%]
-=================================== FAILURES ===================================
-E   AssertionError: 500 body was not JSON; content-type=text/plain; charset=utf-8
-    assert False
-     +  where False = _is_json(<Response [500 Internal Server Error]>)
-/home/runner/workspace/tests/test_error_handling.py:233: AssertionError: 500 body was not JSON; content-type=text/plain; charset=utf-8
 =============================== warnings summary ===============================
 models.py:17
   /home/runner/workspace/models.py:17: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
@@ -49,4 +44,4 @@ tests/test_units_analysis.py::test_suggested_questions_tailors_output_to_datafra
     parsed = pd.to_datetime(sample, errors="coerce")
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-1 failed, 201 passed, 13 warnings in 60.04s (0:01:00)
+202 passed, 13 warnings in 67.54s (0:01:07)

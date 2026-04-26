@@ -1,0 +1,132 @@
+Add complete frontend and E2E test coverage to Axiom. The backend already has
+202/202 passing tests. This task adds everything that's currently
+MANUAL_REVIEW_REQUIRED plus Tahleel and performance tests.
+
+## What to install
+
+In frontend/:
+  npm install -D vitest @vitejs/plugin-react @testing-library/react \
+    @testing-library/user-event @testing-library/jest-dom \
+    @playwright/test msw happy-dom
+
+In root:
+  pip install locust --break-system-packages
+
+## Step 1 — Vitest config
+
+Create frontend/vitest.config.ts:
+  - environment: happy-dom
+  - setupFiles: src/tests/setup.ts
+  - globals: true
+  - coverage provider: v8, reporter: text + json
+
+Create frontend/src/tests/setup.ts:
+  - import @testing-library/jest-dom
+  - mock next/navigation (useRouter, useSearchParams, usePathname)
+  - mock next/image
+  - global fetch mock that returns { ok: true, json: () => ({}) }
+
+## Step 2 — MSW API mocks
+
+Create frontend/src/tests/mocks/handlers.ts with realistic mock responses for:
+  GET  /api/datasets          → [{ id:1, filename:"sales.csv", row_count:100 }]
+  GET  /api/projects          → [{ id:1, name:"Test Project" }]
+  GET  /api/projects/1/data-model → bundle with 2 tables + 1 relationship + 1 question
+  GET  /api/chats/1/artifacts → artifacts array with all kinds
+  POST /api/datasets/upload   → { id: 1 }
+  POST /api/chats             → { id: 1, session_id: 1 }
+
+## Step 3 — Component tests (one file per component)
+
+### frontend/src/tests/components/ArtifactDrawer.test.tsx
+- Renders all 5 tabs: Profile, Visualize, Predictions, Clusters, Data model
+- "Data model" tab is HIDDEN when project has < 2 datasets (showDataModelTab=false)
+- "Data model" tab is VISIBLE when project has ≥ 2 datasets
+- Clicking a tab shows the correct content panel
+- Pending tool shows skeleton with correct Arabic/English loading text
+- PredictionCard renders inside Predictions tab when artifact kind=prediction
+- DataModelBody renders inside Data model tab when artifact kind=data_model
+
+### frontend/src/tests/components/PredictionCard.test.tsx
+- Renders confidence gauge with correct percentage (68%)
+- Gauge color is green when score ≥ 70, yellow when 40-69, red when < 40
+- Conditional prediction line renders: "إذا قمت بـ X ← نتوقع Y"
+- Arabic recommendations list renders all 3 items
+- Confidence explanation text is visible
+
+### frontend/src/tests/components/DataModelBody.test.tsx
+- Renders tables list with role badges (Fact, Dimension, Summary, Bridge)
+- Role dropdown calls PATCH /api/projects/1/data-model/tables/1 on change
+- Relationships section shows Confirm / Reject / Reset buttons
+- Confirm button calls PATCH with { status: "confirmed" }
+- Reject button calls PATCH with { status: "rejected" }
+- Reset button disabled when status is already "proposed"
+- Suspicious columns show warning chip ⚠
+- "Refresh" button calls POST /api/projects/1/data-model/refresh
+
+### frontend/src/tests/components/OpenQuestionsBar.test.tsx
+- Hidden when project has < 2 datasets (enoughDatasets=false)
+- Hidden when questions array is empty
+- Visible with question buttons when ≥ 2 datasets + open questions exist
+- Clicking a question button calls onAskQuestion with the question prompt
+- Max 6 questions rendered even if API returns more
+
+### frontend/src/tests/components/QuestionRow.test.tsx
+- Renders question prompt text
+- Option buttons render for questions with options array
+- Clicking option calls onAnswer with { status:"answered", answer:{value,label} }
+- "Dismiss" button calls onAnswer with { status:"dismissed" }
+- "Write an answer" toggle shows textarea
+- Submit button disabled when textarea is empty
+- "Discuss in chat" button dispatches axiom:chat:prefill window event
+
+### frontend/src/tests/components/ChatPanel.test.tsx
+- Renders message list
+- Submit button disabled when input is empty
+- Pressing Enter sends the message
+- Streaming response renders tokens progressively (mock SSE)
+- Tool skeleton appears when pendingTools is non-empty
+
+### frontend/src/tests/components/DataContextBar.test.tsx
+- Shows dataset name and row count
+- Shows "Tahleel يعمل…" when tahleel run is in progress
+- Shows "Fitting prediction model…" for predict_column pending
+
+## Step 4 — Playwright E2E tests
+
+Create frontend/playwright.config.ts:
+  - baseURL: http://localhost:3000
+  - webServer: { command: "npm run dev", port: 3000 }
+  - use: { locale: "ar", timezoneId: "Asia/Riyadh" }
+  - testDir: src/tests/e2e
+
+### frontend/src/tests/e2e/auth.spec.ts
+- User can register with email + password
+- User can log in and sees the workspace
+- Invalid credentials shows Arabic error message
+- Protected route redirects to login when no token
+
+### frontend/src/tests/e2e/upload_and_analyze.spec.ts
+- User uploads sales CSV → profile artifact appears in drawer
+- Profile tab shows row count, column names, dtypes
+- User types "show me a chart of monthly sales" → chart artifact appears
+- User types "predict next 3 months" → prediction artifact appears in Predictions tab
+- Confidence gauge is visible with a percentage
+
+### frontend/src/tests/e2e/data_model.spec.ts
+- User uploads two CSVs (customers + orders) to same project
+- Data model tab appears in drawer
+- Proposed relationship is visible with Confirm / Reject buttons
+- User clicks Confirm → relationship status changes to "confirmed"
+- Open question appears in OpenQuestionsBar
+- User clicks question → it appears in chat input
+
+### frontend/src/tests/e2e/arabic_rtl.spec.ts
+- Page direction is RTL (document.dir === "rtl")
+- Arabic text renders without ? or garbled characters
+- Chat input accepts Arabic typing
+- Artifact drawer labels are in Arabic when locale is ar
+- Numbers in confidence gauge render as Western digits (not Arabic-Indic)
+
+### frontend/src/tests/e2e/tahleel.spec.ts (when Tahleel is built)
+- "ابدأ تحليل Tahleel" CTA visible

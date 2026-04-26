@@ -8,8 +8,9 @@ from __future__ import annotations
 import os
 import sys
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 # Make the project root importable so we can reuse existing modules without
 # moving them. This keeps the legacy Streamlit app and the FastAPI backend
@@ -62,6 +63,27 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch any unhandled exception and return the documented JSON envelope.
+
+    The frontend's error-toast pipeline reads ``response.json().error`` for
+    the displayed title and ``response.json().detail`` for the body, so any
+    500-class response that escapes a route handler must include BOTH keys.
+    FastAPI's built-in handlers for HTTPException and RequestValidationError
+    are more specific and continue to take precedence — this only catches
+    truly uncaught exceptions that would otherwise produce a text/plain
+    "Internal Server Error" body.
+    """
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": type(exc).__name__,
+            "detail": str(exc) or "Internal Server Error",
+        },
+    )
 
 
 @app.get("/api/health")

@@ -2,14 +2,13 @@
 ==============================================================================
 AXIOM consolidated test report (Task #219)
 ==============================================================================
-  total=202  passed=201  failed=1  errors=0  skipped=0  duration=60.03s
+  total=202  passed=202  failed=0  errors=0  skipped=0  duration=67.53s
 
 Failures:
-  - tests/test_error_handling.py:233  (tests/test_error_handling.py::test_500_envelope_is_documented_shape)
-      AssertionError: 500 body was not JSON; content-type=text/plain; charset=utf-8
+  (none)
 
 Broken endpoints / components:
-  - ALL endpoints (500 JSON envelope)  ←  tests/test_error_handling.py:233
+  (none — every endpoint and component test passed)
 
 Manual-review flags:
   - MANUAL_REVIEW_REQUIRED: POST/GET /api/reports as a CRUD resource — no such endpoint exists. The report surface is split across GET /api/chats/{sid}/report (rendered envelope), POST /api/chats/{sid}/report.pdf (covered in tests/test_artifacts_api.py), POST /api/report/pdf (covered in tests/test_api_endpoints.py), and GET /api/reports/recent (covered above). If a unified /api/reports CRUD is intended, it must be added to backend/main.py and covered here
