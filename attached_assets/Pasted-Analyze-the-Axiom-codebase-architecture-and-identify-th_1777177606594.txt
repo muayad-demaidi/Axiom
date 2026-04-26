@@ -1,0 +1,116 @@
+Analyze the Axiom codebase architecture and identify the root causes 
+of slow navigation between pages. Do not fix anything yet — only investigate 
+and report.
+
+## What to examine
+
+### 1. Frontend data fetching
+Read these files completely:
+  frontend/src/lib/workspaceCache.ts
+  frontend/src/lib/projectContext.ts
+  frontend/src/lib/modeContext.tsx
+  frontend/src/lib/api.ts
+
+Answer:
+- How is data fetched? (SWR, useEffect, on-mount, on-navigation?)
+- Is there a cache? What is the stale time?
+- When the user switches projects, what gets re-fetched?
+- Are there any waterfall requests? (fetch A, wait, then fetch B)
+- Are there any requests fired on every render?
+
+### 2. Component re-render audit
+Read these files:
+  frontend/src/components/product/ProjectWorkspace.tsx
+  frontend/src/components/product/ProductSidebar.tsx
+  frontend/src/components/product/ChatPanel.tsx
+  frontend/src/components/product/ArtifactDrawer.tsx
+
+Answer:
+- Which components have no React.memo?
+- Which props are inline objects/arrays? (these break memoization)
+- Which useEffect hooks have missing or wrong dependencies?
+- How many components re-render when the user switches tabs?
+
+### 3. Bundle size audit
+Read:
+  frontend/next.config.mjs
+  frontend/package.json
+
+Run:
+  cd frontend && npx next build 2>&1 | tail -50
+
+Answer:
+- What is the total JS bundle size for /app?
+- Are there any heavy libraries imported at the top level that 
+  should be lazy-loaded? (PDF, chart libraries, etc.)
+- Is code splitting configured?
+
+### 4. Backend query audit
+Read these files:
+  backend/projects.py
+  backend/datasets.py
+  backend/chats.py
+  models.py
+
+Answer:
+- Are there any N+1 query patterns? (loop with a DB call inside)
+- Are the hot columns indexed? Check:
+    Project.user_id
+    DatasetRecord.project_id
+    ChatSession.project_id
+    ChatMessage.session_id
+    ChatArtifact.session_id
+- Do list endpoints return full objects including heavy fields 
+  (summary_stats, message bodies, artifact contents)?
+- Is GZip compression enabled in backend/main.py?
+
+### 5. Navigation pattern
+Read:
+  frontend/src/app/app/layout.tsx
+  frontend/src/app/app/project/[id]/page.tsx
+  frontend/src/app/app/projects/page.tsx
+
+Answer:
+- Does navigation trigger a full page reload or client-side routing?
+- Is there any data prefetching on hover/link?
+- Does switching projects unmount and remount heavy components?
+- Are there any blocking operations before the page renders?
+
+---
+
+## Output format
+
+Print this exact report when done:
+
+=== AXIOM PERFORMANCE INVESTIGATION ===
+
+VERDICT: [FRONTEND-HEAVY / BACKEND-HEAVY / BOTH / UNCLEAR]
+
+ROOT CAUSES (ranked by impact, highest first):
+1. [cause] — [file:line] — estimated impact: HIGH/MEDIUM/LOW
+2. ...
+
+FRONTEND ISSUES:
+- Cache: [describe caching behavior and gaps]
+- Re-renders: [which components, triggered by what]
+- Bundle: [size, heavy imports, splitting status]
+- Waterfall requests: [yes/no, describe]
+
+BACKEND ISSUES:
+- N+1 queries: [yes/no, where exactly]
+- Missing indexes: [list columns]
+- Heavy payloads: [yes/no, which endpoints]
+- Compression: [enabled/disabled]
+
+NAVIGATION PATTERN:
+- Type: [client-side / full reload / mixed]
+- Prefetching: [yes/no]
+- On project switch: [what happens exactly]
+
+QUICK WINS (fixes under 30 minutes each):
+- [fix] → [file] → [expected impact]
+
+NEEDS DEEPER WORK:
+- [issue] → [why it's complex]
+
+Do not make any changes. Investigation only.
