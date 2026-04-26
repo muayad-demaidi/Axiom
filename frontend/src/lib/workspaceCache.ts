@@ -91,7 +91,34 @@ export function subscribeCached(key: string, fn: Listener): () => void {
  * Pass `enabled: false` (or a null key) to skip the fetch entirely —
  * useful when the screen is auth-gated and we haven't decided yet.
  */
-const DEFAULT_STALE_MS = 5000;
+// Conservative default: a 12s window absorbs the rapid double-mounts
+// caused by sidebar + workspace re-rendering at the same time and
+// near-instant route transitions while still revalidating well within
+// a session of real work. Mutations call `setCached` / `patchCached`
+// directly so longer windows never serve user-stale data after their
+// own actions — this only saves background fetches that would have
+// returned the same payload.
+const DEFAULT_STALE_MS = 12000;
+
+// Per-key overrides: anything in this map uses a longer stale window
+// than the default. The values were chosen to match how often the
+// underlying data actually changes during a normal session — the user
+// row barely ever changes, the project list changes a few times per
+// hour at most, archived projects change rarely. Caller-supplied
+// `staleMs` still wins, so individual call sites can opt back into a
+// shorter window when needed.
+const STALE_OVERRIDES: ReadonlyArray<readonly [RegExp, number]> = [
+  [/^user:/, 60_000],
+  [/^projects$/, 30_000],
+  [/^projects:archived$/, 60_000],
+];
+
+function defaultStaleFor(key: string): number {
+  for (const [pat, ms] of STALE_OVERRIDES) {
+    if (pat.test(key)) return ms;
+  }
+  return DEFAULT_STALE_MS;
+}
 
 export function useCachedList<T>(
   key: string | null,
@@ -104,7 +131,7 @@ export function useCachedList<T>(
   refresh: () => Promise<T | undefined>;
 } {
   const enabled = opts.enabled !== false && !!key;
-  const staleMs = opts.staleMs ?? DEFAULT_STALE_MS;
+  const staleMs = opts.staleMs ?? (key ? defaultStaleFor(key) : DEFAULT_STALE_MS);
   const [, force] = useState(0);
   const [error, setError] = useState<unknown>(null);
 

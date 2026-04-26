@@ -485,6 +485,32 @@ def init_db():
         # concurrent landing-page submissions.
         "CREATE UNIQUE INDEX IF NOT EXISTS ux_projects_user_quick_chats "
         "ON projects (user_id) WHERE name = 'Quick Chats'",
+        # ----------------------------------------------------------------
+        # Hot-path composite indexes (perf task #226). Each index targets
+        # a query that the workspace runs on every navigation: chat
+        # session list per project, message history per session, artifact
+        # drawer fetch per session, project list ordering on the
+        # management page, and the recent-reports panel. The previous
+        # single-column FK indexes only narrowed the WHERE; Postgres still
+        # had to do an extra sort. Composite indexes that include the
+        # ORDER BY columns let the planner walk the index in order and
+        # skip the sort, which is the dominant cost on large tables.
+        # All `IF NOT EXISTS` so older deployments and concurrent worker
+        # boots don't fight each other.
+        "CREATE INDEX IF NOT EXISTS ix_chat_sessions_project_updated "
+        "ON chat_sessions (project_id, updated_at DESC, id DESC)",
+        "CREATE INDEX IF NOT EXISTS ix_chat_history_session_ts "
+        "ON chat_history (session_id, timestamp, id)",
+        "CREATE INDEX IF NOT EXISTS ix_chat_artifacts_session_created "
+        "ON chat_artifacts (session_id, created_at DESC, id DESC)",
+        "CREATE INDEX IF NOT EXISTS ix_dataset_records_project_uploaded "
+        "ON dataset_records (project_id, upload_date DESC)",
+        "CREATE INDEX IF NOT EXISTS ix_projects_user_last_opened "
+        "ON projects (user_id, last_opened_at DESC NULLS LAST)",
+        "CREATE INDEX IF NOT EXISTS ix_reports_project_created "
+        "ON reports (project_id, created_at DESC, id DESC)",
+        "CREATE INDEX IF NOT EXISTS ix_project_learned_notes_project_created "
+        "ON project_learned_notes (project_id, created_at DESC)",
     ])
     with engine.begin() as conn:
         for stmt in _migrations:

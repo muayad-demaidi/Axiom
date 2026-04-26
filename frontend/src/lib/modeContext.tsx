@@ -21,11 +21,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { api, ApiError, getToken } from "@/lib/api";
 import type { AxiomProject, AxiomUser } from "@/lib/types";
-import { cacheKeys, setCached } from "@/lib/workspaceCache";
+import { cacheKeys, getCached, patchCached, setCached } from "@/lib/workspaceCache";
 
 export type Mode = "guided" | "expert";
 
@@ -52,6 +53,7 @@ function writeCachedProjectMode(id: number, m: Mode | null) {
   if (m == null) window.localStorage.removeItem(PROJECT_CACHE_PREFIX + id);
   else window.localStorage.setItem(PROJECT_CACHE_PREFIX + id, m);
 }
+
 
 type ModeContextValue = {
   /** User-level preferred mode (Guided by default). */
@@ -80,6 +82,39 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
     {}
   );
   const [ready, setReady] = useState(false);
+  // Lightweight rollback notice rendered inside the provider tree so it
+  // shares the React lifecycle with the rest of the app instead of
+  // being injected ad-hoc into document.body. Only used by the two
+  // mode-toggle failure paths below.
+  const [rollbackToast, setRollbackToast] = useState<string | null>(null);
+  const rollbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notifyRollback = useCallback((text: string) => {
+    setRollbackToast(text);
+    if (rollbackTimer.current) clearTimeout(rollbackTimer.current);
+    rollbackTimer.current = setTimeout(() => setRollbackToast(null), 3500);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (rollbackTimer.current) clearTimeout(rollbackTimer.current);
+    };
+  }, []);
+
+  // Refs mirror the latest state so the optimistic mutators below can
+  // capture the *current* value synchronously at function-entry — rather
+  // than relying on the closure-assignment trick inside a setState
+  // updater, which is sound but timing-sensitive under React 18
+  // concurrent rendering. Refs are written in a passive effect (post-
+  // commit), which is fine here: the mutators are fired from user-event
+  // handlers (clicks, key presses), and any commit triggered by an
+  // earlier toggle has already run by the time the next handler fires.
+  const userModeRef = useRef(userMode);
+  const projectModesRef = useRef(projectModes);
+  useEffect(() => {
+    userModeRef.current = userMode;
+  }, [userMode]);
+  useEffect(() => {
+    projectModesRef.current = projectModes;
+  }, [projectModes]);
 
   // Initial load — first synchronously rehydrate from localStorage so
   // the toggle doesn't flash "Guided" before snapping to the user's
@@ -142,6 +177,17 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setUserMode = useCallback(async (m: Mode) => {
+    // Optimistic flip: snap the toggle and persisted preference straight
+    // away so the UI never has to wait for the round-trip. If the PATCH
+    // fails (network blip, 401), roll back the local state and surface
+    // a console hint — the next page load will reconcile from the
+    // canonical /api/auth/me. We deliberately don't pop a modal here to
+    // keep the toggle non-blocking.
+    //
+    // `prevMode` is captured from a ref-mirrored snapshot of current
+    // state, so rollback always restores exactly what was on screen
+    // when the user clicked — independent of any concurrent renders.
+    const prevMode: Mode = userModeRef.current;
     setUserModeState(m);
     writeCachedUserMode(m);
     try {
@@ -149,23 +195,69 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
         method: "PATCH",
         json: { assistant_mode: m },
       });
-    } catch {
-      /* keep local state — next reload will reconcile */
+    } catch (e) {
+      setUserModeState(prevMode);
+      writeCachedUserMode(prevMode);
+      notifyRollback("Couldn't save mode preference. Reverted.");
+      if (typeof console !== "undefined") {
+        console.warn("setUserMode failed; reverted local state", e);
+      }
     }
-  }, []);
+  }, [notifyRollback]);
 
   const setProjectMode = useCallback(async (projectId: number, m: Mode) => {
+    // Optimistic per-project mode flip with rollback on failure. Also
+    // patches the cached projects list (`cacheKeys.projects()` /
+    // `cacheKeys.archivedProjects()`) so the mode pill on the projects
+    // index page snaps to the new value without a refetch.
+    //
+    // `prev` is read from `projectModesRef` (mirrors current state) so
+    // rollback restores the exact value that was visible at click time.
+    const prev: Mode | null | undefined = projectModesRef.current[projectId];
     setProjectModes((cur) => ({ ...cur, [projectId]: m }));
     writeCachedProjectMode(projectId, m);
+    const applyMode = (mode: Mode | null) => (p: AxiomProject) =>
+      p.id === projectId ? { ...p, mode } : p;
+    // Only patch caches that already hold a value — writing `[]` into a
+    // never-fetched key would mark it cached and suppress the consumer's
+    // initial fetch for the stale window.
+    const patchIfCached = (key: string, mode: Mode | null) => {
+      if (getCached<AxiomProject[]>(key) === undefined) return;
+      patchCached<AxiomProject[]>(key, (cur) => (cur || []).map(applyMode(mode)));
+    };
+    patchIfCached(cacheKeys.projects(), m);
+    patchIfCached(cacheKeys.archivedProjects(), m);
     try {
       await api<AxiomProject>(`/api/projects/${projectId}`, {
         method: "PATCH",
         json: { mode: m },
       });
-    } catch {
-      /* keep local state */
+    } catch (e) {
+      // Preserve `undefined` (never-seeded) vs explicit `null` (seeded
+      // with no override) so future `seedProjectMode` calls — which
+      // gate on `cur[projectId] !== undefined` — still hydrate a row
+      // that the user toggled before any project list was loaded.
+      setProjectModes((cur) => {
+        if (prev === undefined) {
+          const { [projectId]: _drop, ...rest } = cur;
+          return rest;
+        }
+        return { ...cur, [projectId]: prev };
+      });
+      writeCachedProjectMode(projectId, prev ?? null);
+      // Same guard as the optimistic path: don't materialize an empty
+      // array into a cache key that wasn't there to begin with.
+      patchIfCached(cacheKeys.projects(), prev ?? null);
+      patchIfCached(cacheKeys.archivedProjects(), prev ?? null);
+      notifyRollback("Couldn't update project mode. Reverted.");
+      if (typeof console !== "undefined") {
+        console.warn(
+          `setProjectMode(${projectId}) failed; reverted local state`,
+          e
+        );
+      }
     }
-  }, []);
+  }, [notifyRollback]);
 
   const seedProjectMode = useCallback(
     (projectId: number, m: Mode | null) => {
@@ -191,7 +283,34 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
     [userMode, projectModes, ready, setUserMode, setProjectMode, seedProjectMode]
   );
 
-  return <ModeContext.Provider value={value}>{children}</ModeContext.Provider>;
+  return (
+    <ModeContext.Provider value={value}>
+      {children}
+      {rollbackToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: 24,
+            transform: "translateX(-50%)",
+            zIndex: 9999,
+            padding: "10px 14px",
+            borderRadius: 10,
+            background: "rgba(20,20,24,0.92)",
+            color: "#fff",
+            font: "500 13px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif",
+            boxShadow: "0 6px 24px rgba(0,0,0,0.25)",
+            maxWidth: "min(92vw, 420px)",
+            pointerEvents: "none",
+          }}
+        >
+          {rollbackToast}
+        </div>
+      )}
+    </ModeContext.Provider>
+  );
 }
 
 /**

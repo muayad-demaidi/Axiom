@@ -14,8 +14,23 @@ import { api, getToken, streamPostNDJSON } from "@/lib/api";
 import { errMessage } from "@/lib/types";
 import { getActiveDatasetId, getActiveProjectId } from "@/lib/projectContext";
 import { useMode } from "@/lib/modeContext";
-import { ChartRenderer, type ChartPayload } from "./Charts";
-import { PredictionCard, type PredictionResult } from "./PredictionCard";
+// Recharts-based renderers are tens of KB each; lazy-load them so the
+// initial /app bundle stays slim. They only mount when a tool actually
+// emits a chart/prediction artifact, which happens after a chat round
+// trip — so SSR is unnecessary and the small async boundary is hidden
+// by the streaming UI.
+import dynamic from "next/dynamic";
+import type { ChartPayload } from "./Charts";
+import type { PredictionResult } from "./PredictionCard";
+
+const ChartRenderer = dynamic(
+  () => import("./Charts").then((m) => m.ChartRenderer),
+  { ssr: false }
+);
+const PredictionCard = dynamic(
+  () => import("./PredictionCard").then((m) => m.PredictionCard),
+  { ssr: false }
+);
 import { FloatingComposer, type FloatingComposerHandle } from "./FloatingComposer";
 import type { Artifact, PendingTool } from "./ArtifactDrawer";
 

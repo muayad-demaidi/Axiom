@@ -31,7 +31,7 @@ import {
   getProjectMode,
   type Mode,
 } from "@/lib/projectContext";
-import { cacheKeys, patchCached, setCached } from "@/lib/workspaceCache";
+import { cacheKeys, getCached, patchCached, setCached } from "@/lib/workspaceCache";
 
 // ---- Helpers: formatting + filtering ----
 
@@ -236,29 +236,60 @@ export default function ProjectsIndex() {
       setRenameError("Name cannot be empty.");
       return;
     }
+    // Snapshot the previous name so we can roll back if the API rejects
+    // the rename (e.g. duplicate-name 409). Then optimistically update
+    // local state + caches so the card reflects the new label
+    // immediately — the round-trip just confirms it.
+    const prevName = (() => {
+      const fromActive = (active ?? []).find((p) => p.id === id);
+      if (fromActive) return fromActive.name;
+      const fromArchived = (archived ?? []).find((p) => p.id === id);
+      return fromArchived ? fromArchived.name : null;
+    })();
+    const applyName = (name: string) => (p: AxiomProject) =>
+      p.id === id ? { ...p, name } : p;
+    // Local-helper: only patch a list cache that is already populated,
+    // so a rename never materializes empty arrays into never-fetched
+    // keys (which would suppress the consumer's first real fetch for
+    // the stale window).
+    const patchListIfCached = (
+      key: string,
+      fn: (p: AxiomProject) => AxiomProject
+    ) => {
+      if (getCached<AxiomProject[]>(key) === undefined) return;
+      patchCached<AxiomProject[]>(key, (cur) => (cur || []).map(fn));
+    };
+    setActive((arr) => (arr ? arr.map(applyName(next)) : null));
+    setArchived((arr) => (arr ? arr.map(applyName(next)) : null));
+    patchListIfCached(cacheKeys.projects(), applyName(next));
+    patchListIfCached(cacheKeys.archivedProjects(), applyName(next));
+    setRenamingId(null);
+    setRenameError(null);
     try {
       const updated = await api<AxiomProject>(`/api/projects/${id}`, {
         method: "PATCH",
         json: { name: next },
       });
-      // Keep all the rollup stats we already had; the PATCH response
-      // only returns the trimmed core. Merge so chat_count / size etc.
-      // don't get blanked on screen. Patch both the active and archived
-      // views so rename survives the Archived toggle without a refetch.
+      // Merge the server's authoritative response so any normalised
+      // fields (trimmed name, updated_at) reflect on screen without
+      // blanking the rollup stats we already had.
       const merge = (p: AxiomProject) =>
         p.id === id ? { ...p, ...updated, name: updated.name } : p;
-      setActive((arr) => (arr ?? []).map(merge));
-      setArchived((arr) => (arr ?? []).map(merge));
-      patchCached<AxiomProject[]>(cacheKeys.projects(), (cur) =>
-        (cur || []).map(merge)
-      );
-      patchCached<AxiomProject[]>(cacheKeys.archivedProjects(), (cur) =>
-        (cur || []).map(merge)
-      );
-      setRenamingId(null);
-      setRenameError(null);
+      setActive((arr) => (arr ? arr.map(merge) : null));
+      setArchived((arr) => (arr ? arr.map(merge) : null));
+      patchListIfCached(cacheKeys.projects(), merge);
+      patchListIfCached(cacheKeys.archivedProjects(), merge);
     } catch (e: unknown) {
-      setRenameError(errMessage(e));
+      // Roll back the optimistic name and surface the error as a toast
+      // so the cards don't lie about persisted state.
+      if (prevName != null) {
+        const restore = applyName(prevName);
+        setActive((arr) => (arr ? arr.map(restore) : null));
+        setArchived((arr) => (arr ? arr.map(restore) : null));
+        patchListIfCached(cacheKeys.projects(), restore);
+        patchListIfCached(cacheKeys.archivedProjects(), restore);
+      }
+      showToast({ text: `Rename failed: ${errMessage(e)}` });
     }
   }
 
@@ -279,56 +310,141 @@ export default function ProjectsIndex() {
   }
 
   async function archiveOne(p: AxiomProject) {
-    try {
-      const archivedRow = await api<AxiomProject>(
-        `/api/projects/${p.id}/archive`,
-        { method: "POST" }
-      );
-      dropFromActiveCache([p.id]);
-      const merged = { ...p, ...archivedRow, is_archived: true };
-      setArchived((arr) =>
-        arr ? [merged, ...arr.filter((x) => x.id !== p.id)] : null
-      );
+    // Optimistic move: drop from the active grid + cache, drop into the
+    // archived list + cache, then fire the POST in the background. If
+    // the API rejects, restore the row to the active list and show the
+    // error in a non-blocking toast. The rollup stats survive the
+    // round-trip because the optimistic row is the existing object
+    // marked `is_archived: true`; the server response only fills in
+    // `archived_at`.
+    const optimistic: AxiomProject = { ...p, is_archived: true };
+    dropFromActiveCache([p.id]);
+    setArchived((arr) =>
+      arr ? [optimistic, ...arr.filter((x) => x.id !== p.id)] : null
+    );
+    // Only insert into the archived cache if it's already populated.
+    // Materializing a one-row list into a never-fetched key would
+    // suppress the consumer's first real fetch for the stale window.
+    if (getCached<AxiomProject[]>(cacheKeys.archivedProjects()) !== undefined) {
       patchCached<AxiomProject[]>(cacheKeys.archivedProjects(), (cur) =>
-        cur ? [merged, ...cur.filter((x) => x.id !== p.id)] : [merged]
+        cur ? [optimistic, ...cur.filter((x) => x.id !== p.id)] : [optimistic]
       );
-      showToast({
-        text: `Archived "${p.name}".`,
-        actionLabel: "Undo",
-        onAction: () => restoreOne(merged, { silent: true }),
-      });
-    } catch (e: unknown) {
-      setError(errMessage(e));
     }
+    // Track the in-flight archive promise so a quick Undo doesn't
+    // race ahead of the archive POST and accidentally call /restore
+    // before the row is archived on the server (which would 4xx and
+    // leave the UI inconsistent). The Undo handler awaits this before
+    // firing restore.
+    const inflight = (async (): Promise<"ok" | "fail"> => {
+      try {
+        const archivedRow = await api<AxiomProject>(
+          `/api/projects/${p.id}/archive`,
+          { method: "POST" }
+        );
+        const merged = { ...optimistic, ...archivedRow, is_archived: true };
+        setArchived((arr) =>
+          arr ? arr.map((x) => (x.id === p.id ? merged : x)) : null
+        );
+        if (getCached<AxiomProject[]>(cacheKeys.archivedProjects()) !== undefined) {
+          patchCached<AxiomProject[]>(cacheKeys.archivedProjects(), (cur) =>
+            (cur || []).map((x) => (x.id === p.id ? merged : x))
+          );
+        }
+        return "ok";
+      } catch (e: unknown) {
+        // Roll back: yank the row from archived and put the original
+        // back at the head of the active list / cache. Preserve the
+        // tri-state (null = not-yet-loaded) on archived so the next
+        // tab open still triggers the initial fetch.
+        setArchived((arr) =>
+          arr ? arr.filter((x) => x.id !== p.id) : null
+        );
+        if (getCached<AxiomProject[]>(cacheKeys.archivedProjects()) !== undefined) {
+          patchCached<AxiomProject[]>(cacheKeys.archivedProjects(), (cur) =>
+            (cur || []).filter((x) => x.id !== p.id)
+          );
+        }
+        setActive((arr) =>
+          arr ? [p, ...arr.filter((x) => x.id !== p.id)] : null
+        );
+        patchCached<AxiomProject[]>(cacheKeys.projects(), (cur) =>
+          cur ? [p, ...cur.filter((x) => x.id !== p.id)] : [p]
+        );
+        showToast({ text: `Archive failed: ${errMessage(e)}` });
+        return "fail";
+      }
+    })();
+    showToast({
+      text: `Archived "${p.name}".`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        // Wait for the archive POST to settle so /restore has something
+        // to operate on; if archive itself failed, the rollback already
+        // ran above so there's nothing left to undo.
+        const result = await inflight;
+        if (result === "ok") {
+          void restoreOne(optimistic, { silent: true });
+        }
+      },
+    });
+    await inflight;
   }
 
   async function restoreOne(
     p: AxiomProject,
     opts: { silent?: boolean } = {}
   ) {
+    const optimistic: AxiomProject = { ...p, is_archived: false, archived_at: null };
+    // Preserve tri-state on archived: null means "not yet fetched" and
+    // the next archived-tab open should still trigger the initial load.
+    setArchived((arr) => (arr ? arr.filter((x) => x.id !== p.id) : null));
+    if (getCached<AxiomProject[]>(cacheKeys.archivedProjects()) !== undefined) {
+      patchCached<AxiomProject[]>(cacheKeys.archivedProjects(), (cur) =>
+        (cur || []).filter((x) => x.id !== p.id)
+      );
+    }
+    setActive((arr) =>
+      arr ? [optimistic, ...arr.filter((x) => x.id !== p.id)] : null
+    );
+    patchCached<AxiomProject[]>(cacheKeys.projects(), (cur) =>
+      cur ? [optimistic, ...cur.filter((x) => x.id !== p.id)] : [optimistic]
+    );
+    if (!opts.silent) {
+      showToast({ text: `Restored "${p.name}".` });
+    } else {
+      setToast(null);
+    }
     try {
       const restored = await api<AxiomProject>(
         `/api/projects/${p.id}/restore`,
         { method: "POST" }
       );
-      const merged = { ...p, ...restored, is_archived: false };
-      setArchived((arr) => (arr ?? []).filter((x) => x.id !== p.id));
-      patchCached<AxiomProject[]>(cacheKeys.archivedProjects(), (cur) =>
-        (cur || []).filter((x) => x.id !== p.id)
-      );
+      const merged = { ...optimistic, ...restored, is_archived: false };
       setActive((arr) =>
-        arr ? [merged, ...arr.filter((x) => x.id !== p.id)] : null
+        arr ? arr.map((x) => (x.id === p.id ? merged : x)) : null
       );
       patchCached<AxiomProject[]>(cacheKeys.projects(), (cur) =>
-        cur ? [merged, ...cur.filter((x) => x.id !== p.id)] : [merged]
+        (cur || []).map((x) => (x.id === p.id ? merged : x))
       );
-      if (!opts.silent) {
-        showToast({ text: `Restored "${p.name}".` });
-      } else {
-        setToast(null);
-      }
     } catch (e: unknown) {
-      setError(errMessage(e));
+      // Roll back: re-archive the row and remove it from the active
+      // list / cache. Same tri-state preservation as the optimistic
+      // path — never materialize null lists into empty arrays.
+      setActive((arr) => (arr ? arr.filter((x) => x.id !== p.id) : null));
+      if (getCached<AxiomProject[]>(cacheKeys.projects()) !== undefined) {
+        patchCached<AxiomProject[]>(cacheKeys.projects(), (cur) =>
+          (cur || []).filter((x) => x.id !== p.id)
+        );
+      }
+      setArchived((arr) =>
+        arr ? [p, ...arr.filter((x) => x.id !== p.id)] : null
+      );
+      if (getCached<AxiomProject[]>(cacheKeys.archivedProjects()) !== undefined) {
+        patchCached<AxiomProject[]>(cacheKeys.archivedProjects(), (cur) =>
+          cur ? [p, ...cur.filter((x) => x.id !== p.id)] : [p]
+        );
+      }
+      showToast({ text: `Restore failed: ${errMessage(e)}` });
     }
   }
 
