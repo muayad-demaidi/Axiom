@@ -148,3 +148,18 @@ a { color: inherit; }
 
 /* The DataStreamBackground component renders a single static frame
    when prefers-reduced-motion is set, so we keep the canvas visible. */
+
+/* Hide native scrollbars on horizontally-scrolling rows that should
+   still be scrollable by drag/wheel/touch but shouldn't render the
+   browser's default scrollbar (used by the dataset chip row in the
+   project top bar). Without this utility the browser falls back to
+   a real scrollbar that looks broken under a single small chip. */
+.no-scrollbar {
+  -ms-overflow-style: none;       /* IE 10+ / old Edge */
+  scrollbar-width: none;          /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;                  /* Chrome / Safari / Edge / Opera */
+}

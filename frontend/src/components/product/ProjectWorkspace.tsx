@@ -16,7 +16,6 @@ import { DatasetPreviewCard } from "@/components/product/DatasetPreviewCard";
 import { DataContextBar } from "@/components/product/DataContextBar";
 import { ArtifactDrawer, type PendingTool } from "@/components/product/ArtifactDrawer";
 import { OpenQuestionsBar } from "@/components/product/OpenQuestionsBar";
-import { ModeToggle } from "@/components/product/ModeToggle";
 import { useMode } from "@/lib/modeContext";
 
 type ChatSession = {
@@ -420,11 +419,26 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
             Final report ↗
           </Link>
         )}
-        <ModeToggle projectId={projectId} size="sm" label="MODE" />
+        {/*
+          Mode toggle intentionally lives only in the global app header
+          (see AppChrome's HeaderToggle). Inside a project route that
+          header toggle is already project-scoped, so duplicating it
+          here would just confuse users who saw two toggles for the
+          same setting.
+        */}
         <button
           onClick={toggleDrawer}
           className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--text-muted)]"
-          title={drawerOpen ? "Hide artifact drawer" : "Show artifact drawer"}
+          title={
+            drawerOpen
+              ? "Hide artifacts side panel (charts, tables, model results) · إخفاء لوحة المخرجات"
+              : "Open artifacts side panel (charts, tables, model results) · فتح لوحة المخرجات"
+          }
+          aria-label={
+            drawerOpen
+              ? "Hide artifacts side panel"
+              : "Open artifacts side panel"
+          }
           aria-pressed={drawerOpen}
         >
           {drawerOpen ? (

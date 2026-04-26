@@ -330,6 +330,17 @@ function formatCell(v: unknown): string {
   return String(v);
 }
 
+/**
+ * Right-side status pill.
+ *
+ * Only renders when something is actually happening (assistant
+ * streaming a reply, or a prediction is running). The previous
+ * "IDLE" resting state was being misread as "the chat was
+ * disconnected" on every fresh chat, so we now hide the pill
+ * entirely at rest and reserve the slot for real, transient
+ * activity. The "Analyzing…" and "جاري التنبؤ…" states keep
+ * working exactly as before.
+ */
 function StatusPill({
   streaming,
   predictionRunning,
@@ -368,20 +379,7 @@ function StatusPill({
           <Sparkles className="h-2.5 w-2.5" />
           Analyzing…
         </motion.span>
-      ) : (
-        <motion.span
-          key="idle"
-          layoutId={layoutId}
-          initial={reduceMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={reduceMotion ? { opacity: 0 } : { opacity: 0 }}
-          transition={{ duration: 0.18 }}
-          className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-[var(--surface-alt)] text-[var(--text-muted)] border border-[var(--border)] whitespace-nowrap"
-        >
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--text-muted)]" />
-          Idle
-        </motion.span>
-      )}
+      ) : null}
     </AnimatePresence>
   );
 }
