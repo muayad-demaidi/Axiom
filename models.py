@@ -114,6 +114,11 @@ class Project(Base):
     # is self-explanatory in the database — the legacy `assistant_mode`
     # column on User keeps using "simple" for backwards compatibility.
     mode = Column(String(16), nullable=True)
+    # Soft-archive flag for the projects management workspace. NULL =
+    # active project; a timestamp = "user archived this on this date".
+    # We keep the row (and all its data) so Restore is non-destructive
+    # and the projects index just filters on this column.
+    archived_at = Column(DateTime, nullable=True, index=True)
 
 
 class ProjectKnowledgeBase(Base):
@@ -425,6 +430,8 @@ def init_db():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_dataset_id INTEGER",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS assistant_mode VARCHAR(16) DEFAULT 'simple'",
         "ALTER TABLE projects ADD COLUMN IF NOT EXISTS mode VARCHAR(16)",
+        "ALTER TABLE projects ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP",
+        "CREATE INDEX IF NOT EXISTS ix_projects_archived_at ON projects(archived_at)",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS source_parquet BYTEA",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS parse_meta JSON",
         "ALTER TABLE dataset_records ADD COLUMN IF NOT EXISTS step_recipes JSON",
@@ -1084,27 +1091,109 @@ def get_user(db, user_id):
     return db.query(User).filter(User.id == user_id).first()
 
 
-def list_user_projects(db, user_id):
-    """All projects a user owns, newest activity first, with a sheet count.
+def list_user_projects(db, user_id, include_archived=False):
+    """All projects a user owns, newest activity first, with rollup stats.
 
     Returns a list of dicts (not ORM objects) so downstream UI code is
-    decoupled from SQLAlchemy and the dataset count comes back in a single
-    query rather than N+1.
+    decoupled from SQLAlchemy. The single query also pulls per-project
+    rollups used by the projects management page:
+
+    * ``sheet_count`` / ``total_rows`` — dataset counters
+    * ``total_size_bytes`` — cumulative parquet payload size
+    * ``chat_count`` / ``last_session_id`` — chat session aggregates
+    * ``last_active_at`` — most recent of (project.last_opened_at,
+      project.updated_at, last chat session.updated_at, last dataset
+      upload).
+    * ``status`` — derived health hint:
+        - ``error`` if any dataset has a 0-row payload (parse failure)
+        - ``ready`` otherwise
+
+    By default archived projects are hidden so they don't clutter the
+    main grid. Pass ``include_archived=True`` to include them too — the
+    UI uses a separate fetch when the user toggles the Archived view.
     """
     if user_id is None:
         return []
-    from sqlalchemy import func
-    rows = (db.query(Project,
-                     func.count(DatasetRecord.id).label("sheet_count"),
-                     func.coalesce(func.sum(DatasetRecord.row_count), 0).label("total_rows"))
-              .outerjoin(DatasetRecord, DatasetRecord.project_id == Project.id)
-              .filter(Project.user_id == user_id)
-              .group_by(Project.id)
-              .order_by(Project.last_opened_at.desc().nullslast(),
-                        Project.created_at.desc())
+    from sqlalchemy import func, case
+    parquet_size = func.coalesce(
+        func.sum(func.coalesce(func.octet_length(DatasetRecord.source_parquet), 0)), 0
+    ).label("total_size_bytes")
+    has_zero_rows = func.coalesce(
+        func.sum(case((DatasetRecord.row_count == 0, 1), else_=0)), 0
+    ).label("zero_row_datasets")
+    last_dataset_upload = func.max(DatasetRecord.upload_date).label("last_dataset_at")
+    q = (db.query(Project,
+                  func.count(DatasetRecord.id).label("sheet_count"),
+                  func.coalesce(func.sum(DatasetRecord.row_count), 0).label("total_rows"),
+                  parquet_size,
+                  has_zero_rows,
+                  last_dataset_upload)
+            .outerjoin(DatasetRecord, DatasetRecord.project_id == Project.id)
+            .filter(Project.user_id == user_id)
+            .group_by(Project.id))
+    if not include_archived:
+        q = q.filter(Project.archived_at.is_(None))
+    rows = (q.order_by(Project.last_opened_at.desc().nullslast(),
+                       Project.created_at.desc())
               .all())
+
+    # Chat aggregates in a second query — joining them into the dataset
+    # rollup would create a fan-out (sheet × chat cartesian) and inflate
+    # the size sums. Two clean aggregates is simpler and faster on the
+    # data sizes we actually see here.
+    pids = [r[0].id for r in rows]
+    chat_stats: dict[int, tuple[int, int | None, datetime | None]] = {}
+    if pids:
+        # Per-project chat counts...
+        for pid, cnt, last_at in (
+            db.query(ChatSession.project_id,
+                     func.count(ChatSession.id),
+                     func.max(ChatSession.updated_at))
+              .filter(ChatSession.project_id.in_(pids),
+                      ChatSession.user_id == user_id)
+              .group_by(ChatSession.project_id)
+              .all()
+        ):
+            chat_stats[int(pid)] = (int(cnt or 0), None, last_at)
+        # ...and the most-recently-updated session id per project, used
+        # by the card body to deep-link straight back into work. We do
+        # this with a dedicated query rather than DISTINCT ON to keep
+        # the dialect generic.
+        latest_ids = (
+            db.query(ChatSession.project_id, ChatSession.id)
+              .filter(ChatSession.project_id.in_(pids),
+                      ChatSession.user_id == user_id)
+              .order_by(ChatSession.project_id,
+                        ChatSession.updated_at.desc(),
+                        ChatSession.id.desc())
+              .all()
+        )
+        seen: set[int] = set()
+        for pid, sid in latest_ids:
+            pid = int(pid)
+            if pid in seen:
+                continue
+            seen.add(pid)
+            cnt, _prev, last_at = chat_stats.get(pid, (0, None, None))
+            chat_stats[pid] = (cnt, int(sid), last_at)
+
     out = []
-    for proj, sheet_count, total_rows in rows:
+    for proj, sheet_count, total_rows, total_size, zero_rows, last_dataset_at in rows:
+        chat_cnt, last_sid, last_chat_at = chat_stats.get(int(proj.id), (0, None, None))
+        # last_active_at is the most generous "is this project alive"
+        # signal — we want the card to surface activity from any of:
+        # explicit project touches, dataset uploads, or chat updates.
+        candidates = [proj.last_opened_at, proj.updated_at,
+                      last_chat_at, last_dataset_at]
+        last_active_at = max((c for c in candidates if c is not None),
+                             default=None)
+        # Status is conservative: only flag an error when we know
+        # something went wrong (an empty-row dataset). Otherwise the
+        # project is "ready" — there's no async "processing" state in
+        # the current upload pipeline so we never need to emit it, but
+        # keeping the field in the API leaves room for a future job
+        # queue without changing the client contract.
+        status = "error" if int(zero_rows or 0) > 0 else "ready"
         out.append({
             "id": proj.id,
             "name": proj.name,
@@ -1115,6 +1204,13 @@ def list_user_projects(db, user_id):
             "last_opened_at": proj.last_opened_at,
             "sheet_count": int(sheet_count or 0),
             "total_rows": int(total_rows or 0),
+            "total_size_bytes": int(total_size or 0),
+            "chat_count": chat_cnt,
+            "last_active_at": last_active_at,
+            "last_session_id": last_sid,
+            "status": status,
+            "is_archived": proj.archived_at is not None,
+            "archived_at": proj.archived_at,
         })
     return out
 
@@ -1168,6 +1264,69 @@ def touch_project(db, project_id, user_id=None):
     proj.last_opened_at = datetime.utcnow()
     db.commit()
     return proj
+
+
+def archive_project(db, project_id, user_id):
+    """Soft-archive a project. Returns the project or None if not found.
+
+    The project keeps all its data so Restore is a non-destructive
+    pure flag flip — we just stamp ``archived_at`` so the default list
+    query hides it from the active grid.
+    """
+    proj = get_project(db, project_id, user_id)
+    if proj is None:
+        return None
+    if proj.archived_at is None:
+        proj.archived_at = datetime.utcnow()
+        proj.updated_at = proj.archived_at
+        db.commit()
+        db.refresh(proj)
+    return proj
+
+
+def restore_project(db, project_id, user_id):
+    """Un-archive a project so it shows in the main grid again."""
+    proj = get_project(db, project_id, user_id)
+    if proj is None:
+        return None
+    if proj.archived_at is not None:
+        proj.archived_at = None
+        proj.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(proj)
+    return proj
+
+
+def bulk_project_action(db, user_id, project_ids, action):
+    """Apply ``delete``/``archive``/``restore`` to a batch of projects.
+
+    Returns the list of ids that were successfully acted on (silently
+    skipping ids that don't belong to the user, so a forged id can't
+    leak ownership info via differential responses).
+    """
+    if not project_ids or user_id is None:
+        return []
+    if action not in ("delete", "archive", "restore"):
+        raise ValueError(f"Unsupported bulk action: {action!r}")
+    # Pre-filter to ids the user actually owns.
+    owned = [
+        int(pid)
+        for (pid,) in db.query(Project.id)
+        .filter(Project.user_id == user_id, Project.id.in_(project_ids))
+        .all()
+    ]
+    done: list[int] = []
+    for pid in owned:
+        if action == "delete":
+            if delete_project(db, pid, user_id):
+                done.append(pid)
+        elif action == "archive":
+            if archive_project(db, pid, user_id) is not None:
+                done.append(pid)
+        elif action == "restore":
+            if restore_project(db, pid, user_id) is not None:
+                done.append(pid)
+    return done
 
 
 def delete_project(db, project_id, user_id):

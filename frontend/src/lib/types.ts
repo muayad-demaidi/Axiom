@@ -15,6 +15,15 @@ export type AxiomProject = {
   mode?: string | null;
   sheet_count?: number;
   total_rows?: number;
+  total_size_bytes?: number;
+  chat_count?: number;
+  last_active_at?: string | null;
+  last_session_id?: number | null;
+  status?: "ready" | "processing" | "error";
+  is_archived?: boolean;
+  archived_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 export type DatasetSummaryColumn = { name: string; dtype: string };

@@ -148,6 +148,10 @@ export function useCachedList<T>(
 
 export const cacheKeys = {
   projects: () => "projects",
+  // Archived projects are fetched separately so the active grid never
+  // pays the cost of pulling them in by default; the management page
+  // uses this when the user toggles the "Archived" view on.
+  archivedProjects: () => "projects:archived",
   recentChats: (limit: number) => `recent_chats:${limit}`,
   projectChats: (projectId: number) => `project:${projectId}:chats`,
   projectDatasets: (projectId: number) => `project:${projectId}:datasets`,
