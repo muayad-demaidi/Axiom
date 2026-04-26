@@ -3,6 +3,10 @@
 const PROJECT_KEY = "axiom_active_project";
 const DATASET_KEY = "axiom_active_dataset";
 const MODE_KEY = "axiom_project_mode_";
+// Per-chat-session dataset selection. Scoped per session so a brand-new
+// chat doesn't auto-inherit the dataset the user happened to have
+// selected in some other chat / project — see the "+ New" sidebar task.
+const SESSION_DATASET_KEY_PREFIX = "axiom_chat_dataset_";
 
 export function getActiveProjectId(): number | null {
   if (typeof window === "undefined") return null;
@@ -24,6 +28,30 @@ export function setActiveDatasetId(id: number | null) {
   if (typeof window === "undefined") return;
   if (id == null) window.localStorage.removeItem(DATASET_KEY);
   else window.localStorage.setItem(DATASET_KEY, String(id));
+}
+
+/** Per-chat-session dataset selection.
+ *
+ * Returns the dataset the user explicitly bound to a given chat session,
+ * or `null` if no choice has been made yet. Used by the project
+ * workspace so a freshly created chat starts with the empty-state
+ * preview instead of auto-attaching whatever the user happened to have
+ * selected somewhere else. */
+export function getChatSessionDatasetId(
+  sessionId: number | null | undefined
+): number | null {
+  if (typeof window === "undefined" || sessionId == null) return null;
+  const v = window.localStorage.getItem(SESSION_DATASET_KEY_PREFIX + sessionId);
+  return v ? Number(v) : null;
+}
+export function setChatSessionDatasetId(
+  sessionId: number | null | undefined,
+  id: number | null
+) {
+  if (typeof window === "undefined" || sessionId == null) return;
+  const key = SESSION_DATASET_KEY_PREFIX + sessionId;
+  if (id == null) window.localStorage.removeItem(key);
+  else window.localStorage.setItem(key, String(id));
 }
 
 export type Mode = "guided" | "expert";

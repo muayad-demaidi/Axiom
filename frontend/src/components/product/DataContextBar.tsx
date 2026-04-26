@@ -48,7 +48,12 @@ function DataContextBarBase({
     if (activeDatasetId === b.id) return 1;
     return b.id - a.id;
   });
-  const visible = showAll ? ordered : ordered.slice(0, 1);
+  // When the chat hasn't picked a dataset yet (a brand-new chat), show
+  // every chip up-front so the user can pick one without first having
+  // to click "+N more". With one selected, collapse back to the
+  // active-only chip + "+N more" affordance to keep the bar compact.
+  const noneSelected = activeDatasetId == null;
+  const visible = showAll || noneSelected ? ordered : ordered.slice(0, 1);
   const extra = Math.max(0, ordered.length - visible.length);
 
   return (
@@ -81,6 +86,12 @@ function DataContextBarBase({
             </div>
           ) : (
             <>
+              {noneSelected && (
+                <span className="text-[10px] text-[var(--text-muted)] inline-flex items-center gap-1 whitespace-nowrap shrink-0">
+                  <Database className="h-3 w-3" />
+                  Pick a dataset:
+                </span>
+              )}
               {visible.map((d) => (
                 <DatasetChip
                   key={d.id}

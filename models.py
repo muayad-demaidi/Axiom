@@ -821,7 +821,15 @@ def delete_chat_session(db, session_id, user_id):
     sess = get_chat_session(db, session_id, user_id)
     if not sess:
         return False
-    # Cascade: remove the messages too.
+    # Cascade: remove every row that points back at this session.
+    # Both ChatHistory and ChatArtifact have an FK to chat_sessions.id,
+    # so without an explicit purge the delete would either orphan the
+    # rows (ChatHistory has nullable session_id on legacy schemas) or
+    # raise a foreign-key violation (ChatArtifact's session_id is NOT
+    # NULL). Doing it here keeps the API endpoint clean and idempotent.
+    db.query(ChatArtifact).filter(ChatArtifact.session_id == session_id).delete(
+        synchronize_session=False
+    )
     db.query(ChatHistory).filter(ChatHistory.session_id == session_id).delete(
         synchronize_session=False
     )
@@ -1369,6 +1377,32 @@ def delete_project(db, project_id, user_id):
                                 .filter(DatasetRecord.project_id == project_id,
                                         DatasetRecord.user_id == user_id)
                                 .all()]
+    # Wipe everything that points at the soon-to-be-gone project rows.
+    # None of these FK columns have ON DELETE CASCADE in the schema, so
+    # the project delete itself would otherwise raise a foreign-key
+    # violation as soon as the project owns any chat session, semantic
+    # table, relationship, knowledge-base entry, model, question or
+    # report. The previous version only cleared a subset, which left
+    # the project row stuck in the DB and surfaced as the sidebar's
+    # "delete errors and stays" behaviour the user reported.
+    sess_ids = [sid for (sid,) in db.query(ChatSession.id)
+                                   .filter(ChatSession.project_id == project_id)
+                                   .all()]
+    if sess_ids:
+        (db.query(ChatArtifact)
+           .filter(ChatArtifact.session_id.in_(sess_ids))
+           .delete(synchronize_session=False))
+        (db.query(ChatHistory)
+           .filter(ChatHistory.session_id.in_(sess_ids))
+           .delete(synchronize_session=False))
+    # Any artifacts written before sessions were enforced may still
+    # carry only the project_id — sweep those too just in case.
+    (db.query(ChatArtifact)
+       .filter(ChatArtifact.project_id == project_id)
+       .delete(synchronize_session=False))
+    (db.query(ChatSession)
+       .filter(ChatSession.project_id == project_id)
+       .delete(synchronize_session=False))
     if ds_ids:
         (db.query(DatasetRelationship)
            .filter(DatasetRelationship.user_id == user_id,
@@ -1378,14 +1412,31 @@ def delete_project(db, project_id, user_id):
         (db.query(DatasetRecord)
            .filter(DatasetRecord.id.in_(ds_ids))
            .delete(synchronize_session=False))
-    # Knowledge-base and learned-notes for this project must be cleared
-    # explicitly — there's no ON DELETE CASCADE on those FK columns.
+    # Knowledge-base, semantic-model, relationships and clarification
+    # questions all reference the project with NOT NULL FKs.
     (db.query(ProjectLearnedNote)
        .filter(ProjectLearnedNote.project_id == project_id)
        .delete(synchronize_session=False))
     (db.query(ProjectKnowledgeBase)
        .filter(ProjectKnowledgeBase.project_id == project_id)
        .delete(synchronize_session=False))
+    (db.query(ProjectSemanticTable)
+       .filter(ProjectSemanticTable.project_id == project_id)
+       .delete(synchronize_session=False))
+    (db.query(ProjectRelationship)
+       .filter(ProjectRelationship.project_id == project_id)
+       .delete(synchronize_session=False))
+    (db.query(ProjectSemanticModel)
+       .filter(ProjectSemanticModel.project_id == project_id)
+       .delete(synchronize_session=False))
+    (db.query(ProjectModelQuestion)
+       .filter(ProjectModelQuestion.project_id == project_id)
+       .delete(synchronize_session=False))
+    # Reports' project_id is nullable; null it out instead of dropping
+    # the row so the user's "recent reports" list still shows them.
+    (db.query(Report)
+       .filter(Report.project_id == project_id)
+       .update({Report.project_id: None}, synchronize_session=False))
     db.delete(proj)
     db.commit()
     return True

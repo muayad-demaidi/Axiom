@@ -5,7 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { api, ApiError, getToken } from "@/lib/api";
 import { errMessage, type AxiomDataset, type AxiomProject } from "@/lib/types";
-import { setActiveProjectId, setActiveDatasetId, getActiveDatasetId } from "@/lib/projectContext";
+import {
+  setActiveProjectId,
+  setActiveDatasetId,
+  getChatSessionDatasetId,
+  setChatSessionDatasetId,
+} from "@/lib/projectContext";
 import {
   cacheKeys,
   setCached,
@@ -158,6 +163,9 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
           if (!fresh) return;
           setActiveDatasetId(fresh.id);
           setActiveDatasetState(fresh.id);
+          // Persist this attachment under the active chat so the
+          // dataset stays bound after a reload / nav-away.
+          setChatSessionDatasetId(activeSessionId, fresh.id);
           if (activeSessionId) {
             try {
               await api(
@@ -184,31 +192,58 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
   const seededModelForSessionRef = useRef<number | null>(null);
 
   // ---- Active dataset for the chat preview card ----
-  const [activeDatasetState, setActiveDatasetState] = useState<number | null>(null);
+  // Scoped per chat session so a brand-new chat doesn't auto-inherit
+  // the dataset the user happened to have selected in some other chat
+  // or project. The previous version read the global
+  // `axiom_active_dataset` from localStorage, which leaked the last
+  // dataset clicked anywhere in the workspace into every freshly
+  // created chat (the leakage the task is fixing).
+  const [activeDatasetState, setActiveDatasetState] = useState<number | null>(
+    null
+  );
+  // Whenever the active session changes, re-resolve the per-session
+  // dataset choice from storage. New chats have no stored choice and
+  // therefore start with `null` — the empty state, exactly as if the
+  // project had no datasets attached yet.
   useEffect(() => {
-    if (activeDatasetState != null) return;
-    const stored = getActiveDatasetId();
-    if (stored && datasets.some((d) => d.id === stored)) {
-      setActiveDatasetState(stored);
+    if (!activeSessionId) {
+      setActiveDatasetState(null);
       return;
     }
-    if (datasets.length > 0) setActiveDatasetState(datasets[0].id);
-  }, [datasets, activeDatasetState]);
+    const stored = getChatSessionDatasetId(activeSessionId);
+    if (stored != null && datasets.some((d) => d.id === stored)) {
+      setActiveDatasetState(stored);
+    } else {
+      setActiveDatasetState(null);
+    }
+  }, [activeSessionId, datasets]);
 
   // Listen for dataset selection from the sidebar.
   useEffect(() => {
     function onActive(e: Event) {
       const detail = (e as CustomEvent<{ datasetId: number }>).detail;
-      if (detail?.datasetId != null) setActiveDatasetState(detail.datasetId);
+      if (detail?.datasetId == null) return;
+      setActiveDatasetState(detail.datasetId);
+      // Bind the choice to the currently-open chat so it persists when
+      // the user navigates away and comes back.
+      if (activeSessionId) {
+        setChatSessionDatasetId(activeSessionId, detail.datasetId);
+      }
     }
     window.addEventListener("axiom:dataset:active", onActive);
     return () => window.removeEventListener("axiom:dataset:active", onActive);
-  }, []);
+  }, [activeSessionId]);
 
-  const pickDataset = useCallback((id: number) => {
-    setActiveDatasetId(id);
-    setActiveDatasetState(id);
-  }, []);
+  const pickDataset = useCallback(
+    (id: number) => {
+      // Mirror to the legacy global key so non-chat surfaces (the home
+      // page chat composer for example) still pick something sensible.
+      setActiveDatasetId(id);
+      setChatSessionDatasetId(activeSessionId, id);
+      setActiveDatasetState(id);
+    },
+    [activeSessionId]
+  );
 
   // Status pill source of truth lifted from ChatPanel.
   const [chatStreaming, setChatStreaming] = useState(false);
