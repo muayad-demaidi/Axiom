@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   BarChart, Bar, LineChart, Line, ScatterChart, Scatter, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
+  ReferenceLine,
 } from "recharts";
 import { api, getToken } from "@/lib/api";
 import type { AxiomDataset, DatasetSummaryColumn } from "@/lib/types";
@@ -19,6 +20,7 @@ import {
 } from "@/components/product/ModeAware";
 
 type ChartKind = "bar" | "line" | "scatter" | "pie" | "histogram" | "box" | "heatmap";
+type ExpertChartKind = "residuals" | "qq" | "acf" | "pacf";
 
 type XYPoint = { x: number | string; y: number };
 type ScatterPoint = { x: number; y: number };
@@ -186,6 +188,82 @@ function Heatmap({ columns, matrix }: { columns: string[]; matrix: number[][] })
   );
 }
 
+type ExpertResult = {
+  chart: ExpertChartKind;
+  summary: Record<string, unknown>;
+  spec: { data?: Array<{ x?: number[]; y?: number[]; mode?: string; type?: string }> };
+  values?: number[];
+  ci_band?: number;
+  column?: string;
+  x_col?: string;
+  y_col?: string;
+  lags?: number;
+};
+
+function ExpertChartView({ result }: { result: ExpertResult }) {
+  const traces = result.spec?.data ?? [];
+
+  if (result.chart === "residuals") {
+    const t = traces[0];
+    const points = (t?.x ?? []).map((xv, i) => ({
+      x: Number(xv), y: Number((t?.y ?? [])[i]),
+    }));
+    return (
+      <ResponsiveContainer width="100%" height={320}>
+        <ScatterChart>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis type="number" dataKey="x" name={`Fitted (${result.x_col ?? "x"})`} />
+          <YAxis type="number" dataKey="y" name="Residual" />
+          <Tooltip cursor={{ strokeDasharray: "3 3" }} />
+          <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="4 4" />
+          <Scatter data={points} fill={PALETTE[0]} />
+        </ScatterChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  if (result.chart === "qq") {
+    const sample = traces[0];
+    const ref = traces[1];
+    const samplePoints = (sample?.x ?? []).map((xv, i) => ({
+      x: Number(xv), y: Number((sample?.y ?? [])[i]),
+    }));
+    const refPoints = (ref?.x ?? []).map((xv, i) => ({
+      x: Number(xv), y: Number((ref?.y ?? [])[i]),
+    }));
+    return (
+      <ResponsiveContainer width="100%" height={320}>
+        <ScatterChart>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis type="number" dataKey="x" name="Theoretical quantiles" />
+          <YAxis type="number" dataKey="y" name="Sample quantiles" />
+          <Tooltip cursor={{ strokeDasharray: "3 3" }} />
+          <Scatter name="sample" data={samplePoints} fill={PALETTE[0]} />
+          <Scatter name="reference" data={refPoints} line fill="#9ca3af" shape={() => <></>} />
+        </ScatterChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  // acf / pacf
+  const values = result.values ?? [];
+  const ci = result.ci_band ?? 0;
+  const points = values.map((v, i) => ({ lag: i, value: Number(v) }));
+  return (
+    <ResponsiveContainer width="100%" height={320}>
+      <BarChart data={points}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="lag" />
+        <YAxis />
+        <Tooltip />
+        <ReferenceLine y={ci} stroke="#9ca3af" strokeDasharray="3 3" />
+        <ReferenceLine y={-ci} stroke="#9ca3af" strokeDasharray="3 3" />
+        <Bar dataKey="value" fill={PALETTE[0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
 export default function VisualizePage() {
   const router = useRouter();
   const projectId = typeof window !== "undefined" ? getActiveProjectId() : null;
@@ -199,6 +277,20 @@ export default function VisualizePage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [hasDataset, setHasDataset] = useState<boolean | null>(null);
+  // Expert-only diagnostic charts (Task #250).
+  const [expertChart, setExpertChart] = useState<ExpertChartKind>("residuals");
+  const [expertLags, setExpertLags] = useState<number>(20);
+  const [expertResult, setExpertResult] = useState<{
+    chart: ExpertChartKind;
+    summary: Record<string, unknown>;
+    spec: { data?: Array<{ x?: number[]; y?: number[]; mode?: string; type?: string }> };
+    values?: number[];
+    ci_band?: number;
+    column?: string;
+    x_col?: string;
+    y_col?: string;
+    lags?: number;
+  } | null>(null);
 
   const xDisabled = NO_COLUMN_CHARTS.includes(chart);
   const yDisabled = SINGLE_COLUMN_CHARTS.includes(chart) || NO_COLUMN_CHARTS.includes(chart) || chart === "box";
@@ -237,6 +329,36 @@ export default function VisualizePage() {
         json: body,
       });
       setData(r);
+    } catch (e: unknown) { setError(errMessage(e)); }
+    finally { setBusy(false); }
+  }
+
+  async function runExpertChart() {
+    const id = getActiveDatasetId();
+    if (!id) return;
+    setBusy(true); setError(null); setExpertResult(null);
+    try {
+      const body: Record<string, unknown> = {
+        dataset_id: id,
+        chart: expertChart,
+        x_col: x || null,
+        y_col: y || null,
+      };
+      if (expertChart === "acf" || expertChart === "pacf") {
+        body.lags = expertLags;
+      }
+      const r = await api<{
+        chart: ExpertChartKind;
+        summary: Record<string, unknown>;
+        spec: { data?: Array<{ x?: number[]; y?: number[]; mode?: string; type?: string }> };
+        values?: number[];
+        ci_band?: number;
+        column?: string;
+        x_col?: string;
+        y_col?: string;
+        lags?: number;
+      }>("/api/visualize/expert-charts", { method: "POST", json: body });
+      setExpertResult(r);
     } catch (e: unknown) { setError(errMessage(e)); }
     finally { setBusy(false); }
   }
@@ -396,6 +518,61 @@ export default function VisualizePage() {
           {busy ? "Rendering…" : "Render chart"}
         </button>
       </div>
+      {mode === "expert" && (
+        <div className="card mt-6 space-y-3">
+          <div className="text-sm font-medium">Expert diagnostics</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <label className="text-sm">
+              Diagnostic
+              <select
+                value={expertChart}
+                onChange={(e) => setExpertChart(e.target.value as ExpertChartKind)}
+                className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
+              >
+                <option value="residuals">Residuals vs fitted</option>
+                <option value="qq">Q–Q plot (normality)</option>
+                <option value="acf">Autocorrelation (ACF)</option>
+                <option value="pacf">Partial autocorrelation (PACF)</option>
+              </select>
+            </label>
+            {(expertChart === "acf" || expertChart === "pacf") && (
+              <label className="text-sm">
+                Lags
+                <input
+                  type="number"
+                  min={1}
+                  max={200}
+                  value={expertLags}
+                  onChange={(e) => setExpertLags(Math.max(1, Number(e.target.value) || 1))}
+                  className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
+                />
+              </label>
+            )}
+          </div>
+          <p className="text-xs text-[var(--text-muted)]">
+            Residuals & Q–Q use the X / Y selectors above. ACF / PACF use the X column
+            (a numeric, time-ordered series).
+          </p>
+          <button
+            className="btn btn-primary"
+            onClick={runExpertChart}
+            disabled={busy || !x}
+          >
+            {busy ? "Computing…" : "Run diagnostic"}
+          </button>
+          {expertResult && (
+            <div className="mt-3 space-y-2">
+              <ExpertChartView result={expertResult} />
+              <div className="text-xs text-[var(--text-muted)]">
+                {expertResult.chart} summary
+              </div>
+              <pre className="text-[11px] overflow-auto max-h-[30vh] whitespace-pre-wrap p-2 rounded bg-[var(--surface)] border border-[var(--border)]">
+                {JSON.stringify(expertResult.summary, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 

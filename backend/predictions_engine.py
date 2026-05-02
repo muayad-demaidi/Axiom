@@ -317,6 +317,8 @@ def _fit_regression_pair_and_pick(
     )
 
     feature_importance = _regression_feature_importance(best["model"], list(x.columns))
+    if best["name"] == "RandomForestRegressor":
+        _attach_shap_top(feature_importance, best["model"], x_test, list(x.columns))
     parameters = _model_parameters(best["model"])
 
     trend = _trend_from_predictions(np.asarray(best["y_pred"], dtype=float))
@@ -349,6 +351,69 @@ def _fit_regression_pair_and_pick(
         "trend_direction": trend["direction"],
         "trend_slope": trend["slope"],
     }
+
+
+def _attach_shap_top(
+    feature_importance: dict[str, Any],
+    model: Any,
+    x_test: pd.DataFrame,
+    feature_names: list[str],
+    top_k: int = 5,
+) -> None:
+    """Attach top-K SHAP feature importances to ``feature_importance``.
+
+    Mutates the dict in-place. Adds ``shap_top`` (object of
+    ``{feature: mean_abs_shap}``) when SHAP is available; otherwise
+    adds an explanatory ``note`` so callers can explain the gap to
+    Expert-mode users (Task #250).
+    """
+    try:
+        import shap  # type: ignore
+    except ImportError:
+        feature_importance["note"] = (
+            "shap_top unavailable: the 'shap' package is not installed."
+        )
+        return
+    except Exception as exc:  # pragma: no cover - defensive
+        feature_importance["note"] = f"shap_top unavailable: {exc}"
+        return
+    if x_test is None or len(x_test) == 0 or not feature_names:
+        feature_importance["note"] = (
+            "shap_top unavailable: no test rows to explain."
+        )
+        return
+    try:
+        # Cap the number of rows we explain so SHAP stays cheap on
+        # large holdout sets — top features are stable past ~200 rows.
+        sample = x_test.head(200) if len(x_test) > 200 else x_test
+        explainer = shap.TreeExplainer(model)
+        values = explainer.shap_values(sample)
+        arr = np.asarray(values)
+        # Classification returns one matrix per class; collapse classes
+        # by averaging mean-abs across them so multi-class still gets
+        # a single ranking.
+        if arr.ndim == 3:
+            mean_abs = np.mean(np.abs(arr), axis=(0, 1))
+        elif arr.ndim == 2:
+            mean_abs = np.mean(np.abs(arr), axis=0)
+        else:
+            mean_abs = np.abs(arr)
+        if mean_abs.shape[0] != len(feature_names):
+            feature_importance["note"] = (
+                "shap_top unavailable: feature length mismatch."
+            )
+            return
+        ranking = sorted(
+            zip(feature_names, mean_abs.tolist()),
+            key=lambda kv: float(kv[1]),
+            reverse=True,
+        )
+        feature_importance["shap_top"] = {
+            str(name): round(float(value), 5)
+            for name, value in ranking[: max(1, int(top_k))]
+        }
+    except Exception as exc:
+        feature_importance["note"] = f"shap_top unavailable: {exc}"
 
 
 def _regression_feature_importance(model, feature_names: list[str]) -> dict[str, float]:
@@ -442,6 +507,7 @@ def _fit_classifier(
         name: round(float(v), 5)
         for name, v in zip(x.columns, model.feature_importances_)
     }
+    _attach_shap_top(feature_importance, model, x_test, list(x.columns))
 
     return {
         "family": "classification",
@@ -1107,8 +1173,15 @@ def _guided_recommendations(
             recs.append("Strong fit — predictions are reliable for planning.")
         fi = family_payload.get("feature_importance") or {}
         if fi:
-            top = sorted(fi.items(), key=lambda kv: kv[1], reverse=True)[:1]
-            if top:
+            # Skip non-numeric extras like ``shap_top`` / ``note``
+            # added by the SHAP hook so the recommendation only
+            # ranks real per-feature scores.
+            numeric_fi = [
+                (k, v) for k, v in fi.items()
+                if isinstance(v, (int, float))
+            ]
+            if numeric_fi:
+                top = sorted(numeric_fi, key=lambda kv: kv[1], reverse=True)[:1]
                 recs.append(
                     f"Focus on '{top[0][0]}' — it has the largest impact on the target."
                 )
