@@ -1,4 +1,4 @@
-........................................................................ [ 23%]
+........................................................................ [ 22%]
 .......................MANUAL_REVIEW_REQUIRED: frontend component tests — no React test runner (Jest/Vitest/Playwright) is configured in frontend/package.json. The following components ship to users and need direct coverage once a runner is wired up:
   - src/components/product/AppChrome.tsx — top-level shell + auth/route guards
   - src/components/product/ProjectWorkspace.tsx — project page state machine (datasets ↔ chats ↔ artifacts)
@@ -18,14 +18,26 @@
   - src/components/product/ProductSidebar.tsx — left navigation between projects, chats, datasets, reports
   - src/app/app (final-report page) — renders /api/chats/<id>/report and triggers /report.pdf download
   - src/app/app (data-model page) — drives PATCH/POST/PUT calls against /api/projects/<pid>/data-model
-................................................. [ 46%]
-........................................................................ [ 69%]
-........................................................................ [ 92%]
-........................                                                 [100%]
+................................................. [ 45%]
+........................................................................ [ 67%]
+........................................................................ [ 90%]
+...............................                                          [100%]
 =============================== warnings summary ===============================
 models.py:17
   /home/runner/workspace/models.py:17: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
     Base = declarative_base()
+
+tests/test_api_endpoints.py::test_analysis_predict_endpoint
+tests/test_api_endpoints.py::test_analysis_predict_endpoint
+tests/test_api_endpoints.py::test_analysis_model_endpoint
+tests/test_api_endpoints.py::test_analysis_model_endpoint
+tests/test_predictions_engine.py::test_regression_autopick_dual_payload
+tests/test_predictions_engine.py::test_regression_autopick_dual_payload
+tests/test_predictions_engine.py::test_regression_metrics_correct_on_deterministic_linear
+tests/test_predictions_engine.py::test_classification_path_predicts_classes
+tests/test_predictions_engine.py::test_classification_path_predicts_classes
+  /home/runner/workspace/backend/predictions_engine.py:143: UserWarning: Could not infer format, so each element will be parsed individually, falling back to `dateutil`. To ensure parsing is consistent and as-expected, please specify a format.
+    parsed = pd.to_datetime(sample, errors="coerce")
 
 tests/test_api_endpoints.py::test_predict_guided_analyze_and_run
 tests/test_predict_guided.py::test_detect_time_column_picks_named_date_column
@@ -46,4 +58,4 @@ tests/test_units_analysis.py::test_suggested_questions_tailors_output_to_datafra
     parsed = pd.to_datetime(sample, errors="coerce")
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-312 passed, 13 warnings in 71.84s (0:01:11)
+319 passed, 22 warnings in 74.02s (0:01:14)

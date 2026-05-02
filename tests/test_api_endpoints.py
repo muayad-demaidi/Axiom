@@ -125,18 +125,48 @@ def test_analysis_predict_endpoint(client, project, upload_dataset,
         headers=u["headers"],
     )
     assert r.status_code == 200 and _is_json(r)
+    body = r.json()
+    # Task #245: dual {guided, expert} payload is always returned.
+    assert "guided" in body and "expert" in body, body
+    for key in ("summary", "confidence", "confidence_score", "recommendations"):
+        assert key in body["guided"], body["guided"]
+    for key in ("model_used", "metrics", "cross_validation",
+                "confidence_interval", "trend_direction", "predictions"):
+        assert key in body["expert"], body["expert"]
+    cv = body["expert"]["cross_validation"]
+    assert "mean" in cv and "std" in cv, cv
+    # Legacy ``forecast`` block is preserved for backwards compatibility.
+    assert "forecast" in body
 
 
 def test_analysis_model_endpoint(client, project, upload_dataset,
                                  driver_regression_csv):
     u, pid = project("amodel")
     dsid = upload_dataset(u["headers"], pid, "drivers", driver_regression_csv)
+    # KMeans branch — clustering also returns the dual payload.
     r = client.post(
         "/api/model",
         json={"dataset_id": dsid, "method": "kmeans", "k": 3},
         headers=u["headers"],
     )
     assert r.status_code == 200 and _is_json(r)
+    body = r.json()
+    assert "guided" in body and "expert" in body, body
+    assert body["expert"]["model_used"] == "KMeans"
+    # RandomForest branch — full predictions-engine routing.
+    r = client.post(
+        "/api/model",
+        json={"dataset_id": dsid, "method": "randomforest", "target": "sales"},
+        headers=u["headers"],
+    )
+    assert r.status_code == 200 and _is_json(r)
+    body = r.json()
+    assert "guided" in body and "expert" in body, body
+    assert body["expert"]["model_used"] in {
+        "LinearRegression", "RandomForestRegressor", "RandomForestClassifier",
+    }
+    assert "cross_validation" in body["expert"]
+    assert "confidence_interval" in body["expert"]
 
 
 def test_analysis_clean_endpoint(client, project, upload_dataset,

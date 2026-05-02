@@ -22,9 +22,11 @@ from predictions import simple_forecast  # type: ignore
 from context.type_inference import to_numeric_canonical as _canonical_num  # type: ignore
 
 from . import aggregation as agg
+from . import predictions_engine as pe
 from ._json import jsonify
 from .auth import get_current_user, get_db_session
 from .datasets import load_dataset_dataframe
+from .mode_resolver import resolve_mode
 
 router = APIRouter(prefix="/api", tags=["analysis"])
 
@@ -122,17 +124,53 @@ class PredictRequest(BaseModel):
     dataset_id: int
     column: str
     periods: int = 3
+    date_column: str | None = None
+    assistant_mode: str | None = None
+    project_id: int | None = None
 
 
 @router.post("/predict")
 async def predict(req: PredictRequest, user=Depends(get_current_user), db=Depends(get_db_session)):
-    _, df = _require_dataset(db, req.dataset_id, user.id)
+    """Mode-aware predict endpoint (Task #245).
+
+    Returns the documented dual ``{guided, expert}`` payload by routing
+    the request through :mod:`backend.predictions_engine`. Existing
+    callers that only sent ``{dataset_id, column, periods}`` keep
+    working — the extra fields are additive and the legacy
+    ``forecast`` block is preserved at the top level for backwards
+    compatibility.
+    """
+    record, df = _require_dataset(db, req.dataset_id, user.id)
     if req.column not in df.columns:
         raise HTTPException(400, f"Column '{req.column}' not in dataset")
+    mode = resolve_mode(
+        db, user,
+        project_id=req.project_id or getattr(record, "project_id", None),
+        request_mode=req.assistant_mode,
+    )
+    try:
+        result = pe.run_prediction(
+            df,
+            target_col=req.column,
+            date_col=req.date_column,
+            mode=mode,
+            periods=int(req.periods),
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    # Legacy fields kept so older clients (and the Streamlit shell)
+    # continue to render without changes.
     series = _canonical_num(df[req.column]).dropna().tolist()
-    if len(series) < 3:
-        raise HTTPException(400, "Need at least 3 numeric points to forecast")
-    return jsonify({"column": req.column, "forecast": simple_forecast(series, periods=req.periods)})
+    legacy_forecast = (
+        simple_forecast(series, periods=req.periods) if len(series) >= 3 else None
+    )
+    return jsonify({
+        "column": req.column,
+        "mode": mode,
+        "guided": result["guided"],
+        "expert": result["expert"],
+        "forecast": legacy_forecast,
+    })
 
 
 class ModelRequest(BaseModel):
@@ -140,49 +178,79 @@ class ModelRequest(BaseModel):
     method: str = "kmeans"  # kmeans | randomforest
     k: int = 3
     target: str | None = None
+    assistant_mode: str | None = None
+    project_id: int | None = None
 
 
 @router.post("/model")
 async def model(req: ModelRequest, user=Depends(get_current_user), db=Depends(get_db_session)):
-    """Lightweight ML wrapper.
+    """Mode-aware ML wrapper (Task #245).
 
-    Calls into sklearn directly for KMeans and RandomForest because the
-    legacy `data_modelling.py` is tightly coupled to Streamlit session
-    state. We will swap to module-level functions there once they are
-    refactored to be UI-agnostic.
+    Returns the dual ``{guided, expert}`` payload for both clustering
+    (KMeans) and supervised modelling (RandomForest). The KMeans
+    branch is wrapped locally because clustering does not have a
+    natural prediction surface, while RandomForest requests are routed
+    through :mod:`backend.predictions_engine` which auto-picks
+    classification vs. regression and runs cross-validation +
+    confidence intervals.
     """
-    _, df = _require_dataset(db, req.dataset_id, user.id)
+    record, df = _require_dataset(db, req.dataset_id, user.id)
     numeric = df.select_dtypes(include="number").dropna()
     if numeric.empty:
         raise HTTPException(400, "No numeric columns to model")
+    mode = resolve_mode(
+        db, user,
+        project_id=req.project_id or getattr(record, "project_id", None),
+        request_mode=req.assistant_mode,
+    )
 
     if req.method == "kmeans":
         from sklearn.cluster import KMeans
         k = max(2, min(req.k, len(numeric) - 1, 10))
-        labels = KMeans(n_clusters=k, n_init=10, random_state=42).fit_predict(numeric)
+        kmeans = KMeans(n_clusters=k, n_init=10, random_state=42).fit(numeric)
+        labels = kmeans.predict(numeric)
         sizes: dict[int, int] = {}
         for label in labels:
             sizes[int(label)] = sizes.get(int(label), 0) + 1
-        return jsonify({"method": "kmeans", "k": k, "cluster_sizes": sizes})
+        guided = {
+            "summary": f"Found {k} clusters across {int(len(numeric))} rows.",
+            "confidence": "n/a",
+            "confidence_score": None,
+            "recommendations": [
+                "Inspect cluster centers to label each segment.",
+                "Use the cluster id as a feature in downstream predictions.",
+            ],
+        }
+        expert = {
+            "model_used": "KMeans",
+            "problem_type": "clustering",
+            "k": k,
+            "cluster_sizes": sizes,
+            "inertia": float(kmeans.inertia_),
+            "parameters": {"n_init": 10, "random_state": 42, "n_clusters": k},
+            "feature_importance": {},
+            "metrics": {"inertia": float(kmeans.inertia_)},
+            "cross_validation": {},
+            "confidence_interval": {},
+        }
+        return jsonify({
+            "method": "kmeans", "k": k, "cluster_sizes": sizes, "mode": mode,
+            "guided": guided, "expert": expert,
+        })
 
     if req.method == "randomforest":
-        from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
         if not req.target or req.target not in df.columns:
             raise HTTPException(400, "target column required for randomforest")
-        y = df[req.target]
-        x = numeric.drop(columns=[req.target], errors="ignore")
-        if x.empty:
-            raise HTTPException(400, "Need at least one numeric feature column besides the target")
-        rf = (RandomForestRegressor if pd.api.types.is_numeric_dtype(y) else RandomForestClassifier)(
-            n_estimators=100, random_state=42
-        )
-        rf.fit(x, y.loc[x.index])
-        importance = sorted(
-            ({"feature": f, "importance": float(i)} for f, i in zip(x.columns, rf.feature_importances_)),
-            key=lambda r: r["importance"],
-            reverse=True,
-        )
-        return jsonify({"method": "randomforest", "target": req.target, "feature_importance": importance[:25]})
+        try:
+            result = pe.run_prediction(
+                df, target_col=req.target, date_col=None, mode=mode,
+            )
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        return jsonify({
+            "method": "randomforest", "target": req.target, "mode": mode,
+            "guided": result["guided"], "expert": result["expert"],
+        })
 
     raise HTTPException(400, f"Unknown method '{req.method}'")
 
