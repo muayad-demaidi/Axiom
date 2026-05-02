@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { api, ApiError, getToken } from "@/lib/api";
 import type { AxiomDataset, AxiomFieldMeta, AxiomFieldMetaResponse } from "@/lib/types";
 import { getActiveProjectId, setActiveDatasetId } from "@/lib/projectContext";
@@ -17,9 +18,6 @@ type UploadResponse = {
   cols: number;
 };
 
-// Task #260 — passive notification surfaced after the post-upload
-// background sweep auto-links a new join. Shape mirrors the
-// `/api/projects/{pid}/upload-notifications` envelope.
 type AutoLinkNotification = {
   id: number;
   project_id: number;
@@ -46,6 +44,9 @@ type AutoLinkNotification = {
 
 export default function UploadPage() {
   const router = useRouter();
+  const t = useTranslations("upload");
+  const locale = useLocale();
+  const dir: "rtl" | "ltr" = locale === "ar" ? "rtl" : "ltr";
   const projectId = typeof window !== "undefined" ? getActiveProjectId() : null;
   const { mode } = useMode(projectId);
   const [datasets, setDatasets] = useState<Dataset[] | null>(null);
@@ -57,11 +58,6 @@ export default function UploadPage() {
   const [previewMeta, setPreviewMeta] = useState<AxiomFieldMetaResponse | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [autoLink, setAutoLink] = useState<AutoLinkNotification | null>(null);
-  // We snapshot notification IDs that already existed *before* the
-  // upload so the post-upload poll only surfaces a card for joins that
-  // this upload actually added — older un-dismissed banners stay where
-  // they live (the project workspace) and don't pop a fresh toast on
-  // every drag-and-drop.
   const seenNotificationIdsRef = useRef<Set<number>>(new Set());
   const pollTimersRef = useRef<number[]>([]);
 
@@ -73,9 +69,6 @@ export default function UploadPage() {
     });
   }, [router]);
 
-  // Snapshot existing notifications on mount so we can compare on the
-  // post-upload poll — a notification only counts as "new" if its ID
-  // wasn't already on the list before this page session.
   useEffect(() => {
     const pid = projectId;
     if (!pid) return;
@@ -85,29 +78,19 @@ export default function UploadPage() {
       .then(({ items }) => {
         for (const n of items) seenNotificationIdsRef.current.add(n.id);
       })
-      .catch(() => {
-        /* harmless — discovery may have never run yet */
-      });
+      .catch(() => {});
   }, [projectId]);
 
-  // Tear down any in-flight pollers when the page unmounts so a slow
-  // background sweep can't fire setState on an unmounted tree.
   useEffect(() => {
     return () => {
-      for (const t of pollTimersRef.current) window.clearTimeout(t);
+      for (const tid of pollTimersRef.current) window.clearTimeout(tid);
       pollTimersRef.current = [];
     };
   }, []);
 
   function pollForAutoLink(pid: number) {
-    // The backend writes the notification inside a FastAPI
-    // BackgroundTask that begins after the upload response returns.
-    // 600 ms / 1500 ms / 3000 ms / 6000 ms covers the common case
-    // (a few small CSVs profile in well under a second) and the
-    // worst case (large parquet, slow profiler) without keeping the
-    // browser busy for too long.
     const delays = [600, 1500, 3000, 6000];
-    for (const t of pollTimersRef.current) window.clearTimeout(t);
+    for (const tid of pollTimersRef.current) window.clearTimeout(tid);
     pollTimersRef.current = delays.map((ms) =>
       window.setTimeout(async () => {
         try {
@@ -122,15 +105,12 @@ export default function UploadPage() {
           if (fresh) {
             seenNotificationIdsRef.current.add(fresh.id);
             setAutoLink(fresh);
-            // Stop the rest of the polls; we found it.
             for (const tid of pollTimersRef.current) {
               window.clearTimeout(tid);
             }
             pollTimersRef.current = [];
           }
-        } catch {
-          /* swallow — discovery may have failed silently */
-        }
+        } catch {}
       }, ms),
     );
   }
@@ -144,9 +124,7 @@ export default function UploadPage() {
         `/api/projects/${note.project_id}/upload-notifications/${note.id}/dismiss`,
         { method: "POST" },
       );
-    } catch {
-      /* swallow — server-side state isn't critical for the toast */
-    }
+    } catch {}
   }
 
   function openAutoLinkInWorkspace() {
@@ -160,7 +138,7 @@ export default function UploadPage() {
   }
 
   async function handleFile(file: File) {
-    setBusy(true); setError(null); setProgress("جاري الرفع…");
+    setBusy(true); setError(null); setProgress(t("uploading"));
     setPreviewMeta(null); setPreviewError(null);
     try {
       const form = new FormData();
@@ -168,11 +146,6 @@ export default function UploadPage() {
       const pid = getActiveProjectId();
       if (pid) form.append("project_id", String(pid));
       form.append("dataset_name", file.name.replace(/\.[^.]+$/, ""));
-      // Optional caption — sent as a "description" form field. The
-      // upload endpoint silently ignores unknown form params today, so
-      // this is a no-op server-side until a future migration adds the
-      // column. We still surface it in the success message so the user
-      // sees their note was received.
       if (caption.trim()) form.append("description", caption.trim());
       const token = getToken();
       const res = await fetch("/api/datasets/upload", {
@@ -181,33 +154,31 @@ export default function UploadPage() {
         body: form,
       });
       const data = (await res.json()) as UploadResponse & { detail?: string };
-      if (!res.ok) throw new Error(data?.detail || "Upload failed");
+      if (!res.ok) throw new Error(data?.detail || t("uploadFailed"));
       setActiveDatasetId(data.id);
       setLastUploaded(data);
-      const captionNote = caption.trim()
-        ? ` ملاحظة: "${caption.trim()}".`
-        : "";
+      const captionNote = caption.trim() ? t("savedNote", { caption: caption.trim() }) : "";
       setProgress(
-        `تم الحفظ بنجاح ✓ — ${data.filename} · ${data.rows.toLocaleString()} صف × ${data.cols} عمود.${captionNote}`,
+        t("savedOk", {
+          filename: data.filename,
+          rows: data.rows.toLocaleString(),
+          cols: data.cols,
+          captionNote,
+        }),
       );
-      // Kick off the auto-link poll only when the upload was bound to
-      // a project — discovery runs project-scoped, and orphaned
-      // uploads can't surface a join anyway.
       const boundProjectId = pid ? Number(pid) : null;
       if (boundProjectId) pollForAutoLink(boundProjectId);
       setDatasets((arr) => [
         { id: data.id, filename: data.filename, dataset_name: data.dataset_name, rows: data.rows, cols: data.cols },
         ...(arr ?? []),
       ]);
-      // Expert post-upload preview: fetch field-meta so we can show
-      // dtype + cardinality before the user opens the dataset.
       if (mode !== "guided") {
         api<AxiomFieldMetaResponse>(`/api/bi/${data.id}/field-meta`)
           .then(setPreviewMeta)
           .catch((err: ApiError) => setPreviewError(err.message));
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "تعذّر رفع الملف"); setProgress(null);
+      setError(e instanceof Error ? e.message : t("uploadFailedGeneric")); setProgress(null);
     } finally {
       setBusy(false);
     }
@@ -226,42 +197,42 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="max-w-3xl" dir="rtl">
+    <div className="max-w-3xl" dir={dir}>
       <button
         type="button"
         onClick={backToProject}
         className="text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)] inline-flex items-center"
         style={{ minHeight: 32, paddingInline: 8 }}
       >
-        → العودة إلى المشروع
+        {t("backToProject")}
       </button>
       <div className="mt-2">
         <ModeAwareHeading
           projectId={projectId}
-          eyebrow="البيانات · رفع"
-          guidedTitle="أضف بيانات للعمل عليها"
-          expertTitle="رفع مجموعة بيانات"
-          guidedSubtitle="ضع ملف CSV أو Excel أدناه لنبدأ تحليله. يمكنك إضافة ملاحظة سريعة عن محتوى الملف."
-          expertSubtitle="CSV أو Excel حتى 200 ميجابايت على الفئة 3. تُحلَّل بيانات الأعمدة فور الرفع."
+          eyebrow={t("eyebrow")}
+          guidedTitle={t("guidedTitle")}
+          expertTitle={t("expertTitle")}
+          guidedSubtitle={t("guidedSubtitle")}
+          expertSubtitle={t("expertSubtitle")}
         />
       </div>
 
       {mode === "guided" && (
         <div className="card mt-6">
           <label className="block text-[12px] font-medium mb-1">
-            ما موضوع هذا الملف؟ (اختياري)
+            {t("captionLabel")}
           </label>
           <input
             type="text"
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
-            placeholder="مثال: طلبات مبيعات الربع الثالث من Salesforce"
+            placeholder={t("captionPlaceholder")}
             className="w-full border border-[var(--border)] rounded px-3 py-2 text-sm bg-transparent"
             style={{ minHeight: 44 }}
             disabled={busy}
           />
           <p className="text-[12px] text-[var(--text-muted)] mt-1">
-            سنحتفظ بهذه الملاحظة مع الملف لتتذكّر محتواه لاحقًا.
+            {t("captionHelp")}
           </p>
         </div>
       )}
@@ -271,6 +242,7 @@ export default function UploadPage() {
           notification={autoLink}
           onOpen={openAutoLinkInWorkspace}
           onDismiss={dismissAutoLink}
+          dir={dir}
         />
       )}
 
@@ -286,9 +258,7 @@ export default function UploadPage() {
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
         />
         <p className="text-[var(--text-muted)] text-sm">
-          {mode === "guided"
-            ? "اضغط هنا أو اسحب ملف CSV / Excel"
-            : "اضغط لاختيار أو سحب ملف CSV / xlsx."}
+          {mode === "guided" ? t("dropAreaGuided") : t("dropAreaExpert")}
         </p>
         {progress && <p className="text-[12px] text-[var(--accent)] mt-2" role="status" aria-live="polite">{progress}</p>}
         {error && <p className="text-[12px] text-red-600 mt-2" role="alert">{error}</p>}
@@ -299,10 +269,11 @@ export default function UploadPage() {
           dataset={lastUploaded}
           meta={previewMeta}
           error={previewError}
+          dir={dir}
         />
       )}
 
-      <h2 className="text-lg font-semibold mt-10 mb-3">مجموعات البيانات الخاصة بك</h2>
+      <h2 className="text-lg font-semibold mt-10 mb-3">{t("yourDatasets")}</h2>
       {datasets === null ? (
         <div
           className="card text-[var(--text-muted)] text-sm inline-flex items-center gap-2"
@@ -313,13 +284,13 @@ export default function UploadPage() {
             className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]"
             aria-hidden="true"
           />
-          جاري التحميل…
+          {t("loading")}
         </div>
       ) : datasets.length === 0 ? (
         <div className="card text-[var(--text-muted)] text-sm text-center py-8">
           <div className="text-2xl mb-2" aria-hidden="true">📂</div>
-          <div className="font-medium text-[var(--text)]">لا توجد بيانات بعد</div>
-          <div className="text-[12px] mt-1">ارفع ملفًا أعلاه لبدء الاستكشاف.</div>
+          <div className="font-medium text-[var(--text)]">{t("noDatasetsTitle")}</div>
+          <div className="text-[12px] mt-1">{t("noDatasetsSubtitle")}</div>
         </div>
       ) : (
         <ul className="space-y-2">
@@ -339,22 +310,26 @@ export default function UploadPage() {
                     {d.dataset_name}
                     {p && (
                       <span
-                        title={`مرتبط من ${left} ⋈ ${right} على ${keyLabel} (${p.join_type})`}
+                        title={t("linkedTooltip", { left, right, keyLabel, joinType: p.join_type })}
                         className="text-[12px] uppercase tracking-wide font-mono px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)]"
                       >
-                        مرتبط
+                        {t("linkedBadge")}
                       </span>
                     )}
                   </div>
-                  <div className="text-[12px] text-[var(--text-muted)]">{d.filename} · {d.rows.toLocaleString()} صف × {d.cols} عمود</div>
+                  <div className="text-[12px] text-[var(--text-muted)]">
+                    {t("rowsCols", { filename: d.filename, rows: d.rows.toLocaleString(), cols: d.cols })}
+                  </div>
                   {p && (
                     <div className="text-[12px] text-[var(--text-muted)] mt-1">
-                      مرتبط من <strong>{left}</strong> ⋈ <strong>{right}</strong> على{" "}
+                      {t("linkedFrom")} <strong>{left}</strong> ⋈ <strong>{right}</strong> {t("linkedJoinOn")}{" "}
                       <code className="font-mono">{keyLabel}</code> · {p.join_type}
                     </div>
                   )}
                 </div>
-                <button className="btn btn-primary text-[12px]" style={{ minHeight: 44 }} onClick={() => pick(d)}>افتح</button>
+                <button className="btn btn-primary text-[12px]" style={{ minHeight: 44 }} onClick={() => pick(d)}>
+                  {t("openCta")}
+                </button>
               </li>
             );
           })}
@@ -368,15 +343,14 @@ function AutoLinkToast({
   notification,
   onOpen,
   onDismiss,
+  dir,
 }: {
   notification: AutoLinkNotification;
   onOpen: () => void;
   onDismiss: () => void;
+  dir: "rtl" | "ltr";
 }) {
-  // Surface the first 2 joins inline for context; the rest collapse
-  // into a "+N more" tail so the toast stays scannable when a single
-  // upload (e.g. a fact table) lights up several FK relationships at
-  // once.
+  const t = useTranslations("upload");
   const joins = notification.payload.joins ?? [];
   const head = joins.slice(0, 2);
   const moreCount = Math.max(0, joins.length - head.length);
@@ -385,7 +359,7 @@ function AutoLinkToast({
       role="status"
       aria-live="polite"
       className="card mt-4 border-[var(--accent)]/40 bg-[var(--accent)]/5"
-      dir="rtl"
+      dir={dir}
     >
       <div className="flex items-start gap-3">
         <div className="text-[var(--accent)] text-base leading-none mt-0.5" aria-hidden>
@@ -393,17 +367,17 @@ function AutoLinkToast({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[12px] uppercase tracking-widest font-mono text-[var(--accent)] mb-1">
-            ربط تلقائي
+            {t("autoLinkEyebrow")}
           </div>
           <div className="text-sm">
             {head.length === 0
               ? notification.summary
               : (
                 <>
-                  تم ربط
+                  {t("autoLinkLeadIn")}
                   {head.map((j, i) => (
                     <span key={j.relationship_id}>
-                      {i > 0 ? " و" : ""}{" "}
+                      {i > 0 ? ` ${t("autoLinkConnector")} ` : " "}
                       <span className="font-mono text-[12px]">
                         {j.left_table}.{j.left_column}
                       </span>{" "}
@@ -415,10 +389,10 @@ function AutoLinkToast({
                   ))}
                   {moreCount > 0 ? (
                     <span className="text-[var(--text-muted)]">
-                      {" "}(+{moreCount} علاقة إضافية)
+                      {" "}{t("autoLinkMore", { count: moreCount })}
                     </span>
                   ) : null}{" "}
-                  تلقائيًا.
+                  {t("autoLinkAuto")}
                 </>
               )}
           </div>
@@ -429,7 +403,7 @@ function AutoLinkToast({
               className="text-[12px] px-2 py-1 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10"
               style={{ minHeight: 32 }}
             >
-              راجع في نموذج البيانات ←
+              {t("autoLinkReview")}
             </button>
             <button
               type="button"
@@ -437,7 +411,7 @@ function AutoLinkToast({
               className="text-[12px] px-2 py-1 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)]"
               style={{ minHeight: 32 }}
             >
-              إغلاق
+              {t("autoLinkClose")}
             </button>
           </div>
         </div>
@@ -450,19 +424,22 @@ function UploadPreview({
   dataset,
   meta,
   error,
+  dir,
 }: {
   dataset: UploadResponse;
   meta: AxiomFieldMetaResponse | null;
   error: string | null;
+  dir: "rtl" | "ltr";
 }) {
+  const t = useTranslations("upload");
   return (
-    <div className="card mt-4" dir="rtl">
+    <div className="card mt-4" dir={dir}>
       <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
-        معاينة الرفع · {dataset.dataset_name}
+        {t("previewEyebrow", { name: dataset.dataset_name })}
       </div>
       {error && (
         <div className="text-[12px] text-red-600 mb-2" role="alert">
-          تعذّر تحليل الأعمدة: {error}
+          {t("previewError", { error })}
         </div>
       )}
       {!meta && !error && (
@@ -475,7 +452,7 @@ function UploadPreview({
             className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]"
             aria-hidden="true"
           />
-          جاري تحليل الأعمدة…
+          {t("previewLoading")}
         </div>
       )}
       {meta && (
@@ -483,11 +460,11 @@ function UploadPreview({
           <table className="w-full text-[12px]">
             <thead>
               <tr className="text-[var(--text-muted)] text-[12px] uppercase tracking-widest border-b border-[var(--border)]">
-                <th className="text-right px-2 py-1">العمود</th>
-                <th className="text-right px-2 py-1">النوع</th>
-                <th className="text-right px-2 py-1">الدور</th>
-                <th className="text-left px-2 py-1">قيم فريدة</th>
-                <th className="text-left px-2 py-1">نسبة التنوّع</th>
+                <th className="text-start px-2 py-1">{t("colHeader")}</th>
+                <th className="text-start px-2 py-1">{t("typeHeader")}</th>
+                <th className="text-start px-2 py-1">{t("roleHeader")}</th>
+                <th className="text-start px-2 py-1">{t("uniqueHeader")}</th>
+                <th className="text-start px-2 py-1">{t("diversityHeader")}</th>
               </tr>
             </thead>
             <tbody>
@@ -501,10 +478,10 @@ function UploadPreview({
                     <td className="px-2 py-1 font-mono">{col}</td>
                     <td className="px-2 py-1 font-mono">{fm.dtype || "—"}</td>
                     <td className="px-2 py-1">{fm.role}</td>
-                    <td className="px-2 py-1 text-right tabular-nums">
+                    <td className="px-2 py-1 text-end tabular-nums">
                       {typeof fm.unique === "number" ? fm.unique.toLocaleString() : "—"}
                     </td>
-                    <td className="px-2 py-1 text-right tabular-nums">{card}</td>
+                    <td className="px-2 py-1 text-end tabular-nums">{card}</td>
                   </tr>
                 );
               })}
