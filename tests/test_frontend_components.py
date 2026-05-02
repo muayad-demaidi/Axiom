@@ -77,6 +77,45 @@ _UNTESTED_COMPONENTS: list[tuple[str, str]] = [
      "renders /api/chats/<id>/report and triggers /report.pdf download"),
     ("src/app/app (data-model page)",
      "drives PATCH/POST/PUT calls against /api/projects/<pid>/data-model"),
+    # Mode-aware (Guided ↔ Expert) page-level behaviour added in #249.
+    # Each entry below describes a specific user-visible difference that
+    # should be asserted once a React test runner is in place.
+    ("src/app/app/dashboard/page.tsx (Guided)",
+     "KPI tiles show a 1-sentence plain-language hint; slicers, "
+     "safeguards, drill-down, CSV export, explain and remove buttons "
+     "are hidden; chart 'Show JSON' details disclosure is hidden"),
+    ("src/app/app/dashboard/page.tsx (Expert)",
+     "Slicers / safeguards / reset / drill / CSV / explain / remove "
+     "all visible; KpiCard and ChartTile each render a `<details>` "
+     "'Show JSON' disclosure with the raw payload"),
+    ("src/app/app/pivot/page.tsx (Guided)",
+     "Templates grid (trend by month, top-10, counts, grand totals) "
+     "shows above the result; the Rows/Columns/Values/Filters/Display "
+     "wells are hidden behind an AdvancedExpander labelled 'Open the "
+     "full pivot builder'; CSV export and view-mode toggle are hidden"),
+    ("src/app/app/pivot/page.tsx (Expert)",
+     "Original two-column layout (260px wells | result) renders the "
+     "full pivot builder, view toggle, CSV export and row-count "
+     "footer exactly as before"),
+    ("src/app/app/report/page.tsx (Guided)",
+     "Narrative-first: cover + chart + AI insights only; section "
+     "picker is hidden inside an AdvancedExpander; CTA copy is the "
+     "friendly 'Generate report' wording"),
+    ("src/app/app/report/page.tsx (Expert)",
+     "Full section picker rendered inline; eyebrow + heading use "
+     "the precise expert variant via ModeAwareHeading"),
+    ("src/app/app/upload/page.tsx (Guided)",
+     "Upload form shows the 'What is this file about?' caption "
+     "input; on success the caption is echoed in the confirmation; "
+     "field-meta table is NOT rendered"),
+    ("src/app/app/upload/page.tsx (Expert)",
+     "After upload, UploadPreview sub-component fetches "
+     "/api/bi/<id>/field-meta and renders a per-column table of "
+     "dtype, role, unique count and cardinality ratio"),
+    ("src/components/product/ChatPanel.tsx (mode-aware chips)",
+     "Quick-action chips swap between GUIDED_CHIPS and EXPERT_CHIPS "
+     "based on useMode(projectId); CTA buttons in assistant replies "
+     "only render in Guided mode"),
 ]
 
 

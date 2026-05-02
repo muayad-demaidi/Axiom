@@ -40,6 +40,7 @@ import type {
   AxiomPivotMeasureView,
 } from "@/lib/types";
 import { getActiveDatasetId, getActiveProjectId } from "@/lib/projectContext";
+import { useMode } from "@/lib/modeContext";
 import { ModeAwareHeading, MissingDatasetNotice } from "@/components/product/ModeAware";
 
 const PALETTE = ["#2563eb", "#60a5fa", "#3b82f6", "#1d4ed8", "#93c5fd", "#0ea5e9", "#1e40af"];
@@ -67,9 +68,21 @@ function fmtValue(v: unknown, kind: string | undefined, precision = 2): string {
   return String(v);
 }
 
+function guidedKpiHint(label: string, kind: string | undefined, value: unknown): string {
+  const friendly = (label || "this measure").toLowerCase();
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return `We couldn't compute ${friendly} for the current selection.`;
+  }
+  if (kind === "currency") return `Total ${friendly} across the rows in scope.`;
+  if (kind === "percent") return `Share for ${friendly} across the rows in scope.`;
+  if (kind === "integer") return `Count of ${friendly} across the rows in scope.`;
+  return `Combined value of ${friendly} across the rows in scope.`;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const projectId = typeof window !== "undefined" ? getActiveProjectId() : null;
+  const { mode } = useMode(projectId);
   const datasetId = typeof window !== "undefined" ? getActiveDatasetId() : null;
   const [hasDataset, setHasDataset] = useState<boolean | null>(null);
   const [dashboard, setDashboard] = useState<AxiomDashboard | null>(null);
@@ -297,12 +310,14 @@ export default function DashboardPage() {
             <button onClick={reload} disabled={busy} className="btn btn-secondary text-xs">
               {busy ? "Refreshing…" : "Refresh"}
             </button>
-            <button onClick={resetDashboard} className="btn text-xs">
-              Reset to auto-suggested
-            </button>
+            {mode !== "guided" && (
+              <button onClick={resetDashboard} className="btn text-xs">
+                Reset to auto-suggested
+              </button>
+            )}
           </div>
 
-          {dashboard && dashboard.spec.slicers && dashboard.spec.slicers.length > 0 && (
+          {mode !== "guided" && dashboard && dashboard.spec.slicers && dashboard.spec.slicers.length > 0 && (
             <div className="mt-3 card flex items-center gap-3 flex-wrap">
               <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mr-1">Slicers</div>
               {dateSlicer && (
@@ -355,7 +370,7 @@ export default function DashboardPage() {
 
           {error && <div className="text-sm text-red-600 mt-3">{error}</div>}
 
-          {safeguards && (safeguards.fanout.length > 0 || !safeguards.grain.is_unique) && (
+          {mode !== "guided" && safeguards && (safeguards.fanout.length > 0 || !safeguards.grain.is_unique) && (
             <div className="mt-3 card border-amber-500/60">
               <div className="text-xs font-semibold text-amber-600 mb-1">
                 Modeling safeguards
@@ -395,6 +410,7 @@ export default function DashboardPage() {
                       <KpiCard
                         key={tile.tile.id}
                         tile={tile}
+                        mode={mode}
                         onRemove={() => removeTile(tile.tile.id)}
                         onExplain={(m) => openExplain(m, tile.tile, {})}
                       />
@@ -402,6 +418,7 @@ export default function DashboardPage() {
                       <ChartTile
                         key={tile.tile.id}
                         tile={tile}
+                        mode={mode}
                         onRemove={() => removeTile(tile.tile.id)}
                         onDrillThrough={() => drillThrough(tile.tile)}
                         onExport={() => exportTileCsv(tile.tile)}
@@ -438,9 +455,10 @@ export default function DashboardPage() {
 }
 
 function KpiCard({
-  tile, onRemove, onExplain,
+  tile, mode, onRemove, onExplain,
 }: {
   tile: AxiomDashboardTileResult;
+  mode: "guided" | "expert";
   onRemove: () => void;
   onExplain: (m: AxiomPivotMeasureView) => void;
 }) {
@@ -448,11 +466,13 @@ function KpiCard({
   const v = m ? tile.grand_total[m.key] : null;
   return (
     <div className="card group relative">
-      <button
-        onClick={onRemove}
-        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-red-500 text-xs"
-        aria-label="Remove tile"
-      >×</button>
+      {mode !== "guided" && (
+        <button
+          onClick={onRemove}
+          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-red-500 text-xs"
+          aria-label="Remove tile"
+        >×</button>
+      )}
       <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
         {tile.tile.title}
       </div>
@@ -464,25 +484,39 @@ function KpiCard({
           {m.label}
         </div>
       )}
+      {mode === "guided" && m && (
+        <div className="mt-2 text-[11px] leading-snug text-[var(--text-muted)]">
+          {guidedKpiHint(m.label || tile.tile.title, m.format_kind, v)}
+        </div>
+      )}
       {tile.warnings && tile.warnings.length > 0 && (
         <div className="mt-1 text-[10px] text-amber-600">{tile.warnings[0]}</div>
       )}
-      {m && (
-        <button
-          onClick={() => onExplain(m)}
-          className="absolute bottom-1 right-2 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] underline"
-        >
-          Explain
-        </button>
+      {mode !== "guided" && m && (
+        <>
+          <button
+            onClick={() => onExplain(m)}
+            className="absolute bottom-1 right-2 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] underline"
+          >
+            Explain
+          </button>
+          <details className="mt-2 text-[10px] text-[var(--text-muted)]">
+            <summary className="cursor-pointer hover:text-[var(--accent)]">Show JSON</summary>
+            <pre className="mt-1 overflow-auto max-h-48 whitespace-pre-wrap break-all bg-[var(--surface)]/60 rounded p-2 text-[10px]">
+              {JSON.stringify({ spec: tile.tile, value: v, measure: m }, null, 2)}
+            </pre>
+          </details>
+        </>
       )}
     </div>
   );
 }
 
 function ChartTile({
-  tile, onRemove, onDrillThrough, onExport, onExplain,
+  tile, mode, onRemove, onDrillThrough, onExport, onExplain,
 }: {
   tile: AxiomDashboardTileResult;
+  mode: "guided" | "expert";
   onRemove: () => void;
   onDrillThrough: () => void;
   onExport: () => void;
@@ -500,36 +534,38 @@ function ChartTile({
 
   return (
     <div className="card group relative">
-      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex items-center gap-1.5">
-        {m && (
+      {mode !== "guided" && (
+        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex items-center gap-1.5">
+          {m && (
+            <button
+              onClick={() => onExplain(m)}
+              className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
+              title="Explain this tile"
+            >
+              Explain
+            </button>
+          )}
           <button
-            onClick={() => onExplain(m)}
+            onClick={onExport}
             className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
-            title="Explain this tile"
+            title="Export CSV"
           >
-            Explain
+            CSV
           </button>
-        )}
-        <button
-          onClick={onExport}
-          className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
-          title="Export CSV"
-        >
-          CSV
-        </button>
-        <button
-          onClick={onDrillThrough}
-          className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
-          title="Open in Pivot"
-        >
-          Drill →
-        </button>
-        <button
-          onClick={onRemove}
-          className="text-[var(--text-muted)] hover:text-red-500 text-xs"
-          aria-label="Remove tile"
-        >×</button>
-      </div>
+          <button
+            onClick={onDrillThrough}
+            className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
+            title="Open in Pivot"
+          >
+            Drill →
+          </button>
+          <button
+            onClick={onRemove}
+            className="text-[var(--text-muted)] hover:text-red-500 text-xs"
+            aria-label="Remove tile"
+          >×</button>
+        </div>
+      )}
       <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
         {tile.tile.title}
       </div>
@@ -580,6 +616,14 @@ function ChartTile({
         <ul className="mt-2 text-[10px] text-amber-600 list-disc list-inside space-y-0.5">
           {tile.warnings.slice(0, 3).map((w, i) => <li key={i}>{w}</li>)}
         </ul>
+      )}
+      {mode !== "guided" && (
+        <details className="mt-2 text-[10px] text-[var(--text-muted)]">
+          <summary className="cursor-pointer hover:text-[var(--accent)]">Show JSON</summary>
+          <pre className="mt-1 overflow-auto max-h-48 whitespace-pre-wrap break-all bg-[var(--surface)]/60 rounded p-2 text-[10px]">
+            {JSON.stringify({ spec: tile.tile, measures: tile.measures, row_dims: tile.row_dims, sample: data.slice(0, 5) }, null, 2)}
+          </pre>
+        </details>
       )}
     </div>
   );

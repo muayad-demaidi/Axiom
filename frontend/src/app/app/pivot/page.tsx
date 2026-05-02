@@ -46,7 +46,13 @@ import type {
   AxiomPivotResult,
 } from "@/lib/types";
 import { getActiveDatasetId, getActiveProjectId } from "@/lib/projectContext";
-import { ModeAwareHeading, MissingDatasetNotice } from "@/components/product/ModeAware";
+import { useMode } from "@/lib/modeContext";
+import {
+  AdvancedExpander,
+  GuidedActionCard,
+  ModeAwareHeading,
+  MissingDatasetNotice,
+} from "@/components/product/ModeAware";
 
 const PALETTE = ["#2563eb", "#60a5fa", "#3b82f6", "#1d4ed8", "#93c5fd", "#0ea5e9", "#1e40af"];
 const DATE_GRAINS = ["day", "week", "month", "quarter", "year"] as const;
@@ -74,6 +80,7 @@ function PivotPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = typeof window !== "undefined" ? getActiveProjectId() : null;
+  const { mode } = useMode(projectId);
   const datasetId = typeof window !== "undefined" ? getActiveDatasetId() : null;
   const [meta, setMeta] = useState<AxiomFieldMetaResponse | null>(null);
   const [hasDataset, setHasDataset] = useState<boolean | null>(null);
@@ -151,6 +158,96 @@ function PivotPageInner() {
     ([, m]) => (m.role === "dimension" || m.role === "date") && m.visible !== false
   );
   const allMeasures = fieldList.filter(([, m]) => m.role === "measure" && m.visible !== false);
+
+  // Guided-mode "templates": one-click pivots derived from the auto-
+  // profiled field meta. Each template fills the wells in one shot and
+  // the existing recompute-on-state-change effect runs the pivot.
+  const guidedTemplates = useMemo(() => {
+    const out: Array<{
+      key: string;
+      title: string;
+      description: string;
+      cta: string;
+      apply: () => void;
+    }> = [];
+    const firstDateCol = fieldList.find(([, m]) => m.role === "date")?.[0];
+    const firstDimCol = fieldList.find(([, m]) => m.role === "dimension" && m.visible !== false)?.[0];
+    const topMeasure = allMeasures[0];
+    if (topMeasure && firstDateCol) {
+      const [mc, mm] = topMeasure;
+      out.push({
+        key: "trend",
+        title: `Total ${mm.label || mc} by month`,
+        description: `Tracks ${mm.label || mc} over time, grouped by month.`,
+        cta: "Show trend",
+        apply: () => {
+          setRows([firstDateCol]);
+          setCols([]);
+          setMeasures([{ column: mc, aggregation: (mm.default_agg && mm.default_agg !== "none" ? mm.default_agg : "sum") as AxiomAggregation }]);
+          setDateGrains({ [firstDateCol]: "month" });
+          setFilters([]);
+          setTopN(0);
+        },
+      });
+    }
+    if (topMeasure && firstDimCol) {
+      const [mc, mm] = topMeasure;
+      out.push({
+        key: "top10",
+        title: `Top 10 ${firstDimCol} by ${mm.label || mc}`,
+        description: `Highest ${mm.label || mc} broken down by ${firstDimCol}.`,
+        cta: "Show top 10",
+        apply: () => {
+          setRows([firstDimCol]);
+          setCols([]);
+          setMeasures([{ column: mc, aggregation: (mm.default_agg && mm.default_agg !== "none" ? mm.default_agg : "sum") as AxiomAggregation }]);
+          setDateGrains({});
+          setFilters([]);
+          setTopN(10);
+          setTopDir("top");
+        },
+      });
+    }
+    if (firstDimCol) {
+      out.push({
+        key: "counts",
+        title: `Counts by ${firstDimCol}`,
+        description: `How many rows fall into each ${firstDimCol} bucket.`,
+        cta: "Count rows",
+        apply: () => {
+          setRows([firstDimCol]);
+          setCols([]);
+          setMeasures([{ column: firstDimCol, aggregation: "count" }]);
+          setDateGrains({});
+          setFilters([]);
+          setTopN(20);
+          setTopDir("top");
+        },
+      });
+    }
+    if (allMeasures.length > 0) {
+      out.push({
+        key: "kpis",
+        title: "Quick numbers across the dataset",
+        description: "Grand totals for every numeric column at a glance.",
+        cta: "Show grand totals",
+        apply: () => {
+          setRows([]);
+          setCols([]);
+          setMeasures(
+            allMeasures.slice(0, 4).map(([c, m]) => ({
+              column: c,
+              aggregation: (m.default_agg && m.default_agg !== "none" ? m.default_agg : "sum") as AxiomAggregation,
+            })),
+          );
+          setDateGrains({});
+          setFilters([]);
+          setTopN(0);
+        },
+      });
+    }
+    return out;
+  }, [fieldList, allMeasures]);
 
   // Build the request payload that's used both for /pivot and CSV export.
   const buildRequest = useCallback(() => {
@@ -403,7 +500,27 @@ function PivotPageInner() {
       ) : !meta ? (
         <div className="text-xs text-[var(--text-muted)] mt-6">Loading field metadata…</div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 mt-6">
+        <>
+          {mode === "guided" && guidedTemplates.length > 0 && (
+            <div className="mt-6">
+              <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
+                Pre-built summaries
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {guidedTemplates.map((t) => (
+                  <GuidedActionCard
+                    key={t.key}
+                    title={t.title}
+                    description={t.description}
+                    cta={t.cta}
+                    onAction={t.apply}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        {(() => {
+          const wellsColumn = (
           <div className="space-y-4">
             <FieldsPalette dims={dims} measures={allMeasures} />
             <Well
@@ -519,27 +636,32 @@ function PivotPageInner() {
               </label>
             </div>
           </div>
-
+          );
+          const resultColumn = (
           <div>
             <div className="flex items-center gap-2 mb-3 flex-wrap">
-              <div className="inline-flex border border-[var(--border)] rounded overflow-hidden">
-                {(["both", "table", "chart"] as ViewMode[]).map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setView(v)}
-                    className={`px-3 py-1 text-xs ${view === v ? "bg-[var(--accent)] text-white" : "text-[var(--text)] hover:bg-[var(--surface)]"}`}
-                  >
-                    {v === "both" ? "Both" : v.charAt(0).toUpperCase() + v.slice(1)}
-                  </button>
-                ))}
-              </div>
+              {mode !== "guided" && (
+                <div className="inline-flex border border-[var(--border)] rounded overflow-hidden">
+                  {(["both", "table", "chart"] as ViewMode[]).map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setView(v)}
+                      className={`px-3 py-1 text-xs ${view === v ? "bg-[var(--accent)] text-white" : "text-[var(--text)] hover:bg-[var(--surface)]"}`}
+                    >
+                      {v === "both" ? "Both" : v.charAt(0).toUpperCase() + v.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button onClick={run} disabled={busy} className="btn btn-secondary text-xs">
                 {busy ? "Running…" : "Refresh"}
               </button>
-              <button onClick={exportCsv} disabled={!result} className="btn btn-secondary text-xs">
-                Export CSV
-              </button>
-              {result && (
+              {mode !== "guided" && (
+                <button onClick={exportCsv} disabled={!result} className="btn btn-secondary text-xs">
+                  Export CSV
+                </button>
+              )}
+              {result && mode !== "guided" && (
                 <span className="text-[10px] text-[var(--text-muted)] font-mono ml-auto">
                   {result.row_count.toLocaleString()} input rows → {result.result_count} cells
                 </span>
@@ -581,7 +703,29 @@ function PivotPageInner() {
               </div>
             )}
           </div>
-        </div>
+          );
+          if (mode === "guided") {
+            return (
+              <div className="mt-4 space-y-4">
+                {resultColumn}
+                <AdvancedExpander
+                  projectId={projectId}
+                  title="Open the full pivot builder"
+                  hint="rows, columns, values, filters, totals"
+                >
+                  {wellsColumn}
+                </AdvancedExpander>
+              </div>
+            );
+          }
+          return (
+            <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 mt-6">
+              {wellsColumn}
+              {resultColumn}
+            </div>
+          );
+        })()}
+        </>
       )}
 
       {explain && (
