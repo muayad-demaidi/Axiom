@@ -11,7 +11,9 @@ from datetime import datetime
 from typing import Any
 
 import pandas as pd
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import (
+    APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile,
+)
 from pydantic import BaseModel
 
 import models  # type: ignore
@@ -20,6 +22,7 @@ from data_modelling import _cardinality  # type: ignore
 
 from ._json import jsonify
 from .auth import get_current_user, get_db_session
+from .cross_predict import discover_relationships_after_upload
 
 router = APIRouter(prefix="/api/datasets", tags=["datasets"])
 
@@ -134,6 +137,7 @@ def _columns_info(df: pd.DataFrame) -> dict[str, str]:
 
 @router.post("/upload")
 async def upload_dataset(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     project_id: int | None = Form(None),
     dataset_name: str | None = Form(None),
@@ -170,6 +174,14 @@ async def upload_dataset(
         source_parquet=parquet_bytes,
         project_id=project_id,
     )
+    # Auto-discover cross-dataset relationships in the background as
+    # soon as a project gets a second sheet — saves the user from
+    # having to open the data-model page and click Refresh just to
+    # surface the obvious "customer_id ↔ customer_id" links.
+    if project_id is not None:
+        background_tasks.add_task(
+            discover_relationships_after_upload, project_id, user.id,
+        )
     return jsonify({
         "id": record.id,
         "filename": record.filename,

@@ -42,6 +42,7 @@ from .support import router as support_router  # noqa: E402
 from .bi import router as bi_router  # noqa: E402
 from .daily_pulse import router as daily_pulse_router  # noqa: E402
 from . import scheduler as _daily_pulse_scheduler  # noqa: E402
+from .cross_predict import router as cross_predict_router  # noqa: E402
 
 
 @asynccontextmanager
@@ -139,6 +140,7 @@ app.include_router(predict_guided_router)
 app.include_router(support_router)
 app.include_router(bi_router)
 app.include_router(daily_pulse_router)
+app.include_router(cross_predict_router)
 
 
 from fastapi import Depends, HTTPException  # noqa: E402

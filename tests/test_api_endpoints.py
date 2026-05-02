@@ -99,6 +99,55 @@ def test_datasets_upload_list_get(client, project, upload_dataset,
     assert r.status_code == 200 and _is_json(r)
 
 
+def test_datasets_upload_schedules_relationship_discovery(
+    client, project, upload_dataset, customers_csv, orders_csv,
+    monkeypatch,
+):
+    """Task #246 — the upload route must schedule the discovery
+    background task whenever the upload carries a project_id. We swap
+    the discovery callable for a recorder so we can assert it was
+    invoked exactly once after the second upload, with the right
+    (project_id, user_id) tuple.
+    """
+    from backend import datasets as datasets_mod
+
+    calls: list[tuple[int, int]] = []
+
+    def _recorder(project_id: int, user_id: int) -> None:
+        calls.append((int(project_id), int(user_id)))
+
+    monkeypatch.setattr(
+        datasets_mod, "discover_relationships_after_upload", _recorder,
+    )
+
+    u, pid = project("ds-discover")
+    upload_dataset(u["headers"], pid, "customers", customers_csv)
+    upload_dataset(u["headers"], pid, "orders", orders_csv)
+
+    # Discovery should run for both uploads (the route schedules
+    # whenever project_id is set; the no-op for a single-dataset
+    # project is enforced inside the helper itself).
+    assert len(calls) == 2, calls
+    assert all(c[0] == pid for c in calls), calls
+    assert all(c[1] == int(u["user"]["id"]) for c in calls), calls
+
+
+def test_datasets_upload_skips_discovery_without_project(
+    client, register, upload_dataset, customers_csv, monkeypatch,
+):
+    """No project_id → no scheduled background task at all."""
+    from backend import datasets as datasets_mod
+
+    calls: list[tuple[int, int]] = []
+    monkeypatch.setattr(
+        datasets_mod, "discover_relationships_after_upload",
+        lambda pid, uid: calls.append((pid, uid)),
+    )
+    u = register("ds-noproj")
+    upload_dataset(u["headers"], None, "customers", customers_csv)
+    assert calls == []
+
+
 # ---------------------------------------------------------------------------
 # Analysis
 # ---------------------------------------------------------------------------
