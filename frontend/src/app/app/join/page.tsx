@@ -34,6 +34,14 @@ type JoinSummary = {
   right_key: string;
   null_counts?: Record<string, number>;
   collisions: string[];
+  // 1:1 / 1:N / N:1 / N:N from the join keys' uniqueness — surfaced
+  // by the backend so we can warn before the user accidentally
+  // persists a runaway N:N fan-out.
+  cardinality?: string;
+  // True when the projected row count tripped the backend's fan-out
+  // guard. The save will be refused unless we re-submit with
+  // confirm_large_join: true.
+  large_join?: boolean;
 };
 
 type PreviewResponse = {
@@ -144,6 +152,10 @@ export default function JoinPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
+  // Set when the user ticks the "yes, this huge join is intentional"
+  // checkbox after the preview's fan-out warning. We forward it to
+  // the backend as ``confirm_large_join`` to bypass the save guard.
+  const [confirmLargeJoin, setConfirmLargeJoin] = useState(false);
 
   useEffect(() => {
     if (!getToken()) {
@@ -220,12 +232,20 @@ export default function JoinPage() {
       if (leftKeyOverride) body.left_key = leftKeyOverride;
       if (rightKeyOverride) body.right_key = rightKeyOverride;
       if (persist && resultName.trim()) body.result_name = resultName.trim();
+      // Only forward the confirm flag when the user has actually
+      // acknowledged the warning AND we're saving (preview always
+      // succeeds regardless).
+      if (persist && confirmLargeJoin) body.confirm_large_join = true;
       const r = await api<PreviewResponse | SaveResponse>(
         "/api/datasets/join",
         { method: "POST", json: body },
       );
       if (r.preview_only) {
         setPreview(r);
+        // A new preview invalidates any prior "yes I'm sure" tick —
+        // the user must re-acknowledge for the new (possibly
+        // different-shape) join before saving.
+        setConfirmLargeJoin(false);
       } else {
         setSaved(r);
         setActiveDatasetId(r.dataset_id);
@@ -483,7 +503,34 @@ export default function JoinPage() {
                 {preview.summary.result_rows} rows × {preview.summary.result_cols} cols
               </>
             )}
+            {preview.summary.cardinality && (
+              <span className="ml-2 text-xs text-[var(--text-muted)] font-mono">
+                · {preview.summary.cardinality}
+              </span>
+            )}
           </div>
+          {preview.summary.large_join && (
+            <div className="mt-3 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-900">
+              <div className="font-semibold">
+                {mode === "guided"
+                  ? "This combination is unusually big."
+                  : `Fan-out warning (${preview.summary.cardinality ?? "N:N"} join)`}
+              </div>
+              <div className="mt-1">
+                {mode === "guided"
+                  ? `Joining "${preview.summary.left_key}" with "${preview.summary.right_key}" produces ${preview.summary.result_rows.toLocaleString()} rows from inputs of ${preview.summary.left_rows.toLocaleString()} and ${preview.summary.right_rows.toLocaleString()}. This usually means the column you picked isn't a unique identifier — double-check before saving.`
+                  : `${preview.summary.result_rows.toLocaleString()} rows projected from ${preview.summary.left_rows.toLocaleString()} × ${preview.summary.right_rows.toLocaleString()} (>5× the larger input or >1M absolute). Likely caused by joining on a non-key column.`}
+              </div>
+              <label className="mt-2 flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={confirmLargeJoin}
+                  onChange={(e) => setConfirmLargeJoin(e.target.checked)}
+                />
+                <span>Yes, save this large join anyway.</span>
+              </label>
+            </div>
+          )}
           {preview.summary.collisions.length > 0 && (
             <div className="text-xs text-amber-700 mt-2">
               {mode === "guided"
@@ -553,10 +600,21 @@ export default function JoinPage() {
         <button
           className="btn btn-primary text-sm mt-3"
           onClick={() => runJoin(true)}
-          disabled={busy}
+          disabled={
+            busy ||
+            // Block save until the user explicitly confirms a known
+            // fan-out — mirrors the 400 the backend would otherwise
+            // return, but with friendlier in-page UX.
+            (preview?.summary.large_join === true && !confirmLargeJoin)
+          }
         >
           {busy && !preview ? "Saving…" : "Save as new dataset"}
         </button>
+        {preview?.summary.large_join && !confirmLargeJoin && (
+          <div className="mt-2 text-xs text-amber-700">
+            Tick the confirmation above to save this large join.
+          </div>
+        )}
         {saved && (
           <div className="mt-3 text-sm text-green-700">
             Saved as “{saved.dataset_name}” ({saved.rows} rows ·{" "}

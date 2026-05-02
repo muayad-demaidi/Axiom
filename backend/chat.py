@@ -385,6 +385,20 @@ TOOL_SCHEMA: list[dict] = [
                         "type": "boolean",
                         "default": True,
                     },
+                    "confirm_large_join": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": (
+                            "Set to true to override the fan-out guard "
+                            "and persist a join whose projected row "
+                            "count is unexpectedly large (over 1M rows "
+                            "or more than 5× the larger input). The "
+                            "tool's first call will surface the warning "
+                            "in the summary; only re-run with this set "
+                            "after confirming the user actually wants "
+                            "the giant result."
+                        ),
+                    },
                 },
                 "required": ["left_dataset_id", "right_dataset_id"],
             },
@@ -1172,6 +1186,35 @@ def _run_join_datasets(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
     collisions = sorted(
         (set(left_df.columns) - {left_key}) & (set(right_df.columns) - {right_key})
     )
+
+    # Mirror the HTTP fan-out guard (Task #254): compute cardinality
+    # and project the result row count *before* merging so a runaway
+    # N:N save can be rejected without ever materialising the huge
+    # frame in memory. The chat tool's `confirm_large_join` arg is
+    # the same opt-in the HTTP body uses.
+    from data_modelling import _cardinality as _card  # local: chat already imports a lot
+    from backend.datasets import _is_large_join, _project_join_size
+
+    cardinality = _card(left_df[left_key], right_df[right_key])
+    left_rows = int(len(left_df))
+    right_rows = int(len(right_df))
+    projected_rows = _project_join_size(
+        left_df[left_key], right_df[right_key], join_type,
+    )
+    preview_only = bool(args.get("preview_only", True))
+    confirm_large_join = bool(args.get("confirm_large_join", False))
+    if (
+        not preview_only
+        and _is_large_join(projected_rows, left_rows, right_rows)
+        and not confirm_large_join
+    ):
+        raise ValueError(
+            f"Refusing to save: this {cardinality} join would produce "
+            f"~{projected_rows:,} rows from inputs of "
+            f"{left_rows:,} × {right_rows:,}. "
+            "If this is intentional, re-run with confirm_large_join=true."
+        )
+
     merged = pd.merge(
         left_df, right_df,
         how=join_type,
@@ -1179,18 +1222,21 @@ def _run_join_datasets(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
         suffixes=("_left", "_right"),
     )
 
+    result_rows = int(len(merged))
+    large_join = _is_large_join(result_rows, left_rows, right_rows)
     summary = {
         "join_type": join_type,
-        "left_rows": int(len(left_df)),
-        "right_rows": int(len(right_df)),
-        "result_rows": int(len(merged)),
+        "left_rows": left_rows,
+        "right_rows": right_rows,
+        "result_rows": result_rows,
         "result_cols": int(len(merged.columns)),
         "left_key": left_key,
         "right_key": right_key,
         "collisions": collisions,
+        "cardinality": cardinality,
+        "large_join": large_join,
     }
 
-    preview_only = bool(args.get("preview_only", True))
     if preview_only:
         head = merged.head(20)
         head = head.where(pd.notnull(head), None)

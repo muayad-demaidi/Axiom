@@ -16,11 +16,93 @@ from pydantic import BaseModel
 
 import models  # type: ignore
 from data_analyzer import generate_summary_report  # type: ignore
+from data_modelling import _cardinality  # type: ignore
 
 from ._json import jsonify
 from .auth import get_current_user, get_db_session
 
 router = APIRouter(prefix="/api/datasets", tags=["datasets"])
+
+# ---------------------------------------------------------------------------
+# Large-join guard — Task #254
+# ---------------------------------------------------------------------------
+# A join on a non-key column (e.g. country↔country) can fan out from a few
+# thousand rows on each side to millions in the merged frame and write a
+# huge parquet blob into the database. We refuse to persist such results
+# unless the caller explicitly opts in with ``confirm_large_join: true``.
+#
+# The cap is "exceeded" when *either* of the following is true:
+#   * the projected row count is over ``LARGE_JOIN_ABSOLUTE_CAP`` (a hard
+#     ceiling regardless of input size), OR
+#   * the projection is more than ``LARGE_JOIN_FANOUT_RATIO`` times the
+#     larger input AND has at least ``LARGE_JOIN_MIN_ROWS`` rows. The
+#     row floor stops tiny developer / test datasets from tripping the
+#     guard on what is, in absolute terms, still a small frame.
+LARGE_JOIN_ABSOLUTE_CAP = 1_000_000
+LARGE_JOIN_FANOUT_RATIO = 5
+LARGE_JOIN_MIN_ROWS = 1_000
+
+
+def _is_large_join(result_rows: int, left_rows: int, right_rows: int) -> bool:
+    larger = max(left_rows, right_rows, 1)
+    if result_rows > LARGE_JOIN_ABSOLUTE_CAP:
+        return True
+    if (
+        result_rows > LARGE_JOIN_FANOUT_RATIO * larger
+        and result_rows > LARGE_JOIN_MIN_ROWS
+    ):
+        return True
+    return False
+
+
+def _project_join_size(
+    left_key: pd.Series, right_key: pd.Series, how: str,
+) -> int:
+    """Estimate the merged row count *without* actually running
+    ``pd.merge``. Used to short-circuit the save path before pandas
+    allocates a multi-million-row result frame for a runaway N:N
+    join — see Task #254.
+
+    The math mirrors how pandas materialises the merge:
+
+      * Group both sides by the join key and multiply the per-key
+        counts on the matched keys (this is the only way an
+        N:N can fan out — every key on the left is paired with
+        every matching key on the right).
+      * For ``left`` / ``right`` / ``outer`` joins, add the rows
+        whose key never appears on the other side; pandas keeps each
+        of them once with NULLs on the missing side. ``NaN`` keys
+        never match across sides (pandas treats ``NaN != NaN`` in
+        the merge), so they always fall into the unmatched bucket.
+
+    The number is exact for the row count pandas would produce; we
+    intentionally don't try to estimate column count because the
+    column count is a function of the input schemas, not the merge.
+    """
+    lk = left_key.dropna()
+    rk = right_key.dropna()
+    lvc = lk.value_counts()
+    rvc = rk.value_counts()
+    common = lvc.index.intersection(rvc.index)
+    if len(common) > 0:
+        matched = int((lvc.loc[common] * rvc.loc[common]).sum())
+        matched_left_rows = int(lvc.loc[common].sum())
+        matched_right_rows = int(rvc.loc[common].sum())
+    else:
+        matched = 0
+        matched_left_rows = 0
+        matched_right_rows = 0
+    unmatched_left = (
+        int(len(left_key) - matched_left_rows)
+        if how in ("left", "outer")
+        else 0
+    )
+    unmatched_right = (
+        int(len(right_key) - matched_right_rows)
+        if how in ("right", "outer")
+        else 0
+    )
+    return matched + unmatched_left + unmatched_right
 
 
 def _read_dataframe(file: UploadFile, raw: bytes) -> pd.DataFrame:
@@ -174,25 +256,42 @@ class JoinRequest(BaseModel):
     # ``id`` on the right without renaming columns first.
     left_key: str | None = None
     right_key: str | None = None
+    # Footgun guard — see ``_is_large_join``. When the projected merge
+    # is unexpectedly huge (e.g. the user accidentally joined on
+    # ``country`` instead of an id) the save is refused with a 400
+    # unless the caller has seen the warning and re-submitted with
+    # ``confirm_large_join: true``.
+    confirm_large_join: bool = False
 
 
 def _join_summary(merged: pd.DataFrame, left: pd.DataFrame, right: pd.DataFrame,
                   left_key: str, right_key: str, join_type: str,
-                  collisions: list[str]) -> dict[str, Any]:
+                  collisions: list[str], cardinality: str) -> dict[str, Any]:
     """Per-column null counts + headline counts the UI shows above the
     preview table. Collision warnings are surfaced separately so the
-    Expert view can prefix them with the SQL rename guidance."""
+    Expert view can prefix them with the SQL rename guidance.
+
+    ``cardinality`` is the 1:1 / 1:N / N:1 / N:N classification of the
+    join keys (computed from ``data_modelling._cardinality``) and
+    ``large_join`` flags whether the projected row count tripped the
+    fan-out guard — both are surfaced so the UI can warn before save.
+    """
     null_counts = {str(c): int(merged[c].isna().sum()) for c in merged.columns}
+    left_rows = int(len(left))
+    right_rows = int(len(right))
+    result_rows = int(len(merged))
     return {
         "join_type": join_type,
-        "left_rows": int(len(left)),
-        "right_rows": int(len(right)),
-        "result_rows": int(len(merged)),
+        "left_rows": left_rows,
+        "right_rows": right_rows,
+        "result_rows": result_rows,
         "result_cols": int(len(merged.columns)),
         "left_key": left_key,
         "right_key": right_key,
         "null_counts": null_counts,
         "collisions": collisions,
+        "cardinality": cardinality,
+        "large_join": _is_large_join(result_rows, left_rows, right_rows),
     }
 
 
@@ -243,6 +342,32 @@ async def join_datasets(
     right_cols = set(right_df.columns) - {right_key}
     collisions = sorted(left_cols & right_cols)
 
+    # ----- Pre-merge fan-out guard (Task #254) ---------------------------
+    # Compute the cardinality and project the result row count *before*
+    # calling ``pd.merge`` so a runaway N:N join can be refused without
+    # ever materialising the huge frame in memory.
+    cardinality = _cardinality(left_df[left_key], right_df[right_key])
+    left_rows = int(len(left_df))
+    right_rows = int(len(right_df))
+    projected_rows = _project_join_size(
+        left_df[left_key], right_df[right_key], join_type,
+    )
+    if (
+        not body.preview_only
+        and _is_large_join(projected_rows, left_rows, right_rows)
+        and not body.confirm_large_join
+    ):
+        raise HTTPException(
+            400,
+            (
+                f"Refusing to save: this {cardinality} join would produce "
+                f"~{projected_rows:,} rows from inputs of "
+                f"{left_rows:,} × {right_rows:,}. "
+                "If this is intentional, re-submit with "
+                "`confirm_large_join: true`."
+            ),
+        )
+
     try:
         merged = pd.merge(
             left_df, right_df,
@@ -255,7 +380,7 @@ async def join_datasets(
 
     summary = _join_summary(
         merged, left_df, right_df,
-        left_key, right_key, join_type, collisions,
+        left_key, right_key, join_type, collisions, cardinality,
     )
 
     if body.preview_only:

@@ -247,6 +247,123 @@ def test_join_cross_user_isolation_returns_404(
     assert r.status_code == 404, r.text
 
 
+# ---------------------------------------------------------------------------
+# Task #254 — fan-out guard for unexpectedly huge N:N joins
+# ---------------------------------------------------------------------------
+
+def _fanout_pair(client, project, upload_dataset, headers_user_pid=None):
+    """Build a left/right pair that fans out to a much larger result.
+    Each side has 100 rows but every row shares the same value on the
+    join key (``country = 'US'``), so an inner join on ``country``
+    produces 100×100 = 10,000 rows — well over both the 5× ratio guard
+    and the 1,000-row floor used in ``_is_large_join``."""
+    if headers_user_pid is None:
+        u, pid = project("join-fanout")
+    else:
+        u, pid = headers_user_pid
+    left_csv = pd.DataFrame({
+        "id": list(range(100)),
+        "country": ["US"] * 100,
+        "amount": list(range(100)),
+    }).to_csv(index=False).encode()
+    right_csv = pd.DataFrame({
+        "ref_id": list(range(100)),
+        "country": ["US"] * 100,
+        "tax": [0.1 * i for i in range(100)],
+    }).to_csv(index=False).encode()
+    left = upload_dataset(u["headers"], pid, "wide_left", left_csv)
+    right = upload_dataset(u["headers"], pid, "wide_right", right_csv)
+    return u, pid, left, right
+
+
+def test_join_preview_surfaces_cardinality_and_large_join_flag(
+    client, project, upload_dataset,
+):
+    """Preview always succeeds, but the summary now includes the
+    ``cardinality`` (N:N here, since both sides have duplicate
+    countries) and a ``large_join`` boolean the UI keys off of."""
+    u, _pid, left, right = _fanout_pair(client, project, upload_dataset)
+    r = _post_join(client, u["headers"], {
+        "left_dataset_id": left,
+        "right_dataset_id": right,
+        "join_key": "country",
+        "join_type": "inner",
+        "preview_only": True,
+    })
+    assert r.status_code == 200, r.text
+    s = r.json()["summary"]
+    assert s["cardinality"] == "N:N"
+    assert s["large_join"] is True
+    # Sanity: the projection really is 100 × 100.
+    assert s["result_rows"] == 10_000
+
+
+def test_join_save_refused_on_unexpected_fanout_without_confirm(
+    client, project, upload_dataset,
+):
+    """Without ``confirm_large_join: true`` the persist call must fail
+    fast with a 400 — this is the actual footgun the task is
+    preventing (a non-key join silently writing a multi-MB parquet
+    blob into the database)."""
+    u, _pid, left, right = _fanout_pair(client, project, upload_dataset)
+    r = _post_join(client, u["headers"], {
+        "left_dataset_id": left,
+        "right_dataset_id": right,
+        "join_key": "country",
+        "join_type": "inner",
+        "preview_only": False,
+        "result_name": "should_not_persist",
+    })
+    assert r.status_code == 400, r.text
+    assert "confirm_large_join" in r.text
+
+
+def test_join_save_succeeds_with_confirm_large_join(
+    client, project, upload_dataset,
+):
+    """When the caller acknowledges the fan-out, the save goes through
+    and the resulting dataset is persisted exactly like any other
+    join result."""
+    u, pid, left, right = _fanout_pair(client, project, upload_dataset)
+    r = _post_join(client, u["headers"], {
+        "left_dataset_id": left,
+        "right_dataset_id": right,
+        "join_key": "country",
+        "join_type": "inner",
+        "preview_only": False,
+        "result_name": "fanout_confirmed",
+        "confirm_large_join": True,
+    })
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["preview_only"] is False
+    assert body["dataset_name"] == "fanout_confirmed"
+    assert body["rows"] == 10_000
+    assert body["summary"]["cardinality"] == "N:N"
+    assert body["summary"]["large_join"] is True
+    assert body["project_id"] == pid
+
+
+def test_join_small_one_to_one_does_not_trigger_large_join(client, joined_pair):
+    """A normal 1:N join on a real key (orders.customer_id ↔
+    customers.customer_id, 50 rows) must NOT be flagged — the row
+    floor in ``_is_large_join`` exists precisely to keep small
+    everyday joins quiet."""
+    u, _pid, cust, ords = joined_pair
+    r = _post_join(client, u["headers"], {
+        "left_dataset_id": ords,
+        "right_dataset_id": cust,
+        "join_key": "customer_id",
+        "join_type": "inner",
+        "preview_only": True,
+    })
+    assert r.status_code == 200, r.text
+    s = r.json()["summary"]
+    assert s["large_join"] is False
+    # orders.customer_id has duplicates, customers.customer_id is unique → N:1.
+    assert s["cardinality"] == "N:1"
+
+
 def test_join_separate_left_and_right_keys(
     client, project, upload_dataset,
 ):
