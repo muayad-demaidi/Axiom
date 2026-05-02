@@ -83,7 +83,7 @@ Backlog: run `axe` against `/`, `/features`, `/pricing`, `/app/upload`, and `/ap
 - `localeDir()` returns `rtl` for `ar` and the `[locale]/layout.tsx` tree honours it on `<html>`. ✅
 - The catalogue (`messages/ar.json`) covers every key the EN catalogue exposes for `common.*`, `settings.*`, and the marketing surfaces touched in #273.
 - Tailwind logical properties (`ms-auto`, `ps-*`, `pe-*`) are used in the new Settings UI so spacing flips correctly in RTL — verified in source.
-- One literal Arabic greeting still lives in `ChatPanel.tsx` (line 116, "أهلًا بك"). Not a regression but should move to the catalogue (B-3).
+- The previous Arabic-only greeting in `ChatPanel.tsx` has been moved to the catalogue (`chat.greetingNew` / `chat.greetingNoData`) plus the four follow-up chips (`chat.followup*`). The component now reads them via `useTranslations("chat")` and renders the EN copy under the default locale. ✅ FIXED
 
 ---
 
@@ -115,7 +115,7 @@ Not yet captured. The locust baseline is the input; Lighthouse should run agains
 | --- | --- | --- | --- |
 | B-1 | High | Tests | Add a second Playwright project pinned to `locale: "en"` plus an explicit locale-switch step that asserts `<html dir>` flips. |
 | B-2 | High | A11y | Run `axe` against the marketing + workspace surfaces under both locales. Track in a follow-up audit doc. |
-| B-3 | Medium | Arabic | Move the hardcoded "أهلًا بك" greeting in `ChatPanel.tsx` into `messages/*.json` so it adapts to EN. |
+| B-3 | Medium | Arabic | Move remaining Arabic literals (FloatingComposer aria-labels, the `catch` fallback string in `ChatPanel.tsx`, and the few inline literals on the dashboard tab) into `messages/*.json`. The chat greeting and follow-up chips were extracted in this session. |
 | B-4 | High | SEO | Walk every marketing page (`/about`, `/contact`, `/features`, `/pricing`, glossary/guides/compare) and confirm `generateMetadata` returns the right title/description/canonical. |
 | B-5 | High | Perf | Capture a Lighthouse baseline against the post-i18n build, then re-run after the data-model query is paged or cached. |
 | B-6 | Medium | Perf | Page (or cache) `GET /api/projects/{id}/data-model` so 1000-user p95 drops below 400 ms. |
@@ -133,3 +133,5 @@ Not yet captured. The locust baseline is the input; Lighthouse should run agains
 - ✅ Added `frontend/src/tests/utils/i18n.ts` so component tests can resolve translations against the same JSON catalogues the app ships.
 - ✅ New `SettingsLanguage` test (3 cases: rendering, save-disabled-by-default, PATCH + cookie).
 - ✅ Locust post-i18n baseline at `tests/performance/baselines/post-i18n.md`.
+- ✅ Extracted ChatPanel greeting + follow-up chip copy into `messages/{en,ar}.json` under the new `chat` namespace; `ChatPanel.tsx` resolves them through `useTranslations("chat")`.
+- ✅ Removed an unrelated user-pasted scratch file from `attached_assets/` that had no business in the repo.

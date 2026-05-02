@@ -227,24 +227,96 @@
     "rowsCols": "{filename} · {rows} صف × {cols} عمود"
   },
   "connectorsCatalog": {
-    "postgres": { "name": "PostgreSQL", "desc": "اطلب من قاعدة بيانات Postgres مُدارة — مهيّأة مسبقًا في AXIOM.", "detail": "تأتي AXIOM مع قاعدة بيانات Postgres مُدارة من Replit. يمكنك أن تطلب من المساعد قراءة أي من جداولك — دون أي إعداد إضافي." },
-    "mysql": { "name": "MySQL", "desc": "اتصل بمثيل MySQL أو MariaDB.", "detail": "أضف سرّ MYSQL_URL في Replit وأخبر المساعد بالجداول التي يقرأ منها." },
-    "mongodb": { "name": "MongoDB", "desc": "اسحب المجموعات من MongoDB Atlas أو من استضافة ذاتية.", "detail": "أضف سرّ MONGODB_URI. يستطيع المساعد تسطيح المستندات إلى عروض جدولية للتحليل." },
-    "snowflake": { "name": "Snowflake", "desc": "نفّذ التحليلات على مستودعات Snowflake.", "detail": "أضف الأسرار SNOWFLAKE_ACCOUNT و SNOWFLAKE_USER و SNOWFLAKE_PASSWORD لتفعيلها." },
-    "bigquery": { "name": "BigQuery", "desc": "استعلم عن مجموعات BigQuery من Google مباشرةً.", "detail": "اربط حساب خدمة Google عبر تكامل Google من Replit للسماح بقراءة BigQuery." },
-    "databricks": { "name": "Databricks", "desc": "اقرأ الجداول من مساحة عمل Databricks.", "detail": "أضف الأسرار DATABRICKS_HOST و DATABRICKS_TOKEN لتفعيل استعلامات SQL warehouse." },
-    "google-sheets": { "name": "Google Sheets", "desc": "اسحب بيانات حيّة من Google Sheet داخل المحادثة.", "detail": "استخدم تكامل Google من Replit للحصول على إذن القراءة، ثم وجّه المساعد إلى رابط الجدول." },
-    "airtable": { "name": "Airtable", "desc": "زامن القواعد والعروض كمجموعات بيانات.", "detail": "أضف سرّ AIRTABLE_API_KEY ومُعرّف القاعدة. يتحوّل كل جدول إلى مجموعة بيانات." },
-    "notion": { "name": "Notion", "desc": "استخدم قاعدة بيانات Notion كمصدر مهيكل.", "detail": "اربط Notion عبر تكامل Replit؛ يستطيع المساعد قراءة قواعد البيانات والنصوص الغنية." },
-    "stripe": { "name": "Stripe", "desc": "حلّل العمليات والعملاء والاشتراكات.", "detail": "اربط Stripe عبر تكامل Replit؛ يستطيع المساعد جلب المدفوعات والعملاء والـ MRR." },
-    "hubspot": { "name": "HubSpot", "desc": "تحليل الـ pipeline وجهات الاتصال والصفقات.", "detail": "اربط HubSpot عبر تكامل Replit؛ يستطيع المساعد قراءة جهات الاتصال والصفقات والـ pipelines." },
-    "salesforce": { "name": "Salesforce", "desc": "اقرأ الحسابات والفرص والتقارير.", "detail": "اربط Salesforce عبر تكامل Replit؛ يستطيع المساعد تنفيذ SOQL نيابةً عنك." },
-    "linear": { "name": "Linear", "desc": "تحليل القضايا والدورات.", "detail": "اربط Linear عبر تكامل Replit؛ يستطيع المساعد سحب القضايا والدورات والاتجاهات." },
-    "github": { "name": "GitHub", "desc": "نشاط المستودعات وطلبات السحب والقضايا.", "detail": "اربط GitHub عبر تكامل Replit لتحليل المساهمات وإنتاجية الـ PR والقضايا." },
-    "slack": { "name": "Slack", "desc": "نشاط القنوات وتصدير الرسائل.", "detail": "اربط Slack عبر تكامل Replit لتلخيص القنوات وتحليل التفاعل." },
-    "google-analytics": { "name": "Google Analytics", "desc": "حركة الموقع وبيانات الاكتساب.", "detail": "فعّل التكامل عبر Google من Replit؛ يستطيع المساعد سحب تقارير GA4." },
-    "csv-upload": { "name": "رفع CSV / Excel", "desc": "أسقط ملف CSV أو Excel في مشروع.", "detail": "استخدم صفحة الملفات للرفع — مدعومة أينما تعمل AXIOM، دون أي إعداد." },
-    "rest-api": { "name": "REST / JSON", "desc": "اسحب من أي واجهة HTTP إلى مجموعة بيانات.", "detail": "أخبر المساعد بنقطة النهاية وترويسة المصادقة؛ سيجلب الاستجابة ويحوّلها إلى جدول." }
+    "postgres": {
+      "name": "PostgreSQL",
+      "desc": "اطلب من قاعدة بيانات Postgres مُدارة — مهيّأة مسبقًا في AXIOM.",
+      "detail": "تأتي AXIOM مع قاعدة بيانات Postgres مُدارة من Replit. يمكنك أن تطلب من المساعد قراءة أي من جداولك — دون أي إعداد إضافي."
+    },
+    "mysql": {
+      "name": "MySQL",
+      "desc": "اتصل بمثيل MySQL أو MariaDB.",
+      "detail": "أضف سرّ MYSQL_URL في Replit وأخبر المساعد بالجداول التي يقرأ منها."
+    },
+    "mongodb": {
+      "name": "MongoDB",
+      "desc": "اسحب المجموعات من MongoDB Atlas أو من استضافة ذاتية.",
+      "detail": "أضف سرّ MONGODB_URI. يستطيع المساعد تسطيح المستندات إلى عروض جدولية للتحليل."
+    },
+    "snowflake": {
+      "name": "Snowflake",
+      "desc": "نفّذ التحليلات على مستودعات Snowflake.",
+      "detail": "أضف الأسرار SNOWFLAKE_ACCOUNT و SNOWFLAKE_USER و SNOWFLAKE_PASSWORD لتفعيلها."
+    },
+    "bigquery": {
+      "name": "BigQuery",
+      "desc": "استعلم عن مجموعات BigQuery من Google مباشرةً.",
+      "detail": "اربط حساب خدمة Google عبر تكامل Google من Replit للسماح بقراءة BigQuery."
+    },
+    "databricks": {
+      "name": "Databricks",
+      "desc": "اقرأ الجداول من مساحة عمل Databricks.",
+      "detail": "أضف الأسرار DATABRICKS_HOST و DATABRICKS_TOKEN لتفعيل استعلامات SQL warehouse."
+    },
+    "google-sheets": {
+      "name": "Google Sheets",
+      "desc": "اسحب بيانات حيّة من Google Sheet داخل المحادثة.",
+      "detail": "استخدم تكامل Google من Replit للحصول على إذن القراءة، ثم وجّه المساعد إلى رابط الجدول."
+    },
+    "airtable": {
+      "name": "Airtable",
+      "desc": "زامن القواعد والعروض كمجموعات بيانات.",
+      "detail": "أضف سرّ AIRTABLE_API_KEY ومُعرّف القاعدة. يتحوّل كل جدول إلى مجموعة بيانات."
+    },
+    "notion": {
+      "name": "Notion",
+      "desc": "استخدم قاعدة بيانات Notion كمصدر مهيكل.",
+      "detail": "اربط Notion عبر تكامل Replit؛ يستطيع المساعد قراءة قواعد البيانات والنصوص الغنية."
+    },
+    "stripe": {
+      "name": "Stripe",
+      "desc": "حلّل العمليات والعملاء والاشتراكات.",
+      "detail": "اربط Stripe عبر تكامل Replit؛ يستطيع المساعد جلب المدفوعات والعملاء والـ MRR."
+    },
+    "hubspot": {
+      "name": "HubSpot",
+      "desc": "تحليل الـ pipeline وجهات الاتصال والصفقات.",
+      "detail": "اربط HubSpot عبر تكامل Replit؛ يستطيع المساعد قراءة جهات الاتصال والصفقات والـ pipelines."
+    },
+    "salesforce": {
+      "name": "Salesforce",
+      "desc": "اقرأ الحسابات والفرص والتقارير.",
+      "detail": "اربط Salesforce عبر تكامل Replit؛ يستطيع المساعد تنفيذ SOQL نيابةً عنك."
+    },
+    "linear": {
+      "name": "Linear",
+      "desc": "تحليل القضايا والدورات.",
+      "detail": "اربط Linear عبر تكامل Replit؛ يستطيع المساعد سحب القضايا والدورات والاتجاهات."
+    },
+    "github": {
+      "name": "GitHub",
+      "desc": "نشاط المستودعات وطلبات السحب والقضايا.",
+      "detail": "اربط GitHub عبر تكامل Replit لتحليل المساهمات وإنتاجية الـ PR والقضايا."
+    },
+    "slack": {
+      "name": "Slack",
+      "desc": "نشاط القنوات وتصدير الرسائل.",
+      "detail": "اربط Slack عبر تكامل Replit لتلخيص القنوات وتحليل التفاعل."
+    },
+    "google-analytics": {
+      "name": "Google Analytics",
+      "desc": "حركة الموقع وبيانات الاكتساب.",
+      "detail": "فعّل التكامل عبر Google من Replit؛ يستطيع المساعد سحب تقارير GA4."
+    },
+    "csv-upload": {
+      "name": "رفع CSV / Excel",
+      "desc": "أسقط ملف CSV أو Excel في مشروع.",
+      "detail": "استخدم صفحة الملفات للرفع — مدعومة أينما تعمل AXIOM، دون أي إعداد."
+    },
+    "rest-api": {
+      "name": "REST / JSON",
+      "desc": "اسحب من أي واجهة HTTP إلى مجموعة بيانات.",
+      "detail": "أخبر المساعد بنقطة النهاية وترويسة المصادقة؛ سيجلب الاستجابة ويحوّلها إلى جدول."
+    }
   },
   "connectors": {
     "eyebrow": "مساحة العمل",
@@ -435,5 +507,13 @@
     "kpiHintCount": "عدد {label} عبر الصفوف ضمن النطاق.",
     "kpiHintGeneric": "القيمة المجمَّعة لـ {label} عبر الصفوف ضمن النطاق.",
     "kpiHintUncomputable": "تعذّر حساب {label} للنطاق الحالي."
+  },
+  "chat": {
+    "greetingNew": "أهلًا بك — اسألني عن أي مجموعة بيانات في هذا المشروع وسأحلّل البيانات معك خطوة بخطوة. يمكنني عمل رسوم وتنبؤات وتحليل وفحص للتجمعات مباشرة من المحادثة.",
+    "greetingNoData": "هذا المشروع لا يحتوي على بيانات بعد. ارفع ملف CSV أو Excel من القائمة الجانبية وسأبدأ التحليل فورًا.",
+    "followupShowOutliers": "أظهر القيم الشاذّة",
+    "followupPlotTrends": "ارسم الاتجاهات",
+    "followupPredictNext": "تنبّأ بالفترة القادمة",
+    "followupSummarize": "لخّص أهم الملاحظات"
   }
 }

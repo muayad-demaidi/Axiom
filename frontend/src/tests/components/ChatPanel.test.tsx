@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ChatPanel } from "@/components/product/ChatPanel";
+import { t } from "@/tests/utils/i18n";
+
+const GREETING_EN = t("en", "chat.greetingNew");
+const GREETING_PROBE = GREETING_EN.slice(0, 18);
 
 function mockNDJSONStream(lines: string[]): Response {
   const enc = new TextEncoder();
@@ -23,7 +27,7 @@ function mockNDJSONStream(lines: string[]): Response {
 describe("ChatPanel", () => {
   it("renders the greeting and a disabled send while input is empty", async () => {
     render(<ChatPanel sessionId={null} hasData />);
-    expect(await screen.findByText(/أهلًا بك/)).toBeInTheDocument();
+    expect(await screen.findByText(new RegExp(GREETING_PROBE))).toBeInTheDocument();
     const send = screen.getByLabelText(/إرسال/);
     expect(send).toBeDisabled();
   });
@@ -41,7 +45,7 @@ describe("ChatPanel", () => {
     vi.stubGlobal("fetch", fetchSpy);
     const user = userEvent.setup();
     render(<ChatPanel sessionId={null} hasData />);
-    await screen.findByText(/أهلًا بك/);
+    await screen.findByText(new RegExp(GREETING_PROBE));
     const ta = screen.getByLabelText(/مربّع الرسالة/);
     await user.type(ta, "test prompt{Enter}");
     await waitFor(() =>
@@ -69,7 +73,7 @@ describe("ChatPanel", () => {
     vi.stubGlobal("fetch", fetchSpy);
     const user = userEvent.setup();
     render(<ChatPanel sessionId={null} hasData />);
-    await screen.findByText(/أهلًا بك/);
+    await screen.findByText(new RegExp(GREETING_PROBE));
     const ta = screen.getByLabelText(/مربّع الرسالة/);
     await user.type(ta, "stream test{Enter}");
     await waitFor(() => expect(screen.getByText(/Hello world/)).toBeInTheDocument());
@@ -95,7 +99,7 @@ describe("ChatPanel", () => {
     vi.stubGlobal("fetch", fetchSpy);
     const user = userEvent.setup();
     render(<ChatPanel sessionId={null} hasData onToolStarted={onToolStarted} />);
-    await screen.findByText(/أهلًا بك/);
+    await screen.findByText(new RegExp(GREETING_PROBE));
     const ta = screen.getByLabelText(/مربّع الرسالة/);
     await user.type(ta, "draw chart{Enter}");
     await waitFor(() => expect(onToolStarted).toHaveBeenCalled());

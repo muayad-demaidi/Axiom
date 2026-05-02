@@ -10,6 +10,7 @@ import {
   Stethoscope,
   UploadCloud,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { api, getToken, streamPostNDJSON } from "@/lib/api";
 import { errMessage } from "@/lib/types";
 import { getActiveDatasetId, getActiveProjectId } from "@/lib/projectContext";
@@ -112,17 +113,15 @@ type ChatPanelProps = {
   headerSlot?: React.ReactNode;
 };
 
-const GREETING_NEW =
-  "أهلًا بك — اسألني عن أي مجموعة بيانات في هذا المشروع وسأحلّل البيانات معك خطوة بخطوة. يمكنني عمل رسوم وتنبؤات وتحليل وفحص للتجمعات مباشرة من المحادثة.";
-const GREETING_NO_DATA =
-  "هذا المشروع لا يحتوي على بيانات بعد. ارفع ملف CSV أو Excel من القائمة الجانبية وسأبدأ التحليل فورًا.";
-
-const FOLLOWUP_CHIPS = [
-  "أظهر القيم الشاذّة",
-  "ارسم الاتجاهات",
-  "تنبّأ بالفترة القادمة",
-  "لخّص أهم الملاحظات",
-];
+// Translation keys consumed below via useTranslations("chat"). Greeting
+// and follow-up suggestion copy lives in `messages/{en,ar}.json` so the
+// dataset-context bar reads naturally in either locale.
+const FOLLOWUP_KEYS = [
+  "followupShowOutliers",
+  "followupPlotTrends",
+  "followupPredictNext",
+  "followupSummarize",
+] as const;
 
 function ChatPanelInner({
   sessionId = null,
@@ -137,6 +136,13 @@ function ChatPanelInner({
   onStreamingChange,
   headerSlot,
 }: ChatPanelProps) {
+  const tChat = useTranslations("chat");
+  const greetingNew = tChat("greetingNew");
+  const greetingNoData = tChat("greetingNoData");
+  const followupChips = useMemo(
+    () => FOLLOWUP_KEYS.map((k) => tChat(k)),
+    [tChat],
+  );
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -203,7 +209,7 @@ function ChatPanelInner({
   useEffect(() => {
     let cancelled = false;
     if (!sessionId) {
-      setMessages([{ role: "assistant", content: hasData ? GREETING_NEW : GREETING_NO_DATA }]);
+      setMessages([{ role: "assistant", content: hasData ? greetingNew : greetingNoData }]);
       setLoadingHistory(false);
       return;
     }
@@ -217,7 +223,7 @@ function ChatPanelInner({
           if (m.ai_response) flat.push({ role: "assistant", content: m.ai_response });
         }
         if (flat.length === 0) {
-          flat.push({ role: "assistant", content: hasData ? GREETING_NEW : GREETING_NO_DATA });
+          flat.push({ role: "assistant", content: hasData ? greetingNew : greetingNoData });
         }
         setMessages(flat);
       })
@@ -676,6 +682,7 @@ function ChatPanelInner({
                       !!m.content
                     }
                     onChipClick={handleChipClick}
+                    chips={followupChips}
                     projectId={projectId}
                     mode={mode}
                     setMode={setMode}
@@ -776,6 +783,7 @@ function ChatMessage({
   streaming,
   showChips,
   onChipClick,
+  chips,
   projectId,
   mode,
   setMode,
@@ -784,6 +792,7 @@ function ChatMessage({
   streaming: boolean;
   showChips: boolean;
   onChipClick: (text: string) => void;
+  chips: readonly string[];
   projectId?: number | null;
   mode: string;
   setMode: (m: "guided" | "expert") => Promise<void>;
@@ -865,7 +874,7 @@ function ChatMessage({
             <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)] mr-1 self-center">
               Try
             </span>
-            {FOLLOWUP_CHIPS.slice(0, 3).map((chip) => (
+            {chips.slice(0, 3).map((chip) => (
               <button
                 key={chip}
                 type="button"

@@ -227,24 +227,96 @@
     "rowsCols": "{filename} · {rows} rows × {cols} columns"
   },
   "connectorsCatalog": {
-    "postgres": { "name": "PostgreSQL", "desc": "Query a managed Postgres database — already wired into AXIOM.", "detail": "AXIOM ships with a Replit-managed Postgres database. You can ask the assistant to read from any of your tables — no extra setup." },
-    "mysql": { "name": "MySQL", "desc": "Connect to a MySQL or MariaDB instance.", "detail": "Add a MYSQL_URL secret in Replit and tell the assistant which tables to read." },
-    "mongodb": { "name": "MongoDB", "desc": "Pull collections from MongoDB Atlas or self-hosted.", "detail": "Add a MONGODB_URI secret. The assistant can flatten documents into tabular views for analysis." },
-    "snowflake": { "name": "Snowflake", "desc": "Run analytics over Snowflake warehouses.", "detail": "Add SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, and SNOWFLAKE_PASSWORD secrets to enable." },
-    "bigquery": { "name": "BigQuery", "desc": "Query Google BigQuery datasets directly.", "detail": "Connect a Google service account via Replit's Google integration to authorize BigQuery reads." },
-    "databricks": { "name": "Databricks", "desc": "Read tables from a Databricks workspace.", "detail": "Add DATABRICKS_HOST and DATABRICKS_TOKEN secrets to enable SQL warehouse queries." },
-    "google-sheets": { "name": "Google Sheets", "desc": "Pull live data from a Google Sheet into a chat.", "detail": "Use Replit's Google integration to authorise read access, then point the assistant at a sheet URL." },
-    "airtable": { "name": "Airtable", "desc": "Sync bases and views as datasets.", "detail": "Add an AIRTABLE_API_KEY secret and the base ID. Each table becomes a dataset." },
-    "notion": { "name": "Notion", "desc": "Use a Notion database as a structured source.", "detail": "Connect Notion via Replit's integration; the assistant can read databases and rich text." },
-    "stripe": { "name": "Stripe", "desc": "Analyze charges, customers, subscriptions.", "detail": "Connect Stripe via Replit's integration; the assistant can pull payments, customers, and MRR." },
-    "hubspot": { "name": "HubSpot", "desc": "Pipeline, contacts, and deals analysis.", "detail": "Connect HubSpot via Replit's integration; the assistant can read contacts, deals, and pipelines." },
-    "salesforce": { "name": "Salesforce", "desc": "Read accounts, opportunities, and reports.", "detail": "Connect Salesforce via Replit's integration; the assistant can run SOQL on your behalf." },
-    "linear": { "name": "Linear", "desc": "Issue and cycle analytics.", "detail": "Connect Linear via Replit's integration; the assistant can pull issues, cycles, and trends." },
-    "github": { "name": "GitHub", "desc": "Repository activity, PRs, and issues.", "detail": "Connect GitHub via Replit's integration to analyze contribution, PR throughput, and issues." },
-    "slack": { "name": "Slack", "desc": "Channel activity and message exports.", "detail": "Connect Slack via Replit's integration to summarise channels and analyse engagement." },
-    "google-analytics": { "name": "Google Analytics", "desc": "Site traffic and acquisition data.", "detail": "Authorise via Replit's Google integration; the assistant can pull GA4 reports." },
-    "csv-upload": { "name": "CSV / Excel upload", "desc": "Drop a CSV or Excel workbook into a project.", "detail": "Use the Files page to upload — supported anywhere AXIOM runs, no setup required." },
-    "rest-api": { "name": "REST / JSON", "desc": "Pull from any HTTP API into a dataset.", "detail": "Tell the assistant the endpoint and auth header; it will fetch and tabulate the response." }
+    "postgres": {
+      "name": "PostgreSQL",
+      "desc": "Query a managed Postgres database — already wired into AXIOM.",
+      "detail": "AXIOM ships with a Replit-managed Postgres database. You can ask the assistant to read from any of your tables — no extra setup."
+    },
+    "mysql": {
+      "name": "MySQL",
+      "desc": "Connect to a MySQL or MariaDB instance.",
+      "detail": "Add a MYSQL_URL secret in Replit and tell the assistant which tables to read."
+    },
+    "mongodb": {
+      "name": "MongoDB",
+      "desc": "Pull collections from MongoDB Atlas or self-hosted.",
+      "detail": "Add a MONGODB_URI secret. The assistant can flatten documents into tabular views for analysis."
+    },
+    "snowflake": {
+      "name": "Snowflake",
+      "desc": "Run analytics over Snowflake warehouses.",
+      "detail": "Add SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, and SNOWFLAKE_PASSWORD secrets to enable."
+    },
+    "bigquery": {
+      "name": "BigQuery",
+      "desc": "Query Google BigQuery datasets directly.",
+      "detail": "Connect a Google service account via Replit's Google integration to authorize BigQuery reads."
+    },
+    "databricks": {
+      "name": "Databricks",
+      "desc": "Read tables from a Databricks workspace.",
+      "detail": "Add DATABRICKS_HOST and DATABRICKS_TOKEN secrets to enable SQL warehouse queries."
+    },
+    "google-sheets": {
+      "name": "Google Sheets",
+      "desc": "Pull live data from a Google Sheet into a chat.",
+      "detail": "Use Replit's Google integration to authorise read access, then point the assistant at a sheet URL."
+    },
+    "airtable": {
+      "name": "Airtable",
+      "desc": "Sync bases and views as datasets.",
+      "detail": "Add an AIRTABLE_API_KEY secret and the base ID. Each table becomes a dataset."
+    },
+    "notion": {
+      "name": "Notion",
+      "desc": "Use a Notion database as a structured source.",
+      "detail": "Connect Notion via Replit's integration; the assistant can read databases and rich text."
+    },
+    "stripe": {
+      "name": "Stripe",
+      "desc": "Analyze charges, customers, subscriptions.",
+      "detail": "Connect Stripe via Replit's integration; the assistant can pull payments, customers, and MRR."
+    },
+    "hubspot": {
+      "name": "HubSpot",
+      "desc": "Pipeline, contacts, and deals analysis.",
+      "detail": "Connect HubSpot via Replit's integration; the assistant can read contacts, deals, and pipelines."
+    },
+    "salesforce": {
+      "name": "Salesforce",
+      "desc": "Read accounts, opportunities, and reports.",
+      "detail": "Connect Salesforce via Replit's integration; the assistant can run SOQL on your behalf."
+    },
+    "linear": {
+      "name": "Linear",
+      "desc": "Issue and cycle analytics.",
+      "detail": "Connect Linear via Replit's integration; the assistant can pull issues, cycles, and trends."
+    },
+    "github": {
+      "name": "GitHub",
+      "desc": "Repository activity, PRs, and issues.",
+      "detail": "Connect GitHub via Replit's integration to analyze contribution, PR throughput, and issues."
+    },
+    "slack": {
+      "name": "Slack",
+      "desc": "Channel activity and message exports.",
+      "detail": "Connect Slack via Replit's integration to summarise channels and analyse engagement."
+    },
+    "google-analytics": {
+      "name": "Google Analytics",
+      "desc": "Site traffic and acquisition data.",
+      "detail": "Authorise via Replit's Google integration; the assistant can pull GA4 reports."
+    },
+    "csv-upload": {
+      "name": "CSV / Excel upload",
+      "desc": "Drop a CSV or Excel workbook into a project.",
+      "detail": "Use the Files page to upload — supported anywhere AXIOM runs, no setup required."
+    },
+    "rest-api": {
+      "name": "REST / JSON",
+      "desc": "Pull from any HTTP API into a dataset.",
+      "detail": "Tell the assistant the endpoint and auth header; it will fetch and tabulate the response."
+    }
   },
   "connectors": {
     "eyebrow": "Workspace",
@@ -435,5 +507,13 @@
     "kpiHintCount": "Number of {label} across rows in range.",
     "kpiHintGeneric": "Aggregated value of {label} across rows in range.",
     "kpiHintUncomputable": "We couldn't compute {label} for the current range."
+  },
+  "chat": {
+    "greetingNew": "Welcome — ask me about any dataset in this project and I will analyse it with you step by step. I can build charts, predictions, statistical analysis, and clustering directly from the conversation.",
+    "greetingNoData": "This project does not have any data yet. Upload a CSV or Excel file from the side panel and I will start analysing immediately.",
+    "followupShowOutliers": "Show outliers",
+    "followupPlotTrends": "Plot trends",
+    "followupPredictNext": "Predict the next period",
+    "followupSummarize": "Summarise the most important findings"
   }
 }
