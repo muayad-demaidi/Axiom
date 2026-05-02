@@ -35,7 +35,10 @@ export function useConfirm(): ConfirmContextValue["confirm"] {
     return async (opts) => {
       if (typeof window === "undefined") return false;
       const text = [opts?.title, opts?.description].filter(Boolean).join("\n\n");
-      return window.confirm(text || "Are you sure?");
+      // Fallback used only when the provider isn't mounted (e.g. tests, SSR
+      // hydration race). The empty string lets the browser show its own
+      // localized default prompt.
+      return window.confirm(text || "");
     };
   }
   return ctx.confirm;
