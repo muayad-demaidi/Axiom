@@ -1,5 +1,5 @@
-........................................................................ [ 35%]
-..............MANUAL_REVIEW_REQUIRED: frontend component tests — no React test runner (Jest/Vitest/Playwright) is configured in frontend/package.json. The following components ship to users and need direct coverage once a runner is wired up:
+........................................................................ [ 23%]
+.......................MANUAL_REVIEW_REQUIRED: frontend component tests — no React test runner (Jest/Vitest/Playwright) is configured in frontend/package.json. The following components ship to users and need direct coverage once a runner is wired up:
   - src/components/product/AppChrome.tsx — top-level shell + auth/route guards
   - src/components/product/ProjectWorkspace.tsx — project page state machine (datasets ↔ chats ↔ artifacts)
   - src/components/product/ChatPanel.tsx — POST /api/chat/stream NDJSON consumer — handles tool_started/tool_finished/text/done events and re-renders on each frame
@@ -18,8 +18,10 @@
   - src/components/product/ProductSidebar.tsx — left navigation between projects, chats, datasets, reports
   - src/app/app (final-report page) — renders /api/chats/<id>/report and triggers /report.pdf download
   - src/app/app (data-model page) — drives PATCH/POST/PUT calls against /api/projects/<pid>/data-model
-.......................................................... [ 71%]
-..........................................................               [100%]
+................................................. [ 46%]
+........................................................................ [ 69%]
+........................................................................ [ 92%]
+........................                                                 [100%]
 =============================== warnings summary ===============================
 models.py:17
   /home/runner/workspace/models.py:17: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
@@ -33,15 +35,15 @@ tests/test_predict_guided.py::test_analyze_returns_no_target_when_no_numeric_col
 tests/test_predict_guided.py::test_llm_no_questions_falls_back_to_default_set
 tests/test_predict_guided.py::test_llm_well_formed_questions_are_used
 tests/test_units_predictions.py::test_guided_analyze_timeseries_detects_target_and_questions
-  /home/runner/workspace/backend/predict_guided_service.py:68: UserWarning: Could not infer format, so each element will be parsed individually, falling back to `dateutil`. To ensure parsing is consistent and as-expected, please specify a format.
+  /home/runner/workspace/backend/predict_guided_service.py:70: UserWarning: Could not infer format, so each element will be parsed individually, falling back to `dateutil`. To ensure parsing is consistent and as-expected, please specify a format.
     parsed = pd.to_datetime(sample, errors="coerce")
 
 tests/test_units_analysis.py::test_surprise_insights_respects_max_items_cap
 tests/test_units_analysis.py::test_suggested_questions_default_locale_is_english
 tests/test_units_analysis.py::test_suggested_questions_arabic_locale_returns_arabic_text
 tests/test_units_analysis.py::test_suggested_questions_tailors_output_to_dataframe_shape
-  /home/runner/workspace/backend/insights.py:298: UserWarning: Could not infer format, so each element will be parsed individually, falling back to `dateutil`. To ensure parsing is consistent and as-expected, please specify a format.
+  /home/runner/workspace/backend/insights.py:343: UserWarning: Could not infer format, so each element will be parsed individually, falling back to `dateutil`. To ensure parsing is consistent and as-expected, please specify a format.
     parsed = pd.to_datetime(sample, errors="coerce")
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-202 passed, 13 warnings in 67.54s (0:01:07)
+312 passed, 13 warnings in 71.84s (0:01:11)

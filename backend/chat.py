@@ -33,6 +33,7 @@ from context.type_inference import to_numeric_canonical as _canonical_num  # typ
 
 from .auth import get_current_user, get_db_session
 from .insights import build_profile, surprise_insights, suggested_questions
+from .mode_resolver import resolve_mode
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -1266,29 +1267,14 @@ async def stream(
 
     user_lang = ai_assistant.detect_language(last_user.content)
 
-    # Resolve effective Guided/Expert mode: per-project override beats
-    # the request-supplied mode beats the user-level preference. Defaults
-    # to Guided when nothing is set. We then map back to the legacy
-    # "simple" / "expert" labels that ai_assistant._apply_mode_directive
-    # understands.
-    def _normalize_api_mode(value: str | None) -> str | None:
-        cleaned = (str(value or "")).strip().lower()
-        if cleaned in ("guided", "simple"):
-            return "guided"
-        if cleaned == "expert":
-            return "expert"
-        return None
-
-    effective_mode = None
-    if project_id:
-        proj_obj = models.get_project(db, project_id, user.id)
-        effective_mode = _normalize_api_mode(getattr(proj_obj, "mode", None))
-    if effective_mode is None:
-        effective_mode = _normalize_api_mode(req.assistant_mode)
-    if effective_mode is None:
-        effective_mode = _normalize_api_mode(getattr(user, "assistant_mode", None))
-    if effective_mode is None:
-        effective_mode = "guided"
+    # Resolve effective Guided/Expert mode via the shared resolver:
+    # per-project override beats the request-supplied mode beats the
+    # user-level preference, defaulting to Guided. We then map back to
+    # the legacy "simple" / "expert" labels that
+    # ai_assistant._apply_mode_directive understands.
+    effective_mode = resolve_mode(
+        db, user, project_id=project_id, request_mode=req.assistant_mode
+    )
     storage_mode = "simple" if effective_mode == "guided" else "expert"
 
     system_parts = [
