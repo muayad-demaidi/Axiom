@@ -68,6 +68,18 @@ def _api_mode(stored: str | None) -> str:
     return "guided"
 
 
+def _api_locale(stored: str | None) -> str:
+    """Coerce the DB-stored locale to one of the supported values.
+
+    Defaults to ``"en"`` so brand-new accounts (or rows from older
+    deployments without the column) hit the English catalogue first.
+    """
+    cleaned = (str(stored or "")).strip().lower()
+    if cleaned == "ar":
+        return "ar"
+    return "en"
+
+
 def _user_view(user) -> dict:
     return {
         "id": user.id,
@@ -76,12 +88,14 @@ def _user_view(user) -> dict:
         "subscription_type": getattr(user, "subscription_type", None),
         "trial_end": str(user.trial_end) if getattr(user, "trial_end", None) else None,
         "assistant_mode": _api_mode(getattr(user, "assistant_mode", None)),
+        "locale": _api_locale(getattr(user, "locale", None)),
         "is_admin": bool(getattr(user, "is_admin", False)),
     }
 
 
 class UpdateMeRequest(BaseModel):
     assistant_mode: str | None = Field(default=None, max_length=16)
+    locale: str | None = Field(default=None, max_length=8)
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -131,6 +145,11 @@ async def update_me(
     """
     if req.assistant_mode is not None:
         updated = models.set_user_assistant_mode(db, user.id, req.assistant_mode)
+        if updated is None:
+            raise HTTPException(404, "User not found")
+        user = updated
+    if req.locale is not None:
+        updated = models.set_user_locale(db, user.id, req.locale)
         if updated is None:
             raise HTTPException(404, "User not found")
         user = updated

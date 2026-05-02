@@ -2,6 +2,41 @@ import "@testing-library/jest-dom/vitest";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import React from "react";
 import { server } from "./mocks/server";
+import enMessages from "../../messages/en.json";
+
+// next-intl mocks ------------------------------------------------------------
+// Resolve translations from the bundled EN catalogue so component tests
+// can assert against the user-visible copy without hand-rolling fixtures.
+// `t("foo.bar")` returns the value under "foo.bar"; `t("greeting", {name})`
+// substitutes the {name} placeholder.
+function resolveKey(scope: string | undefined, key: string): string {
+  const path = scope ? `${scope}.${key}` : key;
+  const parts = path.split(".");
+  let cur: unknown = enMessages;
+  for (const p of parts) {
+    if (cur && typeof cur === "object" && p in (cur as Record<string, unknown>)) {
+      cur = (cur as Record<string, unknown>)[p];
+    } else {
+      return path;
+    }
+  }
+  return typeof cur === "string" ? cur : path;
+}
+function interpolate(template: string, values?: Record<string, unknown>): string {
+  if (!values) return template;
+  return template.replace(/\{(\w+)\}/g, (_, k) => {
+    const v = values[k];
+    return v == null ? `{${k}}` : String(v);
+  });
+}
+vi.mock("next-intl", () => ({
+  useTranslations:
+    (scope?: string) => (key: string, values?: Record<string, unknown>) =>
+      interpolate(resolveKey(scope, key), values),
+  useLocale: () => "en",
+  NextIntlClientProvider: ({ children }: { children: React.ReactNode }) =>
+    React.createElement(React.Fragment, null, children),
+}));
 
 // next/navigation mocks ------------------------------------------------------
 const pushMock = vi.fn();

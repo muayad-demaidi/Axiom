@@ -50,6 +50,10 @@ class User(Base):
     # at ``st.session_state.assistant_mode`` so the picker reflects
     # the user's preference immediately on login / dashboard load.
     assistant_mode = Column(String(16), nullable=True, default="simple")
+    # UI locale preference. Two-letter code; "en" (default) or "ar".
+    # Persisted so a user's language choice survives sign-out and so the
+    # backend can render locale-aware emails/error codes if needed.
+    locale = Column(String(8), nullable=True, default="en")
 
 
 class PasswordResetToken(Base):
@@ -542,6 +546,7 @@ def init_db():
     _migrations = [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_dataset_id INTEGER",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS assistant_mode VARCHAR(16) DEFAULT 'simple'",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS locale VARCHAR(8) DEFAULT 'en'",
         "ALTER TABLE projects ADD COLUMN IF NOT EXISTS mode VARCHAR(16)",
         "ALTER TABLE projects ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP",
         "CREATE INDEX IF NOT EXISTS ix_projects_archived_at ON projects(archived_at)",
@@ -784,6 +789,27 @@ def set_user_last_dataset(db, user_id, dataset_id):
     if user:
         user.last_dataset_id = dataset_id
         db.commit()
+
+
+def set_user_locale(db, user_id, locale):
+    """Persist the user's preferred UI locale.
+
+    Accepts ``"en"`` (default) or ``"ar"``; any other value is silently
+    coerced to ``"en"`` so an unsupported language tag from a third-party
+    client never strands the user with a blank UI.
+    """
+    if user_id is None:
+        return None
+    cleaned = (str(locale or "")).strip().lower()
+    if cleaned not in ("en", "ar"):
+        cleaned = "en"
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        return None
+    if getattr(user, "locale", None) != cleaned:
+        user.locale = cleaned
+        db.commit()
+    return user
 
 
 def set_user_assistant_mode(db, user_id, mode):

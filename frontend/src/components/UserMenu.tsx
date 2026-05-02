@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { api, getToken, setToken, ApiError } from "@/lib/api";
 import { clearAllCached } from "@/lib/workspaceCache";
 
@@ -18,6 +19,7 @@ type Variant = "marketing" | "app";
 
 export function UserMenu({ variant = "marketing" }: { variant?: Variant }) {
   const router = useRouter();
+  const tNav = useTranslations("nav");
   const [me, setMe] = useState<Me | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState(false);
@@ -84,17 +86,17 @@ export function UserMenu({ variant = "marketing" }: { variant?: Variant }) {
     if (variant === "app") {
       return (
         <Link href="/login" className="btn btn-ghost text-xs">
-          Sign In
+          {tNav("login")}
         </Link>
       );
     }
     return (
       <>
         <Link href="/login" className="btn btn-ghost hidden sm:inline-flex">
-          Sign In
+          {tNav("login")}
         </Link>
         <Link href="/signup" className="btn btn-primary">
-          Launch App →
+          {tNav("signup")} →
         </Link>
       </>
     );
@@ -151,7 +153,7 @@ export function UserMenu({ variant = "marketing" }: { variant?: Variant }) {
                 className="block px-4 py-2 hover:bg-[var(--accent)]/10"
                 role="menuitem"
               >
-                Open workspace
+                {tNav("dashboard")}
               </Link>
             )}
             <Link
@@ -160,7 +162,7 @@ export function UserMenu({ variant = "marketing" }: { variant?: Variant }) {
               className="block px-4 py-2 hover:bg-[var(--accent)]/10"
               role="menuitem"
             >
-              My projects
+              {tNav("projects")}
             </Link>
             <Link
               href="/app/connectors"
@@ -168,7 +170,15 @@ export function UserMenu({ variant = "marketing" }: { variant?: Variant }) {
               className="block px-4 py-2 hover:bg-[var(--accent)]/10"
               role="menuitem"
             >
-              Data connectors
+              {tNav("connectors")}
+            </Link>
+            <Link
+              href="/app/settings"
+              onClick={() => setOpen(false)}
+              className="block px-4 py-2 hover:bg-[var(--accent)]/10"
+              role="menuitem"
+            >
+              {tNav("settings")}
             </Link>
           </nav>
           <div className="border-t border-[var(--border)]">
@@ -176,9 +186,9 @@ export function UserMenu({ variant = "marketing" }: { variant?: Variant }) {
               type="button"
               onClick={logout}
               role="menuitem"
-              className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10"
+              className="w-full text-start px-4 py-2 text-sm text-red-400 hover:bg-red-500/10"
             >
-              Log out
+              {tNav("logout")}
             </button>
           </div>
         </div>

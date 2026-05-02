@@ -16,12 +16,15 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ModeProvider } from "@/lib/modeContext";
 import { getActiveProjectId } from "@/lib/projectContext";
+import { stripLocale } from "@/i18n/config";
 import { ModeToggle } from "./ModeToggle";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
 
 function HeaderToggle() {
-  const pathname = usePathname() || "";
+  // Strip the optional `/<locale>` prefix so the `/app/...` regexes
+  // below still match under any locale (e.g. `/ar/app/project/12`).
+  const pathname = stripLocale(usePathname());
   // Match `/app/project/<id>` (the canonical workspace route).
   const projectMatch = pathname.match(/^\/app\/project\/(\d+)/);
   // Tool screens (clean / transform / visualize / predict / statistics

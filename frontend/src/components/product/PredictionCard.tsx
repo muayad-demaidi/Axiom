@@ -10,6 +10,7 @@
  * it instantly as the user drags.
  */
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { InteractiveTable } from "./InteractiveTable";
 import { Gauge, bandFor } from "@/components/ui/Gauge";
 
@@ -42,6 +43,7 @@ export function PredictionCard({
   title: string;
   result: PredictionResult;
 }) {
+  const t = useTranslations("prediction");
   const sliderFeatures = (result.feature_importance ?? []).slice(0, 5);
   const [values, setValues] = useState<Record<string, number>>(() => {
     const out: Record<string, number> = {};
@@ -70,37 +72,36 @@ export function PredictionCard({
   const band = bandFor(confidence);
   const confidenceCopy =
     band === "high"
-      ? "ثقة مرتفعة في التنبؤ."
+      ? t("confidenceHigh")
       : band === "medium"
-      ? "ثقة متوسطة — راجع النتائج قبل الاعتماد عليها."
-      : "ثقة منخفضة — لا يُنصح بالاعتماد على هذا التنبؤ كما هو.";
+      ? t("confidenceMedium")
+      : t("confidenceLow");
 
   return (
-    <div dir="rtl" className="space-y-3 text-right">
-      <div className="flex flex-row-reverse items-baseline justify-between gap-3">
+    <div className="space-y-3 text-start">
+      <div className="flex items-baseline justify-between gap-3">
         <div className="font-semibold text-sm">{title}</div>
         <div className="text-[12px] text-[var(--text-muted)] font-mono">
           R² {fmt(result.metrics?.r2)} · MAE {fmt(result.metrics?.mae)} · {result.model}
         </div>
       </div>
 
-      <div className="flex flex-row-reverse items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-alt)]/40 p-3">
+      <div className="flex items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-alt)]/40 p-3">
         <Gauge
           score={confidence}
           size={88}
-          label="ثقة النموذج"
+          label={t("confidenceLabel")}
           description={confidenceCopy}
         />
         <div className="flex-1 text-[12px] leading-relaxed text-[var(--text-muted)]">
-          نُحسب درجة الثقة من جودة المطابقة (R²). تقاس على مقياس 0–100،
-          حيث ≥ 70 ثقة مرتفعة، 40–69 متوسطة، وأقل من 40 منخفضة.
+          {t("confidenceDescription")}
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <section className="border border-[var(--border)] rounded p-3 bg-[var(--surface)]">
           <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
-            أهم العوامل المؤثرة
+            {t("topFactors")}
           </div>
           <ul className="space-y-1.5">
             {(result.feature_importance ?? []).slice(0, 8).map((f) => {
@@ -108,7 +109,7 @@ export function PredictionCard({
               const w = Math.max(2, Math.round((f.importance / max) * 100));
               return (
                 <li key={f.feature} className="text-[12px]">
-                  <div className="flex flex-row-reverse items-baseline justify-between">
+                  <div className="flex items-baseline justify-between">
                     <span className="truncate">{f.feature}</span>
                     <span className="font-mono text-[12px] text-[var(--text-muted)]">
                       {f.coefficient >= 0 ? "+" : ""}
@@ -129,7 +130,7 @@ export function PredictionCard({
 
         <section className="border border-[var(--border)] rounded p-3 bg-[var(--surface)]">
           <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
-            كل العوامل (ابحث / رتّب)
+            {t("allFactors")}
           </div>
           <InteractiveTable
             columns={[
@@ -148,14 +149,14 @@ export function PredictionCard({
 
         <section className="border border-[var(--border)] rounded p-3 bg-[var(--surface)] sm:col-span-2">
           <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
-            ماذا لو · توقّع {result.target}
+            {t("whatIfTitle", { target: result.target })}
           </div>
           <div className="text-2xl font-semibold mb-2 text-[var(--accent)]" aria-live="polite">
             {fmt(predicted)}
           </div>
           {sliderFeatures.length === 0 && (
             <div className="text-[12px] text-[var(--text-muted)]">
-              لا توجد متغيرات قابلة للضبط.
+              {t("noAdjustables")}
             </div>
           )}
           <div className="space-y-2">
@@ -168,7 +169,7 @@ export function PredictionCard({
               const sliderId = `pred-${result.target}-${f.feature}`;
               return (
                 <div key={f.feature}>
-                  <div className="flex flex-row-reverse items-baseline justify-between text-[12px]">
+                  <div className="flex items-baseline justify-between text-[12px]">
                     <label htmlFor={sliderId} className="truncate">{f.feature}</label>
                     <span className="font-mono">{fmt(v)}</span>
                   </div>
@@ -183,9 +184,9 @@ export function PredictionCard({
                       setValues((cur) => ({ ...cur, [f.feature]: Number(e.target.value) }))
                     }
                     className="w-full accent-[var(--accent)]"
-                    aria-label={`ضبط ${f.feature}`}
+                    aria-label={t("adjustAria", { feature: f.feature })}
                   />
-                  <div className="flex flex-row-reverse justify-between text-[12px] text-[var(--text-muted)] font-mono">
+                  <div className="flex justify-between text-[12px] text-[var(--text-muted)] font-mono">
                     <span>{fmt(r.min)}</span>
                     <span>μ {fmt(r.mean)}</span>
                     <span>{fmt(r.max)}</span>

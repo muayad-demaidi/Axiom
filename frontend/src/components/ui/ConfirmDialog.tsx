@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
 
 type ConfirmKind = "danger" | "default";
@@ -34,7 +35,7 @@ export function useConfirm(): ConfirmContextValue["confirm"] {
     return async (opts) => {
       if (typeof window === "undefined") return false;
       const text = [opts?.title, opts?.description].filter(Boolean).join("\n\n");
-      return window.confirm(text || "هل أنت متأكد؟");
+      return window.confirm(text || "Are you sure?");
     };
   }
   return ctx.confirm;
@@ -46,6 +47,7 @@ type DialogState = ConfirmOptions & {
 };
 
 export function ConfirmProvider({ children }: { children: ReactNode }) {
+  const t = useTranslations("confirm");
   const [state, setState] = useState<DialogState>({ open: false });
   const confirmBtnRef = useRef<HTMLButtonElement | null>(null);
 
@@ -53,15 +55,15 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     return new Promise<boolean>((resolve) => {
       setState({
         open: true,
-        title: opts.title ?? "هل أنت متأكد؟",
+        title: opts.title ?? t("defaultTitle"),
         description: opts.description,
-        confirmLabel: opts.confirmLabel ?? "نعم، متأكد",
-        cancelLabel: opts.cancelLabel ?? "إلغاء",
+        confirmLabel: opts.confirmLabel ?? t("confirmCta"),
+        cancelLabel: opts.cancelLabel ?? t("cancelCta"),
         kind: opts.kind ?? "danger",
         resolve,
       });
     });
-  }, []);
+  }, [t]);
 
   const close = useCallback(
     (value: boolean) => {
@@ -80,10 +82,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       else if (e.key === "Enter") close(true);
     }
     document.addEventListener("keydown", onKey);
-    const t = window.setTimeout(() => confirmBtnRef.current?.focus(), 30);
+    const timer = window.setTimeout(() => confirmBtnRef.current?.focus(), 30);
     return () => {
       document.removeEventListener("keydown", onKey);
-      window.clearTimeout(t);
+      window.clearTimeout(timer);
     };
   }, [state.open, close]);
 
@@ -105,8 +107,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             aria-hidden="true"
           />
           <div
-            dir="rtl"
-            className="relative w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-xl p-5 text-right"
+            className="relative w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-xl p-5 text-start"
           >
             <div className="flex items-start gap-3">
               {state.kind === "danger" && (
@@ -131,7 +132,15 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 )}
               </div>
             </div>
-            <div className="mt-5 flex flex-row-reverse items-center gap-2 justify-start">
+            <div className="mt-5 flex items-center gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => close(false)}
+                className="inline-flex items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface-alt)]"
+                style={{ minHeight: 44, minWidth: 44 }}
+              >
+                {state.cancelLabel}
+              </button>
               <button
                 ref={confirmBtnRef}
                 type="button"
@@ -144,14 +153,6 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 style={{ minHeight: 44, minWidth: 44 }}
               >
                 {state.confirmLabel}
-              </button>
-              <button
-                type="button"
-                onClick={() => close(false)}
-                className="inline-flex items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface-alt)]"
-                style={{ minHeight: 44, minWidth: 44 }}
-              >
-                {state.cancelLabel}
               </button>
             </div>
           </div>

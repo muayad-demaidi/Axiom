@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useTranslations } from "next-intl";
 import { CheckCircle2, AlertTriangle, Info, X } from "lucide-react";
 
 export type ToastVariant = "success" | "error" | "info";
@@ -92,7 +93,6 @@ function ToastViewport({
       aria-live="polite"
       aria-atomic="true"
       className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-2 pointer-events-none w-full max-w-sm px-3"
-      dir="rtl"
     >
       {items.map((t) => (
         <ToastBubble key={t.id} item={t} onDismiss={onDismiss} />
@@ -108,10 +108,11 @@ function ToastBubble({
   item: ToastItem;
   onDismiss: (id: number) => void;
 }) {
+  const t = useTranslations("toast");
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    const t = window.setTimeout(() => setVisible(true), 10);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => setVisible(true), 10);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const palette =
@@ -141,8 +142,8 @@ function ToastBubble({
       <button
         type="button"
         onClick={() => onDismiss(item.id)}
-        className="ml-1 inline-flex items-center justify-center h-6 w-6 rounded-full hover:bg-black/10"
-        aria-label="إغلاق"
+        className="ms-1 inline-flex items-center justify-center h-6 w-6 rounded-full hover:bg-black/10"
+        aria-label={t("close")}
       >
         <X className="h-3.5 w-3.5" aria-hidden="true" />
       </button>

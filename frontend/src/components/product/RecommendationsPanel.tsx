@@ -6,11 +6,9 @@
  * project. Guided mode shows priority-sorted action cards (one per
  * recommendation) with a single primary action button; Expert mode
  * shows the same data as a dense, sortable table.
- *
- * Both modes share the same list/dismiss/apply API endpoints; only
- * the rendering changes.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { api } from "@/lib/api";
 import { errMessage } from "@/lib/types";
 import { ModeAwareSection } from "./ModeAware";
@@ -46,28 +44,6 @@ const PRIORITY_WEIGHT: Record<Recommendation["priority"], number> = {
   high: 0, medium: 1, low: 2,
 };
 
-const TYPE_LABEL: Record<Recommendation["type"], string> = {
-  discount: "خصم",
-  reorder: "إعادة طلب",
-  bundle: "حزمة",
-  clearance: "تصفية",
-  promote: "ترويج",
-  investigate: "تحقيق",
-};
-
-const STATUS_LABEL: Record<RecommendationStatus, string> = {
-  open: "مفتوحة",
-  applied: "مطبَّقة",
-  dismissed: "مرفوضة",
-  all: "الكل",
-};
-
-const PRIORITY_LABEL: Record<Recommendation["priority"], string> = {
-  high: "عالية",
-  medium: "متوسطة",
-  low: "منخفضة",
-};
-
 const TYPE_ICON: Record<Recommendation["type"], string> = {
   discount: "%",
   reorder: "⟳",
@@ -97,11 +73,34 @@ export function RecommendationsPanel({
 }: {
   projectId: number | null;
 }) {
+  const t = useTranslations("recommendations");
   const [status, setStatus] = useState<RecommendationStatus>("open");
   const [items, setItems] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+
+  const TYPE_LABEL: Record<Recommendation["type"], string> = useMemo(() => ({
+    discount: t("typeDiscount"),
+    reorder: t("typeReorder"),
+    bundle: t("typeBundle"),
+    clearance: t("typeClearance"),
+    promote: t("typePromote"),
+    investigate: t("typeInvestigate"),
+  }), [t]);
+
+  const STATUS_LABEL: Record<RecommendationStatus, string> = useMemo(() => ({
+    open: t("filterOpen"),
+    applied: t("filterApplied"),
+    dismissed: t("filterDismissed"),
+    all: t("filterAll"),
+  }), [t]);
+
+  const PRIORITY_LABEL: Record<Recommendation["priority"], string> = useMemo(() => ({
+    high: t("priorityHigh"),
+    medium: t("priorityMedium"),
+    low: t("priorityLow"),
+  }), [t]);
 
   const reload = useCallback(async () => {
     if (!projectId) return;
@@ -149,13 +148,13 @@ export function RecommendationsPanel({
   if (!projectId) {
     return (
       <div className="card mt-6 text-xs text-[var(--text-muted)]" role="status">
-        تحتاج التوصيات إلى مشروع نشط. افتح مشروعًا من صفحة المشاريع أولًا.
+        {t("needProject")}
       </div>
     );
   }
 
   const StatusBar = (
-    <div dir="rtl" className="flex items-center gap-2 flex-wrap">
+    <div className="flex items-center gap-2 flex-wrap">
       {(["open", "applied", "dismissed", "all"] as RecommendationStatus[]).map(
         (s) => (
           <button
@@ -175,16 +174,16 @@ export function RecommendationsPanel({
       <button
         onClick={() => void reload()}
         disabled={loading}
-        className="ml-auto text-xs text-[var(--text-muted)] hover:text-[var(--accent)] min-h-[32px] px-2"
+        className="ms-auto text-xs text-[var(--text-muted)] hover:text-[var(--accent)] min-h-[32px] px-2"
       >
-        {loading ? "جارٍ التحديث…" : "تحديث"}
+        {loading ? t("refreshing") : t("refresh")}
       </button>
     </div>
   );
 
   const Empty = (
     <div className="card text-xs text-[var(--text-muted)]" role="status">
-      لا توجد توصيات{status === "all" ? "" : ` ${STATUS_LABEL[status]}`}.
+      {status === "all" ? t("empty") : t("emptyWithStatus", { status: STATUS_LABEL[status] })}
     </div>
   );
 
@@ -201,6 +200,9 @@ export function RecommendationsPanel({
               busy={busyId === r.id}
               onApply={() => act(r.id, "apply")}
               onDismiss={() => act(r.id, "dismiss")}
+              typeLabel={TYPE_LABEL[r.type]}
+              priorityLabel={PRIORITY_LABEL[r.priority]}
+              priorityBadgeClass={priorityBadge(r.priority)}
             />
           ))}
         </div>
@@ -217,14 +219,14 @@ export function RecommendationsPanel({
           <table className="w-full text-xs">
             <thead>
               <tr className="text-[var(--text-muted)] text-[10px] uppercase tracking-widest border-b border-[var(--border)]">
-                <th className="text-right px-2 py-1.5">الأولوية</th>
-                <th className="text-right px-2 py-1.5">النوع</th>
-                <th className="text-right px-2 py-1.5">المنتج</th>
-                <th className="text-right px-2 py-1.5">السبب</th>
-                <th className="text-right px-2 py-1.5">الإجراء المقترح</th>
-                <th className="text-left px-2 py-1.5">الثقة</th>
-                <th className="text-right px-2 py-1.5">الموعد النهائي</th>
-                <th className="text-left px-2 py-1.5">إجراءات</th>
+                <th className="text-start px-2 py-1.5">{t("tableHeaderPriority")}</th>
+                <th className="text-start px-2 py-1.5">{t("tableHeaderType")}</th>
+                <th className="text-start px-2 py-1.5">{t("tableHeaderProduct")}</th>
+                <th className="text-start px-2 py-1.5">{t("tableHeaderReason")}</th>
+                <th className="text-start px-2 py-1.5">{t("tableHeaderAction")}</th>
+                <th className="text-end px-2 py-1.5">{t("tableHeaderConfidence")}</th>
+                <th className="text-start px-2 py-1.5">{t("tableHeaderDeadline")}</th>
+                <th className="text-end px-2 py-1.5">{t("tableHeaderActions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -242,18 +244,18 @@ export function RecommendationsPanel({
                   <td className="px-2 py-1.5 font-mono text-[11px]">{r.product}</td>
                   <td className="px-2 py-1.5 text-[11px]">{r.reason}</td>
                   <td className="px-2 py-1.5 text-[11px]">{r.suggested_action}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">
+                  <td className="px-2 py-1.5 text-end tabular-nums">
                     {(r.confidence * 100).toFixed(0)}%
                   </td>
                   <td className="px-2 py-1.5 text-[11px]">{fmtDate(r.deadline)}</td>
-                  <td className="px-2 py-1.5 text-right whitespace-nowrap">
+                  <td className="px-2 py-1.5 text-end whitespace-nowrap">
                     {!r.applied && (
                       <button
                         onClick={() => act(r.id, "apply")}
                         disabled={busyId === r.id}
-                        className="text-xs text-[var(--accent)] hover:underline mr-2 disabled:opacity-50 min-h-[32px] px-1"
+                        className="text-xs text-[var(--accent)] hover:underline me-2 disabled:opacity-50 min-h-[32px] px-1"
                       >
-                        تطبيق
+                        {t("applyCta")}
                       </button>
                     )}
                     {!r.dismissed && (
@@ -262,12 +264,12 @@ export function RecommendationsPanel({
                         disabled={busyId === r.id}
                         className="text-xs text-[var(--text-muted)] hover:text-red-500 disabled:opacity-50 min-h-[32px] px-1"
                       >
-                        رفض
+                        {t("dismissCta")}
                       </button>
                     )}
                     {(r.applied || r.dismissed) && (
                       <span className="text-[10px] text-[var(--text-muted)]">
-                        {r.applied ? "مطبَّقة" : "مرفوضة"}
+                        {r.applied ? t("applied") : t("dismissed")}
                       </span>
                     )}
                   </td>
@@ -283,7 +285,7 @@ export function RecommendationsPanel({
   return (
     <div className="mt-6">
       <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
-        التوصيات
+        {t("title")}
       </div>
       <ModeAwareSection projectId={projectId} guided={guided} expert={expert} />
     </div>
@@ -291,13 +293,17 @@ export function RecommendationsPanel({
 }
 
 function GuidedCard({
-  rec, busy, onApply, onDismiss,
+  rec, busy, onApply, onDismiss, typeLabel, priorityLabel, priorityBadgeClass,
 }: {
   rec: Recommendation;
   busy: boolean;
   onApply: () => void;
   onDismiss: () => void;
+  typeLabel: string;
+  priorityLabel: string;
+  priorityBadgeClass: string;
 }) {
+  const t = useTranslations("recommendations");
   return (
     <div className="card p-4 flex flex-col h-full">
       <div className="flex items-start gap-3">
@@ -311,10 +317,10 @@ function GuidedCard({
           <div className="flex items-center gap-2">
             <span className={
               "inline-block px-1.5 py-0.5 rounded text-[10px] font-medium " +
-              priorityBadge(rec.priority)
-            }>{PRIORITY_LABEL[rec.priority]}</span>
+              priorityBadgeClass
+            }>{priorityLabel}</span>
             <span className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
-              {TYPE_LABEL[rec.type]}
+              {typeLabel}
             </span>
           </div>
           <div className="font-semibold text-sm mt-1 truncate" title={rec.product}>
@@ -324,7 +330,7 @@ function GuidedCard({
             {rec.reason}
           </div>
           <div className="text-xs mt-2">
-            <span className="font-medium">الإجراء المقترح:</span>{" "}
+            <span className="font-medium">{t("suggestedAction")}</span>{" "}
             {rec.suggested_action}
           </div>
           {rec.expected_impact && (
@@ -334,7 +340,7 @@ function GuidedCard({
           )}
           {rec.deadline && (
             <div className="text-[10px] text-[var(--text-muted)] mt-1">
-              الموعد النهائي: {fmtDate(rec.deadline)}
+              {t("deadline")} {fmtDate(rec.deadline)}
             </div>
           )}
         </div>
@@ -348,11 +354,11 @@ function GuidedCard({
             disabled={busy}
             className="btn btn-primary text-xs disabled:opacity-50 min-h-[44px]"
           >
-            {busy ? "جارٍ التنفيذ…" : "وضع كمطبَّقة"}
+            {busy ? t("applyingCta") : t("markApplied")}
           </button>
         ) : (
           <span className="text-[11px] text-[var(--text-muted)] italic">
-            مطبَّقة {fmtDate(rec.applied_at)}
+            {t("appliedAt", { date: fmtDate(rec.applied_at) })}
           </span>
         )}
         {!rec.dismissed ? (
@@ -362,11 +368,11 @@ function GuidedCard({
             disabled={busy}
             className="btn text-xs disabled:opacity-50 min-h-[44px]"
           >
-            رفض
+            {t("dismissCta")}
           </button>
         ) : (
-          <span className="text-[11px] text-[var(--text-muted)] italic ml-auto">
-            مرفوضة {fmtDate(rec.dismissed_at)}
+          <span className="text-[11px] text-[var(--text-muted)] italic ms-auto">
+            {t("dismissedAt", { date: fmtDate(rec.dismissed_at) })}
           </span>
         )}
       </div>

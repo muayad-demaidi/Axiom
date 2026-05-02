@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PredictionCard, type PredictionResult } from "@/components/product/PredictionCard";
 import { bandFor } from "@/components/ui/Gauge";
+import enMessages from "../../../messages/en.json";
+
+const M = enMessages.prediction;
 
 function makeResult(r2: number): PredictionResult {
   return {
@@ -42,22 +45,20 @@ describe("PredictionCard", () => {
     expect(bandFor(0)).toBe("low");
   });
 
-  it("renders Arabic conditional copy for the confidence band", () => {
+  it("renders translated conditional copy for the confidence band", () => {
     const { rerender } = render(
       <PredictionCard title="P" result={makeResult(0.9)} />,
     );
-    expect(screen.getAllByText(/ثقة مرتفعة/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(M.confidenceHigh).length).toBeGreaterThan(0);
     rerender(<PredictionCard title="P" result={makeResult(0.5)} />);
-    expect(screen.getAllByText(/ثقة متوسطة/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(M.confidenceMedium).length).toBeGreaterThan(0);
     rerender(<PredictionCard title="P" result={makeResult(0.2)} />);
-    expect(screen.getAllByText(/ثقة منخفضة/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(M.confidenceLow).length).toBeGreaterThan(0);
   });
 
-  it("includes the Arabic confidence explanation copy", () => {
+  it("includes the translated confidence explanation copy", () => {
     render(<PredictionCard title="P" result={makeResult(0.82)} />);
-    expect(
-      screen.getByText(/نُحسب درجة الثقة من جودة المطابقة/),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/أهم العوامل المؤثرة/)).toBeInTheDocument();
+    expect(screen.getByText(M.confidenceDescription)).toBeInTheDocument();
+    expect(screen.getByText(M.topFactors)).toBeInTheDocument();
   });
 });

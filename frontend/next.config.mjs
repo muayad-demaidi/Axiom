@@ -1,3 +1,9 @@
+import createNextIntlPlugin from "next-intl/plugin";
+
+// Wire the request-config file so next-intl can hand it to the React
+// tree on every render. Path is relative to the project root.
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -17,4 +23,5 @@ const nextConfig = {
     ];
   },
 };
-export default nextConfig;
+
+export default withNextIntl(nextConfig);

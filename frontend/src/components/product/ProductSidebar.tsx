@@ -25,6 +25,8 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { stripLocale } from "@/i18n/config";
 import {
   ChevronRight,
   Database,
@@ -59,17 +61,23 @@ type QuickStartResponse = {
   session_id: number;
 };
 
-const TOOL_LINKS: { href: string; label: string }[] = [
-  { href: "/app/upload", label: "الملفات" },
-  { href: "/app/connectors", label: "موصّلات البيانات" },
-  { href: "/app/dashboard", label: "لوحة التحكم" },
-  { href: "/app/pivot", label: "الجدول المحوري" },
-  { href: "/app/join", label: "دمج البيانات" },
-  { href: "/app/fields", label: "إعدادات الحقول" },
+type ToolLink = { href: string; labelKey: string };
+const TOOL_LINKS: ToolLink[] = [
+  { href: "/app/upload", labelKey: "files" },
+  { href: "/app/connectors", labelKey: "connectors" },
+  { href: "/app/dashboard", labelKey: "dashboard" },
+  { href: "/app/pivot", labelKey: "pivot" },
+  { href: "/app/join", labelKey: "join" },
+  { href: "/app/fields", labelKey: "fields" },
+  { href: "/app/settings", labelKey: "settings" },
 ];
 
 function ProductSidebarBase() {
-  const pathname = usePathname() || "";
+  const tNav = useTranslations("nav");
+  const tSidebar = useTranslations("sidebar");
+  // Locale-stripped path so all `/app/...` matching keeps working
+  // under `/ar/app/...` too. Always normalize before any comparison.
+  const pathname = stripLocale(usePathname());
   const searchParams = useSearchParams();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -162,7 +170,7 @@ function ProductSidebarBase() {
       if (busy) return;
       const cleaned = name.trim();
       if (!cleaned) {
-        setProjectError("اسم المشروع لا يمكن أن يكون فارغًا.");
+        setProjectError(tSidebar("projectNameRequired"));
         return;
       }
       setBusy(true);
@@ -191,7 +199,7 @@ function ProductSidebarBase() {
         setBusy(false);
       }
     },
-    [busy, router]
+    [busy, router, tSidebar]
   );
 
   // Project rename + delete — these run from inside ProjectNode but
@@ -299,11 +307,11 @@ function ProductSidebarBase() {
       onSubmitNewProject={(name, desc) => void newProject(name, desc)}
       busy={busy}
     >
-      <Section label="المشاريع">
+      <Section label={tNav("projects")}>
         {projectsRaw === undefined ? (
-          <Hint>جارٍ التحميل…</Hint>
+          <Hint>{tSidebar("loadingProjects")}</Hint>
         ) : projects.length === 0 ? (
-          <Hint>لا توجد مشاريع بعد.</Hint>
+          <Hint>{tSidebar("noProjects")}</Hint>
         ) : (
           <ul className="space-y-0.5">
             {projects.map((p) => (
@@ -326,15 +334,15 @@ function ProductSidebarBase() {
             <button
               type="button"
               onClick={() => setProjectError(null)}
-              className="underline ml-1"
+              className="underline ms-1"
             >
-              إخفاء
+              {tSidebar("hideError")}
             </button>
           </div>
         )}
       </Section>
 
-      <Section label="مساحة العمل">
+      <Section label={tNav("workspace")}>
         <ul className="space-y-0.5">
           {TOOL_LINKS.map((it) => {
             const active = pathname === it.href;
@@ -348,7 +356,7 @@ function ProductSidebarBase() {
                       : "text-[var(--text)] hover:bg-[var(--surface)]"
                   }`}
                 >
-                  {it.label}
+                  {tNav(it.labelKey)}
                 </Link>
               </li>
             );
@@ -357,7 +365,7 @@ function ProductSidebarBase() {
       </Section>
 
       {isAdmin && (
-        <Section label="الإدارة">
+        <Section label={tNav("management")}>
           <ul className="space-y-0.5">
             <li>
               <Link
@@ -368,7 +376,7 @@ function ProductSidebarBase() {
                     : "text-[var(--text)] hover:bg-[var(--surface)]"
                 }`}
               >
-                صندوق الدعم
+                {tNav("supportInbox")}
               </Link>
             </li>
           </ul>
@@ -459,6 +467,7 @@ function NewSplitButton({
     };
   }, [open, onToggle]);
 
+  const tSidebar = useTranslations("sidebar");
   return (
     <div className="relative" ref={wrapRef}>
       <button
@@ -470,7 +479,7 @@ function NewSplitButton({
         aria-expanded={open}
       >
         <Plus className="h-3.5 w-3.5" />
-        جديد
+        {tSidebar("newButton")}
       </button>
       {open && (
         <div
@@ -481,13 +490,13 @@ function NewSplitButton({
             type="button"
             role="menuitem"
             onClick={onPickProject}
-            className="w-full text-left px-3 py-2 text-xs text-[var(--text)] hover:bg-[var(--surface-alt)] inline-flex items-center gap-2"
+            className="w-full text-start px-3 py-2 text-xs text-[var(--text)] hover:bg-[var(--surface-alt)] inline-flex items-center gap-2"
           >
             <FileText className="h-3 w-3 text-[var(--text-muted)]" />
             <div className="flex-1">
-              <div className="font-medium">مشروع</div>
+              <div className="font-medium">{tSidebar("newProjectChoice")}</div>
               <div className="text-[10px] text-[var(--text-muted)]">
-                مجموعة محادثات مع بياناتها الخاصة
+                {tSidebar("newProjectChoiceDescription")}
               </div>
             </div>
           </button>
@@ -496,13 +505,13 @@ function NewSplitButton({
             type="button"
             role="menuitem"
             onClick={onPickChat}
-            className="w-full text-left px-3 py-2 text-xs text-[var(--text)] hover:bg-[var(--surface-alt)] inline-flex items-center gap-2"
+            className="w-full text-start px-3 py-2 text-xs text-[var(--text)] hover:bg-[var(--surface-alt)] inline-flex items-center gap-2"
           >
             <MessageSquarePlus className="h-3 w-3 text-[var(--text-muted)]" />
             <div className="flex-1">
-              <div className="font-medium">محادثة</div>
+              <div className="font-medium">{tSidebar("newChatChoice")}</div>
               <div className="text-[10px] text-[var(--text-muted)]">
-                محادثة سريعة ضمن Quick Chats
+                {tSidebar("newChatChoiceDescription")}
               </div>
             </div>
           </button>
@@ -523,6 +532,8 @@ function NewProjectForm({
   onCancel: () => void;
   onSubmit: (name: string, description: string) => void;
 }) {
+  const tSidebar = useTranslations("sidebar");
+  const tCommon = useTranslations("common");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -540,7 +551,7 @@ function NewProjectForm({
       className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-2.5 space-y-1.5"
     >
       <div className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)]">
-        مشروع جديد
+        {tSidebar("newProjectFormHeader")}
       </div>
       <input
         ref={inputRef}
@@ -552,7 +563,7 @@ function NewProjectForm({
             onCancel();
           }
         }}
-        placeholder="اسم المشروع…"
+        placeholder={tSidebar("projectNamePlaceholder")}
         className="w-full px-2 py-1.5 text-xs rounded border border-[var(--border)] bg-[var(--surface-alt)] text-[var(--text)]"
       />
       <input
@@ -564,7 +575,7 @@ function NewProjectForm({
             onCancel();
           }
         }}
-        placeholder="الوصف (اختياري)"
+        placeholder={tSidebar("descriptionPlaceholder")}
         className="w-full px-2 py-1.5 text-[11px] rounded border border-[var(--border)] bg-[var(--surface-alt)] text-[var(--text)]"
       />
       <div className="flex items-center gap-1.5 justify-end pt-0.5">
@@ -573,14 +584,14 @@ function NewProjectForm({
           onClick={onCancel}
           className="text-[11px] px-2 py-1 rounded text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-alt)]"
         >
-          إلغاء
+          {tCommon("cancel")}
         </button>
         <button
           type="submit"
           disabled={busy || !name.trim()}
           className="btn btn-primary text-[11px] px-2 py-1 disabled:opacity-50"
         >
-          إنشاء
+          {tSidebar("createButton")}
         </button>
       </div>
     </form>
@@ -616,6 +627,7 @@ const ProjectNode = memo(function ProjectNode({
   onDelete: (project: AxiomProject) => Promise<boolean>;
   activeSessionId: number | null;
 }) {
+  const tSidebar = useTranslations("sidebar");
   const router = useRouter();
   const pid = project.id;
   const headerActive = isActive;
@@ -648,7 +660,7 @@ const ProjectNode = memo(function ProjectNode({
         }`}
       >
         <button
-          aria-label={isOpen ? "طيّ المشروع" : "توسيع المشروع"}
+          aria-label={isOpen ? tSidebar("collapseProject") : tSidebar("expandProject")}
           onClick={handleClick}
           className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] shrink-0"
         >
