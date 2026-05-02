@@ -14,17 +14,17 @@ type QuickStartResponse = {
 };
 
 const GUIDED_SUGGESTIONS = [
-  "Show me what's in my latest upload",
-  "Spot anything unusual in my data",
-  "What were my best months last year?",
-  "Group my customers into similar buckets",
+  "اعرض لي ما في آخر ملف رفعته",
+  "ابحث عن أي شيء غير معتاد في بياناتي",
+  "ما هي أفضل أشهري في العام الماضي؟",
+  "اجمع عملائي في مجموعات متشابهة",
 ];
 
 const EXPERT_SUGGESTIONS = [
-  "Run STL decomposition on monthly_sales and forecast 6 periods",
-  "Drop columns >40% null, KNN-impute the rest, then profile",
-  "Fit XGBoost regressor with 5-fold CV and report RMSE / MAE",
-  "K-Means RFM segmentation on customers, k=4, return cluster centroids",
+  "نفّذ STL على monthly_sales وتنبّأ بـ 6 فترات قادمة",
+  "احذف الأعمدة بنسبة فراغ > 40%، ثم KNN-impute للباقي وملف للبيانات",
+  "درّب XGBoost regressor بـ CV 5-طيّات واعرض RMSE / MAE",
+  "تجزئة عملاء RFM بـ K-Means، k=4، مع مراكز التجمعات",
 ];
 
 export default function ProductHome() {
@@ -36,8 +36,8 @@ export default function ProductHome() {
   const suggestions = mode === "expert" ? EXPERT_SUGGESTIONS : GUIDED_SUGGESTIONS;
   const placeholder =
     mode === "expert"
-      ? "Describe the analysis (algorithm, params, columns)…"
-      : "Ask anything about your data… (e.g. forecast next 6 months from sales.csv)";
+      ? "صف التحليل المطلوب (الخوارزمية والمعاملات والأعمدة)…"
+      : "اسأل أي شيء عن بياناتك… (مثال: تنبّأ بأشهر ست القادمة من sales.csv)";
 
   useEffect(() => {
     if (!getToken()) {
@@ -68,25 +68,28 @@ export default function ProductHome() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-7rem)] flex items-start justify-center pt-16">
+    <div
+      dir="rtl"
+      className="min-h-[calc(100vh-7rem)] flex items-start justify-center pt-16 px-4"
+    >
       <div className="w-full max-w-3xl text-center">
-        <div className="text-[11px] font-mono uppercase tracking-[0.25em] text-[var(--text-muted)] mb-3">
-          Project-aware data analyst
+        <div className="text-[12px] font-mono uppercase tracking-[0.25em] text-[var(--text-muted)] mb-3">
+          محلّل بيانات مدرك للمشروع
         </div>
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
           {mode === "expert"
-            ? "What analysis should we run?"
-            : "What do you want to analyze today?"}
+            ? "ما التحليل الذي نُجريه؟"
+            : "ماذا تريد أن نحلّل اليوم؟"}
         </h1>
         <p className="text-[var(--text-muted)] mt-3 text-sm">
           {mode === "expert"
-            ? "Describe the algorithm, parameters and columns. Methods, metrics and JSON stay visible."
-            : "Drop a question, attach a file, or pick from a suggestion. Every chat remembers your data and follows a transparent methodology."}
+            ? "صف الخوارزمية والمعاملات والأعمدة. تبقى المنهجية والمقاييس وملفات JSON ظاهرة لك."
+            : "اطرح سؤالًا أو أرفق ملفًا أو اختر اقتراحًا. كل محادثة تتذكّر بياناتك وتتبع منهجية واضحة."}
         </p>
         <div className="mt-4 flex items-center justify-center gap-2">
           <ModeToggle size="sm" />
-          <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
-            applies to new chats
+          <span className="text-[12px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
+            يُطبَّق على المحادثات الجديدة
           </span>
         </div>
 
@@ -106,7 +109,14 @@ export default function ProductHome() {
           />
         </div>
 
-        {error && <div className="text-red-600 text-sm mt-3">{error}</div>}
+        {error && (
+          <div
+            role="alert"
+            className="text-red-600 text-sm mt-3 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-right"
+          >
+            {error}
+          </div>
+        )}
 
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           {suggestions.map((s) => (
@@ -115,17 +125,18 @@ export default function ProductHome() {
               type="button"
               onClick={() => start(s)}
               disabled={busy}
-              className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-[var(--accent)] rounded-full px-3 py-1.5 transition-colors"
+              className="text-[12px] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-[var(--accent)] rounded-full px-3 py-1.5 transition-colors"
+              style={{ minHeight: 32 }}
             >
               {s}
             </button>
           ))}
         </div>
 
-        <div className="mt-10 text-xs text-[var(--text-muted)]">
-          Looking for an existing project?{" "}
+        <div className="mt-10 text-[12px] text-[var(--text-muted)]">
+          تبحث عن مشروع موجود؟{" "}
           <Link href="/app/projects" className="text-[var(--accent)] hover:underline">
-            Open the projects index
+            افتح فهرس المشاريع
           </Link>
           .
         </div>

@@ -11,6 +11,7 @@
  */
 import { useMemo, useState } from "react";
 import { InteractiveTable } from "./InteractiveTable";
+import { Gauge, bandFor } from "@/components/ui/Gauge";
 
 type Importance = {
   feature: string;
@@ -63,29 +64,53 @@ export function PredictionCard({
     return v;
   }, [values, result]);
 
+  // Confidence score derived from R²; clamped to 0-100 for the gauge.
+  const r2 = Number(result.metrics?.r2 ?? 0);
+  const confidence = Math.max(0, Math.min(100, Math.round(r2 * 100)));
+  const band = bandFor(confidence);
+  const confidenceCopy =
+    band === "high"
+      ? "ثقة مرتفعة في التنبؤ."
+      : band === "medium"
+      ? "ثقة متوسطة — راجع النتائج قبل الاعتماد عليها."
+      : "ثقة منخفضة — لا يُنصح بالاعتماد على هذا التنبؤ كما هو.";
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-baseline justify-between gap-3">
+    <div dir="rtl" className="space-y-3 text-right">
+      <div className="flex flex-row-reverse items-baseline justify-between gap-3">
         <div className="font-semibold text-sm">{title}</div>
-        <div className="text-[10px] text-[var(--text-muted)] font-mono">
+        <div className="text-[12px] text-[var(--text-muted)] font-mono">
           R² {fmt(result.metrics?.r2)} · MAE {fmt(result.metrics?.mae)} · {result.model}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="flex flex-row-reverse items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-alt)]/40 p-3">
+        <Gauge
+          score={confidence}
+          size={88}
+          label="ثقة النموذج"
+          description={confidenceCopy}
+        />
+        <div className="flex-1 text-[12px] leading-relaxed text-[var(--text-muted)]">
+          نُحسب درجة الثقة من جودة المطابقة (R²). تقاس على مقياس 0–100،
+          حيث ≥ 70 ثقة مرتفعة، 40–69 متوسطة، وأقل من 40 منخفضة.
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <section className="border border-[var(--border)] rounded p-3 bg-[var(--surface)]">
-          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
-            Top features
+          <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
+            أهم العوامل المؤثرة
           </div>
           <ul className="space-y-1.5">
             {(result.feature_importance ?? []).slice(0, 8).map((f) => {
               const max = Math.max(...(result.feature_importance ?? []).map((g) => g.importance), 1e-9);
               const w = Math.max(2, Math.round((f.importance / max) * 100));
               return (
-                <li key={f.feature} className="text-[11px]">
-                  <div className="flex items-baseline justify-between">
+                <li key={f.feature} className="text-[12px]">
+                  <div className="flex flex-row-reverse items-baseline justify-between">
                     <span className="truncate">{f.feature}</span>
-                    <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                    <span className="font-mono text-[12px] text-[var(--text-muted)]">
                       {f.coefficient >= 0 ? "+" : ""}
                       {fmt(f.coefficient)}
                     </span>
@@ -103,8 +128,8 @@ export function PredictionCard({
         </section>
 
         <section className="border border-[var(--border)] rounded p-3 bg-[var(--surface)]">
-          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
-            All features (sortable / searchable)
+          <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
+            كل العوامل (ابحث / رتّب)
           </div>
           <InteractiveTable
             columns={[
@@ -121,15 +146,17 @@ export function PredictionCard({
           />
         </section>
 
-        <section className="border border-[var(--border)] rounded p-3 bg-[var(--surface)]">
-          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
-            What-if · predict {result.target}
+        <section className="border border-[var(--border)] rounded p-3 bg-[var(--surface)] sm:col-span-2">
+          <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-2">
+            ماذا لو · توقّع {result.target}
           </div>
-          <div className="text-2xl font-semibold mb-2 text-[var(--accent)]">
+          <div className="text-2xl font-semibold mb-2 text-[var(--accent)]" aria-live="polite">
             {fmt(predicted)}
           </div>
           {sliderFeatures.length === 0 && (
-            <div className="text-[11px] text-[var(--text-muted)]">No tunable features.</div>
+            <div className="text-[12px] text-[var(--text-muted)]">
+              لا توجد متغيرات قابلة للضبط.
+            </div>
           )}
           <div className="space-y-2">
             {sliderFeatures.map((f) => {
@@ -138,13 +165,15 @@ export function PredictionCard({
               const v = values[f.feature];
               const span = r.max - r.min || 1;
               const step = span / 100;
+              const sliderId = `pred-${result.target}-${f.feature}`;
               return (
                 <div key={f.feature}>
-                  <div className="flex items-baseline justify-between text-[10px]">
-                    <span className="truncate">{f.feature}</span>
+                  <div className="flex flex-row-reverse items-baseline justify-between text-[12px]">
+                    <label htmlFor={sliderId} className="truncate">{f.feature}</label>
                     <span className="font-mono">{fmt(v)}</span>
                   </div>
                   <input
+                    id={sliderId}
                     type="range"
                     min={r.min}
                     max={r.max}
@@ -154,8 +183,9 @@ export function PredictionCard({
                       setValues((cur) => ({ ...cur, [f.feature]: Number(e.target.value) }))
                     }
                     className="w-full accent-[var(--accent)]"
+                    aria-label={`ضبط ${f.feature}`}
                   />
-                  <div className="flex justify-between text-[9px] text-[var(--text-muted)] font-mono">
+                  <div className="flex flex-row-reverse justify-between text-[12px] text-[var(--text-muted)] font-mono">
                     <span>{fmt(r.min)}</span>
                     <span>μ {fmt(r.mean)}</span>
                     <span>{fmt(r.max)}</span>

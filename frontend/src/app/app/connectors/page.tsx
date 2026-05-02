@@ -156,18 +156,17 @@ export default function ConnectorsPage() {
   }, {});
 
   return (
-    <div className="max-w-5xl">
-      <span className="eyebrow">Workspace</span>
-      <h1 className="text-2xl md:text-3xl font-bold mt-2">Data connectors</h1>
+    <div className="max-w-5xl" dir="rtl">
+      <span className="eyebrow">مساحة العمل</span>
+      <h1 className="text-2xl md:text-3xl font-bold mt-2">موصّلات البيانات</h1>
       <p className="text-[var(--text-muted)] mt-2 text-sm max-w-2xl">
-        Bring data into AXIOM from any source. Some sources are already wired
-        in; others are provisioned through Replit&apos;s integration system —
-        click a card to see how to connect it.
+        أحضر بياناتك إلى AXIOM من أي مصدر. بعض المصادر مهيّأة مسبقًا، وبعضها يُربط عبر نظام تكاملات Replit —
+        اضغط على البطاقة لتعرف كيفية ربطها.
       </p>
 
       {Object.entries(grouped).map(([cat, items]) => (
         <section key={cat} className="mt-8">
-          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-3">
+          <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-3">
             {cat}
           </div>
           <ul className="grid gap-3 md:grid-cols-3">
@@ -176,17 +175,19 @@ export default function ConnectorsPage() {
                 <button
                   type="button"
                   onClick={() => setOpen(c)}
-                  className="card text-left w-full hover:border-[var(--accent)] transition-colors h-full"
+                  className="card text-right w-full hover:border-[var(--accent)] transition-colors h-full"
+                  style={{ minHeight: 88 }}
+                  aria-label={`${c.name} — ${c.description}`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="text-sm font-semibold">{c.name}</h3>
                     {c.status === "available" ? (
-                      <span className="text-[10px] font-mono text-emerald-500">READY</span>
+                      <span className="text-[12px] font-mono text-emerald-500">جاهز</span>
                     ) : (
-                      <span className="text-[10px] font-mono text-[var(--text-muted)]">CONNECT</span>
+                      <span className="text-[12px] font-mono text-[var(--text-muted)]">اربط</span>
                     )}
                   </div>
-                  <p className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
+                  <p className="text-[12px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
                     {c.description}
                   </p>
                 </button>
@@ -206,6 +207,10 @@ function ConnectorModal({ connector, onClose }: { connector: Connector; onClose:
     <div
       className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={connector.name}
+      dir="rtl"
     >
       <div
         className="bg-[var(--surface)] border border-[var(--border)] rounded-xl max-w-md w-full p-5 shadow-xl"
@@ -213,31 +218,33 @@ function ConnectorModal({ connector, onClose }: { connector: Connector; onClose:
       >
         <div className="flex items-start justify-between gap-2">
           <div>
-            <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)]">
+            <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)]">
               {connector.category}
             </div>
             <h3 className="text-lg font-semibold mt-0.5">{connector.name}</h3>
           </div>
           <button
             onClick={onClose}
-            className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none"
-            aria-label="Close"
+            className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none inline-flex items-center justify-center"
+            style={{ minHeight: 44, minWidth: 44 }}
+            aria-label="إغلاق"
           >
             ×
           </button>
         </div>
         <p className="text-sm text-[var(--text)] mt-3 leading-relaxed">{connector.detail}</p>
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-5 flex justify-start gap-2">
           {connector.key === "csv-upload" || connector.key === "postgres" ? (
             <Link
               href={connector.key === "csv-upload" ? "/app/upload" : "/app"}
-              className="btn btn-primary text-xs"
+              className="btn btn-primary text-[12px] inline-flex items-center"
+              style={{ minHeight: 44 }}
             >
-              {connector.key === "csv-upload" ? "Open uploader" : "Start a chat"}
+              {connector.key === "csv-upload" ? "افتح صفحة الرفع" : "ابدأ محادثة"}
             </Link>
           ) : (
-            <button onClick={onClose} className="btn btn-ghost text-xs">
-              Got it
+            <button onClick={onClose} className="btn btn-ghost text-[12px]" style={{ minHeight: 44 }}>
+              تمام
             </button>
           )}
         </div>

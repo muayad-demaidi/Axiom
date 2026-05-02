@@ -13,8 +13,13 @@
  */
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { Inbox, Pin, X as XIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { errMessage } from "@/lib/types";
+import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { Spinner } from "@/components/ui/Spinner";
+import { EmptyState } from "@/components/ui/EmptyState";
 // Heavy artifact renderers (recharts-based, ~tens of KB each) are
 // dynamically imported so they aren't pulled into the initial /app
 // bundle. The drawer is only opened on demand, and these tabs only
@@ -53,12 +58,20 @@ export type Artifact = {
 type Tab = "profile" | "visualize" | "predictions" | "clusters" | "model";
 
 const TABS: { key: Tab; label: string; kind: string }[] = [
-  { key: "profile", label: "Profile", kind: "profile" },
-  { key: "visualize", label: "Visualize", kind: "chart" },
-  { key: "predictions", label: "Predictions", kind: "prediction" },
-  { key: "clusters", label: "Clusters", kind: "cluster" },
-  { key: "model", label: "Data model", kind: "data_model" },
+  { key: "profile", label: "ملف البيانات", kind: "profile" },
+  { key: "visualize", label: "الرسوم البيانية", kind: "chart" },
+  { key: "predictions", label: "التنبؤات", kind: "prediction" },
+  { key: "clusters", label: "التجميع", kind: "cluster" },
+  { key: "model", label: "نموذج البيانات", kind: "data_model" },
 ];
+
+const TAB_EMPTY_HINT: Record<Tab, string> = {
+  profile: "اطلب من المساعد عمل ملف للبيانات وستظهر النتيجة هنا.",
+  visualize: "اطلب من المساعد رسم مخطط وستظهر نتيجته هنا.",
+  predictions: "اطلب من المساعد تنبؤًا وستظهر نتائجه هنا.",
+  clusters: "اطلب من المساعد تجميع الصفوف وستظهر نتائجه هنا.",
+  model: "سيظهر نموذج البيانات هنا حال تجهيزه.",
+};
 
 const KIND_TO_TAB: Record<string, Tab> = {
   profile: "profile",
@@ -163,23 +176,39 @@ function ArtifactDrawerBase({
     return out;
   }, [pending]);
 
+  const toast = useToast();
+  const confirm = useConfirm();
+
   async function togglePin(a: Artifact) {
     try {
       const next = !a.pinned;
       setItems((cur) => cur.map((x) => (x.id === a.id ? { ...x, pinned: next } : x)));
       await api(`/api/artifacts/${a.id}/pin`, { method: "PATCH", json: { pinned: next } });
+      toast.success(next ? "تم التثبيت بالتقرير ✓" : "تم إلغاء التثبيت ✓");
     } catch (e) {
-      setError(errMessage(e));
+      const msg = errMessage(e);
+      setError(msg);
+      toast.error("تعذّر تحديث التثبيت — حاول مرة أخرى.");
     }
   }
 
   async function removeArtifact(a: Artifact) {
-    if (!confirm(`Delete "${a.title}"?`)) return;
+    const ok = await confirm({
+      title: "حذف هذا العنصر؟",
+      description: `سيتم حذف «${a.title}» نهائيًا.`,
+      confirmLabel: "نعم، احذف",
+      cancelLabel: "إلغاء",
+      kind: "danger",
+    });
+    if (!ok) return;
     try {
       await api(`/api/artifacts/${a.id}`, { method: "DELETE" });
       setItems((cur) => cur.filter((x) => x.id !== a.id));
+      toast.success("تم الحذف بنجاح ✓");
     } catch (e) {
-      setError(errMessage(e));
+      const msg = errMessage(e);
+      setError(msg);
+      toast.error("تعذّر الحذف — حاول مرة أخرى.");
     }
   }
 
@@ -187,24 +216,27 @@ function ArtifactDrawerBase({
 
   return (
     <aside
-      className="fixed top-14 right-0 bottom-0 w-[440px] max-w-[92vw] border-l border-[var(--border)] bg-[var(--surface)] shadow-2xl z-30 flex flex-col"
+      dir="rtl"
+      className="fixed top-14 left-0 bottom-0 w-[440px] max-w-[92vw] border-r border-[var(--border)] bg-[var(--surface)] shadow-2xl z-30 flex flex-col"
+      aria-label="لوحة المخرجات"
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-        <div>
+      <div className="flex flex-row-reverse items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+        <div className="text-right">
           <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)]">
-            Artifact drawer
+            لوحة المخرجات
           </div>
-          <div className="text-sm font-semibold">Tool outputs</div>
+          <div className="text-sm font-semibold">مخرجات الأدوات</div>
         </div>
         <button
           onClick={onClose}
-          className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1 rounded hover:bg-[var(--surface-alt)]"
-          aria-label="Close drawer"
+          className="inline-flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] rounded hover:bg-[var(--surface-alt)]"
+          style={{ minWidth: 44, minHeight: 44 }}
+          aria-label="إغلاق اللوحة"
         >
-          ✕
+          <XIcon className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
-      <div className="flex border-b border-[var(--border)]">
+      <div className="flex border-b border-[var(--border)]" role="tablist">
         {visibleTabs.map((t) => {
           const count =
             grouped[t.key].length + pendingByTab[t.key].length;
@@ -212,22 +244,35 @@ function ArtifactDrawerBase({
           return (
             <button
               key={t.key}
+              role="tab"
+              aria-selected={active}
               onClick={() => setTab(t.key)}
-              className={`flex-1 text-xs py-2 border-b-2 transition-colors ${
+              className={`flex-1 text-xs py-3 border-b-2 transition-colors ${
                 active
                   ? "border-[var(--accent)] text-[var(--accent)]"
                   : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
               }`}
+              style={{ minHeight: 44 }}
             >
-              {t.label} {count ? <span className="ml-1 text-[10px] font-mono opacity-70">({count})</span> : null}
+              {t.label} {count ? <span className="mr-1 text-[10px] font-mono opacity-70">({count})</span> : null}
             </button>
           );
         })}
       </div>
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        {error && <div className="text-xs text-red-500">{error}</div>}
+        {error && (
+          <div
+            role="alert"
+            className="text-xs rounded border border-red-500/40 bg-red-500/10 text-red-700 p-2"
+          >
+            <div className="font-semibold mb-0.5">حدث خطأ غير متوقع</div>
+            <div className="text-[11px] leading-snug">
+              {error} — حاول التحديث أو إعادة المحاولة بعد قليل.
+            </div>
+          </div>
+        )}
         {loading && items.length === 0 && (
-          <div className="text-xs text-[var(--text-muted)]">Loading…</div>
+          <Spinner size="sm" label="جاري التحميل…" />
         )}
         {pendingByTab[tab].map((p) => (
           <Skeleton key={p.id} tool={p.tool} />
@@ -263,9 +308,11 @@ function ArtifactDrawerBase({
         ))}
         {!loading && pendingByTab[tab].length === 0 && grouped[tab].length === 0
           && !(tab === "predictions" && (guidedActive || activeDatasetId != null)) && (
-          <div className="text-xs text-[var(--text-muted)] border border-dashed border-[var(--border)] rounded p-4 text-center">
-            Ask the chat for a {tab === "visualize" ? "chart" : tab.replace(/s$/, "")} and it will appear here.
-          </div>
+          <EmptyState
+            icon={<Inbox className="h-5 w-5" aria-hidden="true" />}
+            title="لا توجد بيانات بعد"
+            description={TAB_EMPTY_HINT[tab]}
+          />
         )}
       </div>
     </aside>
@@ -274,17 +321,25 @@ function ArtifactDrawerBase({
 
 function Skeleton({ tool }: { tool: string }) {
   const label =
-    tool === "profile_dataset" ? "Profiling dataset…"
-    : tool === "make_chart" ? "Building chart…"
-    : tool === "predict_column" ? "Fitting prediction model…"
-    : tool === "cluster_dataset" ? "Clustering rows…"
-    : tool === "list_model" ? "Loading data model…"
-    : tool === "query_model" ? "Running cross-table query…"
-    : tool === "explain_model" ? "Explaining data model…"
-    : `Running ${tool}…`;
+    tool === "profile_dataset" ? "جاري تجهيز ملف البيانات…"
+    : tool === "make_chart" ? "جاري إعداد الرسم البياني…"
+    : tool === "predict_column" ? "جاري تدريب نموذج التنبؤ…"
+    : tool === "cluster_dataset" ? "جاري تجميع الصفوف…"
+    : tool === "list_model" ? "جاري تحميل نموذج البيانات…"
+    : tool === "query_model" ? "جاري تنفيذ الاستعلام…"
+    : tool === "explain_model" ? "جاري شرح نموذج البيانات…"
+    : `جاري تشغيل ${tool}…`;
   return (
-    <div className="border border-[var(--border)] rounded-xl p-4 bg-[var(--surface-alt)]/50 animate-pulse">
-      <div className="text-[11px] font-mono text-[var(--text-muted)] mb-3">{label}</div>
+    <div
+      className="border border-[var(--border)] rounded-xl p-4 bg-[var(--surface-alt)]/50 animate-pulse"
+      role="status"
+      aria-live="polite"
+      dir="rtl"
+    >
+      <div className="text-[12px] font-mono text-[var(--text-muted)] mb-3 inline-flex items-center gap-2">
+        <Spinner size="xs" />
+        {label}
+      </div>
       <div className="h-3 bg-[var(--border)] rounded w-3/4 mb-2"></div>
       <div className="h-3 bg-[var(--border)] rounded w-1/2 mb-4"></div>
       <div className="h-32 bg-[var(--border)] rounded"></div>
@@ -304,29 +359,37 @@ function ArtifactCard({
   highlightRelIds?: number[];
 }) {
   return (
-    <div className="border border-[var(--border)] rounded-xl p-4 bg-[var(--surface-alt)]/40">
-      <div className="flex items-baseline justify-between gap-2 mb-2">
-        <div className="font-semibold text-sm flex-1 truncate" title={artifact.title}>
+    <div
+      dir="rtl"
+      className="border border-[var(--border)] rounded-xl p-4 bg-[var(--surface-alt)]/40"
+    >
+      <div className="flex flex-row-reverse items-baseline justify-between gap-2 mb-2">
+        <div className="font-semibold text-sm flex-1 truncate text-right" title={artifact.title}>
           {artifact.title}
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={onPin}
-            className={`text-[10px] px-2 py-0.5 rounded border ${
+            className={`inline-flex items-center justify-center gap-1 text-[12px] px-2 rounded border ${
               artifact.pinned
                 ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10"
                 : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)]"
             }`}
-            title={artifact.pinned ? "Pinned to report" : "Pin to report"}
+            style={{ minHeight: 32 }}
+            aria-pressed={artifact.pinned}
+            title={artifact.pinned ? "مثبَّت بالتقرير" : "تثبيت بالتقرير"}
           >
-            {artifact.pinned ? "Pinned" : "Pin"}
+            <Pin className="h-3 w-3" aria-hidden="true" />
+            <span>{artifact.pinned ? "مثبَّت" : "تثبيت"}</span>
           </button>
           <button
             onClick={onDelete}
-            className="text-[10px] px-2 py-0.5 rounded text-[var(--text-muted)] hover:text-red-500"
-            title="Delete artifact"
+            className="inline-flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 rounded"
+            style={{ minWidth: 32, minHeight: 32 }}
+            aria-label={`حذف ${artifact.title}`}
+            title="حذف"
           >
-            ✕
+            <XIcon className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -833,24 +896,27 @@ function DataModelBody({
                     <button
                       onClick={() => patchRel(r, { status: "confirmed" })}
                       disabled={busy || r.status === "confirmed"}
-                      className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
+                      className="text-[12px] px-2 py-1 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
+                      style={{ minHeight: 32 }}
                     >
-                      Confirm
+                      تأكيد
                     </button>
                     <button
                       onClick={() => patchRel(r, { status: "rejected" })}
                       disabled={busy || r.status === "rejected"}
-                      className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
+                      className="text-[12px] px-2 py-1 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
+                      style={{ minHeight: 32 }}
                     >
-                      Reject
+                      رفض
                     </button>
                     <button
                       onClick={() => patchRel(r, { status: "proposed", user_locked: false })}
                       disabled={busy || r.status === "proposed"}
-                      className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
-                      title="Reset to proposed and unlock for re-scoring"
+                      className="text-[12px] px-2 py-1 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
+                      style={{ minHeight: 32 }}
+                      title="إعادة الضبط إلى مقترح"
                     >
-                      Reset
+                      إعادة ضبط
                     </button>
                     <select
                       value={r.cardinality}
@@ -1275,12 +1341,16 @@ type InsightItem = { kind: string; severity: string; headline: string; subtitle?
 function InsightBody({ result }: { result: { items: InsightItem[] } }) {
   const items = result.items ?? [];
   if (items.length === 0) {
-    return <div className="text-xs text-[var(--text-muted)]">No insights.</div>;
+    return (
+      <div className="text-[12px] text-[var(--text-muted)]" dir="rtl">
+        لا توجد ملاحظات بعد.
+      </div>
+    );
   }
   return (
-    <ul className="space-y-1.5">
+    <ul className="space-y-1.5" dir="rtl">
       {items.map((it, i) => (
-        <li key={i} className="text-[11px]">
+        <li key={i} className="text-[12px]">
           <div className="font-semibold">[{it.severity.toUpperCase()}] {it.headline}</div>
           {it.subtitle && <div className="text-[var(--text-muted)]">{it.subtitle}</div>}
         </li>

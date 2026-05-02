@@ -17,6 +17,8 @@ import { useEffect, useState } from "react";
 import { ModeProvider } from "@/lib/modeContext";
 import { getActiveProjectId } from "@/lib/projectContext";
 import { ModeToggle } from "./ModeToggle";
+import { ToastProvider } from "@/components/ui/Toast";
+import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
 
 function HeaderToggle() {
   const pathname = usePathname() || "";
@@ -54,7 +56,11 @@ function HeaderToggle() {
 export function AppChrome({ children }: { children: React.ReactNode }) {
   return (
     <ModeProvider>
-      {children}
+      <ToastProvider>
+        <ConfirmProvider>
+          {children}
+        </ConfirmProvider>
+      </ToastProvider>
     </ModeProvider>
   );
 }

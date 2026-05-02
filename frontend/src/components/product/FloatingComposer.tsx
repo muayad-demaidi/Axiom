@@ -36,7 +36,7 @@ export const FloatingComposer = forwardRef<FloatingComposerHandle, FloatingCompo
       value,
       onValueChange,
       onSubmit,
-      placeholder = "Ask anything about your data…",
+      placeholder = "اسأل عن بياناتك…",
       busy = false,
       disabled = false,
       onAttachFile,
@@ -121,7 +121,8 @@ export const FloatingComposer = forwardRef<FloatingComposerHandle, FloatingCompo
             suppressHydrationWarning
             className="w-full resize-none bg-transparent outline-none text-sm leading-6 text-[var(--text)] placeholder:text-[var(--text-muted)] px-1 py-2"
             disabled={disabled}
-            aria-label="Message composer"
+            aria-label="مربّع الرسالة"
+            dir="auto"
           />
           <div className="mt-2 flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
@@ -130,34 +131,40 @@ export const FloatingComposer = forwardRef<FloatingComposerHandle, FloatingCompo
                   type="button"
                   onClick={() => fileRef.current?.click()}
                   disabled={attachBusy || busy}
-                  className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1.5 rounded-md hover:bg-[var(--surface-alt)] disabled:opacity-50"
-                  title="Upload a CSV or Excel file"
+                  className="inline-flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1.5 rounded-md hover:bg-[var(--surface-alt)] disabled:opacity-50"
+                  style={{ minHeight: 32 }}
+                  title="ارفع ملف CSV أو Excel"
+                  aria-label="إرفاق بيانات"
                 >
                   {attachBusy ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <Paperclip className="h-3.5 w-3.5" />
                   )}
-                  <span>Attach data</span>
+                  <span>إرفاق بيانات</span>
                 </button>
               ) : attachHref ? (
                 <Link
                   href={attachHref}
-                  className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1.5 rounded-md hover:bg-[var(--surface-alt)]"
-                  title="Upload a CSV or Excel file"
+                  className="inline-flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1.5 rounded-md hover:bg-[var(--surface-alt)]"
+                  style={{ minHeight: 32 }}
+                  title="ارفع ملف CSV أو Excel"
+                  aria-label="إرفاق بيانات"
                 >
                   <Paperclip className="h-3.5 w-3.5" />
-                  <span>Attach data</span>
+                  <span>إرفاق بيانات</span>
                 </Link>
               ) : null}
               {connectorsHref && (
                 <Link
                   href={connectorsHref}
-                  className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1.5 rounded-md hover:bg-[var(--surface-alt)]"
-                  title="Connect to a data source"
+                  className="inline-flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1.5 rounded-md hover:bg-[var(--surface-alt)]"
+                  style={{ minHeight: 32 }}
+                  title="اتّصل بمصدر بيانات"
+                  aria-label="موصّلات البيانات"
                 >
                   <Plug className="h-3.5 w-3.5" />
-                  <span>Connectors</span>
+                  <span>الموصّلات</span>
                 </Link>
               )}
             </div>
@@ -165,8 +172,8 @@ export const FloatingComposer = forwardRef<FloatingComposerHandle, FloatingCompo
               {...motionProps}
               type="submit"
               disabled={busy || disabled || !value.trim()}
-              className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-[var(--accent)] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
-              aria-label={busy ? "Sending…" : "Send"}
+              className="inline-flex items-center justify-center h-11 w-11 rounded-full bg-[var(--accent)] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+              aria-label={busy ? "جاري الإرسال…" : "إرسال"}
             >
               {busy ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -177,7 +184,7 @@ export const FloatingComposer = forwardRef<FloatingComposerHandle, FloatingCompo
           </div>
         </div>
         {errorText && (
-          <div className="text-[11px] text-red-500 mt-2 px-1">{errorText}</div>
+          <div className="text-[12px] text-red-500 mt-2 px-1" role="alert">{errorText}</div>
         )}
       </form>
     );

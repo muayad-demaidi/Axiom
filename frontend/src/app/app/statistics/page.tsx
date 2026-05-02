@@ -29,38 +29,38 @@ function GuidedSummary({ report }: { report: StatsReport }) {
     ? Object.keys(report.numeric_summary).slice(0, 6)
     : [];
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" dir="rtl">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {rows != null && (
-          <Tile label="Rows" value={rows.toLocaleString()} />
+          <Tile label="عدد الصفوف" value={rows.toLocaleString()} />
         )}
         {cols != null && (
-          <Tile label="Columns" value={String(cols)} />
+          <Tile label="عدد الأعمدة" value={String(cols)} />
         )}
         {numericCols.length > 0 && (
-          <Tile label="Numeric columns" value={String(numericCols.length)} />
+          <Tile label="أعمدة رقمية" value={String(numericCols.length)} />
         )}
       </div>
       {missingPairs.length > 0 ? (
         <div>
-          <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-1.5">
-            Columns with missing values
+          <div className="font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)] mb-1.5">
+            أعمدة بها قيم ناقصة
           </div>
           <ul className="text-sm space-y-1">
             {missingPairs.map(([col, n]) => (
-              <li key={col} className="flex items-baseline justify-between border-b border-dashed border-[var(--border)] pb-1">
-                <span className="font-medium truncate pr-2">{col}</span>
-                <span className="text-xs text-[var(--text-muted)] font-mono">{(n as number).toLocaleString()} missing</span>
+              <li key={col} className="flex flex-row-reverse items-baseline justify-between border-b border-dashed border-[var(--border)] pb-1">
+                <span className="font-medium truncate pl-2">{col}</span>
+                <span className="text-[12px] text-[var(--text-muted)] font-mono">{(n as number).toLocaleString()} قيمة ناقصة</span>
               </li>
             ))}
           </ul>
         </div>
       ) : (
-        <div className="text-sm text-[var(--text-muted)]">No missing values to worry about.</div>
+        <div className="text-sm text-[var(--text-muted)]">لا توجد قيم ناقصة.</div>
       )}
       {numericCols.length > 0 && (
         <div className="text-sm text-[var(--text-muted)]">
-          Numeric columns ready for analysis: {numericCols.join(", ")}.
+          أعمدة رقمية جاهزة للتحليل: {numericCols.join("، ")}.
         </div>
       )}
     </div>
@@ -113,11 +113,32 @@ export default function StatisticsPage() {
         <MissingDatasetNotice
           projectId={projectId}
           toolName="statistics"
-          guidedHint="Upload a CSV or Excel file and we'll summarize what's in it."
+          guidedHint="ارفع ملف CSV أو Excel وسنلخّص محتواه."
         />
       )}
-      {busy && <div className="card mt-6 text-sm text-[var(--text-muted)]">Computing…</div>}
-      {error && <div className="card mt-6 text-sm text-red-600">{error}</div>}
+      {busy && (
+        <div
+          className="card mt-6 text-sm text-[var(--text-muted)] inline-flex items-center gap-2"
+          role="status"
+          aria-live="polite"
+          dir="rtl"
+        >
+          <span
+            className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]"
+            aria-hidden="true"
+          />
+          جاري الحساب…
+        </div>
+      )}
+      {error && (
+        <div
+          className="card mt-6 text-sm text-red-600"
+          role="alert"
+          dir="rtl"
+        >
+          {error}
+        </div>
+      )}
       {report && (
         <div className="card mt-6">
           {mode === "guided" ? (

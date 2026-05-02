@@ -8,6 +8,9 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { errMessage } from "@/lib/types";
 import { InteractiveTable } from "./InteractiveTable";
+import { Spinner } from "@/components/ui/Spinner";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Database } from "lucide-react";
 
 type ProfileColumn = {
   name: string;
@@ -132,36 +135,51 @@ export function DatasetPreviewCard({
   const narrative = profileNarrative(data?.profile);
 
   return (
-    <div className="border border-[var(--border)] rounded-xl bg-[var(--surface)] p-4 space-y-4">
-      <div className="flex items-baseline justify-between gap-3">
+    <div
+      dir="rtl"
+      className="border border-[var(--border)] rounded-xl bg-[var(--surface)] p-4 space-y-4 text-right"
+    >
+      <div className="flex flex-row-reverse items-baseline justify-between gap-3">
         <div>
-          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)]">
-            Dataset attached to this chat
+          <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)]">
+            مجموعة البيانات المرتبطة بهذه المحادثة
           </div>
           <div className="font-semibold text-sm mt-0.5">
-            {preview?.dataset_name || preview?.filename || "Loading…"}
+            {preview?.dataset_name || preview?.filename || (
+              <Spinner size="sm" label="جاري التحميل…" />
+            )}
           </div>
         </div>
         {preview && (
-          <div className="text-[10px] text-[var(--text-muted)] font-mono">
-            {preview.rows.toLocaleString()} rows × {preview.cols} cols
+          <div className="text-[12px] text-[var(--text-muted)] font-mono">
+            {preview.rows.toLocaleString()} صف × {preview.cols} عمود
           </div>
         )}
       </div>
 
       {error && (
-        <div className="text-xs text-red-500 border border-red-500/30 rounded p-2">
-          {error}
+        <div
+          role="alert"
+          className="text-xs rounded border border-red-500/40 bg-red-500/10 text-red-700 p-2"
+        >
+          <div className="font-semibold mb-0.5">تعذّر تحميل البيانات</div>
+          <div className="text-[12px] leading-snug">
+            {error} — حاول التحديث بعد قليل.
+          </div>
         </div>
+      )}
+
+      {!error && !preview && (
+        <Spinner size="sm" label="جاري تحضير المعاينة…" />
       )}
 
       {/* Professional profile paragraph */}
       {data?.profile && narrative && (
         <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--surface-alt)]">
-          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-1.5">
-            Profile · ملف الداتا
+          <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-1.5">
+            ملف البيانات
           </div>
-          <p className="text-[12px] leading-relaxed text-[var(--text)]">
+          <p className="text-[14px] leading-relaxed text-[var(--text)]">
             {narrative}
           </p>
         </div>
@@ -170,14 +188,14 @@ export function DatasetPreviewCard({
       {/* Surprise insights ribbon */}
       {insights && insights.length > 0 && (
         <div>
-          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-1.5">
-            Surprise insights
+          <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-1.5">
+            ملاحظات مفاجئة
           </div>
           <div className="flex flex-wrap gap-2">
             {insights.map((it, i) => (
               <div
                 key={i}
-                className={`text-[11px] px-2.5 py-1.5 rounded-lg border ${SEV_BG[it.severity] || SEV_BG.info}`}
+                className={`text-[12px] px-2.5 py-1.5 rounded-lg border ${SEV_BG[it.severity] || SEV_BG.info}`}
                 title={it.subtitle || ""}
               >
                 {it.headline}
@@ -188,10 +206,10 @@ export function DatasetPreviewCard({
       )}
 
       {/* Preview table */}
-      {preview && (
+      {preview && preview.preview.length > 0 && (
         <div>
-          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-1.5">
-            First {preview.preview.length} rows
+          <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-1.5">
+            أول {preview.preview.length} صفوف
           </div>
           <InteractiveTable
             columns={preview.columns}
@@ -201,19 +219,27 @@ export function DatasetPreviewCard({
           />
         </div>
       )}
+      {preview && preview.preview.length === 0 && (
+        <EmptyState
+          icon={<Database className="h-5 w-5" aria-hidden="true" />}
+          title="مجموعة البيانات فارغة"
+          description="لا توجد صفوف لعرضها بعد."
+        />
+      )}
 
       {/* Suggested questions */}
       {suggestions && suggestions.length > 0 && (
         <div>
-          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-1.5">
-            Try one of these
+          <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-1.5">
+            جرّب أحد هذه الأسئلة
           </div>
           <div className="flex flex-wrap gap-2">
             {suggestions.map((q, i) => (
               <button
                 key={i}
                 onClick={() => onAskQuestion(q)}
-                className="text-[11px] px-2.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-alt)] hover:bg-[var(--accent)] hover:text-white hover:border-[var(--accent)] transition-colors text-left"
+                className="text-[12px] px-3 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-alt)] hover:bg-[var(--accent)] hover:text-white hover:border-[var(--accent)] transition-colors text-right"
+                style={{ minHeight: 32 }}
               >
                 {q}
               </button>

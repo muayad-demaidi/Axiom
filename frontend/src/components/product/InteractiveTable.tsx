@@ -59,15 +59,17 @@ export function InteractiveTable({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-2 mb-2">
+      <div className="flex items-center justify-between gap-2 mb-2" dir="rtl">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search rows…"
-          className="px-2 py-1 text-xs rounded border border-[var(--border)] bg-[var(--surface)] w-48"
+          placeholder="ابحث في الصفوف…"
+          aria-label="البحث في صفوف الجدول"
+          className="px-2 py-1 text-[12px] rounded border border-[var(--border)] bg-[var(--surface)] w-48"
+          style={{ minHeight: 32 }}
         />
-        <span className="text-[10px] text-[var(--text-muted)] font-mono">
-          {sorted.length.toLocaleString()} / {rows.length.toLocaleString()} rows
+        <span className="text-[12px] text-[var(--text-muted)] font-mono">
+          {sorted.length.toLocaleString()} / {rows.length.toLocaleString()} صف
         </span>
       </div>
       <div
@@ -118,7 +120,7 @@ export function InteractiveTable({
                           ? "bg-[var(--accent)]/25 ring-1 ring-inset ring-[var(--accent)]"
                           : "hover:bg-[var(--accent)]/10")
                       }
-                      title={`Row ${origIdx + 1} · ${c.name} — click to ask`}
+                      title={`الصف ${origIdx + 1} · ${c.name} — انقر للسؤال`}
                     >
                       {formatCell(v)}
                     </td>
@@ -130,9 +132,9 @@ export function InteractiveTable({
               <tr>
                 <td
                   colSpan={columns.length || 1}
-                  className="text-center text-[var(--text-muted)] py-4"
+                  className="text-center text-[var(--text-muted)] py-6 text-[12px]"
                 >
-                  No rows match.
+                  لا توجد صفوف مطابقة.
                 </td>
               </tr>
             )}

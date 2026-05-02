@@ -13,29 +13,29 @@ import {
 } from "@/components/product/ModeAware";
 
 const TASKS = [
-  { key: "drop_duplicates", label: "Drop duplicate rows" },
-  { key: "trim_whitespace", label: "Trim whitespace" },
-  { key: "lowercase_text", label: "Lowercase text columns" },
-  { key: "drop_empty_rows", label: "Drop empty rows" },
-  { key: "drop_empty_cols", label: "Drop empty columns" },
+  { key: "drop_duplicates", label: "حذف الصفوف المكرّرة" },
+  { key: "trim_whitespace", label: "إزالة المسافات الزائدة" },
+  { key: "lowercase_text", label: "تحويل النصوص إلى حروف صغيرة" },
+  { key: "drop_empty_rows", label: "حذف الصفوف الفارغة" },
+  { key: "drop_empty_cols", label: "حذف الأعمدة الفارغة" },
 ];
 
 // Guided one-click presets — opinionated bundles of the same checklist
 // the Expert view exposes. Keeping them inline keeps the wiring trivial.
 const PRESETS: Record<string, { label: string; tasks: Record<string, boolean>; desc: string }> = {
   tidy: {
-    label: "Tidy this dataset",
-    desc: "Drop duplicates, trim whitespace, and remove empty rows / columns. Safe defaults for most files.",
+    label: "ترتيب البيانات",
+    desc: "حذف المكرّرات وإزالة المسافات وحذف الصفوف/الأعمدة الفارغة. خيارات آمنة لمعظم الملفات.",
     tasks: { drop_duplicates: true, trim_whitespace: true, drop_empty_rows: true, drop_empty_cols: true },
   },
   text: {
-    label: "Normalize text",
-    desc: "Lowercase text columns and trim whitespace so labels match across rows.",
+    label: "تطبيع النصوص",
+    desc: "تحويل النصوص إلى حروف صغيرة وإزالة المسافات لمطابقة المسمّيات بين الصفوف.",
     tasks: { trim_whitespace: true, lowercase_text: true },
   },
   shrink: {
-    label: "Shrink the file",
-    desc: "Remove duplicate rows and empty columns so the file is smaller and easier to chart.",
+    label: "تصغير الملف",
+    desc: "حذف الصفوف المكرّرة والأعمدة الفارغة لتصبح البيانات أخف وأسرع للعرض.",
     tasks: { drop_duplicates: true, drop_empty_cols: true },
   },
 };
@@ -68,11 +68,11 @@ export default function CleanPage() {
   }
 
   const expertControls = (
-    <ul className="card mt-6 space-y-2">
+    <ul className="card mt-6 space-y-2" dir="rtl">
       {TASKS.map((t) => (
         <li key={t.key}>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={!!tasks[t.key]}
+          <label className="flex items-center gap-2 text-sm" style={{ minHeight: 32 }}>
+            <input type="checkbox" checked={!!tasks[t.key]} className="h-4 w-4"
               onChange={(e) => setTasks((s) => ({ ...s, [t.key]: e.target.checked }))} />
             {t.label}
           </label>
@@ -82,19 +82,19 @@ export default function CleanPage() {
   );
 
   const expertControlsCompact = (
-    <ul className="space-y-2">
+    <ul className="space-y-2" dir="rtl">
       {TASKS.map((t) => (
         <li key={t.key}>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={!!tasks[t.key]}
+          <label className="flex items-center gap-2 text-sm" style={{ minHeight: 32 }}>
+            <input type="checkbox" checked={!!tasks[t.key]} className="h-4 w-4"
               onChange={(e) => setTasks((s) => ({ ...s, [t.key]: e.target.checked }))} />
             {t.label}
           </label>
         </li>
       ))}
       <li>
-        <button className="btn btn-ghost text-xs" onClick={() => run()} disabled={busy}>
-          {busy ? "Running…" : "Run with these checks"}
+        <button className="btn btn-ghost text-[12px]" style={{ minHeight: 32 }} onClick={() => run()} disabled={busy}>
+          {busy ? "جاري التنفيذ…" : "نفّذ بهذه الخيارات"}
         </button>
       </li>
     </ul>
@@ -115,17 +115,17 @@ export default function CleanPage() {
         <MissingDatasetNotice
           projectId={projectId}
           toolName="cleaning"
-          guidedHint="Upload a CSV or Excel file and we'll show you the one-click clean-ups for it."
+          guidedHint="ارفع ملف CSV أو Excel وسنعرض لك خيارات التنظيف بضغطة واحدة."
         />
       ) : mode === "guided" ? (
         <>
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-3" dir="rtl">
             {Object.entries(PRESETS).map(([key, p]) => (
               <GuidedActionCard
                 key={key}
                 title={p.label}
                 description={p.desc}
-                cta="Do it"
+                cta="نفّذ"
                 busy={busy}
                 onAction={() => run(p.tasks)}
               />
@@ -133,7 +133,7 @@ export default function CleanPage() {
           </div>
           <AdvancedExpander
             projectId={projectId}
-            hint="Pick exact cleaning steps"
+            hint="اختر خطوات التنظيف بدقّة"
           >
             {expertControlsCompact}
           </AdvancedExpander>
@@ -141,22 +141,30 @@ export default function CleanPage() {
       ) : (
         <>
           {expertControls}
-          <div className="mt-4 flex gap-2">
-            <button className="btn btn-primary" onClick={() => run()} disabled={busy}>
-              {busy ? "Running…" : "Run cleaning"}
+          <div className="mt-4 flex gap-2" dir="rtl">
+            <button className="btn btn-primary" style={{ minHeight: 44 }} onClick={() => run()} disabled={busy}>
+              {busy ? "جاري التنظيف…" : "ابدأ التنظيف"}
             </button>
           </div>
         </>
       )}
 
-      {error && <div className="text-sm text-red-600 mt-3">{error}</div>}
+      {error && (
+        <div
+          className="text-sm text-red-600 mt-3 rounded border border-red-500/30 bg-red-500/10 px-3 py-2"
+          role="alert"
+          dir="rtl"
+        >
+          {error}
+        </div>
+      )}
       {result !== null && result !== undefined && (
-        <div className="card mt-4">
-          <div className="font-semibold text-sm">Done.</div>
-          <p className="text-xs text-[var(--text-muted)] mt-1">
+        <div className="card mt-4" dir="rtl">
+          <div className="font-semibold text-sm">تم التنظيف بنجاح ✓</div>
+          <p className="text-[12px] text-[var(--text-muted)] mt-1">
             {mode === "guided"
-              ? "Your dataset has been cleaned in place. The technical breakdown is below if you want it."
-              : "Cleaning complete. Full server response below."}
+              ? "تم تنظيف بياناتك. التفاصيل الفنّية في الأسفل عند الحاجة."
+              : "اكتمل التنظيف. استجابة الخادم الكاملة في الأسفل."}
           </p>
           <TechnicalDetails projectId={projectId}>
             <pre className="text-[11px] overflow-auto max-h-[50vh] whitespace-pre-wrap">{JSON.stringify(result, null, 2)}</pre>

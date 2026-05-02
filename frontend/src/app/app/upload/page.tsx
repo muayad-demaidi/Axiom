@@ -160,7 +160,7 @@ export default function UploadPage() {
   }
 
   async function handleFile(file: File) {
-    setBusy(true); setError(null); setProgress("Uploading…");
+    setBusy(true); setError(null); setProgress("جاري الرفع…");
     setPreviewMeta(null); setPreviewError(null);
     try {
       const form = new FormData();
@@ -185,10 +185,10 @@ export default function UploadPage() {
       setActiveDatasetId(data.id);
       setLastUploaded(data);
       const captionNote = caption.trim()
-        ? ` Note: "${caption.trim()}".`
+        ? ` ملاحظة: "${caption.trim()}".`
         : "";
       setProgress(
-        `Uploaded ${data.filename} — ${data.rows.toLocaleString()} rows × ${data.cols} cols.${captionNote}`,
+        `تم الحفظ بنجاح ✓ — ${data.filename} · ${data.rows.toLocaleString()} صف × ${data.cols} عمود.${captionNote}`,
       );
       // Kick off the auto-link poll only when the upload was bound to
       // a project — discovery runs project-scoped, and orphaned
@@ -207,7 +207,7 @@ export default function UploadPage() {
           .catch((err: ApiError) => setPreviewError(err.message));
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Upload failed"); setProgress(null);
+      setError(e instanceof Error ? e.message : "تعذّر رفع الملف"); setProgress(null);
     } finally {
       setBusy(false);
     }
@@ -226,40 +226,42 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-3xl" dir="rtl">
       <button
         type="button"
         onClick={backToProject}
-        className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)]"
+        className="text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)] inline-flex items-center"
+        style={{ minHeight: 32, paddingInline: 8 }}
       >
-        ← Back to project
+        → العودة إلى المشروع
       </button>
       <div className="mt-2">
         <ModeAwareHeading
           projectId={projectId}
-          eyebrow="Data · Upload"
-          guidedTitle="Add some data to work with"
-          expertTitle="Upload a dataset"
-          guidedSubtitle="Drop a CSV or Excel file in below and we'll start analysing it for you. You can add a quick note about what's in the file too."
-          expertSubtitle="CSV or Excel, up to 200 MB on Tier 3. Field meta is profiled inline after upload."
+          eyebrow="البيانات · رفع"
+          guidedTitle="أضف بيانات للعمل عليها"
+          expertTitle="رفع مجموعة بيانات"
+          guidedSubtitle="ضع ملف CSV أو Excel أدناه لنبدأ تحليله. يمكنك إضافة ملاحظة سريعة عن محتوى الملف."
+          expertSubtitle="CSV أو Excel حتى 200 ميجابايت على الفئة 3. تُحلَّل بيانات الأعمدة فور الرفع."
         />
       </div>
 
       {mode === "guided" && (
         <div className="card mt-6">
-          <label className="block text-xs font-medium mb-1">
-            What is this file about? (optional)
+          <label className="block text-[12px] font-medium mb-1">
+            ما موضوع هذا الملف؟ (اختياري)
           </label>
           <input
             type="text"
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
-            placeholder="e.g. Q3 sales orders from Salesforce"
+            placeholder="مثال: طلبات مبيعات الربع الثالث من Salesforce"
             className="w-full border border-[var(--border)] rounded px-3 py-2 text-sm bg-transparent"
+            style={{ minHeight: 44 }}
             disabled={busy}
           />
-          <p className="text-[10px] text-[var(--text-muted)] mt-1">
-            We&apos;ll keep this with the upload so you remember what it was later.
+          <p className="text-[12px] text-[var(--text-muted)] mt-1">
+            سنحتفظ بهذه الملاحظة مع الملف لتتذكّر محتواه لاحقًا.
           </p>
         </div>
       )}
@@ -272,7 +274,10 @@ export default function UploadPage() {
         />
       )}
 
-      <label className={`card mt-4 block border-dashed text-center py-12 cursor-pointer ${busy ? "opacity-50" : ""}`}>
+      <label
+        className={`card mt-4 block border-dashed text-center py-12 cursor-pointer ${busy ? "opacity-50" : ""}`}
+        style={{ minHeight: 160 }}
+      >
         <input
           type="file"
           accept=".csv,.xlsx,.xls"
@@ -280,13 +285,13 @@ export default function UploadPage() {
           disabled={busy}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
         />
-        <p className="text-[var(--text-muted)]">
+        <p className="text-[var(--text-muted)] text-sm">
           {mode === "guided"
-            ? "Click here or drop your CSV / Excel file"
-            : "Click to select or drag a CSV / .xlsx file"}
+            ? "اضغط هنا أو اسحب ملف CSV / Excel"
+            : "اضغط لاختيار أو سحب ملف CSV / xlsx."}
         </p>
-        {progress && <p className="text-xs text-[var(--accent)] mt-2">{progress}</p>}
-        {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
+        {progress && <p className="text-[12px] text-[var(--accent)] mt-2" role="status" aria-live="polite">{progress}</p>}
+        {error && <p className="text-[12px] text-red-600 mt-2" role="alert">{error}</p>}
       </label>
 
       {mode !== "guided" && lastUploaded && (
@@ -297,11 +302,25 @@ export default function UploadPage() {
         />
       )}
 
-      <h2 className="text-lg font-semibold mt-10 mb-3">Your datasets</h2>
+      <h2 className="text-lg font-semibold mt-10 mb-3">مجموعات البيانات الخاصة بك</h2>
       {datasets === null ? (
-        <div className="card text-[var(--text-muted)] text-sm">Loading…</div>
+        <div
+          className="card text-[var(--text-muted)] text-sm inline-flex items-center gap-2"
+          role="status"
+          aria-live="polite"
+        >
+          <span
+            className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]"
+            aria-hidden="true"
+          />
+          جاري التحميل…
+        </div>
       ) : datasets.length === 0 ? (
-        <div className="card text-[var(--text-muted)] text-sm">No datasets yet.</div>
+        <div className="card text-[var(--text-muted)] text-sm text-center py-8">
+          <div className="text-2xl mb-2" aria-hidden="true">📂</div>
+          <div className="font-medium text-[var(--text)]">لا توجد بيانات بعد</div>
+          <div className="text-[12px] mt-1">ارفع ملفًا أعلاه لبدء الاستكشاف.</div>
+        </div>
       ) : (
         <ul className="space-y-2">
           {datasets.map((d) => {
@@ -320,22 +339,22 @@ export default function UploadPage() {
                     {d.dataset_name}
                     {p && (
                       <span
-                        title={`Joined from ${left} ⋈ ${right} on ${keyLabel} (${p.join_type})`}
-                        className="text-[10px] uppercase tracking-wide font-mono px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)]"
+                        title={`مرتبط من ${left} ⋈ ${right} على ${keyLabel} (${p.join_type})`}
+                        className="text-[12px] uppercase tracking-wide font-mono px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)]"
                       >
-                        joined
+                        مرتبط
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-[var(--text-muted)]">{d.filename} · {d.rows.toLocaleString()} rows × {d.cols} cols</div>
+                  <div className="text-[12px] text-[var(--text-muted)]">{d.filename} · {d.rows.toLocaleString()} صف × {d.cols} عمود</div>
                   {p && (
-                    <div className="text-xs text-[var(--text-muted)] mt-1">
-                      Joined from <strong>{left}</strong> ⋈ <strong>{right}</strong> on{" "}
+                    <div className="text-[12px] text-[var(--text-muted)] mt-1">
+                      مرتبط من <strong>{left}</strong> ⋈ <strong>{right}</strong> على{" "}
                       <code className="font-mono">{keyLabel}</code> · {p.join_type}
                     </div>
                   )}
                 </div>
-                <button className="btn btn-primary text-xs" onClick={() => pick(d)}>Open</button>
+                <button className="btn btn-primary text-[12px]" style={{ minHeight: 44 }} onClick={() => pick(d)}>افتح</button>
               </li>
             );
           })}
@@ -366,24 +385,25 @@ function AutoLinkToast({
       role="status"
       aria-live="polite"
       className="card mt-4 border-[var(--accent)]/40 bg-[var(--accent)]/5"
+      dir="rtl"
     >
       <div className="flex items-start gap-3">
         <div className="text-[var(--accent)] text-base leading-none mt-0.5" aria-hidden>
           ↔
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[10px] uppercase tracking-widest font-mono text-[var(--accent)] mb-1">
-            Auto-linked
+          <div className="text-[12px] uppercase tracking-widest font-mono text-[var(--accent)] mb-1">
+            ربط تلقائي
           </div>
           <div className="text-sm">
             {head.length === 0
               ? notification.summary
               : (
                 <>
-                  We linked
+                  تم ربط
                   {head.map((j, i) => (
                     <span key={j.relationship_id}>
-                      {i > 0 ? " and" : ""}{" "}
+                      {i > 0 ? " و" : ""}{" "}
                       <span className="font-mono text-[12px]">
                         {j.left_table}.{j.left_column}
                       </span>{" "}
@@ -395,10 +415,10 @@ function AutoLinkToast({
                   ))}
                   {moreCount > 0 ? (
                     <span className="text-[var(--text-muted)]">
-                      {" "}(+{moreCount} more)
+                      {" "}(+{moreCount} علاقة إضافية)
                     </span>
                   ) : null}{" "}
-                  automatically.
+                  تلقائيًا.
                 </>
               )}
           </div>
@@ -406,16 +426,18 @@ function AutoLinkToast({
             <button
               type="button"
               onClick={onOpen}
-              className="text-xs px-2 py-1 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10"
+              className="text-[12px] px-2 py-1 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10"
+              style={{ minHeight: 32 }}
             >
-              Review in data model →
+              راجع في نموذج البيانات ←
             </button>
             <button
               type="button"
               onClick={onDismiss}
-              className="text-xs px-2 py-1 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)]"
+              className="text-[12px] px-2 py-1 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)]"
+              style={{ minHeight: 32 }}
             >
-              Dismiss
+              إغلاق
             </button>
           </div>
         </div>
@@ -434,28 +456,38 @@ function UploadPreview({
   error: string | null;
 }) {
   return (
-    <div className="card mt-4">
-      <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
-        Upload preview · {dataset.dataset_name}
+    <div className="card mt-4" dir="rtl">
+      <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
+        معاينة الرفع · {dataset.dataset_name}
       </div>
       {error && (
-        <div className="text-xs text-red-600 mb-2">
-          Couldn&apos;t profile columns: {error}
+        <div className="text-[12px] text-red-600 mb-2" role="alert">
+          تعذّر تحليل الأعمدة: {error}
         </div>
       )}
       {!meta && !error && (
-        <div className="text-xs text-[var(--text-muted)]">Profiling columns…</div>
+        <div
+          className="text-[12px] text-[var(--text-muted)] inline-flex items-center gap-2"
+          role="status"
+          aria-live="polite"
+        >
+          <span
+            className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]"
+            aria-hidden="true"
+          />
+          جاري تحليل الأعمدة…
+        </div>
       )}
       {meta && (
         <div className="overflow-auto">
-          <table className="w-full text-xs">
+          <table className="w-full text-[12px]">
             <thead>
-              <tr className="text-[var(--text-muted)] text-[10px] uppercase tracking-widest border-b border-[var(--border)]">
-                <th className="text-left px-2 py-1">Column</th>
-                <th className="text-left px-2 py-1">Type</th>
-                <th className="text-left px-2 py-1">Role</th>
-                <th className="text-right px-2 py-1">Unique</th>
-                <th className="text-right px-2 py-1">Cardinality</th>
+              <tr className="text-[var(--text-muted)] text-[12px] uppercase tracking-widest border-b border-[var(--border)]">
+                <th className="text-right px-2 py-1">العمود</th>
+                <th className="text-right px-2 py-1">النوع</th>
+                <th className="text-right px-2 py-1">الدور</th>
+                <th className="text-left px-2 py-1">قيم فريدة</th>
+                <th className="text-left px-2 py-1">نسبة التنوّع</th>
               </tr>
             </thead>
             <tbody>

@@ -60,12 +60,12 @@ type QuickStartResponse = {
 };
 
 const TOOL_LINKS: { href: string; label: string }[] = [
-  { href: "/app/upload", label: "Files" },
-  { href: "/app/connectors", label: "Data Connectors" },
-  { href: "/app/dashboard", label: "Dashboard" },
-  { href: "/app/pivot", label: "Pivot" },
-  { href: "/app/join", label: "Join Datasets" },
-  { href: "/app/fields", label: "Field Settings" },
+  { href: "/app/upload", label: "الملفات" },
+  { href: "/app/connectors", label: "موصّلات البيانات" },
+  { href: "/app/dashboard", label: "لوحة التحكم" },
+  { href: "/app/pivot", label: "الجدول المحوري" },
+  { href: "/app/join", label: "دمج البيانات" },
+  { href: "/app/fields", label: "إعدادات الحقول" },
 ];
 
 function ProductSidebarBase() {
@@ -162,7 +162,7 @@ function ProductSidebarBase() {
       if (busy) return;
       const cleaned = name.trim();
       if (!cleaned) {
-        setProjectError("Project name cannot be empty.");
+        setProjectError("اسم المشروع لا يمكن أن يكون فارغًا.");
         return;
       }
       setBusy(true);
@@ -299,11 +299,11 @@ function ProductSidebarBase() {
       onSubmitNewProject={(name, desc) => void newProject(name, desc)}
       busy={busy}
     >
-      <Section label="Projects">
+      <Section label="المشاريع">
         {projectsRaw === undefined ? (
-          <Hint>Loading…</Hint>
+          <Hint>جارٍ التحميل…</Hint>
         ) : projects.length === 0 ? (
-          <Hint>No projects yet.</Hint>
+          <Hint>لا توجد مشاريع بعد.</Hint>
         ) : (
           <ul className="space-y-0.5">
             {projects.map((p) => (
@@ -328,13 +328,13 @@ function ProductSidebarBase() {
               onClick={() => setProjectError(null)}
               className="underline ml-1"
             >
-              dismiss
+              إخفاء
             </button>
           </div>
         )}
       </Section>
 
-      <Section label="Workspace">
+      <Section label="مساحة العمل">
         <ul className="space-y-0.5">
           {TOOL_LINKS.map((it) => {
             const active = pathname === it.href;
@@ -357,7 +357,7 @@ function ProductSidebarBase() {
       </Section>
 
       {isAdmin && (
-        <Section label="Admin">
+        <Section label="الإدارة">
           <ul className="space-y-0.5">
             <li>
               <Link
@@ -368,7 +368,7 @@ function ProductSidebarBase() {
                     : "text-[var(--text)] hover:bg-[var(--surface)]"
                 }`}
               >
-                Support inbox
+                صندوق الدعم
               </Link>
             </li>
           </ul>
@@ -470,7 +470,7 @@ function NewSplitButton({
         aria-expanded={open}
       >
         <Plus className="h-3.5 w-3.5" />
-        New
+        جديد
       </button>
       {open && (
         <div
@@ -485,9 +485,9 @@ function NewSplitButton({
           >
             <FileText className="h-3 w-3 text-[var(--text-muted)]" />
             <div className="flex-1">
-              <div className="font-medium">Project</div>
+              <div className="font-medium">مشروع</div>
               <div className="text-[10px] text-[var(--text-muted)]">
-                Group of chats with their own data
+                مجموعة محادثات مع بياناتها الخاصة
               </div>
             </div>
           </button>
@@ -500,9 +500,9 @@ function NewSplitButton({
           >
             <MessageSquarePlus className="h-3 w-3 text-[var(--text-muted)]" />
             <div className="flex-1">
-              <div className="font-medium">Chat</div>
+              <div className="font-medium">محادثة</div>
               <div className="text-[10px] text-[var(--text-muted)]">
-                Quick conversation in Quick Chats
+                محادثة سريعة ضمن Quick Chats
               </div>
             </div>
           </button>
@@ -540,7 +540,7 @@ function NewProjectForm({
       className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-2.5 space-y-1.5"
     >
       <div className="font-mono text-[9px] uppercase tracking-widest text-[var(--text-muted)]">
-        New project
+        مشروع جديد
       </div>
       <input
         ref={inputRef}
@@ -552,7 +552,7 @@ function NewProjectForm({
             onCancel();
           }
         }}
-        placeholder="Project name…"
+        placeholder="اسم المشروع…"
         className="w-full px-2 py-1.5 text-xs rounded border border-[var(--border)] bg-[var(--surface-alt)] text-[var(--text)]"
       />
       <input
@@ -564,7 +564,7 @@ function NewProjectForm({
             onCancel();
           }
         }}
-        placeholder="Description (optional)"
+        placeholder="الوصف (اختياري)"
         className="w-full px-2 py-1.5 text-[11px] rounded border border-[var(--border)] bg-[var(--surface-alt)] text-[var(--text)]"
       />
       <div className="flex items-center gap-1.5 justify-end pt-0.5">
@@ -573,14 +573,14 @@ function NewProjectForm({
           onClick={onCancel}
           className="text-[11px] px-2 py-1 rounded text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-alt)]"
         >
-          Cancel
+          إلغاء
         </button>
         <button
           type="submit"
           disabled={busy || !name.trim()}
           className="btn btn-primary text-[11px] px-2 py-1 disabled:opacity-50"
         >
-          Create
+          إنشاء
         </button>
       </div>
     </form>
@@ -648,7 +648,7 @@ const ProjectNode = memo(function ProjectNode({
         }`}
       >
         <button
-          aria-label={isOpen ? "Collapse project" : "Expand project"}
+          aria-label={isOpen ? "طيّ المشروع" : "توسيع المشروع"}
           onClick={handleClick}
           className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] shrink-0"
         >
@@ -688,7 +688,7 @@ const ProjectNode = memo(function ProjectNode({
         {!renaming && (
           <>
             <button
-              aria-label="Rename project"
+              aria-label="إعادة تسمية المشروع"
               className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--accent)]"
               onClick={(e) => {
                 e.stopPropagation();
@@ -699,7 +699,7 @@ const ProjectNode = memo(function ProjectNode({
               <Pencil className="h-2.5 w-2.5" />
             </button>
             <button
-              aria-label="Delete project"
+              aria-label="حذف المشروع"
               className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-[var(--text-muted)] hover:text-red-500 mr-1"
               onClick={(e) => {
                 e.stopPropagation();
@@ -712,14 +712,13 @@ const ProjectNode = memo(function ProjectNode({
         )}
       </div>
       {confirmingDelete && (
-        <div className="ml-5 mt-1 mb-1 rounded-md border border-red-500/40 bg-red-500/5 p-2 text-[11px]">
+        <div dir="rtl" className="ml-5 mt-1 mb-1 rounded-md border border-red-500/40 bg-red-500/5 p-2 text-[11px]" role="alertdialog">
           <div className="text-[var(--text)]">
-            Delete <span className="font-semibold">{project.name}</span>?
+            حذف <span className="font-semibold">{project.name}</span>؟
           </div>
           <div className="text-[10px] text-[var(--text-muted)] mt-0.5 leading-snug">
-            This permanently removes the project, every chat inside it,
-            and any data context attached to those chats. This cannot be
-            undone.
+            سيؤدي هذا إلى حذف المشروع نهائيًا مع كل محادثاته والبيانات
+            المرتبطة بها. لا يمكن التراجع عن هذا الإجراء.
           </div>
           <div className="flex items-center gap-1.5 justify-end mt-1.5">
             <button
@@ -728,7 +727,7 @@ const ProjectNode = memo(function ProjectNode({
               className="text-[11px] px-2 py-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-alt)]"
               disabled={deleting}
             >
-              Cancel
+              إلغاء
             </button>
             <button
               type="button"
@@ -736,7 +735,7 @@ const ProjectNode = memo(function ProjectNode({
               disabled={deleting}
               className="text-[11px] px-2 py-0.5 rounded bg-red-500 text-white hover:bg-red-600 disabled:opacity-60"
             >
-              {deleting ? "Deleting…" : "Delete"}
+              {deleting ? "جارٍ الحذف…" : "نعم، متأكد"}
             </button>
           </div>
         </div>
@@ -856,15 +855,15 @@ const ProjectChatTree = memo(function ProjectChatTree({
         className="w-full text-left text-[11px] text-[var(--text-muted)] hover:text-[var(--accent)] inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-[var(--surface)]"
       >
         <MessageSquarePlus className="h-3 w-3" />
-        New chat
+        محادثة جديدة
       </button>
       {chats === undefined ? (
-        <div className="text-[10px] text-[var(--text-muted)] px-2 py-1">
-          Loading…
+        <div className="text-[10px] text-[var(--text-muted)] px-2 py-1" role="status">
+          جارٍ التحميل…
         </div>
       ) : chats.length === 0 ? (
         <div className="text-[10px] text-[var(--text-muted)] px-2 py-1">
-          No chats yet
+          لا توجد محادثات بعد
         </div>
       ) : (
         <ul className="space-y-0.5">
@@ -903,10 +902,10 @@ const ProjectChatTree = memo(function ProjectChatTree({
                         className="flex-1 truncate text-[11px]"
                         title={s.title}
                       >
-                        {s.title || "Untitled chat"}
+                        {s.title || "محادثة بدون عنوان"}
                       </span>
                       <button
-                        aria-label="Rename chat"
+                        aria-label="إعادة تسمية المحادثة"
                         className={`opacity-0 group-hover:opacity-100 p-0.5 rounded ${
                           active
                             ? "text-white/80 hover:text-white"
@@ -921,7 +920,7 @@ const ProjectChatTree = memo(function ProjectChatTree({
                         <Pencil className="h-2.5 w-2.5" />
                       </button>
                       <button
-                        aria-label="Delete chat"
+                        aria-label="حذف المحادثة"
                         className={`opacity-0 group-hover:opacity-100 p-0.5 rounded ${
                           active
                             ? "text-white/80 hover:text-white"
@@ -939,12 +938,13 @@ const ProjectChatTree = memo(function ProjectChatTree({
                 </div>
                 {confirming && (
                   <div
+                    dir="rtl"
+                    role="alertdialog"
                     className="ml-2 mt-1 rounded-md border border-red-500/40 bg-red-500/5 p-1.5 text-[10px]"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="text-[var(--text)]">
-                      Delete this chat? Messages and any artifacts will
-                      be removed.
+                      حذف هذه المحادثة؟ ستتم إزالة الرسائل والمخرجات.
                     </div>
                     <div className="flex items-center gap-1.5 justify-end mt-1">
                       <button
@@ -953,7 +953,7 @@ const ProjectChatTree = memo(function ProjectChatTree({
                         disabled={deletingId === s.id}
                         className="text-[10px] px-1.5 py-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text)]"
                       >
-                        Cancel
+                        إلغاء
                       </button>
                       <button
                         type="button"
@@ -961,7 +961,7 @@ const ProjectChatTree = memo(function ProjectChatTree({
                         disabled={deletingId === s.id}
                         className="text-[10px] px-1.5 py-0.5 rounded bg-red-500 text-white hover:bg-red-600 disabled:opacity-60"
                       >
-                        {deletingId === s.id ? "Deleting…" : "Delete"}
+                        {deletingId === s.id ? "جارٍ الحذف…" : "نعم، متأكد"}
                       </button>
                     </div>
                   </div>
@@ -979,7 +979,7 @@ const ProjectChatTree = memo(function ProjectChatTree({
         className="block mt-1 px-2 py-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] inline-flex items-center gap-1"
       >
         <FileText className="h-2.5 w-2.5" />
-        Final report
+        التقرير النهائي
       </Link>
     </div>
   );
@@ -1025,17 +1025,17 @@ const ProjectDatasetList = memo(function ProjectDatasetList({
     <div className="mt-2 pt-2 border-t border-[var(--border)]/60">
       <div className="font-mono text-[9px] tracking-widest uppercase text-[var(--text-muted)] px-2 mb-1 flex items-center gap-1">
         <Database className="h-2.5 w-2.5" />
-        Datasets
+        البيانات
       </div>
       {datasets === undefined ? (
-        <div className="text-[10px] text-[var(--text-muted)] px-2 py-1">
-          Loading…
+        <div className="text-[10px] text-[var(--text-muted)] px-2 py-1" role="status">
+          جارٍ التحميل…
         </div>
       ) : datasets.length === 0 ? (
         <div className="text-[10px] text-[var(--text-muted)] px-2 py-1">
-          No data yet —{" "}
+          لا توجد بيانات بعد —{" "}
           <Link href="/app/upload" className="text-[var(--accent)] hover:underline">
-            upload
+            ارفع ملفًا
           </Link>
         </div>
       ) : (
@@ -1061,7 +1061,7 @@ const ProjectDatasetList = memo(function ProjectDatasetList({
         className="block mt-1 px-2 py-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] inline-flex items-center gap-1"
       >
         <Plus className="h-2.5 w-2.5" />
-        Upload more
+        رفع المزيد
       </Link>
     </div>
   );

@@ -30,11 +30,11 @@ type SectionKey =
   | "include_ai_insights";
 
 const SECTIONS: { key: SectionKey; label: string; hint: string }[] = [
-  { key: "include_cover", label: "Cover page", hint: "Title, dataset name, row/column count, notes." },
-  { key: "include_columns", label: "Columns table", hint: "Per-column dtype, non-null and missing counts." },
-  { key: "include_numeric_summary", label: "Numeric summary", hint: "Describe() table for numeric columns." },
-  { key: "include_chart", label: "Distribution chart", hint: "Histogram for one numeric column." },
-  { key: "include_ai_insights", label: "AI insights", hint: "Generated narrative write-up." },
+  { key: "include_cover", label: "صفحة الغلاف", hint: "العنوان واسم البيانات وعدد الصفوف/الأعمدة والملاحظات." },
+  { key: "include_columns", label: "جدول الأعمدة", hint: "نوع كل عمود وعدد القيم الموجودة والمفقودة." },
+  { key: "include_numeric_summary", label: "ملخّص رقمي", hint: "جدول الإحصاءات الوصفية للأعمدة الرقمية." },
+  { key: "include_chart", label: "مخطّط التوزيع", hint: "مدرّج تكراري لعمود رقمي واحد." },
+  { key: "include_ai_insights", label: "ملاحظات الذكاء الاصطناعي", hint: "ملخّص سردي مولَّد آليًا." },
 ];
 
 const NUMERIC_DTYPE_RE = /^(u?int\d*|float\d*|number|decimal|long|short)$/i;
@@ -109,11 +109,11 @@ export default function ReportPage() {
       const res = await fetch(`/api/reports/recent${qs}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`Failed to load recent reports (${res.status})`);
+      if (!res.ok) throw new Error(`تعذّر تحميل التقارير الأخيرة (${res.status})`);
       const j = (await res.json()) as { reports?: RecentReport[] };
       setRecent(Array.isArray(j.reports) ? j.reports : []);
     } catch (e: unknown) {
-      setRecentError(e instanceof Error ? e.message : "Failed to load recent reports");
+      setRecentError(e instanceof Error ? e.message : "تعذّر تحميل التقارير الأخيرة");
     } finally {
       setRecentLoading(false);
     }
@@ -175,7 +175,7 @@ export default function ReportPage() {
         const j = JSON.parse(text) as { detail?: string };
         if (j?.detail) detail = j.detail;
       } catch { /* keep raw text */ }
-      throw new Error(detail || `Report failed (${res.status})`);
+      throw new Error(detail || `تعذّر إنشاء التقرير (${res.status})`);
     }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -196,14 +196,14 @@ export default function ReportPage() {
 
   async function generate() {
     if (!datasetId) {
-      setError("No active dataset — upload one first.");
+      setError("لا توجد بيانات نشِطة — يرجى رفع ملف أولًا.");
       return;
     }
     if (!anySelected) {
-      setError("Pick at least one section to include in the report.");
+      setError("اختر قسمًا واحدًا على الأقل ليُضاف إلى التقرير.");
       return;
     }
-    setBusy(true); setError(null); setStatus("Building report…");
+    setBusy(true); setError(null); setStatus("جاري إعداد التقرير…");
     try {
       await downloadPdf({
         datasetId,
@@ -213,7 +213,7 @@ export default function ReportPage() {
         sections,
         chartColumn,
       });
-      setStatus("Report downloaded.");
+      setStatus("تم الحفظ بنجاح ✓");
       fetchRecent(activeProjectId);
     } catch (e: unknown) {
       setError(errMessage(e));
@@ -225,7 +225,7 @@ export default function ReportPage() {
 
   async function regenerate(r: RecentReport) {
     if (!r.dataset_id) {
-      setRecentError("This report's dataset is no longer available.");
+      setRecentError("لم تعد بيانات هذا التقرير متاحة.");
       return;
     }
     setRegeneratingId(r.id);
@@ -238,24 +238,24 @@ export default function ReportPage() {
         filenameId: r.dataset_id,
       });
     } catch (e: unknown) {
-      setRecentError(e instanceof Error ? e.message : "Re-download failed");
+      setRecentError(e instanceof Error ? e.message : "تعذّر إعادة التنزيل");
     } finally {
       setRegeneratingId(null);
     }
   }
 
   const sectionPicker = (
-    <div>
-      <div className="text-xs font-medium mb-2">Sections to include</div>
+    <div dir="rtl">
+      <div className="text-[12px] font-medium mb-2">الأقسام التي ستُضمَّن</div>
       <div className="space-y-2">
         {SECTIONS.map((s) => (
-          <label key={s.key} className="flex items-start gap-2 text-sm">
+          <label key={s.key} className="flex items-start gap-2 text-sm" style={{ minHeight: 32 }}>
             <input
               type="checkbox"
               checked={sections[s.key]}
               onChange={() => toggleSection(s.key)}
               disabled={busy}
-              className="mt-0.5"
+              className="mt-0.5 h-4 w-4"
             />
             <span>
               <span className="font-medium">{s.label}</span>
@@ -282,34 +282,35 @@ export default function ReportPage() {
         <MissingDatasetNotice
           projectId={projectId}
           toolName="reports"
-          guidedHint="Upload a CSV or Excel file and we'll write you a one-page summary."
+          guidedHint="ارفع ملف CSV أو Excel وسنُعدّ لك ملخّصًا في صفحة واحدة."
         />
       ) : (
-        <>
+        <div dir="rtl">
           <div className="card mt-6 space-y-3">
             <div>
-              <label className="block text-xs font-medium mb-1">
-                {mode === "guided" ? "Give your report a title (optional)" : "Report title (optional)"}
+              <label className="block text-[12px] font-medium mb-1">
+                {mode === "guided" ? "أعطِ تقريرك عنوانًا (اختياري)" : "عنوان التقرير (اختياري)"}
               </label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="AXIOM Dataset Report"
+                placeholder="تقرير بيانات AXIOM"
                 className="w-full border border-[var(--border)] rounded px-3 py-2 text-sm bg-transparent"
+                style={{ minHeight: 44 }}
                 disabled={busy}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1">
-                {mode === "guided" ? "Anything we should mention up top? (optional)" : "Notes (optional)"}
+              <label className="block text-[12px] font-medium mb-1">
+                {mode === "guided" ? "هل ثمّة ما تريد ذكره في المقدّمة؟ (اختياري)" : "ملاحظات (اختياري)"}
               </label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder={mode === "guided"
-                  ? "e.g. This data covers Q3 sales for the EMEA region…"
-                  : "Context for the reader…"}
+                  ? "مثال: تغطّي هذه البيانات مبيعات الربع الثالث في منطقة EMEA…"
+                  : "سياق للقارئ…"}
                 rows={3}
                 className="w-full border border-[var(--border)] rounded px-3 py-2 text-sm bg-transparent"
                 disabled={busy}
@@ -318,20 +319,20 @@ export default function ReportPage() {
 
             {mode === "guided" ? (
               <>
-                <div className="rounded-md border border-dashed border-[var(--border)] bg-[var(--surface-alt)]/40 p-3 text-xs text-[var(--text-muted)] space-y-1">
-                  <div className="font-medium text-[var(--text)]">What you&apos;ll get</div>
+                <div className="rounded-md border border-dashed border-[var(--border)] bg-[var(--surface-alt)]/40 p-3 text-[12px] text-[var(--text-muted)] space-y-1">
+                  <div className="font-medium text-[var(--text)]">ما الذي ستحصل عليه</div>
                   <ul className="list-disc list-inside space-y-0.5">
-                    <li>Cover page with the dataset name and your notes.</li>
-                    <li>A narrative write-up of the key findings.</li>
-                    <li>One headline chart of the most interesting numeric column.</li>
+                    <li>صفحة غلاف باسم البيانات وملاحظاتك.</li>
+                    <li>ملخّص سردي لأهم النتائج.</li>
+                    <li>مخطّط بارز لأهم عمود رقمي.</li>
                   </ul>
-                  <div className="text-[10px] mt-1">
-                    Open Advanced if you also want the raw column tables and numeric summary.
+                  <div className="text-[12px] mt-1">
+                    افتح العرض المتقدّم إن أردت أيضًا جدول الأعمدة الخام والملخّص الرقمي.
                   </div>
                 </div>
                 <AdvancedExpander
                   projectId={projectId}
-                  hint="Pick exactly which sections to include"
+                  hint="اختر بدقّة الأقسام التي ستُضمَّن"
                 >
                   {sectionPicker}
                 </AdvancedExpander>
@@ -342,15 +343,16 @@ export default function ReportPage() {
 
             {sections.include_chart && (
               <div>
-                <label className="block text-xs font-medium mb-1">Chart column (numeric)</label>
+                <label className="block text-[12px] font-medium mb-1">عمود المخطّط (رقمي)</label>
                 <select
                   value={chartColumn}
                   onChange={(e) => setChartColumn(e.target.value)}
                   disabled={busy || numericColumns.length === 0}
                   className="w-full border border-[var(--border)] rounded px-3 py-2 text-sm bg-transparent"
+                  style={{ minHeight: 44 }}
                 >
                   <option value="">
-                    {numericColumns.length === 0 ? "No numeric columns detected" : "First numeric column (default)"}
+                    {numericColumns.length === 0 ? "لا توجد أعمدة رقمية" : "أول عمود رقمي (افتراضي)"}
                   </option>
                   {numericColumns.map((c) => (
                     <option key={c} value={c}>{c}</option>
@@ -365,44 +367,51 @@ export default function ReportPage() {
                 onClick={generate}
                 disabled={busy || !datasetId || !anySelected}
                 className="btn btn-primary text-sm"
+                style={{ minHeight: 44 }}
               >
                 {busy
-                  ? "Generating…"
-                  : mode === "guided" ? "Write my report" : "Generate report"}
+                  ? "جاري التوليد…"
+                  : mode === "guided" ? "اكتب تقريري" : "أنشئ التقرير"}
               </button>
-              {status && <span className="text-xs text-[var(--text-muted)]">{status}</span>}
+              {status && (
+                <span className="text-[12px] text-[var(--text-muted)]" role="status" aria-live="polite">{status}</span>
+              )}
             </div>
           </div>
 
-          {error && <div className="card mt-4 text-sm text-red-600">{error}</div>}
-        </>
+          {error && (
+            <div className="card mt-4 text-sm text-red-600" role="alert">{error}</div>
+          )}
+        </div>
       )}
 
-      <div className="mt-8">
+      <div className="mt-8" dir="rtl">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">Recent reports</h2>
+          <h2 className="text-lg font-semibold">التقارير الأخيرة</h2>
           <button
             type="button"
             onClick={() => fetchRecent(activeProjectId)}
-            className="text-xs text-[var(--text-muted)] hover:underline"
+            className="text-[12px] text-[var(--text-muted)] hover:underline"
+            style={{ minHeight: 32, paddingInline: 8 }}
             disabled={recentLoading}
           >
-            {recentLoading ? "Refreshing…" : "Refresh"}
+            {recentLoading ? "جاري التحديث…" : "تحديث"}
           </button>
         </div>
-        <p className="text-xs text-[var(--text-muted)] mb-3">
+        <p className="text-[12px] text-[var(--text-muted)] mb-3">
           {activeProjectId
-            ? "Reports you've generated for the active project."
-            : "Reports you've generated recently."}
+            ? "التقارير التي أنشأتها للمشروع النشط."
+            : "التقارير التي أنشأتها مؤخرًا."}
         </p>
 
         {recentError && (
-          <div className="card text-sm text-red-600">{recentError}</div>
+          <div className="card text-sm text-red-600" role="alert">{recentError}</div>
         )}
 
         {!recentError && recent.length === 0 && !recentLoading && (
-          <div className="card text-sm text-[var(--text-muted)]">
-            No reports yet. Generate one above and it will show up here.
+          <div className="card text-sm text-[var(--text-muted)] text-center py-6">
+            <div className="text-2xl mb-2" aria-hidden="true">📄</div>
+            لا توجد تقارير بعد. أنشئ واحدًا أعلاه وسيظهر هنا.
           </div>
         )}
 
@@ -412,7 +421,7 @@ export default function ReportPage() {
               const created = r.created_at
                 ? new Date(r.created_at).toLocaleString()
                 : "—";
-              const label = r.title?.trim() || "AXIOM Dataset Report";
+              const label = r.title?.trim() || "تقرير بيانات AXIOM";
               return (
                 <div
                   key={r.id}
@@ -420,8 +429,8 @@ export default function ReportPage() {
                 >
                   <div className="min-w-0">
                     <div className="text-sm font-medium truncate">{label}</div>
-                    <div className="text-xs text-[var(--text-muted)] truncate">
-                      {r.dataset_label || `Dataset #${r.dataset_id ?? "?"}`}
+                    <div className="text-[12px] text-[var(--text-muted)] truncate">
+                      {r.dataset_label || `بيانات #${r.dataset_id ?? "؟"}`}
                       {" · "}
                       {created}
                     </div>
@@ -430,14 +439,15 @@ export default function ReportPage() {
                     type="button"
                     onClick={() => regenerate(r)}
                     disabled={regeneratingId === r.id || !r.dataset_id}
-                    className="btn btn-ghost text-xs whitespace-nowrap"
+                    className="btn btn-ghost text-[12px] whitespace-nowrap"
+                    style={{ minHeight: 44 }}
                     title={
                       r.dataset_id
-                        ? "Regenerate and download this report"
-                        : "Original dataset is no longer available"
+                        ? "إعادة إنشاء وتنزيل التقرير"
+                        : "لم تعد بيانات هذا التقرير متاحة"
                     }
                   >
-                    {regeneratingId === r.id ? "Preparing…" : "Download"}
+                    {regeneratingId === r.id ? "جاري التحضير…" : "تنزيل"}
                   </button>
                 </div>
               );

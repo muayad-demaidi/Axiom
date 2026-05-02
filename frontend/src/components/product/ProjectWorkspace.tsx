@@ -105,7 +105,7 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
     if (!projects) return;
     const proj = projects.find((p) => p.id === projectId) || null;
     setProject(proj);
-    if (!proj) setError("Project not found.");
+    if (!proj) setError("لم يُعثر على المشروع.");
   }, [projects, projectId]);
 
   // Auth + project breadcrumb.
@@ -497,10 +497,11 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
         {activeSessionId && (
           <Link
             href={`/app/project/${projectId}/report?session=${activeSessionId}`}
-            className="hidden md:inline-flex text-[11px] px-2 py-1 rounded-md border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--text-muted)]"
-            title="Open the final report for this chat · التقرير النهائي"
+            className="hidden md:inline-flex items-center text-[12px] px-3 rounded-md border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--text-muted)]"
+            style={{ minHeight: 32 }}
+            title="افتح التقرير النهائي لهذه المحادثة"
           >
-            Final report ↗
+            التقرير النهائي ↗
           </Link>
         )}
         {/*
@@ -512,25 +513,24 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
         */}
         <button
           onClick={toggleDrawer}
-          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--text-muted)]"
+          className="inline-flex items-center gap-1 text-[12px] px-3 rounded-md border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--text-muted)]"
+          style={{ minHeight: 32 }}
           title={
             drawerOpen
-              ? "Hide artifacts side panel (charts, tables, model results) · إخفاء لوحة المخرجات"
-              : "Open artifacts side panel (charts, tables, model results) · فتح لوحة المخرجات"
+              ? "إخفاء لوحة المخرجات (الرسوم والجداول ونتائج النماذج)"
+              : "فتح لوحة المخرجات (الرسوم والجداول ونتائج النماذج)"
           }
           aria-label={
-            drawerOpen
-              ? "Hide artifacts side panel"
-              : "Open artifacts side panel"
+            drawerOpen ? "إخفاء لوحة المخرجات" : "فتح لوحة المخرجات"
           }
           aria-pressed={drawerOpen}
         >
           {drawerOpen ? (
-            <ChevronRight className="h-3 w-3" />
+            <ChevronRight className="h-3 w-3" aria-hidden="true" />
           ) : (
-            <ChevronLeft className="h-3 w-3" />
+            <ChevronLeft className="h-3 w-3" aria-hidden="true" />
           )}
-          Artifacts
+          المخرجات
         </button>
       </div>
     ),
@@ -557,12 +557,12 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-4 sm:px-6 py-6">
           <div className="mx-auto w-full max-w-[800px] flex-1 min-h-0 flex flex-col gap-4">
             {error && <div className="text-red-600 text-sm shrink-0">{error}</div>}
-            <div className="shrink-0">
+            <div className="shrink-0" dir="rtl">
               <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
-                Conversation
+                محادثة
               </span>
               <h1 className="text-lg font-semibold mt-0.5 text-[var(--text)]">
-                {activeSession?.title ?? "New chat"}
+                {activeSession?.title ?? "محادثة جديدة"}
               </h1>
             </div>
 

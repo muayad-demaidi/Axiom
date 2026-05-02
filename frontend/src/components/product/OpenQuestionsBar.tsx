@@ -57,17 +57,25 @@ export function OpenQuestionsBar({
   if (!enoughDatasets || questions.length === 0) return null;
 
   return (
-    <div className="px-1 pb-2">
-      <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--text-muted)] mb-1.5">
-        Open questions about your data
+    <div className="px-1 pb-2" dir="rtl">
+      <div
+        id="open-questions-label"
+        className="text-[12px] font-mono uppercase tracking-[0.18em] text-[var(--text-muted)] mb-1.5"
+      >
+        أسئلة مفتوحة عن بياناتك
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div
+        className="flex flex-wrap gap-1.5"
+        role="group"
+        aria-labelledby="open-questions-label"
+      >
         {questions.map((q) => (
           <button
             key={q.id}
             type="button"
             onClick={() => onAskQuestion(q.prompt)}
-            className="text-[11px] px-2 py-1 rounded-full border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-alt)] text-[var(--text)] max-w-[420px] truncate"
+            className="text-[12px] px-3 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-alt)] text-[var(--text)] max-w-[420px] truncate"
+            style={{ minHeight: 32 }}
             title={q.prompt}
           >
             {q.prompt}

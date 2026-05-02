@@ -130,8 +130,12 @@ export function ChartRenderer({ payload, height = 280 }: { payload: ChartPayload
     );
   }
   return (
-    <div className="text-xs text-[var(--text-muted)] p-4 border border-dashed border-[var(--border)] rounded">
-      Chart type "{payload.chart}" is not supported by the renderer.
+    <div
+      className="text-[12px] text-[var(--text-muted)] p-4 border border-dashed border-[var(--border)] rounded text-center"
+      role="alert"
+      dir="rtl"
+    >
+      نوع المخطّط &quot;{payload.chart}&quot; غير مدعوم في العرض.
     </div>
   );
 }
@@ -146,7 +150,7 @@ type BoxRow = {
 };
 
 function BoxPlot({ points, height }: { points: BoxRow[]; height: number }) {
-  if (!points.length) return <div className="text-xs text-[var(--text-muted)]">No numeric columns.</div>;
+  if (!points.length) return <div className="text-[12px] text-[var(--text-muted)] text-center" dir="rtl">لا توجد أعمدة رقمية.</div>;
   const allMin = Math.min(...points.map((p) => p.min));
   const allMax = Math.max(...points.map((p) => p.max));
   const range = allMax - allMin || 1;
@@ -188,7 +192,7 @@ function BoxPlot({ points, height }: { points: BoxRow[]; height: number }) {
 
 function Heatmap({ columns, matrix, height }: { columns: string[]; matrix: number[][]; height: number }) {
   if (!columns.length || !matrix.length) {
-    return <div className="text-xs text-[var(--text-muted)]">No correlations available.</div>;
+    return <div className="text-[12px] text-[var(--text-muted)] text-center" dir="rtl">لا تتوفّر ارتباطات.</div>;
   }
   const cell = Math.max(18, Math.min(48, Math.floor((height - 60) / columns.length)));
   function color(v: number) {

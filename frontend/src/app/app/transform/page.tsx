@@ -77,61 +77,72 @@ export default function TransformPage() {
   }
 
   const expertEditor = (
-    <>
+    <div dir="rtl">
       <div className="card mt-6 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <label className="text-sm">
-            Operation
+            العملية
             <select
               value={draft.op}
               onChange={(e) => setDraft((s) => ({ ...s, op: e.target.value as TransformOp }))}
               className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
+              style={{ minHeight: 44 }}
             >
               {OPS.map((o) => <option key={o} value={o}>{o}</option>)}
             </select>
           </label>
           <label className="text-sm">
-            Column
+            العمود
             <select value={draft.column ?? ""} onChange={(e) => setDraft((s) => ({ ...s, column: e.target.value }))}
-              className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm">
+              className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
+              style={{ minHeight: 44 }}>
               {columns.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>
           {draft.op === "rename" && (
             <label className="text-sm col-span-2">
-              New name
+              الاسم الجديد
               <input value={draft.target ?? ""} onChange={(e) => setDraft((s) => ({ ...s, target: e.target.value }))}
-                className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm" />
+                className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
+                style={{ minHeight: 44 }} />
             </label>
           )}
           {(draft.op === "fillna" || draft.op === "filter") && (
             <label className="text-sm col-span-2">
-              Value
+              القيمة
               <input value={draft.value ?? ""} onChange={(e) => setDraft((s) => ({ ...s, value: e.target.value }))}
-                className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm" />
+                className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
+                style={{ minHeight: 44 }} />
             </label>
           )}
         </div>
-        <button className="btn btn-ghost" onClick={addStep}>Add step</button>
+        <button className="btn btn-ghost" style={{ minHeight: 44 }} onClick={addStep}>أضف خطوة</button>
       </div>
 
       {steps.length > 0 && (
         <ol className="card mt-4 list-decimal list-inside text-sm space-y-1">
           {steps.map((s, i) => (
-            <li key={i} className="flex justify-between">
-              <code>{s.op} · {s.column}{s.target ? ` → ${s.target}` : ""}{s.value !== undefined ? ` = ${s.value}` : ""}</code>
-              <button className="text-xs text-red-600" onClick={() => setSteps((arr) => arr.filter((_, j) => j !== i))}>remove</button>
+            <li key={i} className="flex flex-row-reverse justify-between items-center">
+              <code dir="ltr">{s.op} · {s.column}{s.target ? ` → ${s.target}` : ""}{s.value !== undefined ? ` = ${s.value}` : ""}</code>
+              <button
+                className="text-[12px] text-red-600"
+                style={{ minHeight: 32, paddingInline: 8 }}
+                aria-label={`حذف الخطوة ${i + 1}`}
+                onClick={() => setSteps((arr) => arr.filter((_, j) => j !== i))}
+              >
+                حذف
+              </button>
             </li>
           ))}
         </ol>
       )}
 
       <div className="mt-4 flex gap-2">
-        <button className="btn btn-primary" onClick={apply} disabled={busy || steps.length === 0}>
-          {busy ? "Applying…" : "Apply steps"}
+        <button className="btn btn-primary" style={{ minHeight: 44 }} onClick={apply} disabled={busy || steps.length === 0}>
+          {busy ? "جاري التطبيق…" : "طبّق الخطوات"}
         </button>
       </div>
-    </>
+    </div>
   );
 
   return (
@@ -149,51 +160,52 @@ export default function TransformPage() {
         <MissingDatasetNotice
           projectId={projectId}
           toolName="transforms"
-          guidedHint="Upload a CSV or Excel file and we'll list its columns so you can transform them."
+          guidedHint="ارفع ملف CSV أو Excel وسنعرض أعمدته لتحويلها."
         />
       ) : mode === "guided" ? (
         <>
-          <div className="card mt-6">
+          <div className="card mt-6" dir="rtl">
             <label className="text-sm block">
-              Column
+              العمود
               <select
                 value={guidedColumn}
                 onChange={(e) => setGuidedColumn(e.target.value)}
                 className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
+                style={{ minHeight: 44 }}
               >
                 {columns.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </label>
           </div>
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3" dir="rtl">
             <GuidedActionCard
-              title="Lowercase the values"
-              description="Make every value in this column lowercase so they match consistently."
-              cta="Apply"
+              title="تحويل القيم إلى حروف صغيرة"
+              description="اجعل كل قيم العمود بحروف صغيرة لمطابقة المسمّيات بثبات."
+              cta="طبّق"
               busy={busy}
               disabled={!guidedColumn}
               onAction={() => runSteps([{ op: "lowercase", column: guidedColumn }])}
             />
             <GuidedActionCard
-              title="Uppercase the values"
-              description="Make every value uppercase — handy for product codes and country labels."
-              cta="Apply"
+              title="تحويل القيم إلى حروف كبيرة"
+              description="اجعل كل قيم العمود بحروف كبيرة — مناسب لرموز المنتجات وأسماء الدول."
+              cta="طبّق"
               busy={busy}
               disabled={!guidedColumn}
               onAction={() => runSteps([{ op: "uppercase", column: guidedColumn }])}
             />
             <GuidedActionCard
-              title="Drop this column"
-              description="Remove the column entirely. Use this for IDs and noisy fields."
-              cta="Drop column"
+              title="حذف هذا العمود"
+              description="إزالة العمود نهائيًا. مناسب لمعرّفات الصفوف والحقول المزعجة."
+              cta="احذف العمود"
               busy={busy}
               disabled={!guidedColumn}
               onAction={() => runSteps([{ op: "drop", column: guidedColumn }])}
             />
             <GuidedActionCard
-              title="Fill empty cells with 0"
-              description="Replace missing values with zero so calculations don't break."
-              cta="Fill blanks"
+              title="ملء الخلايا الفارغة بـ 0"
+              description="استبدال القيم الناقصة بصفر حتى لا تنقطع الحسابات."
+              cta="املأ الفراغات"
               busy={busy}
               disabled={!guidedColumn}
               onAction={() => runSteps([{ op: "fillna", column: guidedColumn, value: "0" }])}
@@ -201,7 +213,7 @@ export default function TransformPage() {
           </div>
           <AdvancedExpander
             projectId={projectId}
-            hint="Chain rename / drop / fillna / filter / uppercase / lowercase steps"
+            hint="اربط خطوات rename / drop / fillna / filter / uppercase / lowercase"
           >
             {expertEditor}
           </AdvancedExpander>
@@ -210,12 +222,20 @@ export default function TransformPage() {
         expertEditor
       )}
 
-      {error && <div className="text-sm text-red-600 mt-3">{error}</div>}
+      {error && (
+        <div
+          className="text-sm text-red-600 mt-3 rounded border border-red-500/30 bg-red-500/10 px-3 py-2"
+          role="alert"
+          dir="rtl"
+        >
+          {error}
+        </div>
+      )}
       {result !== null && (
-        <div className="card mt-4">
+        <div className="card mt-4" dir="rtl">
           {mode === "guided" ? (
             <>
-              <div className="font-semibold text-sm">Done — your column has been transformed.</div>
+              <div className="font-semibold text-sm">تم تحويل العمود بنجاح ✓</div>
               <TechnicalDetails projectId={projectId}>
                 <pre className="text-[11px] overflow-auto max-h-[50vh] whitespace-pre-wrap">{JSON.stringify(result, null, 2)}</pre>
               </TechnicalDetails>

@@ -133,7 +133,12 @@ export default function AdminSupportPage() {
   }
 
   if (!authChecked) {
-    return <div className="text-[var(--text-muted)] text-sm">Loading…</div>;
+    return (
+      <div className="text-[var(--text-muted)] text-sm inline-flex items-center gap-2" role="status" aria-live="polite" dir="rtl">
+        <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]" aria-hidden="true" />
+        جاري التحميل…
+      </div>
+    );
   }
   if (!me?.is_admin) {
     return null; // redirect already in flight
@@ -143,49 +148,53 @@ export default function AdminSupportPage() {
   const hasMore = messages !== null && shown < total;
 
   return (
-    <div className="max-w-4xl">
-      <span className="eyebrow">Admin</span>
-      <h1 className="text-2xl md:text-3xl font-bold mt-2">Support inbox</h1>
-      <p className="text-[var(--text-muted)] mt-2">
-        Every message submitted through the public contact form is saved here so
-        you can triage even when email delivery fails.
+    <div className="max-w-4xl" dir="rtl">
+      <span className="eyebrow">إدارة</span>
+      <h1 className="text-2xl md:text-3xl font-bold mt-2">صندوق الدعم</h1>
+      <p className="text-[var(--text-muted)] mt-2 text-sm">
+        تُحفظ كل رسالة تُرسَل عبر نموذج التواصل هنا لتتمكّن من المتابعة حتى عند تعذّر إرسال البريد.
       </p>
 
       <div className="mt-6 flex items-center justify-between gap-3 flex-wrap">
-        <label className="inline-flex items-center gap-2 text-sm">
+        <label className="inline-flex items-center gap-2 text-sm" style={{ minHeight: 32 }}>
           <input
             type="checkbox"
+            className="h-4 w-4"
             checked={onlyUnhandled}
             onChange={(e) => setOnlyUnhandled(e.target.checked)}
           />
-          Only show un-handled
+          إظهار غير المُعالَجة فقط
         </label>
         <div className="flex items-center gap-3">
           {messages && (
-            <span className="text-xs font-mono text-[var(--text-muted)]">
-              showing {shown} of {total}
+            <span className="text-[12px] font-mono text-[var(--text-muted)]">
+              عرض {shown} من {total}
             </span>
           )}
-          <button onClick={load} className="btn text-sm">
-            Refresh
+          <button onClick={load} className="btn text-sm" style={{ minHeight: 44 }}>
+            تحديث
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="text-red-600 text-sm mt-4" role="alert">
+        <div className="text-red-600 text-sm mt-4 rounded border border-red-500/30 bg-red-500/10 px-3 py-2" role="alert">
           {error}
         </div>
       )}
 
       <div className="mt-6 space-y-3">
         {messages === null ? (
-          <div className="text-[var(--text-muted)] text-sm">Loading…</div>
+          <div className="text-[var(--text-muted)] text-sm inline-flex items-center gap-2" role="status" aria-live="polite">
+            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]" aria-hidden="true" />
+            جاري التحميل…
+          </div>
         ) : messages.length === 0 ? (
           <div className="text-[var(--text-muted)] text-sm border border-[var(--border)] rounded p-6 text-center">
+            <div className="text-2xl mb-2" aria-hidden="true">📭</div>
             {onlyUnhandled
-              ? "Inbox zero — no open messages."
-              : "No support messages yet."}
+              ? "الصندوق فارغ — لا رسائل مفتوحة."
+              : "لا توجد رسائل دعم بعد."}
           </div>
         ) : (
           messages.map((m) => (
@@ -196,38 +205,39 @@ export default function AdminSupportPage() {
               <header className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
                   <div className="font-semibold truncate">
-                    {m.name?.trim() || "(no name)"}
+                    {m.name?.trim() || "(بدون اسم)"}
                   </div>
                   <a
                     href={`mailto:${m.email}`}
-                    className="text-xs font-mono text-[var(--text-muted)] hover:text-[var(--accent)] break-all"
+                    className="text-[12px] font-mono text-[var(--text-muted)] hover:text-[var(--accent)] break-all"
                   >
                     {m.email}
                   </a>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
+                  <span className="text-[12px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
                     {formatTimestamp(m.created_at)}
                   </span>
                   {m.handled && (
-                    <span className="text-[10px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded bg-[var(--surface-alt)] text-[var(--text-muted)]">
-                      Handled
+                    <span className="text-[12px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded bg-[var(--surface-alt)] text-[var(--text-muted)]">
+                      مُعالَجة
                     </span>
                   )}
                 </div>
               </header>
               <p className="mt-3 whitespace-pre-wrap text-sm">{m.message}</p>
-              <div className="mt-3 flex justify-end">
+              <div className="mt-3 flex justify-start">
                 <button
                   onClick={() => toggleHandled(m)}
                   disabled={pendingId === m.id}
                   className={m.handled ? "btn text-sm" : "btn btn-primary text-sm"}
+                  style={{ minHeight: 44 }}
                 >
                   {pendingId === m.id
-                    ? "Saving…"
+                    ? "جاري الحفظ…"
                     : m.handled
-                      ? "Reopen"
-                      : "Mark handled"}
+                      ? "إعادة فتح"
+                      : "وضع علامة مُعالَجة"}
                 </button>
               </div>
             </article>
@@ -241,8 +251,9 @@ export default function AdminSupportPage() {
             onClick={loadMore}
             disabled={loadingMore}
             className="btn text-sm"
+            style={{ minHeight: 44 }}
           >
-            {loadingMore ? "Loading…" : `Load more (${total - shown} remaining)`}
+            {loadingMore ? "جاري التحميل…" : `تحميل المزيد (${total - shown} متبقية)`}
           </button>
         </div>
       )}

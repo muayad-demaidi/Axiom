@@ -45,7 +45,7 @@ export function ModeToggle({
   }, []);
 
   const padding =
-    size === "sm" ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-xs";
+    size === "sm" ? "px-2.5 py-1 text-[12px]" : "px-3 py-1.5 text-[12px]";
   const dot = size === "sm" ? "h-1.5 w-1.5" : "h-2 w-2";
 
   function pick(m: Mode) {
@@ -56,7 +56,7 @@ export function ModeToggle({
   return (
     <div
       role="group"
-      aria-label="AXIOM mode"
+      aria-label="وضع AXIOM"
       suppressHydrationWarning
       className={`inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] p-0.5 ${className}`}
     >
@@ -70,18 +70,18 @@ export function ModeToggle({
         padding={padding}
         dot={dot}
         onClick={() => pick("guided")}
-        title="Outcome-first answers, plain language, fewer controls"
+        title="إجابات مبسّطة بلغة واضحة وعدد أقل من الخيارات"
       >
-        Guided
+        موجَّه
       </Segment>
       <Segment
         active={mounted && mode === "expert"}
         padding={padding}
         dot={dot}
         onClick={() => pick("expert")}
-        title="Full controls, technical answers, JSON / metrics visible"
+        title="تحكّم كامل وإجابات تقنية مع عرض JSON والمقاييس"
       >
-        Expert
+        خبير
       </Segment>
     </div>
   );

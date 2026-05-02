@@ -43,7 +43,7 @@ export function ModeAwareSection({
  */
 export function AdvancedExpander({
   projectId,
-  title = "Advanced",
+  title = "متقدّم",
   hint,
   children,
 }: {
@@ -55,17 +55,18 @@ export function AdvancedExpander({
   const [open, setOpen] = useState(false);
   const { setMode } = useMode(projectId ?? null);
   return (
-    <div className="mt-4 border-t border-[var(--border)] pt-3">
+    <div className="mt-4 border-t border-[var(--border)] pt-3" dir="rtl">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
+        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
+        style={{ minHeight: 32 }}
       >
         <span aria-hidden>{open ? "▾" : "▸"}</span>
         {title}
         {hint && (
-          <span className="text-[10px] text-[var(--text-muted)] font-normal">
+          <span className="text-[12px] text-[var(--text-muted)] font-normal">
             — {hint}
           </span>
         )}
@@ -78,9 +79,10 @@ export function AdvancedExpander({
           <button
             type="button"
             onClick={() => void setMode("expert")}
-            className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-[var(--accent)] hover:underline"
+            className="mt-2 inline-flex items-center gap-1.5 text-[12px] text-[var(--accent)] hover:underline"
+            style={{ minHeight: 32 }}
           >
-            <span aria-hidden>↗</span> Switch this project to Expert Mode
+            <span aria-hidden>↗</span> حوّل هذا المشروع إلى وضع الخبير
           </button>
         </div>
       )}
@@ -96,8 +98,8 @@ export function AdvancedExpander({
  */
 export function TechnicalDetails({
   projectId,
-  label = "View technical details",
-  expertHandoffLabel = "Open in Expert Mode",
+  label = "اعرض التفاصيل التقنية",
+  expertHandoffLabel = "افتح في وضع الخبير",
   showHandoff = true,
   /** Where to take the user after flipping to Expert. Defaults to the
    *  current route so the same screen re-renders in Expert form, but
@@ -130,21 +132,22 @@ export function TechnicalDetails({
   // already shows technicals — so we render the body always-open.
   if (mode === "expert") {
     return (
-      <div className="mt-3 text-xs">
-        <div className="font-mono uppercase tracking-widest text-[10px] text-[var(--text-muted)] mb-1">
-          Technical
+      <div className="mt-3 text-[12px]" dir="rtl">
+        <div className="font-mono uppercase tracking-widest text-[12px] text-[var(--text-muted)] mb-1">
+          تقني
         </div>
         <div>{children}</div>
       </div>
     );
   }
   return (
-    <div className="mt-3 text-xs">
+    <div className="mt-3 text-[12px]" dir="rtl">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] hover:text-[var(--text)]"
+        className="inline-flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] hover:text-[var(--text)]"
+        style={{ minHeight: 32 }}
       >
         <span aria-hidden>{open ? "▾" : "▸"}</span>
         {label}
@@ -156,7 +159,8 @@ export function TechnicalDetails({
             <button
               type="button"
               onClick={() => void handoff()}
-              className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-[var(--accent)] hover:underline"
+              className="mt-2 inline-flex items-center gap-1.5 text-[12px] text-[var(--accent)] hover:underline"
+              style={{ minHeight: 32 }}
             >
               <span aria-hidden>↗</span> {expertHandoffLabel}
             </button>
@@ -192,33 +196,32 @@ export function MissingDatasetNotice({
   const router = useRouter();
   if (mode === "guided") {
     return (
-      <div className="card mt-6 p-6 text-center">
+      <div className="card mt-6 p-6 text-center" role="status" aria-live="polite" dir="rtl">
         <div
           aria-hidden
           className="mx-auto h-12 w-12 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] flex items-center justify-center mb-3 text-xl"
         >
           ↑
         </div>
-        <div className="font-semibold text-base">No dataset yet</div>
+        <div className="font-semibold text-base">لا توجد بيانات بعد</div>
         <p className="text-sm text-[var(--text-muted)] mt-1 max-w-md mx-auto">
           {guidedHint ??
-            `Upload a CSV or Excel file to get started${
-              toolName ? ` with ${toolName}` : ""
-            }.`}
+            `ارفع ملف CSV أو Excel للبدء${toolName ? ` بـ ${toolName}` : ""}.`}
         </p>
         <button
           type="button"
           onClick={() => router.push("/app/upload")}
           className="btn btn-primary text-sm mt-4"
+          style={{ minHeight: 44 }}
         >
-          Upload a dataset
+          ارفع مجموعة بيانات
         </button>
       </div>
     );
   }
   return (
-    <div className="card mt-6 text-sm text-red-600">
-      No active dataset — upload one first.
+    <div className="card mt-6 text-sm text-red-600" role="alert" dir="rtl">
+      لا توجد بيانات نشِطة — يرجى رفع ملف أولًا.
     </div>
   );
 }
@@ -245,7 +248,7 @@ export function GuidedActionCard({
   disabled?: boolean;
 }) {
   return (
-    <div className="card p-4 flex flex-col h-full">
+    <div className="card p-4 flex flex-col h-full" dir="rtl">
       <div className="flex items-start gap-3">
         {icon && (
           <div
@@ -257,7 +260,7 @@ export function GuidedActionCard({
         )}
         <div className="min-w-0 flex-1">
           <div className="font-semibold text-sm">{title}</div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">
+          <div className="text-[12px] text-[var(--text-muted)] mt-1">
             {description}
           </div>
         </div>
@@ -267,9 +270,10 @@ export function GuidedActionCard({
         type="button"
         onClick={onAction}
         disabled={disabled || busy}
-        className="mt-3 btn btn-primary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+        className="mt-3 btn btn-primary text-[12px] disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{ minHeight: 44 }}
       >
-        {busy ? "Working…" : cta}
+        {busy ? "جاري التنفيذ…" : cta}
       </button>
     </div>
   );
@@ -296,7 +300,7 @@ export function ModeAwareHeading({
 }) {
   const { mode } = useMode(projectId ?? null);
   return (
-    <div>
+    <div dir="rtl">
       <div className="eyebrow">{eyebrow}</div>
       <h1 className="text-2xl font-semibold tracking-tight mt-1">
         {mode === "expert" ? expertTitle : guidedTitle}

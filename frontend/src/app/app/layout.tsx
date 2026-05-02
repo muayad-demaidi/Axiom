@@ -28,11 +28,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 className="h-[26px] w-[26px] object-contain"
               />
               <span>AXIOM</span>
-              <span className="ml-2 text-xs font-mono text-[var(--text-muted)] font-normal">Workspace</span>
+              <span className="ml-2 text-xs font-mono text-[var(--text-muted)] font-normal">مساحة العمل</span>
             </Link>
             <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
               <HeaderToggle />
-              <span className="hidden sm:inline">60-day trial active</span>
+              <span className="hidden sm:inline">التجربة المجانية مفعّلة (60 يومًا)</span>
               <UserMenu variant="app" />
             </div>
           </div>

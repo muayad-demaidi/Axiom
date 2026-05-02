@@ -47,12 +47,25 @@ const PRIORITY_WEIGHT: Record<Recommendation["priority"], number> = {
 };
 
 const TYPE_LABEL: Record<Recommendation["type"], string> = {
-  discount: "Discount",
-  reorder: "Reorder",
-  bundle: "Bundle",
-  clearance: "Clearance",
-  promote: "Promote",
-  investigate: "Investigate",
+  discount: "خصم",
+  reorder: "إعادة طلب",
+  bundle: "حزمة",
+  clearance: "تصفية",
+  promote: "ترويج",
+  investigate: "تحقيق",
+};
+
+const STATUS_LABEL: Record<RecommendationStatus, string> = {
+  open: "مفتوحة",
+  applied: "مطبَّقة",
+  dismissed: "مرفوضة",
+  all: "الكل",
+};
+
+const PRIORITY_LABEL: Record<Recommendation["priority"], string> = {
+  high: "عالية",
+  medium: "متوسطة",
+  low: "منخفضة",
 };
 
 const TYPE_ICON: Record<Recommendation["type"], string> = {
@@ -135,44 +148,43 @@ export function RecommendationsPanel({
 
   if (!projectId) {
     return (
-      <div className="card mt-6 text-xs text-[var(--text-muted)]">
-        Recommendations need an active project. Open one from the
-        Projects page first.
+      <div className="card mt-6 text-xs text-[var(--text-muted)]" role="status">
+        تحتاج التوصيات إلى مشروع نشط. افتح مشروعًا من صفحة المشاريع أولًا.
       </div>
     );
   }
 
   const StatusBar = (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div dir="rtl" className="flex items-center gap-2 flex-wrap">
       {(["open", "applied", "dismissed", "all"] as RecommendationStatus[]).map(
         (s) => (
           <button
             key={s}
             onClick={() => setStatus(s)}
             className={
-              "text-[11px] px-2 py-0.5 rounded border " +
+              "text-xs px-3 py-1 rounded border min-h-[32px] " +
               (status === s
                 ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10"
                 : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]")
             }
           >
-            {s}
+            {STATUS_LABEL[s]}
           </button>
         ),
       )}
       <button
         onClick={() => void reload()}
         disabled={loading}
-        className="ml-auto text-[11px] text-[var(--text-muted)] hover:text-[var(--accent)]"
+        className="ml-auto text-xs text-[var(--text-muted)] hover:text-[var(--accent)] min-h-[32px] px-2"
       >
-        {loading ? "Refreshing…" : "Refresh"}
+        {loading ? "جارٍ التحديث…" : "تحديث"}
       </button>
     </div>
   );
 
   const Empty = (
-    <div className="card text-xs text-[var(--text-muted)]">
-      No {status === "all" ? "" : status} recommendations.
+    <div className="card text-xs text-[var(--text-muted)]" role="status">
+      لا توجد توصيات{status === "all" ? "" : ` ${STATUS_LABEL[status]}`}.
     </div>
   );
 
@@ -205,14 +217,14 @@ export function RecommendationsPanel({
           <table className="w-full text-xs">
             <thead>
               <tr className="text-[var(--text-muted)] text-[10px] uppercase tracking-widest border-b border-[var(--border)]">
-                <th className="text-left px-2 py-1.5">Priority</th>
-                <th className="text-left px-2 py-1.5">Type</th>
-                <th className="text-left px-2 py-1.5">Product</th>
-                <th className="text-left px-2 py-1.5">Reason</th>
-                <th className="text-left px-2 py-1.5">Suggested action</th>
-                <th className="text-right px-2 py-1.5">Conf.</th>
-                <th className="text-left px-2 py-1.5">Deadline</th>
-                <th className="text-right px-2 py-1.5">Actions</th>
+                <th className="text-right px-2 py-1.5">الأولوية</th>
+                <th className="text-right px-2 py-1.5">النوع</th>
+                <th className="text-right px-2 py-1.5">المنتج</th>
+                <th className="text-right px-2 py-1.5">السبب</th>
+                <th className="text-right px-2 py-1.5">الإجراء المقترح</th>
+                <th className="text-left px-2 py-1.5">الثقة</th>
+                <th className="text-right px-2 py-1.5">الموعد النهائي</th>
+                <th className="text-left px-2 py-1.5">إجراءات</th>
               </tr>
             </thead>
             <tbody>
@@ -222,7 +234,7 @@ export function RecommendationsPanel({
                     <span className={
                       "inline-block px-1.5 py-0.5 rounded text-[10px] font-medium " +
                       priorityBadge(r.priority)
-                    }>{r.priority}</span>
+                    }>{PRIORITY_LABEL[r.priority]}</span>
                   </td>
                   <td className="px-2 py-1.5 font-mono text-[11px]">
                     {TYPE_LABEL[r.type]}
@@ -239,23 +251,23 @@ export function RecommendationsPanel({
                       <button
                         onClick={() => act(r.id, "apply")}
                         disabled={busyId === r.id}
-                        className="text-[11px] text-[var(--accent)] hover:underline mr-2 disabled:opacity-50"
+                        className="text-xs text-[var(--accent)] hover:underline mr-2 disabled:opacity-50 min-h-[32px] px-1"
                       >
-                        Apply
+                        تطبيق
                       </button>
                     )}
                     {!r.dismissed && (
                       <button
                         onClick={() => act(r.id, "dismiss")}
                         disabled={busyId === r.id}
-                        className="text-[11px] text-[var(--text-muted)] hover:text-red-500 disabled:opacity-50"
+                        className="text-xs text-[var(--text-muted)] hover:text-red-500 disabled:opacity-50 min-h-[32px] px-1"
                       >
-                        Dismiss
+                        رفض
                       </button>
                     )}
                     {(r.applied || r.dismissed) && (
                       <span className="text-[10px] text-[var(--text-muted)]">
-                        {r.applied ? "applied" : "dismissed"}
+                        {r.applied ? "مطبَّقة" : "مرفوضة"}
                       </span>
                     )}
                   </td>
@@ -271,7 +283,7 @@ export function RecommendationsPanel({
   return (
     <div className="mt-6">
       <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
-        Recommendations
+        التوصيات
       </div>
       <ModeAwareSection projectId={projectId} guided={guided} expert={expert} />
     </div>
@@ -300,7 +312,7 @@ function GuidedCard({
             <span className={
               "inline-block px-1.5 py-0.5 rounded text-[10px] font-medium " +
               priorityBadge(rec.priority)
-            }>{rec.priority}</span>
+            }>{PRIORITY_LABEL[rec.priority]}</span>
             <span className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
               {TYPE_LABEL[rec.type]}
             </span>
@@ -312,7 +324,7 @@ function GuidedCard({
             {rec.reason}
           </div>
           <div className="text-xs mt-2">
-            <span className="font-medium">Suggested:</span>{" "}
+            <span className="font-medium">الإجراء المقترح:</span>{" "}
             {rec.suggested_action}
           </div>
           {rec.expected_impact && (
@@ -322,7 +334,7 @@ function GuidedCard({
           )}
           {rec.deadline && (
             <div className="text-[10px] text-[var(--text-muted)] mt-1">
-              Deadline: {fmtDate(rec.deadline)}
+              الموعد النهائي: {fmtDate(rec.deadline)}
             </div>
           )}
         </div>
@@ -334,13 +346,13 @@ function GuidedCard({
             type="button"
             onClick={onApply}
             disabled={busy}
-            className="btn btn-primary text-xs disabled:opacity-50"
+            className="btn btn-primary text-xs disabled:opacity-50 min-h-[44px]"
           >
-            {busy ? "Working…" : "Mark as applied"}
+            {busy ? "جارٍ التنفيذ…" : "وضع كمطبَّقة"}
           </button>
         ) : (
           <span className="text-[11px] text-[var(--text-muted)] italic">
-            Applied {fmtDate(rec.applied_at)}
+            مطبَّقة {fmtDate(rec.applied_at)}
           </span>
         )}
         {!rec.dismissed ? (
@@ -348,13 +360,13 @@ function GuidedCard({
             type="button"
             onClick={onDismiss}
             disabled={busy}
-            className="btn text-xs disabled:opacity-50"
+            className="btn text-xs disabled:opacity-50 min-h-[44px]"
           >
-            Dismiss
+            رفض
           </button>
         ) : (
           <span className="text-[11px] text-[var(--text-muted)] italic ml-auto">
-            Dismissed {fmtDate(rec.dismissed_at)}
+            مرفوضة {fmtDate(rec.dismissed_at)}
           </span>
         )}
       </div>

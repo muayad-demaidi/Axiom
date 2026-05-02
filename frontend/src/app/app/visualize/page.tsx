@@ -59,14 +59,14 @@ type VisualizeResponse =
 type AggregationKind = "default" | "sum" | "avg" | "count" | "count_distinct" | "min" | "max" | "median";
 
 const AGG_LABELS: Record<AggregationKind, string> = {
-  default: "Auto (field default)",
-  sum: "Sum",
-  avg: "Average",
-  count: "Count",
-  count_distinct: "Distinct count",
-  min: "Min",
-  max: "Max",
-  median: "Median",
+  default: "تلقائي (افتراضي الحقل)",
+  sum: "مجموع",
+  avg: "متوسط",
+  count: "عدد",
+  count_distinct: "عدد مميّز",
+  min: "أصغر قيمة",
+  max: "أكبر قيمة",
+  median: "وسيط",
 };
 
 const PALETTE = ["#2563eb", "#60a5fa", "#3b82f6", "#1d4ed8", "#93c5fd", "#0ea5e9", "#1e40af"];
@@ -455,36 +455,36 @@ export default function VisualizePage() {
   }, [data]);
 
   const xHelp = chart === "box"
-    ? "Pick a numeric column, or leave to summarize all numeric columns"
+    ? "اختر عمودًا رقميًا، أو اتركه لتلخيص كل الأعمدة الرقمية"
     : chart === "heatmap"
-      ? "Heatmap uses every numeric column"
+      ? "الخريطة الحرارية تستخدم كل الأعمدة الرقمية"
       : "";
 
   const expertControls = (
     <>
       <div className="card mt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
         <label className="text-sm">
-          Chart
+          نوع الرسم
           <select value={chart} onChange={(e) => setChart(e.target.value as ChartKind)}
             className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm">
-            <option value="bar">Bar</option>
-            <option value="line">Line</option>
-            <option value="scatter">Scatter</option>
-            <option value="pie">Pie</option>
-            <option value="histogram">Histogram</option>
-            <option value="box">Box plot</option>
-            <option value="heatmap">Correlation heatmap</option>
+            <option value="bar">أعمدة</option>
+            <option value="line">خطّي</option>
+            <option value="scatter">مبعثر</option>
+            <option value="pie">دائري</option>
+            <option value="histogram">مدرّج تكراري</option>
+            <option value="box">صندوقي</option>
+            <option value="heatmap">خريطة ارتباط</option>
           </select>
         </label>
         <label className="text-sm">
-          X column {xDisabled ? "(unused)" : ""}
+          عمود X {xDisabled ? "(غير مستخدم)" : ""}
           <select value={x} onChange={(e) => setX(e.target.value)} disabled={xDisabled}
             className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm disabled:opacity-50">
             {columns.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </label>
         <label className="text-sm">
-          Y column {yDisabled ? "(unused)" : ""}
+          عمود Y {yDisabled ? "(غير مستخدم)" : ""}
           <select value={y} onChange={(e) => setY(e.target.value)} disabled={yDisabled}
             className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm disabled:opacity-50">
             {columns.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -495,7 +495,7 @@ export default function VisualizePage() {
       {(chart === "bar" || chart === "line") && (
         <div className="card mt-3">
           <label className="text-sm block">
-            Aggregation for Y
+            التجميع للقيم Y
             <select
               value={aggregation}
               onChange={(e) => setAggregation(e.target.value as AggregationKind)}
@@ -515,29 +515,29 @@ export default function VisualizePage() {
       )}
       <div className="mt-4">
         <button className="btn btn-primary" onClick={() => run()} disabled={busy || (!xDisabled && !x)}>
-          {busy ? "Rendering…" : "Render chart"}
+          {busy ? "جارٍ الرسم…" : "ارسم الشكل"}
         </button>
       </div>
       {mode === "expert" && (
         <div className="card mt-6 space-y-3">
-          <div className="text-sm font-medium">Expert diagnostics</div>
+          <div className="text-sm font-medium">تشخيصات الخبراء</div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <label className="text-sm">
-              Diagnostic
+              التشخيص
               <select
                 value={expertChart}
                 onChange={(e) => setExpertChart(e.target.value as ExpertChartKind)}
                 className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
               >
-                <option value="residuals">Residuals vs fitted</option>
-                <option value="qq">Q–Q plot (normality)</option>
-                <option value="acf">Autocorrelation (ACF)</option>
-                <option value="pacf">Partial autocorrelation (PACF)</option>
+                <option value="residuals">البواقي مقابل المتوقّع</option>
+                <option value="qq">رسم Q–Q (الطبيعية)</option>
+                <option value="acf">الارتباط الذاتي (ACF)</option>
+                <option value="pacf">الارتباط الذاتي الجزئي (PACF)</option>
               </select>
             </label>
             {(expertChart === "acf" || expertChart === "pacf") && (
               <label className="text-sm">
-                Lags
+                التأخّرات
                 <input
                   type="number"
                   min={1}
@@ -558,13 +558,13 @@ export default function VisualizePage() {
             onClick={runExpertChart}
             disabled={busy || !x}
           >
-            {busy ? "Computing…" : "Run diagnostic"}
+            {busy ? "جارٍ الحساب…" : "تشغيل التشخيص"}
           </button>
           {expertResult && (
             <div className="mt-3 space-y-2">
               <ExpertChartView result={expertResult} />
               <div className="text-xs text-[var(--text-muted)]">
-                {expertResult.chart} summary
+                ملخص {expertResult.chart}
               </div>
               <pre className="text-[11px] overflow-auto max-h-[30vh] whitespace-pre-wrap p-2 rounded bg-[var(--surface)] border border-[var(--border)]">
                 {JSON.stringify(expertResult.summary, null, 2)}
@@ -597,7 +597,7 @@ export default function VisualizePage() {
         <>
           <div className="card mt-6">
             <label className="text-sm block">
-              Column to visualize
+              العمود المراد عرضه
               <select value={x} onChange={(e) => setX(e.target.value)}
                 className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm">
                 {columns.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -606,37 +606,37 @@ export default function VisualizePage() {
           </div>
           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
             <GuidedActionCard
-              title="Show distribution"
-              description="A histogram of how this column is spread out — good for spotting skew or outliers."
-              cta="Show histogram"
+              title="إظهار التوزيع"
+              description="مدرّج تكراري لكيفية انتشار قيم هذا العمود — مفيد لاكتشاف الانحراف أو القيم الشاذّة."
+              cta="عرض المدرّج التكراري"
               busy={busy}
               disabled={!x}
               onAction={() => run({ chart: "histogram", x })}
             />
             <GuidedActionCard
-              title="Show share of total"
-              description="A pie chart of the categories in this column."
-              cta="Show pie chart"
+              title="إظهار حصة المجموع"
+              description="رسم دائري للفئات في هذا العمود."
+              cta="عرض الرسم الدائري"
               busy={busy}
               disabled={!x}
               onAction={() => run({ chart: "pie", x })}
             />
             <GuidedActionCard
-              title="Find what moves together"
-              description="A correlation heatmap across every numeric column. No column needed."
-              cta="Show heatmap"
+              title="ما الذي يتحرك معًا"
+              description="خريطة ارتباط حرارية عبر كل الأعمدة الرقمية. لا يحتاج اختيار عمود."
+              cta="عرض الخريطة الحرارية"
               busy={busy}
               onAction={() => run({ chart: "heatmap", x: null, y: null })}
             />
             <GuidedActionCard
-              title="Spot outliers"
-              description="A box plot summary of every numeric column at once."
-              cta="Show box plot"
+              title="اكتشاف القيم الشاذة"
+              description="ملخص رسم صندوقي لكل عمود رقمي دفعةً واحدة."
+              cta="عرض الرسم الصندوقي"
               busy={busy}
               onAction={() => run({ chart: "box", x: null, y: null })}
             />
           </div>
-          <AdvancedExpander projectId={projectId} hint="Choose any chart type and pick x / y manually">
+          <AdvancedExpander projectId={projectId} hint="اختر أي نوع رسم بياني وحدّد x / y يدويًا">
             {expertControls}
           </AdvancedExpander>
         </>
@@ -644,7 +644,7 @@ export default function VisualizePage() {
         expertControls
       )}
 
-      {error && <div className="text-sm text-red-600 mt-3">{error}</div>}
+      {error && <div className="text-sm text-red-600 mt-3" role="alert">{error}</div>}
       {rendered && (
         <div className="card mt-6">
           {rendered}
@@ -673,7 +673,7 @@ export default function VisualizePage() {
             </ul>
           )}
           {mode === "guided" && data && (
-            <TechnicalDetails projectId={projectId} label="View the underlying numbers">
+            <TechnicalDetails projectId={projectId} label="عرض الأرقام الأساسية">
               <pre className="text-[11px] overflow-auto max-h-[40vh] whitespace-pre-wrap">{JSON.stringify(data, null, 2)}</pre>
             </TechnicalDetails>
           )}

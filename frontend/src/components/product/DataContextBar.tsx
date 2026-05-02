@@ -60,8 +60,8 @@ function DataContextBarBase({
     <div className="sticky top-0 z-30 bg-[var(--surface)]/85 backdrop-blur supports-[backdrop-filter]:bg-[var(--surface)]/75 border-b border-[var(--border)]">
       <div className="px-4 sm:px-5 py-1.5 flex items-center gap-2 min-w-0">
         <div className="flex items-center gap-1.5 min-w-0 shrink-0">
-          <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--text-muted)] hidden sm:inline">
-            Project
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)] hidden sm:inline">
+            مشروع
           </span>
           <span className="text-xs font-semibold text-[var(--text)] truncate max-w-[160px]">
             {projectName}
@@ -72,24 +72,24 @@ function DataContextBarBase({
 
         <div className="flex items-center gap-1.5 min-w-0 overflow-x-auto no-scrollbar">
           {datasets.length === 0 ? (
-            <div className="text-[11px] text-[var(--text-muted)] inline-flex items-center gap-1.5 whitespace-nowrap">
-              <Database className="h-3 w-3" />
+            <div className="text-[12px] text-[var(--text-muted)] inline-flex items-center gap-1.5 whitespace-nowrap" dir="rtl">
+              <Database className="h-3 w-3" aria-hidden="true" />
               <span>
-                No dataset attached —{" "}
+                لا توجد مجموعة بيانات مرتبطة —{" "}
                 <Link
                   href={`/app/upload?back=/app/project/${projectId}`}
                   className="text-[var(--accent)] hover:underline"
                 >
-                  upload one
+                  ارفع ملفًا الآن
                 </Link>
               </span>
             </div>
           ) : (
             <>
               {noneSelected && (
-                <span className="text-[10px] text-[var(--text-muted)] inline-flex items-center gap-1 whitespace-nowrap shrink-0">
-                  <Database className="h-3 w-3" />
-                  Pick a dataset:
+                <span className="text-[12px] text-[var(--text-muted)] inline-flex items-center gap-1 whitespace-nowrap shrink-0" dir="rtl">
+                  <Database className="h-3 w-3" aria-hidden="true" />
+                  اختر مجموعة بيانات:
                 </span>
               )}
               {visible.map((d) => (
@@ -110,18 +110,19 @@ function DataContextBarBase({
                 <button
                   type="button"
                   onClick={() => setShowAll(true)}
-                  className="text-[10px] px-2 py-0.5 rounded-full border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] whitespace-nowrap shrink-0"
+                  className="text-[12px] px-2 py-0.5 rounded-full border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] whitespace-nowrap shrink-0"
+                  aria-label={`عرض ${extra} مجموعة أخرى`}
                 >
-                  +{extra} more
+                  + {extra} أخرى
                 </button>
               )}
               {showAll && ordered.length > 1 && (
                 <button
                   type="button"
                   onClick={() => setShowAll(false)}
-                  className="text-[9px] uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--text)] whitespace-nowrap shrink-0"
+                  className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--text)] whitespace-nowrap shrink-0"
                 >
-                  collapse
+                  طيّ
                 </button>
               )}
             </>
@@ -188,14 +189,15 @@ function DatasetChip({
             ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10"
             : "border-[var(--border)] text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
         }`}
-        title={`${dataset.dataset_name || dataset.filename} · click to peek at the first rows`}
+        title={`${dataset.dataset_name || dataset.filename} — اضغط لمعاينة أول صفوف`}
         aria-expanded={open}
+        aria-label={`${dataset.dataset_name || dataset.filename} — معاينة`}
       >
-        <Table2 className="h-2.5 w-2.5" />
+        <Table2 className="h-2.5 w-2.5" aria-hidden="true" />
         <span className="max-w-[160px] truncate">
           {dataset.dataset_name || dataset.filename}
         </span>
-        <span className="font-mono text-[9px] text-[var(--text-muted)]">
+        <span className="font-mono text-[10px] text-[var(--text-muted)]">
           {dataset.rows.toLocaleString()} × {dataset.cols}
         </span>
       </motion.button>
@@ -263,28 +265,28 @@ function QuickPreview({ dataset }: { dataset: AxiomDataset }) {
   }, [dataset.id, cacheKey]);
 
   return (
-    <div className="text-xs">
-      <div className="px-3 py-2 border-b border-[var(--border)] bg-[var(--surface-alt)] flex items-center justify-between gap-2">
+    <div className="text-xs" dir="rtl">
+      <div className="px-3 py-2 border-b border-[var(--border)] bg-[var(--surface-alt)] flex flex-row-reverse items-center justify-between gap-2">
         <div className="font-semibold truncate">
           {dataset.dataset_name || dataset.filename}
         </div>
         <div className="font-mono text-[10px] text-[var(--text-muted)] shrink-0">
-          peek · first {PREVIEW_ROWS} rows
+          معاينة · أول {PREVIEW_ROWS} صفوف
         </div>
       </div>
       {error ? (
-        <div className="px-3 py-4 text-[var(--text-muted)]">
-          Couldn&apos;t load a preview right now.{" "}
+        <div className="px-3 py-4 text-[var(--text-muted)]" role="alert">
+          تعذّر تحميل المعاينة الآن.{" "}
           <span className="text-[10px] block mt-1 font-mono">{error}</span>
         </div>
       ) : loading || !data ? (
-        <div className="px-3 py-4 text-[var(--text-muted)] inline-flex items-center gap-2">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          Loading preview…
+        <div className="px-3 py-4 text-[var(--text-muted)] inline-flex items-center gap-2" role="status" aria-live="polite">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          جاري تحضير المعاينة…
         </div>
       ) : data.preview.length === 0 ? (
         <div className="px-3 py-4 text-[var(--text-muted)]">
-          This dataset is empty.
+          مجموعة البيانات فارغة.
         </div>
       ) : (
         <div className="max-h-[260px] overflow-auto">
@@ -385,10 +387,12 @@ function StatusPill({
           animate={{ opacity: 1 }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0 }}
           transition={{ duration: 0.18 }}
-          className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-[var(--accent)]/12 text-[var(--accent)] border border-[var(--accent)]/30 whitespace-nowrap"
+          className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--accent)]/12 text-[var(--accent)] border border-[var(--accent)]/30 whitespace-nowrap"
+          role="status"
+          aria-live="polite"
         >
-          <Sparkles className="h-2.5 w-2.5" />
-          Analyzing…
+          <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
+          جاري التحليل…
         </motion.span>
       ) : null}
     </AnimatePresence>

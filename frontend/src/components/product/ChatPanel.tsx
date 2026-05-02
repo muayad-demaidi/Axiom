@@ -113,15 +113,15 @@ type ChatPanelProps = {
 };
 
 const GREETING_NEW =
-  "Hey — drop a question about any dataset in this project and I'll walk through the analysis step-by-step. I can run charts, predictions, profiling, and clustering directly from chat.";
+  "أهلًا بك — اسألني عن أي مجموعة بيانات في هذا المشروع وسأحلّل البيانات معك خطوة بخطوة. يمكنني عمل رسوم وتنبؤات وتحليل وفحص للتجمعات مباشرة من المحادثة.";
 const GREETING_NO_DATA =
-  "This project doesn't have any data yet. Upload a CSV or Excel file from the sidebar and I'll start analysing it.";
+  "هذا المشروع لا يحتوي على بيانات بعد. ارفع ملف CSV أو Excel من القائمة الجانبية وسأبدأ التحليل فورًا.";
 
 const FOLLOWUP_CHIPS = [
-  "Show outliers",
-  "Visualize trends",
-  "Forecast next period",
-  "Summarise key insights",
+  "أظهر القيم الشاذّة",
+  "ارسم الاتجاهات",
+  "تنبّأ بالفترة القادمة",
+  "لخّص أهم الملاحظات",
 ];
 
 function ChatPanelInner({
@@ -223,7 +223,13 @@ function ChatPanelInner({
       })
       .catch(() => {
         if (!cancelled) {
-          setMessages([{ role: "assistant", content: "Could not load chat history." }]);
+          setMessages([
+            {
+              role: "assistant",
+              content:
+                "تعذّر تحميل سجل المحادثة — حاول التحديث أو إعادة المحاولة بعد قليل.",
+            },
+          ]);
         }
       })
       .finally(() => {
@@ -424,7 +430,9 @@ function ChatPanelInner({
         controller.signal.aborted;
       if (!aborted) {
         patchLast({
-          content: textAcc || `(Chat error: ${errMessage(e, "request failed")}.)`,
+          content:
+            textAcc ||
+            `(حدث خطأ أثناء المحادثة: ${errMessage(e, "تعذّر تنفيذ الطلب")} — حاول مرة أخرى.)`,
         });
       }
     } finally {
@@ -552,7 +560,7 @@ function ChatPanelInner({
     const file = files[0];
     if (!isAcceptedFile(file)) {
       setUploadErr(
-        `Unsupported file type. Drop a CSV, TSV, Excel, or JSON file.`
+        `نوع الملف غير مدعوم. اسحب ملف CSV أو TSV أو Excel أو JSON.`
       );
       return;
     }
@@ -609,18 +617,18 @@ function ChatPanelInner({
                 <UploadCloud className="h-5 w-5" />
               </span>
               <div className="text-sm font-semibold text-[var(--text)]">
-                Drop to upload
+                أفلت الملف للرفع
               </div>
-              <div className="text-[11px] text-[var(--text-muted)]">
-                CSV, TSV, Excel, or JSON
+              <div className="text-[12px] text-[var(--text-muted)]">
+                CSV أو TSV أو Excel أو JSON
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
       {!authed && (
-        <div className="text-xs text-[var(--text-muted)] shrink-0">
-          Sign in to enable streaming chat with your data.
+        <div className="text-xs text-[var(--text-muted)] shrink-0" dir="rtl">
+          سجّل الدخول لتفعيل المحادثة مع بياناتك.
         </div>
       )}
       {/* Message viewport wrapper. The wrapper itself is `relative` and
@@ -635,7 +643,18 @@ function ChatPanelInner({
           className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1"
         >
           {loadingHistory ? (
-            <div className="text-sm text-[var(--text-muted)]">Loading conversation…</div>
+            <div
+              className="text-sm text-[var(--text-muted)] inline-flex items-center gap-2"
+              role="status"
+              aria-live="polite"
+              dir="rtl"
+            >
+              <span
+                className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]"
+                aria-hidden="true"
+              />
+              جاري تحميل المحادثة…
+            </div>
           ) : (
             <>
               {headerSlot && <div className="mb-2">{headerSlot}</div>}

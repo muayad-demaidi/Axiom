@@ -38,10 +38,10 @@ import { cacheKeys, getCached, patchCached, setCached } from "@/lib/workspaceCac
 type SortKey = "active" | "created" | "name" | "size";
 
 const SORT_LABELS: Record<SortKey, string> = {
-  active: "Recently active",
-  created: "Recently created",
-  name: "Name (A–Z)",
-  size: "Total data size",
+  active: "النشاط الأخير",
+  created: "الإنشاء الأخير",
+  name: "الاسم (أ–ي)",
+  size: "إجمالي حجم البيانات",
 };
 
 function formatBytes(bytes: number | undefined | null): string {
@@ -60,23 +60,23 @@ function formatBytes(bytes: number | undefined | null): string {
 }
 
 function formatRelative(iso: string | null | undefined): string {
-  if (!iso) return "Not yet active";
+  if (!iso) return "غير نشط بعد";
   const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return "Not yet active";
+  if (!Number.isFinite(t)) return "غير نشط بعد";
   const diff = Date.now() - t;
-  if (diff < 0) return "just now";
+  if (diff < 0) return "الآن";
   const sec = Math.floor(diff / 1000);
-  if (sec < 60) return "just now";
+  if (sec < 60) return "الآن";
   const min = Math.floor(sec / 60);
-  if (min < 60) return `${min} minute${min === 1 ? "" : "s"} ago`;
+  if (min < 60) return `قبل ${min} دقيقة`;
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr} hour${hr === 1 ? "" : "s"} ago`;
+  if (hr < 24) return `قبل ${hr} ساعة`;
   const day = Math.floor(hr / 24);
-  if (day < 30) return `${day} day${day === 1 ? "" : "s"} ago`;
+  if (day < 30) return `قبل ${day} يوم`;
   const mo = Math.floor(day / 30);
-  if (mo < 12) return `${mo} month${mo === 1 ? "" : "s"} ago`;
+  if (mo < 12) return `قبل ${mo} شهر`;
   const yr = Math.floor(day / 365);
-  return `${yr} year${yr === 1 ? "" : "s"} ago`;
+  return `قبل ${yr} سنة`;
 }
 
 function statusColor(status: AxiomProject["status"]): string {
@@ -93,11 +93,11 @@ function statusColor(status: AxiomProject["status"]): string {
 function statusLabel(status: AxiomProject["status"]): string {
   switch (status) {
     case "processing":
-      return "Processing";
+      return "قيد المعالجة";
     case "error":
-      return "Has errors";
+      return "يوجد أخطاء";
     default:
-      return "Ready";
+      return "جاهز";
   }
 }
 
@@ -233,7 +233,7 @@ export default function ProjectsIndex() {
   async function commitRename(id: number) {
     const next = renameValue.trim();
     if (!next) {
-      setRenameError("Name cannot be empty.");
+      setRenameError("لا يمكن أن يكون الاسم فارغًا.");
       return;
     }
     // Snapshot the previous name so we can roll back if the API rejects
@@ -289,7 +289,7 @@ export default function ProjectsIndex() {
         patchListIfCached(cacheKeys.projects(), restore);
         patchListIfCached(cacheKeys.archivedProjects(), restore);
       }
-      showToast({ text: `Rename failed: ${errMessage(e)}` });
+      showToast({ text: `تعذّرت إعادة التسمية: ${errMessage(e)}` });
     }
   }
 
@@ -370,13 +370,13 @@ export default function ProjectsIndex() {
         patchCached<AxiomProject[]>(cacheKeys.projects(), (cur) =>
           cur ? [p, ...cur.filter((x) => x.id !== p.id)] : [p]
         );
-        showToast({ text: `Archive failed: ${errMessage(e)}` });
+        showToast({ text: `تعذّرت الأرشفة: ${errMessage(e)}` });
         return "fail";
       }
     })();
     showToast({
-      text: `Archived "${p.name}".`,
-      actionLabel: "Undo",
+      text: `تمّت أرشفة "${p.name}".`,
+      actionLabel: "تراجع",
       onAction: async () => {
         // Wait for the archive POST to settle so /restore has something
         // to operate on; if archive itself failed, the rollback already
@@ -410,7 +410,7 @@ export default function ProjectsIndex() {
       cur ? [optimistic, ...cur.filter((x) => x.id !== p.id)] : [optimistic]
     );
     if (!opts.silent) {
-      showToast({ text: `Restored "${p.name}".` });
+      showToast({ text: `تمّ استعادة "${p.name}".` });
     } else {
       setToast(null);
     }
@@ -444,7 +444,7 @@ export default function ProjectsIndex() {
           cur ? [p, ...cur.filter((x) => x.id !== p.id)] : [p]
         );
       }
-      showToast({ text: `Restore failed: ${errMessage(e)}` });
+      showToast({ text: `تعذّر الاستعادة: ${errMessage(e)}` });
     }
   }
 
@@ -463,7 +463,7 @@ export default function ProjectsIndex() {
         return next;
       });
       setConfirmDelete(null);
-      showToast({ text: `Deleted "${p.name}".` });
+      showToast({ text: `تمّ حذف "${p.name}".` });
     } catch (e: unknown) {
       setError(errMessage(e));
     }
@@ -485,7 +485,7 @@ export default function ProjectsIndex() {
         patchCached<AxiomProject[]>(cacheKeys.archivedProjects(), (cur) =>
           (cur || []).filter((p) => !done.has(p.id))
         );
-        showToast({ text: `Deleted ${res.processed.length} project(s).` });
+        showToast({ text: `تمّ حذف ${res.processed.length} مشروع.` });
       } else if (action === "archive") {
         // Move acted-on rows from active → archived list.
         const moving = (active ?? []).filter((p) => done.has(p.id));
@@ -506,7 +506,7 @@ export default function ProjectsIndex() {
             ...base.filter((x) => !merged.some((m) => m.id === x.id)),
           ];
         });
-        showToast({ text: `Archived ${res.processed.length} project(s).` });
+        showToast({ text: `تمّت أرشفة ${res.processed.length} مشروع.` });
       } else if (action === "restore") {
         const moving = (archived ?? []).filter((p) => done.has(p.id));
         const merged = moving.map((p) => ({ ...p, is_archived: false }));
@@ -529,7 +529,7 @@ export default function ProjectsIndex() {
             ...base.filter((x) => !merged.some((m) => m.id === x.id)),
           ];
         });
-        showToast({ text: `Restored ${res.processed.length} project(s).` });
+        showToast({ text: `تمّ استعادة ${res.processed.length} مشروع.` });
       }
       setSelected(new Set());
       setConfirmBulkDelete(false);
@@ -596,38 +596,42 @@ export default function ProjectsIndex() {
   }, [openMenuId]);
 
   return (
-    <div className="max-w-5xl">
-      <span className="eyebrow">Workspace</span>
-      <h1 className="text-2xl md:text-3xl font-bold mt-2">Your projects</h1>
-      <p className="text-[var(--text-muted)] mt-2">
-        Each project keeps its own datasets and chat history. Hover a card for
-        rename, archive, or delete actions. Use the checkboxes to act on
-        several at once.
+    <div className="max-w-5xl" dir="rtl">
+      <span className="eyebrow">مساحة العمل</span>
+      <h1 className="text-2xl md:text-3xl font-bold mt-2">مشاريعك</h1>
+      <p className="text-[var(--text-muted)] mt-2 text-sm">
+        كل مشروع يحتفظ ببياناته وسجلّ محادثاته. مرّر فوق البطاقة لإظهار
+        إعادة التسمية والأرشفة والحذف. استخدم مربّعات الاختيار لأداء عمليات
+        على عدة مشاريع دفعة واحدة.
       </p>
 
       <form onSubmit={createProject} className="mt-6 flex gap-2">
         <input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          placeholder="New project name…"
+          placeholder="اسم مشروع جديد…"
+          aria-label="اسم المشروع"
           className="flex-1 px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
+          style={{ minHeight: 44 }}
         />
         <button
           type="submit"
           className="btn btn-primary"
           disabled={busy || !newName.trim()}
+          style={{ minHeight: 44 }}
         >
-          Create
+          إنشاء
         </button>
       </form>
 
       {error && (
-        <div className="text-red-600 text-sm mt-4 flex items-center gap-2">
+        <div className="text-red-600 text-sm mt-4 flex items-center gap-2 rounded border border-red-500/30 bg-red-500/10 px-3 py-2" role="alert">
           {error}
           <button
             onClick={() => setError(null)}
-            className="text-[var(--text-muted)] hover:text-[var(--text)]"
-            aria-label="Dismiss error"
+            className="text-[var(--text-muted)] hover:text-[var(--text)] inline-flex items-center justify-center"
+            style={{ minHeight: 32, minWidth: 32 }}
+            aria-label="إخفاء الخطأ"
           >
             <X className="h-3 w-3" />
           </button>
@@ -641,12 +645,14 @@ export default function ProjectsIndex() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search projects…"
+            placeholder="ابحث في المشاريع…"
+            aria-label="البحث في المشاريع"
             className="w-full pl-7 pr-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
+            style={{ minHeight: 44 }}
           />
         </div>
-        <label className="text-xs text-[var(--text-muted)]">
-          <span className="sr-only">Sort by</span>
+        <label className="text-[12px] text-[var(--text-muted)]">
+          <span className="sr-only">الترتيب حسب</span>
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
@@ -669,8 +675,9 @@ export default function ProjectsIndex() {
             data-active={view === "active"}
             className="mode-seg !rounded-none !border-0 px-3 py-2"
             aria-pressed={view === "active"}
+            style={{ minHeight: 44 }}
           >
-            Active
+            النشطة
           </button>
           <button
             type="button"
@@ -681,8 +688,9 @@ export default function ProjectsIndex() {
             data-active={view === "archived"}
             className="mode-seg !rounded-none !border-0 px-3 py-2"
             aria-pressed={view === "archived"}
+            style={{ minHeight: 44 }}
           >
-            Archived
+            المؤرشفة
           </button>
         </div>
       </div>
@@ -691,23 +699,25 @@ export default function ProjectsIndex() {
       {selectedCount > 0 && (
         <div className="mt-4 sticky top-2 z-10 card flex flex-wrap items-center gap-2 px-3 py-2 border-[var(--accent)]/40 ring-1 ring-[var(--accent)]/30">
           <span className="text-sm font-semibold">
-            {selectedCount} selected
+            {selectedCount} محدَّد
           </span>
           {view === "active" ? (
             <>
               <button
                 type="button"
                 onClick={() => bulkAction("archive")}
-                className="btn btn-ghost text-xs"
+                className="btn btn-ghost text-[12px]"
+                style={{ minHeight: 44 }}
               >
-                <Archive className="h-3 w-3" /> Archive
+                <Archive className="h-3 w-3" /> أرشفة
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmBulkDelete(true)}
-                className="btn btn-ghost text-xs text-red-500 hover:text-red-600"
+                className="btn btn-ghost text-[12px] text-red-500 hover:text-red-600"
+                style={{ minHeight: 44 }}
               >
-                <Trash2 className="h-3 w-3" /> Delete
+                <Trash2 className="h-3 w-3" /> حذف
               </button>
             </>
           ) : (
@@ -715,25 +725,28 @@ export default function ProjectsIndex() {
               <button
                 type="button"
                 onClick={() => bulkAction("restore")}
-                className="btn btn-ghost text-xs"
+                className="btn btn-ghost text-[12px]"
+                style={{ minHeight: 44 }}
               >
-                <ArchiveRestore className="h-3 w-3" /> Restore
+                <ArchiveRestore className="h-3 w-3" /> استعادة
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmBulkDelete(true)}
-                className="btn btn-ghost text-xs text-red-500 hover:text-red-600"
+                className="btn btn-ghost text-[12px] text-red-500 hover:text-red-600"
+                style={{ minHeight: 44 }}
               >
-                <Trash2 className="h-3 w-3" /> Delete
+                <Trash2 className="h-3 w-3" /> حذف
               </button>
             </>
           )}
           <button
             type="button"
             onClick={clearSelection}
-            className="btn btn-ghost text-xs ml-auto"
+            className="btn btn-ghost text-[12px] ml-auto"
+            style={{ minHeight: 44 }}
           >
-            Clear selection
+            مسح التحديد
           </button>
         </div>
       )}
@@ -757,8 +770,9 @@ export default function ProjectsIndex() {
           <button
             type="button"
             onClick={() => setToast(null)}
-            className="text-[var(--text-muted)] hover:text-[var(--text)]"
-            aria-label="Dismiss"
+            className="text-[var(--text-muted)] hover:text-[var(--text)] inline-flex items-center justify-center"
+            style={{ minHeight: 32, minWidth: 32 }}
+            aria-label="إخفاء"
           >
             <X className="h-3 w-3" />
           </button>
@@ -767,14 +781,18 @@ export default function ProjectsIndex() {
 
       <section className="mt-6">
         {visible === null || (view === "archived" && archived === null) || (view === "active" && active === null) ? (
-          <div className="card text-[var(--text-muted)] text-sm">Loading…</div>
+          <div className="card text-[var(--text-muted)] text-sm inline-flex items-center gap-2" role="status" aria-live="polite">
+            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]" aria-hidden="true" />
+            جاري التحميل…
+          </div>
         ) : visible.length === 0 ? (
-          <div className="card text-[var(--text-muted)] text-sm">
+          <div className="card text-[var(--text-muted)] text-sm text-center p-6" role="status">
+            <div className="text-2xl mb-2" aria-hidden="true">📁</div>
             {view === "archived"
-              ? "No archived projects."
+              ? "لا توجد مشاريع مؤرشفة."
               : search
-              ? `No projects match "${search}".`
-              : "No projects yet. Create one above to get started."}
+              ? `لا توجد مشاريع تطابق "${search}".`
+              : "لا توجد مشاريع بعد. أنشئ مشروعًا أعلاه للبدء."}
           </div>
         ) : (
           <ul className="grid gap-3 md:grid-cols-2">
@@ -824,7 +842,7 @@ export default function ProjectsIndex() {
                         toggleSelect(p.id);
                       }}
                       aria-label={
-                        isSelected ? "Deselect project" : "Select project"
+                        isSelected ? "إلغاء تحديد المشروع" : "تحديد المشروع"
                       }
                       className={`p-1 rounded ${
                         isSelected
@@ -845,7 +863,7 @@ export default function ProjectsIndex() {
                           e.stopPropagation();
                           setOpenMenuId((cur) => (cur === p.id ? null : p.id));
                         }}
-                        aria-label="Project actions"
+                        aria-label="إجراءات المشروع"
                         className="p-1 rounded text-[var(--text-muted)] opacity-60 group-hover:opacity-100 hover:text-[var(--text)] hover:bg-[var(--surface)]"
                       >
                         <MoreVertical className="h-4 w-4" />
@@ -865,7 +883,7 @@ export default function ProjectsIndex() {
                             }}
                             className="flex w-full items-center gap-2 px-3 py-1.5 hover:bg-[var(--surface-alt)]"
                           >
-                            <Pencil className="h-3 w-3" /> Rename
+                            <Pencil className="h-3 w-3" /> إعادة تسمية
                           </button>
                           {p.is_archived ? (
                             <button
@@ -876,7 +894,7 @@ export default function ProjectsIndex() {
                               }}
                               className="flex w-full items-center gap-2 px-3 py-1.5 hover:bg-[var(--surface-alt)]"
                             >
-                              <ArchiveRestore className="h-3 w-3" /> Restore
+                              <ArchiveRestore className="h-3 w-3" /> استعادة
                             </button>
                           ) : (
                             <button
@@ -887,7 +905,7 @@ export default function ProjectsIndex() {
                               }}
                               className="flex w-full items-center gap-2 px-3 py-1.5 hover:bg-[var(--surface-alt)]"
                             >
-                              <Archive className="h-3 w-3" /> Archive
+                              <Archive className="h-3 w-3" /> أرشفة
                             </button>
                           )}
                           <button
@@ -898,7 +916,7 @@ export default function ProjectsIndex() {
                             }}
                             className="flex w-full items-center gap-2 px-3 py-1.5 text-red-500 hover:bg-[var(--surface-alt)]"
                           >
-                            <Trash2 className="h-3 w-3" /> Delete
+                            <Trash2 className="h-3 w-3" /> حذف
                           </button>
                         </div>
                       )}
@@ -939,19 +957,17 @@ export default function ProjectsIndex() {
                             {p.name}
                           </h3>
                         )}
-                        <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                          {p.sheet_count ?? 0} dataset
-                          {(p.sheet_count ?? 0) === 1 ? "" : "s"}
+                        <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
+                          {p.sheet_count ?? 0} مجموعة بيانات
                           {" · "}
-                          {p.chat_count ?? 0} chat
-                          {(p.chat_count ?? 0) === 1 ? "" : "s"}
+                          {p.chat_count ?? 0} محادثة
                           {" · "}
                           {formatBytes(p.total_size_bytes)}
                         </p>
-                        <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                        <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
                           {p.is_archived
-                            ? `Archived ${formatRelative(p.archived_at)}`
-                            : `Last active ${formatRelative(p.last_active_at)}`}
+                            ? `أُرشف ${formatRelative(p.archived_at)}`
+                            : `آخر نشاط ${formatRelative(p.last_active_at)}`}
                         </p>
                       </div>
                     </div>
@@ -966,9 +982,10 @@ export default function ProjectsIndex() {
                       <button
                         type="button"
                         onClick={() => commitRename(p.id)}
-                        className="btn btn-primary text-xs"
+                        className="btn btn-primary text-[12px]"
+                        style={{ minHeight: 44 }}
                       >
-                        <Check className="h-3 w-3" /> Save
+                        <Check className="h-3 w-3" /> حفظ
                       </button>
                       <button
                         type="button"
@@ -976,9 +993,10 @@ export default function ProjectsIndex() {
                           setRenamingId(null);
                           setRenameError(null);
                         }}
-                        className="btn btn-ghost text-xs"
+                        className="btn btn-ghost text-[12px]"
+                        style={{ minHeight: 44 }}
                       >
-                        Cancel
+                        إلغاء
                       </button>
                       {renameError && (
                         <span className="text-xs text-red-500">
@@ -993,8 +1011,8 @@ export default function ProjectsIndex() {
                       data-noopen="true"
                       className="mt-4 flex flex-wrap items-center gap-2"
                     >
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] mr-1">
-                        Mode
+                      <span className="text-[12px] font-mono uppercase tracking-widest text-[var(--text-muted)] ml-1">
+                        الوضع
                       </span>
                       <button
                         type="button"
@@ -1003,7 +1021,7 @@ export default function ProjectsIndex() {
                         className="mode-seg"
                         aria-pressed={mode === "guided"}
                       >
-                        Guided
+                        موجَّه
                       </button>
                       <button
                         type="button"
@@ -1012,11 +1030,11 @@ export default function ProjectsIndex() {
                         className="mode-seg"
                         aria-pressed={mode === "expert"}
                       >
-                        Expert
+                        خبير
                       </button>
                       {cardActive && (
-                        <span className="ml-auto text-[10px] font-mono text-[var(--accent)]">
-                          ACTIVE
+                        <span className="mr-auto text-[12px] font-mono text-[var(--accent)]">
+                          نشط
                         </span>
                       )}
                     </div>
@@ -1027,25 +1045,28 @@ export default function ProjectsIndex() {
                       <button
                         type="button"
                         onClick={() => restoreOne(p)}
-                        className="btn btn-primary text-xs"
+                        className="btn btn-primary text-[12px]"
+                        style={{ minHeight: 44 }}
                       >
-                        <ArchiveRestore className="h-3 w-3" /> Restore
+                        <ArchiveRestore className="h-3 w-3" /> استعادة
                       </button>
                     ) : (
                       <>
                         <button
                           type="button"
                           onClick={() => openProject(p)}
-                          className="btn btn-primary text-xs"
+                          className="btn btn-primary text-[12px]"
+                          style={{ minHeight: 44 }}
                         >
-                          Open
+                          فتح
                         </button>
                         <Link
                           href="/app/upload"
                           onClick={() => pickActive(p.id)}
-                          className="btn btn-ghost text-xs"
+                          className="btn btn-ghost text-[12px]"
+                          style={{ minHeight: 44 }}
                         >
-                          Upload data
+                          رفع بيانات
                         </Link>
                       </>
                     )}
@@ -1131,17 +1152,17 @@ function ConfirmDeleteModal({
   // worst case of accidentally nuking a project full of work.
   const matches = typed.trim() === project.name.trim();
   return (
-    <ModalShell title="Delete project" onCancel={onCancel}>
+    <ModalShell title="حذف المشروع" onCancel={onCancel}>
+      <div dir="rtl">
       <p className="text-sm text-[var(--text-muted)]">
-        This will permanently delete{" "}
+        سيؤدّي هذا إلى حذف{" "}
         <span className="font-semibold text-[var(--text)]">
           {project.name}
         </span>
-        , including all of its datasets and chat history. This cannot be
-        undone.
+        {" "}نهائيًا، بما في ذلك كل البيانات وسجلّ المحادثات. لا يمكن التراجع عن ذلك.
       </p>
-      <p className="text-xs text-[var(--text-muted)] mt-3">
-        To confirm, type the project name below.
+      <p className="text-[12px] text-[var(--text-muted)] mt-3">
+        للتأكيد، اكتب اسم المشروع أدناه.
       </p>
       <input
         autoFocus
@@ -1149,18 +1170,21 @@ function ConfirmDeleteModal({
         onChange={(e) => onTyped(e.target.value)}
         placeholder={project.name}
         className="mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
+        style={{ minHeight: 44 }}
       />
-      <div className="mt-4 flex justify-end gap-2">
-        <button onClick={onCancel} className="btn btn-ghost text-xs">
-          Cancel
+      <div className="mt-4 flex justify-start gap-2">
+        <button onClick={onCancel} className="btn btn-ghost text-[12px]" style={{ minHeight: 44 }}>
+          إلغاء
         </button>
         <button
           onClick={onConfirm}
           disabled={!matches}
-          className="btn btn-primary text-xs !bg-red-600 hover:!bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn btn-primary text-[12px] !bg-red-600 hover:!bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ minHeight: 44 }}
         >
-          Delete project
+          نعم، متأكد
         </button>
+      </div>
       </div>
     </ModalShell>
   );
@@ -1176,25 +1200,27 @@ function BulkConfirmDeleteModal({
   onConfirm: () => void;
 }) {
   return (
-    <ModalShell title="Delete projects" onCancel={onCancel}>
+    <ModalShell title="حذف المشاريع" onCancel={onCancel}>
+      <div dir="rtl">
       <p className="text-sm text-[var(--text-muted)]">
-        This will permanently delete{" "}
+        سيؤدّي هذا إلى حذف{" "}
         <span className="font-semibold text-[var(--text)]">
-          {count} project{count === 1 ? "" : "s"}
+          {count} مشروع
         </span>
-        , including all datasets and chat history inside them. This cannot
-        be undone.
+        {" "}نهائيًا، بما في ذلك جميع البيانات وسجلّ المحادثات داخلها. لا يمكن التراجع عن ذلك.
       </p>
-      <div className="mt-4 flex justify-end gap-2">
-        <button onClick={onCancel} className="btn btn-ghost text-xs">
-          Cancel
+      <div className="mt-4 flex justify-start gap-2">
+        <button onClick={onCancel} className="btn btn-ghost text-[12px]" style={{ minHeight: 44 }}>
+          إلغاء
         </button>
         <button
           onClick={onConfirm}
-          className="btn btn-primary text-xs !bg-red-600 hover:!bg-red-700"
+          className="btn btn-primary text-[12px] !bg-red-600 hover:!bg-red-700"
+          style={{ minHeight: 44 }}
         >
-          Delete {count} project{count === 1 ? "" : "s"}
+          نعم، متأكد · حذف {count}
         </button>
+      </div>
       </div>
     </ModalShell>
   );

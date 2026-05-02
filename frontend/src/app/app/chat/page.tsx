@@ -10,6 +10,17 @@ export default function ChatRedirectPage() {
     router.replace(pid ? `/app/project/${pid}` : "/app");
   }, [router]);
   return (
-    <div className="text-sm text-[var(--text-muted)]">Opening project chat…</div>
+    <div
+      className="text-sm text-[var(--text-muted)] inline-flex items-center gap-2"
+      role="status"
+      aria-live="polite"
+      dir="rtl"
+    >
+      <span
+        className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]"
+        aria-hidden="true"
+      />
+      جاري فتح محادثة المشروع…
+    </div>
   );
 }

@@ -47,11 +47,11 @@ import { RecommendationsPanel } from "@/components/product/RecommendationsPanel"
 const PALETTE = ["#2563eb", "#60a5fa", "#3b82f6", "#1d4ed8", "#93c5fd", "#0ea5e9", "#1e40af"];
 
 const SECTION_ORDER: Array<{ key: string; label: string }> = [
-  { key: "executive", label: "Executive KPIs" },
-  { key: "trend", label: "Trends over time" },
-  { key: "segmentation", label: "Segmentation" },
-  { key: "operational", label: "Operational" },
-  { key: "_other", label: "Other" },
+  { key: "executive", label: "مؤشّرات الأداء التنفيذية" },
+  { key: "trend", label: "الاتجاهات عبر الزمن" },
+  { key: "segmentation", label: "التقسيم" },
+  { key: "operational", label: "التشغيلي" },
+  { key: "_other", label: "أخرى" },
 ];
 
 function fmtValue(v: unknown, kind: string | undefined, precision = 2): string {
@@ -70,14 +70,14 @@ function fmtValue(v: unknown, kind: string | undefined, precision = 2): string {
 }
 
 function guidedKpiHint(label: string, kind: string | undefined, value: unknown): string {
-  const friendly = (label || "this measure").toLowerCase();
+  const friendly = label || "هذا المقياس";
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    return `We couldn't compute ${friendly} for the current selection.`;
+    return `تعذّر حساب ${friendly} للنطاق الحالي.`;
   }
-  if (kind === "currency") return `Total ${friendly} across the rows in scope.`;
-  if (kind === "percent") return `Share for ${friendly} across the rows in scope.`;
-  if (kind === "integer") return `Count of ${friendly} across the rows in scope.`;
-  return `Combined value of ${friendly} across the rows in scope.`;
+  if (kind === "currency") return `إجمالي ${friendly} عبر الصفوف ضمن النطاق.`;
+  if (kind === "percent") return `نسبة ${friendly} عبر الصفوف ضمن النطاق.`;
+  if (kind === "integer") return `عدد ${friendly} عبر الصفوف ضمن النطاق.`;
+  return `القيمة المجمَّعة لـ ${friendly} عبر الصفوف ضمن النطاق.`;
 }
 
 export default function DashboardPage() {
@@ -296,53 +296,55 @@ export default function DashboardPage() {
     <div className="max-w-6xl">
       <ModeAwareHeading
         projectId={projectId}
-        eyebrow="Dashboard"
-        guidedTitle="Your dataset at a glance"
-        expertTitle="Dataset dashboard"
-        guidedSubtitle="Auto-summarised KPIs, trends and breakdowns. Use the slicers up top to filter every tile at once."
-        expertSubtitle="Persisted tile spec backed by the central aggregation engine. Page-level slicers route through the same SUM/AVG as pivot, visualize and chat."
+        eyebrow="لوحة المعلومات"
+        guidedTitle="بياناتك في لمحة"
+        expertTitle="لوحة معلومات البيانات"
+        guidedSubtitle="مؤشّرات واتجاهات وتقسيمات تلقائية. استخدم الفلاتر في الأعلى لتصفية كل البلاطات معًا."
+        expertSubtitle="مواصفات بلاطات محفوظة فوق محرّك التجميع المركزي. تمرّ فلاتر الصفحة عبر نفس SUM/AVG المستخدَم في pivot وvisualize والمحادثة."
       />
 
       {hasDataset === false ? (
         <MissingDatasetNotice projectId={projectId} toolName="dashboard" />
       ) : (
         <>
-          <div className="mt-6 flex items-center gap-2 flex-wrap">
-            <button onClick={reload} disabled={busy} className="btn btn-secondary text-xs">
-              {busy ? "Refreshing…" : "Refresh"}
+          <div className="mt-6 flex items-center gap-2 flex-wrap" dir="rtl">
+            <button onClick={reload} disabled={busy} className="btn btn-secondary text-[12px]" style={{ minHeight: 44 }}>
+              {busy ? "جاري التحديث…" : "تحديث"}
             </button>
             {mode !== "guided" && (
-              <button onClick={resetDashboard} className="btn text-xs">
-                Reset to auto-suggested
+              <button onClick={resetDashboard} className="btn text-[12px]" style={{ minHeight: 44 }}>
+                إعادة الضبط للاقتراحات التلقائية
               </button>
             )}
           </div>
 
           {mode !== "guided" && dashboard && dashboard.spec.slicers && dashboard.spec.slicers.length > 0 && (
-            <div className="mt-3 card flex items-center gap-3 flex-wrap">
-              <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mr-1">Slicers</div>
+            <div className="mt-3 card flex items-center gap-3 flex-wrap" dir="rtl">
+              <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] ml-1">الفلاتر</div>
               {dateSlicer && (
                 <>
-                  <label className="text-xs flex items-center gap-1">
-                    <span className="text-[var(--text-muted)]">{dateSlicer.column} from</span>
+                  <label className="text-[12px] flex items-center gap-1">
+                    <span className="text-[var(--text-muted)]">{dateSlicer.column} من</span>
                     <input
                       type="date" value={dateFrom}
                       onChange={(e) => setDateFrom(e.target.value)}
-                      className="px-2 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[11px]"
+                      className="px-2 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[12px]"
+                      style={{ minHeight: 32 }}
                     />
                   </label>
-                  <label className="text-xs flex items-center gap-1">
-                    <span className="text-[var(--text-muted)]">to</span>
+                  <label className="text-[12px] flex items-center gap-1">
+                    <span className="text-[var(--text-muted)]">إلى</span>
                     <input
                       type="date" value={dateTo}
                       onChange={(e) => setDateTo(e.target.value)}
-                      className="px-2 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[11px]"
+                      className="px-2 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[12px]"
+                      style={{ minHeight: 32 }}
                     />
                   </label>
                 </>
               )}
               {catSlicer && slicerOptions.length > 0 && (
-                <label className="text-xs flex items-center gap-1">
+                <label className="text-[12px] flex items-center gap-1">
                   <span className="text-[var(--text-muted)]">{catSlicer.column}</span>
                   <select
                     multiple
@@ -351,7 +353,7 @@ export default function DashboardPage() {
                       const opts = Array.from(e.target.selectedOptions).map((o) => o.value);
                       setSlicerValues(opts);
                     }}
-                    className="px-2 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[11px] min-w-[160px]"
+                    className="px-2 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[12px] min-w-[160px]"
                     size={Math.min(4, slicerOptions.length + 1)}
                   >
                     {slicerOptions.map((v) => <option key={v} value={v}>{v}</option>)}
@@ -360,33 +362,34 @@ export default function DashboardPage() {
               )}
               {(dateFrom || dateTo || slicerValues.length > 0) && (
                 <button
-                  className="text-[11px] text-[var(--text-muted)] hover:text-red-500 ml-auto"
+                  className="text-[12px] text-[var(--text-muted)] hover:text-red-500 mr-auto"
+                  style={{ minHeight: 32 }}
                   onClick={() => { setDateFrom(""); setDateTo(""); setSlicerValues([]); }}
                 >
-                  Clear slicers
+                  مسح الفلاتر
                 </button>
               )}
             </div>
           )}
 
-          {error && <div className="text-sm text-red-600 mt-3">{error}</div>}
+          {error && <div className="text-sm text-red-600 mt-3 rounded border border-red-500/30 bg-red-500/10 px-3 py-2" role="alert" dir="rtl">{error}</div>}
 
           {mode !== "guided" && safeguards && (safeguards.fanout.length > 0 || !safeguards.grain.is_unique) && (
-            <div className="mt-3 card border-amber-500/60">
-              <div className="text-xs font-semibold text-amber-600 mb-1">
-                Modeling safeguards
+            <div className="mt-3 card border-amber-500/60" dir="rtl">
+              <div className="text-[12px] font-semibold text-amber-600 mb-1">
+                تنبيهات النمذجة
               </div>
-              <ul className="text-xs space-y-0.5 list-disc list-inside text-amber-700">
+              <ul className="text-[12px] space-y-0.5 list-disc list-inside text-amber-700">
                 {!safeguards.grain.is_unique && (
                   <li>
-                    Couldn&apos;t find a unique grain for this table — it has{" "}
-                    {safeguards.grain.duplicate_count.toLocaleString()} duplicate row(s).
-                    Aggregations may double-count without a clean primary key.
+                    تعذّر إيجاد دقّة فريدة لهذا الجدول — يحتوي على {" "}
+                    {safeguards.grain.duplicate_count.toLocaleString()} صفًا مكرّرًا.
+                    قد تتسبّب التجميعات بعدّ مزدوج بدون مفتاح أساسي نظيف.
                   </li>
                 )}
                 {safeguards.grain.is_unique && safeguards.grain.keys.length > 0 && (
                   <li className="text-[var(--text-muted)]">
-                    Grain: <span className="font-mono">{safeguards.grain.keys.join(" + ")}</span>
+                    الدقّة: <span className="font-mono">{safeguards.grain.keys.join(" + ")}</span>
                   </li>
                 )}
                 {safeguards.fanout.map((f, i) => <li key={i}>{f.warning}</li>)}
@@ -433,12 +436,13 @@ export default function DashboardPage() {
           })}
 
           {dashboard && (dashboard.tiles || []).length === 0 && (
-            <div className="mt-6 card text-xs text-[var(--text-muted)]">
-              No tiles. Use the&nbsp;
-              <a href="/app/pivot" className="text-[var(--accent)] hover:underline">pivot</a>
-              &nbsp;or&nbsp;
-              <a href="/app/visualize" className="text-[var(--accent)] hover:underline">visualize</a>
-              &nbsp;page to build something, or click &quot;Reset&quot; to auto-suggest tiles.
+            <div className="mt-6 card text-[12px] text-[var(--text-muted)] text-center" role="status" dir="rtl">
+              <div className="text-2xl mb-2" aria-hidden="true">📊</div>
+              لا توجد بلاطات بعد. استخدم صفحة{" "}
+              <a href="/app/pivot" className="text-[var(--accent)] hover:underline">المحور</a>
+              {" "}أو{" "}
+              <a href="/app/visualize" className="text-[var(--accent)] hover:underline">التصوّر</a>
+              {" "}للبناء، أو انقر &quot;إعادة الضبط&quot; لاقتراح بلاطات تلقائيًا.
             </div>
           )}
 
@@ -473,38 +477,38 @@ function KpiCard({
         <button
           onClick={onRemove}
           className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-red-500 text-xs"
-          aria-label="Remove tile"
+          aria-label="إزالة البلاطة"
         >×</button>
       )}
-      <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
+      <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)]">
         {tile.tile.title}
       </div>
       <div className="text-2xl font-semibold mt-1 tabular-nums">
         {m ? fmtValue(v, m.format_kind, m.precision) : "—"}
       </div>
       {m && (
-        <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
+        <div className="text-[12px] text-[var(--text-muted)] mt-0.5">
           {m.label}
         </div>
       )}
       {mode === "guided" && m && (
-        <div className="mt-2 text-[11px] leading-snug text-[var(--text-muted)]">
+        <div className="mt-2 text-[12px] leading-snug text-[var(--text-muted)]" dir="rtl">
           {guidedKpiHint(m.label || tile.tile.title, m.format_kind, v)}
         </div>
       )}
       {tile.warnings && tile.warnings.length > 0 && (
-        <div className="mt-1 text-[10px] text-amber-600">{tile.warnings[0]}</div>
+        <div className="mt-1 text-[12px] text-amber-600" role="status">{tile.warnings[0]}</div>
       )}
       {mode !== "guided" && m && (
         <>
           <button
             onClick={() => onExplain(m)}
-            className="absolute bottom-1 right-2 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] underline"
+            className="absolute bottom-1 right-2 text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)] underline"
           >
-            Explain
+            تفسير
           </button>
-          <details className="mt-2 text-[10px] text-[var(--text-muted)]">
-            <summary className="cursor-pointer hover:text-[var(--accent)]">Show JSON</summary>
+          <details className="mt-2 text-[12px] text-[var(--text-muted)]">
+            <summary className="cursor-pointer hover:text-[var(--accent)]">عرض JSON</summary>
             <pre className="mt-1 overflow-auto max-h-48 whitespace-pre-wrap break-all bg-[var(--surface)]/60 rounded p-2 text-[10px]">
               {JSON.stringify({ spec: tile.tile, value: v, measure: m }, null, 2)}
             </pre>
@@ -542,38 +546,38 @@ function ChartTile({
           {m && (
             <button
               onClick={() => onExplain(m)}
-              className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
-              title="Explain this tile"
+              className="text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)]"
+              title="تفسير هذه البلاطة"
             >
-              Explain
+              تفسير
             </button>
           )}
           <button
             onClick={onExport}
-            className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
-            title="Export CSV"
+            className="text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)]"
+            title="تصدير CSV"
           >
             CSV
           </button>
           <button
             onClick={onDrillThrough}
-            className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
-            title="Open in Pivot"
+            className="text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)]"
+            title="فتح في المحور"
           >
-            Drill →
+            تفصيل →
           </button>
           <button
             onClick={onRemove}
             className="text-[var(--text-muted)] hover:text-red-500 text-xs"
-            aria-label="Remove tile"
+            aria-label="إزالة البلاطة"
           >×</button>
         </div>
       )}
-      <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
+      <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
         {tile.tile.title}
       </div>
       {tile.error ? (
-        <div className="text-xs text-red-600">{tile.error}</div>
+        <div className="text-[12px] text-red-600" role="alert">{tile.error}</div>
       ) : kind === "table" ? (
         <div className="overflow-auto">
           <table className="w-full text-xs">
@@ -621,8 +625,8 @@ function ChartTile({
         </ul>
       )}
       {mode !== "guided" && (
-        <details className="mt-2 text-[10px] text-[var(--text-muted)]">
-          <summary className="cursor-pointer hover:text-[var(--accent)]">Show JSON</summary>
+        <details className="mt-2 text-[12px] text-[var(--text-muted)]">
+          <summary className="cursor-pointer hover:text-[var(--accent)]">عرض JSON</summary>
           <pre className="mt-1 overflow-auto max-h-48 whitespace-pre-wrap break-all bg-[var(--surface)]/60 rounded p-2 text-[10px]">
             {JSON.stringify({ spec: tile.tile, measures: tile.measures, row_dims: tile.row_dims, sample: data.slice(0, 5) }, null, 2)}
           </pre>
@@ -649,47 +653,50 @@ function ExplainModal({
         className="bg-[var(--bg)] border border-[var(--border)] rounded-lg max-w-2xl w-full max-h-[80vh] overflow-auto p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3" dir="rtl">
           <div>
-            <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Explain</div>
-            <div className="text-lg font-semibold">{m.label || "Measure"}</div>
+            <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)]">تفسير</div>
+            <div className="text-lg font-semibold">{m.label || "مقياس"}</div>
           </div>
-          <button onClick={onClose} className="text-xl text-[var(--text-muted)] hover:text-[var(--text)]">×</button>
+          <button onClick={onClose} className="text-xl text-[var(--text-muted)] hover:text-[var(--text)] inline-flex items-center justify-center" style={{ minHeight: 44, minWidth: 44 }} aria-label="إغلاق">×</button>
         </div>
         {loading ? (
-          <div className="text-xs text-[var(--text-muted)]">Computing…</div>
+          <div className="text-[12px] text-[var(--text-muted)] inline-flex items-center gap-2" role="status" aria-live="polite" dir="rtl">
+            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]" aria-hidden="true" />
+            جاري الحساب…
+          </div>
         ) : (
-          <div className="space-y-3 text-xs">
+          <div className="space-y-3 text-[12px]" dir="rtl">
             <div className="text-2xl font-semibold tabular-nums">
               {fmtValue(payload.value, m.format_kind, m.precision)}
             </div>
             {payload.formula && (
               <div>
-                <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-1">Formula</div>
-                <div className="font-mono text-[11px] bg-[var(--surface)] rounded px-2 py-1.5 break-all">{payload.formula}</div>
+                <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] mb-1">الصيغة</div>
+                <div className="font-mono text-[12px] bg-[var(--surface)] rounded px-2 py-1.5 break-all" dir="ltr">{payload.formula}</div>
               </div>
             )}
             {payload.filter_summary && payload.filter_summary.length > 0 && (
               <div>
-                <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-1">Active filters</div>
+                <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] mb-1">الفلاتر النشِطة</div>
                 <ul className="space-y-0.5">
                   {payload.filter_summary.map((f, i) => (
-                    <li key={i} className="font-mono text-[11px]">{f}</li>
+                    <li key={i} className="font-mono text-[12px]" dir="ltr">{f}</li>
                   ))}
                 </ul>
               </div>
             )}
-            <div className="text-[11px] text-[var(--text-muted)]">
-              {payload.contributing_rows.toLocaleString()} of {payload.total_rows.toLocaleString()} rows contributed.
+            <div className="text-[12px] text-[var(--text-muted)]">
+              ساهم {payload.contributing_rows.toLocaleString()} من أصل {payload.total_rows.toLocaleString()} صف.
             </div>
             {payload.warnings && payload.warnings.length > 0 && (
-              <ul className="text-[11px] text-amber-600 list-disc list-inside space-y-0.5">
+              <ul className="text-[12px] text-amber-600 list-disc list-inside space-y-0.5">
                 {payload.warnings.map((w, i) => <li key={i}>{w}</li>)}
               </ul>
             )}
             {payload.sample_rows && payload.sample_rows.length > 0 && (
               <div>
-                <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-1">Sample contributing rows</div>
+                <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] mb-1">عيّنة من الصفوف المساهِمة</div>
                 <div className="overflow-auto border border-[var(--border)] rounded max-h-64">
                   <table className="w-full text-[11px]">
                     <thead className="bg-[var(--surface)]/60 sticky top-0">
