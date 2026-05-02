@@ -39,7 +39,9 @@
     "faqQ4": "Where is my data stored?",
     "faqA4": "Your uploaded datasets are stored in our managed PostgreSQL database, accessible only to your account. You can delete a dataset at any time.",
     "faqQ5": "Do I need to know SQL or Python?",
-    "faqA5": "No. The whole platform is built around clicking, toggling, and asking questions in plain English."
+    "faqA5": "No. The whole platform is built around clicking, toggling, and asking questions in plain English.",
+    "homeTitle": "AXIOM — Intelligent data analytics, no code required",
+    "offerDescription": "60-day free trial with full Tier 3 access"
   },
   "productHome": {
     "eyebrow": "Project-aware data analyst",
@@ -514,6 +516,7 @@
     "followupShowOutliers": "Show outliers",
     "followupPlotTrends": "Plot trends",
     "followupPredictNext": "Predict the next period",
-    "followupSummarize": "Summarise the most important findings"
+    "followupSummarize": "Summarise the most important findings",
+    "tryLabel": "Try"
   }
 }

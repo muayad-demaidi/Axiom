@@ -1,15 +1,19 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { MarketingShell } from "@/components/MarketingShell";
 import { FAQ } from "@/components/FAQ";
 import { DataStreamBackground } from "@/components/DataStreamBackground";
 import { SITE } from "@/lib/site";
 
-export const metadata = {
-  title: "AXIOM — Intelligent data analytics, no code required",
-  description: SITE.description,
-  alternates: { canonical: SITE.url + "/" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("marketing");
+  return {
+    title: t("homeTitle"),
+    description: SITE.description,
+    alternates: { canonical: SITE.url + "/" },
+  };
+}
 
 export default async function HomePage() {
   const t = await getTranslations("marketing");
@@ -32,7 +36,7 @@ export default async function HomePage() {
       "@type": "Offer",
       price: "0",
       priceCurrency: "USD",
-      description: "60-day free trial with full Tier 3 access",
+      description: t("offerDescription"),
     },
     featureList: [
       "Auto data cleaning pipeline",

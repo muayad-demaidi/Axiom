@@ -143,6 +143,7 @@ function ChatPanelInner({
     () => FOLLOWUP_KEYS.map((k) => tChat(k)),
     [tChat],
   );
+  const tryLabel = tChat("tryLabel");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -683,6 +684,7 @@ function ChatPanelInner({
                     }
                     onChipClick={handleChipClick}
                     chips={followupChips}
+                    tryLabel={tryLabel}
                     projectId={projectId}
                     mode={mode}
                     setMode={setMode}
@@ -784,6 +786,7 @@ function ChatMessage({
   showChips,
   onChipClick,
   chips,
+  tryLabel,
   projectId,
   mode,
   setMode,
@@ -793,6 +796,7 @@ function ChatMessage({
   showChips: boolean;
   onChipClick: (text: string) => void;
   chips: readonly string[];
+  tryLabel: string;
   projectId?: number | null;
   mode: string;
   setMode: (m: "guided" | "expert") => Promise<void>;
@@ -872,7 +876,7 @@ function ChatMessage({
             className="px-4 pb-3 pt-1 border-t border-[var(--border)] flex flex-wrap gap-1.5"
           >
             <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)] mr-1 self-center">
-              Try
+              {tryLabel}
             </span>
             {chips.slice(0, 3).map((chip) => (
               <button
