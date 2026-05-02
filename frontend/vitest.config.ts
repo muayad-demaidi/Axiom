@@ -21,7 +21,7 @@ export default defineConfig({
     dedupe: ["react", "react-dom"],
   },
   test: {
-    environment: "happy-dom",
+    environment: "jsdom",
     globals: true,
     setupFiles: ["./src/tests/setup.ts"],
     include: ["src/tests/**/*.test.{ts,tsx}"],

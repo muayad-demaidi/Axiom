@@ -48,7 +48,7 @@ describe("OpenQuestionsBar", () => {
       status: "open",
     }));
     server.use(
-      http.get("*/api/projects/1/data-model", () =>
+      http.get("/api/projects/1/data-model", () =>
         HttpResponse.json({
           tables: [{ dataset_name: "a" }, { dataset_name: "b" }],
           questions: qs,

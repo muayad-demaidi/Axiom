@@ -57,6 +57,10 @@ vi.mock("next/navigation", () => ({
   }),
   useSearchParams: () => new URLSearchParams(""),
   usePathname: () => "/",
+  // useParams is consumed by locale-aware pages (e.g. Settings) to read the
+  // active `[locale]` segment. Returning the default keeps client components
+  // in sync with the `useLocale()` mock above.
+  useParams: () => ({ locale: "en" }),
   redirect: vi.fn(),
   notFound: vi.fn(),
 }));
@@ -88,17 +92,12 @@ vi.mock("next/dynamic", () => ({
   },
 }));
 
-// Default global fetch mock — individual tests / MSW handlers override.
-const defaultFetch = vi.fn(async () =>
-  new Response(JSON.stringify({}), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  }),
-);
-// Cast to any so callers can still set custom mocks.
-(globalThis as unknown as { fetch: typeof fetch }).fetch = defaultFetch as unknown as typeof fetch;
-
 // MSW lifecycle --------------------------------------------------------------
+// NOTE: Do not override globalThis.fetch here. MSW (`setupServer` from
+// `msw/node`) wraps the runtime fetch via @mswjs/interceptors when
+// `server.listen()` runs, and any pre-installed stub would short-circuit
+// the interception layer and silently bypass the registered handlers
+// (which is what caused two carried-over failures from #223).
 beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
 afterEach(() => {
   server.resetHandlers();
@@ -106,6 +105,12 @@ afterEach(() => {
   replaceMock.mockClear();
 });
 afterAll(() => server.close());
+
+// jsdom doesn't implement scrollIntoView on Element refs (used by ChatPanel
+// auto-scroll). Stub it on the prototype so any attached ref is callable.
+if (typeof Element !== "undefined" && !(Element.prototype as unknown as { scrollIntoView?: unknown }).scrollIntoView) {
+  (Element.prototype as unknown as { scrollIntoView: () => void }).scrollIntoView = () => {};
+}
 
 // jsdom/happy-dom doesn't ship matchMedia
 if (typeof window !== "undefined" && !window.matchMedia) {

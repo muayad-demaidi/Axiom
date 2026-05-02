@@ -117,7 +117,16 @@ export const artifactsFixture = [
     kind: "profile",
     title: "Sales profile",
     params: {},
-    result: { rows: 1200, cols: 8 },
+    result: {
+      rows: 1200,
+      cols: 8,
+      duplicate_rows: 5,
+      columns: [
+        { name: "order_id", dtype: "int", non_null: 1200, missing: 0, missing_pct: 0, unique: 1200 },
+        { name: "customer_id", dtype: "int", non_null: 1200, missing: 0, missing_pct: 0, unique: 350 },
+        { name: "amount", dtype: "float", non_null: 1195, missing: 5, missing_pct: 0.4, unique: 980 },
+      ],
+    },
     pinned: false,
     created_at: "2026-05-01T10:00:00Z",
   },
@@ -218,4 +227,31 @@ export const handlers = [
   http.post("/api/chats", async () =>
     HttpResponse.json({ id: 42, project_id: 1, title: "New chat" }),
   ),
+  // i18n / auth-me handlers (Task #223 follow-up). The Settings page
+  // and any locale-aware chrome call /api/auth/me to read the saved
+  // locale and PATCH the same path to persist a new choice.
+  http.get("/api/auth/me", () =>
+    HttpResponse.json({ id: 1, email: "demo@axiom.app", locale: "en" }),
+  ),
+  http.patch("/api/auth/me", async ({ request }) => {
+    const body = (await request.json()) as { locale?: string };
+    return HttpResponse.json({
+      id: 1,
+      email: "demo@axiom.app",
+      locale: body?.locale ?? "en",
+    });
+  }),
+  // Aliases for any consumer that follows the proposed
+  // `/api/users/me` naming from the original Task #273 brief.
+  http.get("/api/users/me", () =>
+    HttpResponse.json({ id: 1, email: "demo@axiom.app", locale: "en" }),
+  ),
+  http.patch("/api/users/me/locale", async ({ request }) => {
+    const body = (await request.json()) as { locale?: string };
+    return HttpResponse.json({
+      id: 1,
+      email: "demo@axiom.app",
+      locale: body?.locale ?? "en",
+    });
+  }),
 ];

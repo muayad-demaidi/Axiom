@@ -1,5 +1,5 @@
 import "../globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
@@ -40,6 +40,21 @@ export const metadata: Metadata = {
     images: [SITE.socialImage],
   },
   icons: { icon: "/logo-mark.png" },
+  manifest: "/manifest.webmanifest",
+};
+
+// Mobile + PWA basics surfaced as part of the world-class audit
+// (Task #270). `width=device-width, initial-scale=1` is required for
+// any responsive layout to render correctly on phones; `themeColor`
+// matches the dark chrome the app actually paints so the address bar
+// (mobile Safari, Android Chrome) blends in instead of flashing white.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1220" },
+  ],
 };
 
 export function generateStaticParams() {
