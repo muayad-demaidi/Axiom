@@ -115,7 +115,7 @@ Not yet captured. The locust baseline is the input; Lighthouse should run agains
 | --- | --- | --- | --- |
 | B-1 | High | Tests | Add a second Playwright project pinned to `locale: "en"` plus an explicit locale-switch step that asserts `<html dir>` flips. |
 | B-2 | High | A11y | Run `axe` against the marketing + workspace surfaces under both locales. Track in a follow-up audit doc. |
-| B-3 | Medium | Arabic | Move remaining Arabic literals (FloatingComposer aria-labels, the `catch` fallback string in `ChatPanel.tsx`, and the few inline literals on the dashboard tab) into `messages/*.json`. The chat greeting and follow-up chips were extracted in this session. |
+| B-3 | High | i18n debt | Full bilingual sweep: many TSX surfaces in `frontend/src/` still ship literal Arabic copy (FloatingComposer aria-labels, the `[locale]/app/layout.tsx` header chrome, dashboard inline labels, the `catch` fallback in `ChatPanel.tsx`, marketing `featureList`). Backend tool responses (`backend/chat.py::_small_sample_predict_notice` and friends) emit `message_en`/`message_ar` prose; refactor to return locale-agnostic payload keys and translate in the UI. This session covered the chat greeting, follow-up chips, the "Try" label, and the marketing home metadata title — the remainder is a multi-PR effort. |
 | B-4 | High | SEO | Walk every marketing page (`/about`, `/contact`, `/features`, `/pricing`, glossary/guides/compare) and confirm `generateMetadata` returns the right title/description/canonical. |
 | B-5 | High | Perf | Capture a Lighthouse baseline against the post-i18n build, then re-run after the data-model query is paged or cached. |
 | B-6 | Medium | Perf | Page (or cache) `GET /api/projects/{id}/data-model` so 1000-user p95 drops below 400 ms. |
