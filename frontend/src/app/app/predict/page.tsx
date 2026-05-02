@@ -14,12 +14,85 @@ import {
 } from "@/components/product/ModeAware";
 
 type ForecastPoint = { period?: number; forecast?: number; lower?: number; upper?: number } & Record<string, number | string>;
-type ForecastResponse = { column: string; forecast: ForecastPoint[] | number[] };
+type FeatureImportance = Record<string, number | string> & {
+  shap_top?: Record<string, number>;
+  note?: string;
+};
+type ExpertPayload = {
+  model_used?: string;
+  family?: string;
+  feature_importance?: FeatureImportance;
+} & Record<string, unknown>;
+type ForecastResponse = {
+  column: string;
+  mode?: string;
+  forecast: ForecastPoint[] | number[];
+  expert?: ExpertPayload;
+  guided?: Record<string, unknown>;
+};
 
 function extractColumns(d: AxiomDataset): string[] {
   const summary = d.summary;
   const raw = (summary?.columns as Array<DatasetSummaryColumn | string> | undefined) ?? [];
   return raw.map((c) => (typeof c === "string" ? c : c.name));
+}
+
+function ShapTopFeatures({ expert }: { expert: ExpertPayload }) {
+  const fi = expert.feature_importance;
+  if (!fi) return null;
+  const shap = fi.shap_top;
+  if (shap && Object.keys(shap).length > 0) {
+    const entries = Object.entries(shap)
+      .map(([name, value]) => [name, Number(value)] as [string, number])
+      .sort((a, b) => b[1] - a[1]);
+    const max = Math.max(...entries.map(([, v]) => v), 1e-9);
+    return (
+      <div className="space-y-2">
+        <div className="flex items-baseline justify-between">
+          <h3 className="text-sm font-medium">Top feature explanations (SHAP)</h3>
+          <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
+            mean |SHAP|
+          </span>
+        </div>
+        <p className="text-xs text-[var(--text-muted)]">
+          Model-agnostic feature attributions for {expert.model_used ?? "the chosen model"}.
+          Larger bars mean the feature pushes predictions further on average.
+        </p>
+        <ul className="space-y-1.5">
+          {entries.map(([name, value]) => {
+            const pct = Math.max(2, Math.round((value / max) * 100));
+            return (
+              <li key={name} className="text-xs">
+                <div className="flex justify-between gap-3">
+                  <span className="font-mono truncate">{name}</span>
+                  <span className="font-mono text-[var(--text-muted)]">
+                    {value.toLocaleString(undefined, { maximumFractionDigits: 5 })}
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 rounded bg-[var(--surface-2,rgba(0,0,0,0.06))] overflow-hidden">
+                  <div
+                    className="h-full rounded bg-[var(--accent,#6366f1)]"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  }
+  if (typeof fi.note === "string" && fi.note.toLowerCase().includes("shap")) {
+    return (
+      <div className="text-xs text-[var(--text-muted)]">
+        <h3 className="text-sm font-medium text-[var(--text)] mb-1">
+          Top feature explanations (SHAP)
+        </h3>
+        <p>{fi.note}</p>
+      </div>
+    );
+  }
+  return null;
 }
 
 function GuidedForecast({ data }: { data: ForecastResponse }) {
@@ -170,16 +243,20 @@ export default function PredictPage() {
 
       {error && <div className="text-sm text-red-600 mt-3">{error}</div>}
       {forecast && (
-        <div className="card mt-4">
+        <div className="card mt-4 space-y-4">
           {mode === "guided" ? (
             <>
               <GuidedForecast data={forecast} />
               <TechnicalDetails projectId={projectId} label="View the model output">
-                <pre className="text-[11px] overflow-auto max-h-[50vh] whitespace-pre-wrap">{JSON.stringify(forecast, null, 2)}</pre>
+                {forecast.expert ? <ShapTopFeatures expert={forecast.expert} /> : null}
+                <pre className="mt-3 text-[11px] overflow-auto max-h-[50vh] whitespace-pre-wrap">{JSON.stringify(forecast, null, 2)}</pre>
               </TechnicalDetails>
             </>
           ) : (
-            <pre className="text-xs overflow-auto max-h-[50vh] whitespace-pre-wrap">{JSON.stringify(forecast, null, 2)}</pre>
+            <>
+              {forecast.expert ? <ShapTopFeatures expert={forecast.expert} /> : null}
+              <pre className="text-xs overflow-auto max-h-[50vh] whitespace-pre-wrap">{JSON.stringify(forecast, null, 2)}</pre>
+            </>
           )}
         </div>
       )}

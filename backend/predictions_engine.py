@@ -388,16 +388,27 @@ def _attach_shap_top(
         sample = x_test.head(200) if len(x_test) > 200 else x_test
         explainer = shap.TreeExplainer(model)
         values = explainer.shap_values(sample)
-        arr = np.asarray(values)
-        # Classification returns one matrix per class; collapse classes
-        # by averaging mean-abs across them so multi-class still gets
-        # a single ranking.
-        if arr.ndim == 3:
-            mean_abs = np.mean(np.abs(arr), axis=(0, 1))
-        elif arr.ndim == 2:
-            mean_abs = np.mean(np.abs(arr), axis=0)
+        # Classification returns one matrix per class. Older SHAP
+        # versions emit a list of (n_samples, n_features) arrays;
+        # newer SHAP (>=0.46) emits a single (n_samples, n_features,
+        # n_classes) tensor. Collapse classes by averaging mean-abs
+        # so multi-class still gets a single ranking.
+        if isinstance(values, list):
+            stacked = np.stack([np.abs(np.asarray(v)) for v in values], axis=0)
+            mean_abs = np.mean(stacked, axis=(0, 1))
         else:
-            mean_abs = np.abs(arr)
+            arr = np.abs(np.asarray(values))
+            n_features = len(feature_names)
+            if arr.ndim == 3:
+                # Identify the feature axis by matching its size.
+                axes = [ax for ax, dim in enumerate(arr.shape) if dim == n_features]
+                feature_axis = axes[0] if axes else 1
+                reduce_axes = tuple(ax for ax in range(arr.ndim) if ax != feature_axis)
+                mean_abs = np.mean(arr, axis=reduce_axes)
+            elif arr.ndim == 2:
+                mean_abs = np.mean(arr, axis=0)
+            else:
+                mean_abs = arr
         if mean_abs.shape[0] != len(feature_names):
             feature_importance["note"] = (
                 "shap_top unavailable: feature length mismatch."
