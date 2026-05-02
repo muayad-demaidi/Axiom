@@ -42,6 +42,24 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
     return Number.isFinite(n) ? n : null;
   }, [searchParams]);
   const initialPrompt = searchParams.get("q") || null;
+  // Task #260 deep-link: `?open_drawer=model&highlight_rels=12,17`
+  // pops the drawer open on the data-model tab with the named
+  // relationships highlighted. Used by the upload page's auto-link
+  // toast and the workspace's notification banner.
+  const requestedDrawerTab = searchParams.get("open_drawer");
+  const highlightRelIds = useMemo(() => {
+    const raw = searchParams.get("highlight_rels");
+    if (!raw) return [] as number[];
+    return raw
+      .split(",")
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isFinite(n) && n > 0);
+  }, [searchParams]);
+  const ackNotificationId = useMemo(() => {
+    const raw = searchParams.get("notification");
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [searchParams]);
 
   const [project, setProject] = useState<AxiomProject | null>(null);
   const [activeSessionId, setLocalActiveSessionId] = useState<number | null>(null);
@@ -302,6 +320,37 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
   const [drawerTab, setDrawerTab] = useState<
     "profile" | "visualize" | "predictions" | "clusters" | "model"
   >("profile");
+
+  // Honour the `?open_drawer=model` deep link from the upload-page
+  // auto-link toast: pop the drawer open on the data-model tab so the
+  // user lands directly on the relationship list with their newly-
+  // discovered joins highlighted (see ArtifactDrawer's
+  // `highlightRelIds` prop).
+  useEffect(() => {
+    if (requestedDrawerTab === "model") {
+      setDrawerTab("model");
+      setDrawerOpen(true);
+      try {
+        window.sessionStorage.setItem(DRAWER_PREF_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [requestedDrawerTab]);
+
+  // Arriving via the auto-link deep link counts as the user having
+  // seen the notification, so dismiss it on the server side. We do
+  // this fire-and-forget — the user has already navigated, and the
+  // worst case is the toast pops one more time on the next upload.
+  useEffect(() => {
+    if (!ackNotificationId) return;
+    void api(
+      `/api/projects/${projectId}/upload-notifications/${ackNotificationId}/dismiss`,
+      { method: "POST" },
+    ).catch(() => {
+      /* swallow — server-side state is non-critical here */
+    });
+  }, [ackNotificationId, projectId]);
   const [pendingTools, setPendingTools] = useState<PendingTool[]>([]);
   const [artifactRefresh, setArtifactRefresh] = useState(0);
 
@@ -525,6 +574,39 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
               <ModeAwareContextBar projectId={projectId} datasets={datasets} />
             </div>
 
+            {/* Task #260 — passive in-workspace surface for any
+                upload-time auto-link notifications the user hasn't
+                dismissed yet. Clicking "Review" opens the data-model
+                drawer with the matching relationships highlighted via
+                the same setDrawerTab/setDrawerOpen path used by the
+                chat tools. */}
+            <div className="shrink-0">
+              <UploadNotificationBanner
+                projectId={projectId}
+                onReview={(ids) => {
+                  router.replace(
+                    `/app/project/${projectId}?` +
+                      new URLSearchParams({
+                        ...(activeSessionId
+                          ? { session: String(activeSessionId) }
+                          : {}),
+                        open_drawer: "model",
+                        ...(ids.length
+                          ? { highlight_rels: ids.join(",") }
+                          : {}),
+                      }).toString(),
+                  );
+                  setDrawerTab("model");
+                  setDrawerOpen(true);
+                  try {
+                    window.sessionStorage.setItem(DRAWER_PREF_KEY, "1");
+                  } catch {
+                    /* ignore */
+                  }
+                }}
+              />
+            </div>
+
             {activeSessionId ? (
               // `min-h-0` (NOT a fixed min-h) is essential here: the
               // chat slot is a flex child whose own child (`ChatPanel`)
@@ -578,7 +660,136 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
           activeDatasetMeta?.dataset_name ?? activeDatasetMeta?.filename ?? undefined
         }
         onArtifactCreated={onArtifactCreated}
+        highlightRelIds={highlightRelIds}
       />
+    </div>
+  );
+}
+
+/**
+ * Passive notification banner surfacing the upload-time auto-link
+ * cards (Task #260). Polls once on mount and any time the workspace
+ * mounts/unmounts so a user who's been away for a while still sees
+ * outstanding "we linked X ↔ Y" summaries without needing another
+ * upload to refresh state. Each card carries the relationship IDs the
+ * caller can deep-link with.
+ */
+type UploadNotification = {
+  id: number;
+  project_id: number;
+  kind: string;
+  summary: string;
+  payload: {
+    relationship_ids?: number[];
+    joins?: Array<{
+      relationship_id: number;
+      left_table: string;
+      left_column: string;
+      right_table: string;
+      right_column: string;
+    }>;
+    trigger_dataset_name?: string | null;
+  };
+  dismissed: boolean;
+  created_at: string | null;
+};
+
+function UploadNotificationBanner({
+  projectId,
+  onReview,
+}: {
+  projectId: number;
+  onReview: (relIds: number[]) => void;
+}) {
+  const [items, setItems] = useState<UploadNotification[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api<{ items: UploadNotification[] }>(
+      `/api/projects/${projectId}/upload-notifications`,
+    )
+      .then(({ items: rows }) => {
+        if (!cancelled) setItems(rows.filter((n) => !n.dismissed));
+      })
+      .catch(() => {
+        /* swallow — auto-link discovery is best-effort */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  async function dismiss(n: UploadNotification) {
+    setItems((cur) => cur.filter((x) => x.id !== n.id));
+    try {
+      await api(
+        `/api/projects/${projectId}/upload-notifications/${n.id}/dismiss`,
+        { method: "POST" },
+      );
+    } catch {
+      /* swallow — local state already removed it */
+    }
+  }
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mb-3 space-y-1.5">
+      {items.map((n) => {
+        const joins = n.payload.joins ?? [];
+        const head = joins[0];
+        const moreCount = Math.max(0, joins.length - 1);
+        return (
+          <div
+            key={n.id}
+            role="status"
+            aria-live="polite"
+            className="text-xs rounded-md border border-[var(--accent)]/40 bg-[var(--accent)]/5 px-3 py-2 flex items-center gap-3"
+          >
+            <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--accent)] shrink-0">
+              Auto-linked
+            </span>
+            <span className="flex-1 min-w-0 truncate">
+              {head ? (
+                <>
+                  <span className="font-mono">
+                    {head.left_table}.{head.left_column}
+                  </span>{" "}
+                  ↔{" "}
+                  <span className="font-mono">
+                    {head.right_table}.{head.right_column}
+                  </span>
+                  {moreCount > 0 && (
+                    <span className="text-[var(--text-muted)]">
+                      {" "}(+{moreCount} more)
+                    </span>
+                  )}
+                </>
+              ) : (
+                n.summary
+              )}
+            </span>
+            <button
+              onClick={() => {
+                const ids = (n.payload.relationship_ids ?? []).map(Number);
+                onReview(ids);
+                void dismiss(n);
+              }}
+              className="text-[11px] px-2 py-0.5 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10 shrink-0"
+            >
+              Review →
+            </button>
+            <button
+              onClick={() => void dismiss(n)}
+              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text)] shrink-0"
+              aria-label="Dismiss notification"
+              title="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }

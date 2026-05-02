@@ -111,10 +111,14 @@ def test_datasets_upload_schedules_relationship_discovery(
     """
     from backend import datasets as datasets_mod
 
-    calls: list[tuple[int, int]] = []
+    calls: list[tuple[int, int, int | None]] = []
 
-    def _recorder(project_id: int, user_id: int) -> None:
-        calls.append((int(project_id), int(user_id)))
+    def _recorder(project_id, user_id, trigger_dataset_id=None):
+        # Task #260 added the trigger dataset id so the post-upload
+        # notification can name the file that surfaced the new join.
+        calls.append((int(project_id), int(user_id),
+                      int(trigger_dataset_id)
+                      if trigger_dataset_id is not None else None))
 
     monkeypatch.setattr(
         datasets_mod, "discover_relationships_after_upload", _recorder,
@@ -130,6 +134,8 @@ def test_datasets_upload_schedules_relationship_discovery(
     assert len(calls) == 2, calls
     assert all(c[0] == pid for c in calls), calls
     assert all(c[1] == int(u["user"]["id"]) for c in calls), calls
+    # Each call must carry the id of the upload that triggered it.
+    assert all(c[2] is not None and c[2] > 0 for c in calls), calls
 
 
 def test_datasets_upload_skips_discovery_without_project(
@@ -141,7 +147,7 @@ def test_datasets_upload_skips_discovery_without_project(
     calls: list[tuple[int, int]] = []
     monkeypatch.setattr(
         datasets_mod, "discover_relationships_after_upload",
-        lambda pid, uid: calls.append((pid, uid)),
+        lambda pid, uid, trigger_dataset_id=None: calls.append((pid, uid)),
     )
     u = register("ds-noproj")
     upload_dataset(u["headers"], None, "customers", customers_csv)

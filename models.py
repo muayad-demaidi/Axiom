@@ -377,6 +377,51 @@ class Recommendation(Base):
                         nullable=False, index=True)
 
 
+class UploadNotification(Base):
+    """Passive notification surfaced after an upload's background pass.
+
+    Created by ``backend.cross_predict.discover_relationships_after_upload``
+    whenever the post-upload sweep auto-persists at least one
+    high-confidence cross-dataset join. One row per upload sweep
+    summarises *all* joins added by that sweep — Task #260's spec is
+    explicit that a single upload that adds N joins shows one
+    notification, not N.
+
+    The `payload` JSON carries::
+
+        {
+            "added_count": int,
+            "relationship_ids": [int, ...],
+            "joins": [
+                {"left_table": str, "left_column": str,
+                 "right_table": str, "right_column": str,
+                 "cardinality": str, "confidence": float},
+                ...
+            ],
+            "trigger_dataset_id": int | null,
+            "trigger_dataset_name": str | null,
+        }
+
+    `dismissed_at` is the only state — once set, the notification stops
+    appearing in the active list. We don't need a separate `seen` flag
+    since the active toast/banner is the visible state.
+    """
+    __tablename__ = "upload_notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"),
+                        nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"),
+                     nullable=False, index=True)
+    # Currently always "auto_link"; namespaced so future passive
+    # notifications (e.g. "auto_pulse_anomaly") can share this table.
+    kind = Column(String(32), nullable=False, default="auto_link", index=True)
+    summary = Column(Text, nullable=False)
+    payload = Column(JSON, nullable=True)
+    dismissed_at = Column(DateTime, nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 class AnalysisHistory(Base):
     """Model to store analysis history"""
     __tablename__ = "analysis_history"
@@ -537,7 +582,8 @@ def init_db():
                ProjectSemanticModel.__table__,
                ProjectModelQuestion.__table__,
                DailyPulseSnapshot.__table__,
-               Recommendation.__table__):
+               Recommendation.__table__,
+               UploadNotification.__table__):
         try:
             _t.create(bind=engine, checkfirst=True)
         except Exception:

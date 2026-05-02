@@ -114,6 +114,113 @@ def test_auto_discovery_fires_on_second_upload(
                for lc, rc in cols), cols
 
 
+def test_auto_discovery_writes_one_notification_per_sweep(
+    client, project, upload_dataset, cp_customers_csv, cp_orders_csv,
+):
+    """Task #260 — when the post-upload sweep persists ≥1 high-band
+    join, a *single* ``UploadNotification`` row must be written
+    summarising all of them. The endpoints under
+    ``/api/projects/{pid}/upload-notifications`` must return the
+    active row, and the dismiss endpoint must hide it from the
+    default list while preserving the audit trail.
+    """
+    from backend.auth import get_db_session
+    u, pid = project("cp-auto-link-notif")
+
+    # Upload #1 — single dataset, no joins possible yet, no notification.
+    upload_dataset(u["headers"], pid, "customers", cp_customers_csv)
+    r = client.get(
+        f"/api/projects/{pid}/upload-notifications", headers=u["headers"],
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["items"] == [], r.json()
+
+    # Upload #2 — auto-discovery runs synchronously inside TestClient.
+    upload_dataset(u["headers"], pid, "orders", cp_orders_csv)
+
+    db = next(get_db_session())
+    try:
+        notes = (
+            db.query(models.UploadNotification)
+            .filter(models.UploadNotification.project_id == pid)
+            .all()
+        )
+    finally:
+        db.close()
+
+    # De-dup invariant: one sweep → exactly one notification, even
+    # when the proposer surfaces multiple high-confidence joins.
+    assert len(notes) == 1, [
+        (n.kind, n.summary, (n.payload or {}).get("added_count"))
+        for n in notes
+    ]
+    note = notes[0]
+    assert note.kind == "auto_link"
+    assert note.dismissed_at is None
+    payload = note.payload or {}
+    assert payload.get("added_count", 0) >= 1, payload
+    rel_ids = payload.get("relationship_ids") or []
+    assert len(rel_ids) == payload["added_count"], payload
+    # Trigger dataset must point at the upload that ran the sweep
+    # (the orders dataset, since customers came first).
+    assert payload.get("trigger_dataset_id") is not None, payload
+    # Each join carries enough context to render the toast verbatim.
+    joins = payload.get("joins") or []
+    assert joins, payload
+    for j in joins:
+        for k in ("left_table", "left_column",
+                  "right_table", "right_column", "relationship_id"):
+            assert k in j, j
+
+    # Active list endpoint surfaces it.
+    r = client.get(
+        f"/api/projects/{pid}/upload-notifications", headers=u["headers"],
+    )
+    assert r.status_code == 200, r.text
+    items = r.json()["items"]
+    assert len(items) == 1 and items[0]["id"] == note.id, items
+    assert items[0]["dismissed"] is False
+
+    # Dismissing flips the flag and removes it from the active list.
+    r = client.post(
+        f"/api/projects/{pid}/upload-notifications/{note.id}/dismiss",
+        headers=u["headers"],
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["dismissed"] is True
+
+    r = client.get(
+        f"/api/projects/{pid}/upload-notifications", headers=u["headers"],
+    )
+    assert r.json()["items"] == [], r.json()
+    # Audit trail preserved when explicitly requested.
+    r = client.get(
+        f"/api/projects/{pid}/upload-notifications?include_dismissed=true",
+        headers=u["headers"],
+    )
+    assert len(r.json()["items"]) == 1
+
+
+def test_upload_notifications_isolated_per_user(
+    client, project, register, upload_dataset,
+    cp_customers_csv, cp_orders_csv,
+):
+    """A user must not be able to read or dismiss notifications
+    belonging to another user's project. The endpoint enforces this
+    by requiring the project to be owned by the caller (404 from
+    ``_require_project``)."""
+    owner, pid = project("cp-notif-owner")
+    upload_dataset(owner["headers"], pid, "customers", cp_customers_csv)
+    upload_dataset(owner["headers"], pid, "orders", cp_orders_csv)
+
+    intruder = register("cp-notif-intruder")
+    r = client.get(
+        f"/api/projects/{pid}/upload-notifications",
+        headers=intruder["headers"],
+    )
+    assert r.status_code == 404, r.text
+
+
 def test_auto_discovery_does_not_fire_without_project(
     client, register, upload_dataset, cp_customers_csv,
 ):

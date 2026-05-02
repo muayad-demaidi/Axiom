@@ -178,9 +178,12 @@ async def upload_dataset(
     # soon as a project gets a second sheet — saves the user from
     # having to open the data-model page and click Refresh just to
     # surface the obvious "customer_id ↔ customer_id" links.
+    # The trigger dataset id is forwarded so the post-upload
+    # notification can name the file that surfaced the new join.
     if project_id is not None:
         background_tasks.add_task(
-            discover_relationships_after_upload, project_id, user.id,
+            discover_relationships_after_upload,
+            project_id, user.id, record.id,
         )
     return jsonify({
         "id": record.id,

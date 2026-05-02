@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, getToken } from "@/lib/api";
 import type { AxiomDataset, AxiomFieldMeta, AxiomFieldMetaResponse } from "@/lib/types";
@@ -17,6 +17,33 @@ type UploadResponse = {
   cols: number;
 };
 
+// Task #260 — passive notification surfaced after the post-upload
+// background sweep auto-links a new join. Shape mirrors the
+// `/api/projects/{pid}/upload-notifications` envelope.
+type AutoLinkNotification = {
+  id: number;
+  project_id: number;
+  kind: string;
+  summary: string;
+  payload: {
+    added_count?: number;
+    relationship_ids?: number[];
+    joins?: Array<{
+      relationship_id: number;
+      left_table: string;
+      left_column: string;
+      right_table: string;
+      right_column: string;
+      cardinality: string;
+      confidence: number;
+    }>;
+    trigger_dataset_id?: number | null;
+    trigger_dataset_name?: string | null;
+  };
+  dismissed: boolean;
+  created_at: string | null;
+};
+
 export default function UploadPage() {
   const router = useRouter();
   const projectId = typeof window !== "undefined" ? getActiveProjectId() : null;
@@ -29,6 +56,14 @@ export default function UploadPage() {
   const [lastUploaded, setLastUploaded] = useState<UploadResponse | null>(null);
   const [previewMeta, setPreviewMeta] = useState<AxiomFieldMetaResponse | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [autoLink, setAutoLink] = useState<AutoLinkNotification | null>(null);
+  // We snapshot notification IDs that already existed *before* the
+  // upload so the post-upload poll only surfaces a card for joins that
+  // this upload actually added — older un-dismissed banners stay where
+  // they live (the project workspace) and don't pop a fresh toast on
+  // every drag-and-drop.
+  const seenNotificationIdsRef = useRef<Set<number>>(new Set());
+  const pollTimersRef = useRef<number[]>([]);
 
   useEffect(() => {
     if (!getToken()) { router.push("/login"); return; }
@@ -37,6 +72,92 @@ export default function UploadPage() {
       else setError(e.message);
     });
   }, [router]);
+
+  // Snapshot existing notifications on mount so we can compare on the
+  // post-upload poll — a notification only counts as "new" if its ID
+  // wasn't already on the list before this page session.
+  useEffect(() => {
+    const pid = projectId;
+    if (!pid) return;
+    api<{ items: AutoLinkNotification[] }>(
+      `/api/projects/${pid}/upload-notifications`,
+    )
+      .then(({ items }) => {
+        for (const n of items) seenNotificationIdsRef.current.add(n.id);
+      })
+      .catch(() => {
+        /* harmless — discovery may have never run yet */
+      });
+  }, [projectId]);
+
+  // Tear down any in-flight pollers when the page unmounts so a slow
+  // background sweep can't fire setState on an unmounted tree.
+  useEffect(() => {
+    return () => {
+      for (const t of pollTimersRef.current) window.clearTimeout(t);
+      pollTimersRef.current = [];
+    };
+  }, []);
+
+  function pollForAutoLink(pid: number) {
+    // The backend writes the notification inside a FastAPI
+    // BackgroundTask that begins after the upload response returns.
+    // 600 ms / 1500 ms / 3000 ms / 6000 ms covers the common case
+    // (a few small CSVs profile in well under a second) and the
+    // worst case (large parquet, slow profiler) without keeping the
+    // browser busy for too long.
+    const delays = [600, 1500, 3000, 6000];
+    for (const t of pollTimersRef.current) window.clearTimeout(t);
+    pollTimersRef.current = delays.map((ms) =>
+      window.setTimeout(async () => {
+        try {
+          const { items } = await api<{ items: AutoLinkNotification[] }>(
+            `/api/projects/${pid}/upload-notifications`,
+          );
+          const fresh = items.find(
+            (n) =>
+              n.kind === "auto_link" &&
+              !seenNotificationIdsRef.current.has(n.id),
+          );
+          if (fresh) {
+            seenNotificationIdsRef.current.add(fresh.id);
+            setAutoLink(fresh);
+            // Stop the rest of the polls; we found it.
+            for (const tid of pollTimersRef.current) {
+              window.clearTimeout(tid);
+            }
+            pollTimersRef.current = [];
+          }
+        } catch {
+          /* swallow — discovery may have failed silently */
+        }
+      }, ms),
+    );
+  }
+
+  async function dismissAutoLink() {
+    const note = autoLink;
+    if (!note) return;
+    setAutoLink(null);
+    try {
+      await api(
+        `/api/projects/${note.project_id}/upload-notifications/${note.id}/dismiss`,
+        { method: "POST" },
+      );
+    } catch {
+      /* swallow — server-side state isn't critical for the toast */
+    }
+  }
+
+  function openAutoLinkInWorkspace() {
+    const note = autoLink;
+    if (!note) return;
+    const ids = (note.payload.relationship_ids ?? []).join(",");
+    const qs = new URLSearchParams({ open_drawer: "model" });
+    if (ids) qs.set("highlight_rels", ids);
+    if (note.id) qs.set("notification", String(note.id));
+    router.push(`/app/project/${note.project_id}?${qs.toString()}`);
+  }
 
   async function handleFile(file: File) {
     setBusy(true); setError(null); setProgress("Uploading…");
@@ -69,6 +190,11 @@ export default function UploadPage() {
       setProgress(
         `Uploaded ${data.filename} — ${data.rows.toLocaleString()} rows × ${data.cols} cols.${captionNote}`,
       );
+      // Kick off the auto-link poll only when the upload was bound to
+      // a project — discovery runs project-scoped, and orphaned
+      // uploads can't surface a join anyway.
+      const boundProjectId = pid ? Number(pid) : null;
+      if (boundProjectId) pollForAutoLink(boundProjectId);
       setDatasets((arr) => [
         { id: data.id, filename: data.filename, dataset_name: data.dataset_name, rows: data.rows, cols: data.cols },
         ...(arr ?? []),
@@ -138,6 +264,14 @@ export default function UploadPage() {
         </div>
       )}
 
+      {autoLink && (
+        <AutoLinkToast
+          notification={autoLink}
+          onOpen={openAutoLinkInWorkspace}
+          onDismiss={dismissAutoLink}
+        />
+      )}
+
       <label className={`card mt-4 block border-dashed text-center py-12 cursor-pointer ${busy ? "opacity-50" : ""}`}>
         <input
           type="file"
@@ -181,6 +315,85 @@ export default function UploadPage() {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+function AutoLinkToast({
+  notification,
+  onOpen,
+  onDismiss,
+}: {
+  notification: AutoLinkNotification;
+  onOpen: () => void;
+  onDismiss: () => void;
+}) {
+  // Surface the first 2 joins inline for context; the rest collapse
+  // into a "+N more" tail so the toast stays scannable when a single
+  // upload (e.g. a fact table) lights up several FK relationships at
+  // once.
+  const joins = notification.payload.joins ?? [];
+  const head = joins.slice(0, 2);
+  const moreCount = Math.max(0, joins.length - head.length);
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="card mt-4 border-[var(--accent)]/40 bg-[var(--accent)]/5"
+    >
+      <div className="flex items-start gap-3">
+        <div className="text-[var(--accent)] text-base leading-none mt-0.5" aria-hidden>
+          ↔
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] uppercase tracking-widest font-mono text-[var(--accent)] mb-1">
+            Auto-linked
+          </div>
+          <div className="text-sm">
+            {head.length === 0
+              ? notification.summary
+              : (
+                <>
+                  We linked
+                  {head.map((j, i) => (
+                    <span key={j.relationship_id}>
+                      {i > 0 ? " and" : ""}{" "}
+                      <span className="font-mono text-[12px]">
+                        {j.left_table}.{j.left_column}
+                      </span>{" "}
+                      <span className="text-[var(--text-muted)]">↔</span>{" "}
+                      <span className="font-mono text-[12px]">
+                        {j.right_table}.{j.right_column}
+                      </span>
+                    </span>
+                  ))}
+                  {moreCount > 0 ? (
+                    <span className="text-[var(--text-muted)]">
+                      {" "}(+{moreCount} more)
+                    </span>
+                  ) : null}{" "}
+                  automatically.
+                </>
+              )}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onOpen}
+              className="text-xs px-2 py-1 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10"
+            >
+              Review in data model →
+            </button>
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="text-xs px-2 py-1 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)]"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -510,7 +510,11 @@ def _build_merged(
 # Background-task helper used by the upload route
 # --------------------------------------------------------------------------
 
-def discover_relationships_after_upload(project_id: int, user_id: int) -> None:
+def discover_relationships_after_upload(
+    project_id: int,
+    user_id: int,
+    trigger_dataset_id: int | None = None,
+) -> dict:
     """Auto-discover high-confidence project relationships.
 
     Called from the dataset-upload background task. Walks every dataset
@@ -520,9 +524,24 @@ def discover_relationships_after_upload(project_id: int, user_id: int) -> None:
     require a manual data-model refresh — the user keeps control over
     suggestions that aren't a slam dunk.
 
+    When at least one new high-confidence join is added, a single
+    ``UploadNotification`` row is written so the frontend can surface a
+    passive "we linked X ↔ Y automatically" toast/inbox card (Task
+    #260). One notification per sweep — N joins added by the same
+    upload collapse into one summary, never N rows.
+
+    Returns a small summary dict the caller (and tests) can inspect::
+
+        {
+            "added": int,                # joins persisted this sweep
+            "joins": [ {join dict}, ...],
+            "notification_id": int|None, # row in upload_notifications
+        }
+
     Always opens a fresh DB session: the request session is closed by
     the time FastAPI dispatches the background task.
     """
+    summary: dict = {"added": 0, "joins": [], "notification_id": None}
     db = models.SessionLocal()
     try:
         records = (
@@ -535,7 +554,7 @@ def discover_relationships_after_upload(project_id: int, user_id: int) -> None:
             .all()
         )
         if len(records) < 2:
-            return
+            return summary
         name_by_id = {r.id: (r.dataset_name or r.filename or f"dataset_{r.id}")
                       for r in records}
         id_by_name = {v: k for k, v in name_by_id.items()}
@@ -551,12 +570,12 @@ def discover_relationships_after_upload(project_id: int, user_id: int) -> None:
                 continue
             frames_by_name[name_by_id[r.id]] = df
         if len(profiles) < 2:
-            return
+            return summary
         try:
             proposals = sm.propose_relationships_for_project(profiles,
                                                               frames_by_name)
         except Exception:
-            return
+            return summary
 
         existing = (
             db.query(models.ProjectRelationship)
@@ -574,7 +593,7 @@ def discover_relationships_after_upload(project_id: int, user_id: int) -> None:
                  r.left_dataset_id, r.left_column)
             )
 
-        added = 0
+        added_rows: list[models.ProjectRelationship] = []
         for p in proposals:
             if p.band != "high":
                 continue
@@ -592,7 +611,7 @@ def discover_relationships_after_upload(project_id: int, user_id: int) -> None:
             key = (ldid, lcol, rdid, rcol)
             if key in existing_keys:
                 continue
-            db.add(models.ProjectRelationship(
+            row = models.ProjectRelationship(
                 project_id=project_id,
                 left_dataset_id=ldid, left_column=lcol,
                 right_dataset_id=rdid, right_column=rcol,
@@ -605,22 +624,105 @@ def discover_relationships_after_upload(project_id: int, user_id: int) -> None:
                 name_score=float(p.name_score),
                 dtype_score=float(p.dtype_score),
                 user_locked=False,
-            ))
+            )
+            db.add(row)
+            added_rows.append(row)
             existing_keys.add(key)
             existing_keys.add((rdid, rcol, ldid, lcol))
-            added += 1
-        if added:
+        if added_rows:
+            # Flush so the relationship rows get IDs we can reference
+            # from the notification payload.
+            db.flush()
+            joins_payload = []
+            for row in added_rows:
+                joins_payload.append({
+                    "relationship_id": int(row.id),
+                    "left_table": name_by_id.get(
+                        row.left_dataset_id, str(row.left_dataset_id)),
+                    "left_column": row.left_column,
+                    "right_table": name_by_id.get(
+                        row.right_dataset_id, str(row.right_dataset_id)),
+                    "right_column": row.right_column,
+                    "cardinality": row.cardinality,
+                    "confidence": float(row.confidence or 0.0),
+                })
+            summary["added"] = len(added_rows)
+            summary["joins"] = joins_payload
+            note = _build_notification(
+                db, project_id, user_id,
+                joins_payload, trigger_dataset_id, name_by_id,
+            )
             db.commit()
+            summary["notification_id"] = (
+                int(note.id) if note is not None else None
+            )
+        else:
+            db.commit()
+        return summary
     except Exception:
         try:
             db.rollback()
         except Exception:
             pass
+        return summary
     finally:
         try:
             db.close()
         except Exception:
             pass
+
+
+def _build_notification(
+    db,
+    project_id: int,
+    user_id: int,
+    joins: list[dict],
+    trigger_dataset_id: int | None,
+    name_by_id: dict[int, str],
+) -> Any | None:
+    """Persist a single ``UploadNotification`` summarising one sweep.
+
+    Per Task #260's "de-duplicated to one summary" rule, every sweep
+    that adds ≥1 high-confidence join writes exactly one row. The
+    summary string is plain English so the toast can render it
+    verbatim; the JSON payload carries the structured detail the UI
+    needs to deep-link into the data-model drawer.
+    """
+    if not joins:
+        return None
+    first = joins[0]
+    head = (
+        f"We linked {first['left_table']}.{first['left_column']} ↔ "
+        f"{first['right_table']}.{first['right_column']} automatically"
+    )
+    if len(joins) > 1:
+        summary_text = f"{head} (+{len(joins) - 1} more) — review →"
+    else:
+        summary_text = f"{head} — review →"
+
+    trigger_name = (
+        name_by_id.get(trigger_dataset_id)
+        if trigger_dataset_id is not None else None
+    )
+    payload = {
+        "added_count": len(joins),
+        "relationship_ids": [j["relationship_id"] for j in joins],
+        "joins": joins,
+        "trigger_dataset_id": (
+            int(trigger_dataset_id) if trigger_dataset_id is not None else None
+        ),
+        "trigger_dataset_name": trigger_name,
+    }
+    note = models.UploadNotification(
+        project_id=project_id,
+        user_id=user_id,
+        kind="auto_link",
+        summary=summary_text,
+        payload=payload,
+    )
+    db.add(note)
+    db.flush()
+    return note
 
 
 # --------------------------------------------------------------------------

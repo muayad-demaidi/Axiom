@@ -11,7 +11,7 @@
  * shows up in the Final Report. The drawer pulls fresh artifact data
  * from `/api/chats/{sid}/artifacts` whenever a tool finishes.
  */
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { api } from "@/lib/api";
 import { errMessage } from "@/lib/types";
@@ -82,6 +82,7 @@ function ArtifactDrawerBase({
   activeDatasetId,
   activeDatasetName,
   onArtifactCreated,
+  highlightRelIds,
 }: {
   open: boolean;
   onClose: () => void;
@@ -93,6 +94,10 @@ function ArtifactDrawerBase({
   activeDatasetId?: number | null;
   activeDatasetName?: string;
   onArtifactCreated?: () => void;
+  // Task #260 — relationship IDs to visually highlight inside the
+  // data-model tab. Passed through to every DataModelBody so the
+  // user's deep-link target stands out without further interaction.
+  highlightRelIds?: number[];
 }) {
   const visibleTabs = useMemo(
     () => (showDataModelTab ? TABS : TABS.filter((t) => t.key !== "model")),
@@ -253,6 +258,7 @@ function ArtifactDrawerBase({
             artifact={a}
             onPin={() => togglePin(a)}
             onDelete={() => removeArtifact(a)}
+            highlightRelIds={highlightRelIds}
           />
         ))}
         {!loading && pendingByTab[tab].length === 0 && grouped[tab].length === 0
@@ -290,10 +296,12 @@ function ArtifactCard({
   artifact,
   onPin,
   onDelete,
+  highlightRelIds,
 }: {
   artifact: Artifact;
   onPin: () => void;
   onDelete: () => void;
+  highlightRelIds?: number[];
 }) {
   return (
     <div className="border border-[var(--border)] rounded-xl p-4 bg-[var(--surface-alt)]/40">
@@ -322,12 +330,18 @@ function ArtifactCard({
           </button>
         </div>
       </div>
-      <ArtifactBody artifact={artifact} />
+      <ArtifactBody artifact={artifact} highlightRelIds={highlightRelIds} />
     </div>
   );
 }
 
-function ArtifactBody({ artifact }: { artifact: Artifact }) {
+function ArtifactBody({
+  artifact,
+  highlightRelIds,
+}: {
+  artifact: Artifact;
+  highlightRelIds?: number[];
+}) {
   if (artifact.kind === "chart") {
     return <ChartRenderer payload={artifact.result as unknown as ChartPayload} height={220} />;
   }
@@ -352,7 +366,12 @@ function ArtifactBody({ artifact }: { artifact: Artifact }) {
     return <InsightBody result={artifact.result as { items: InsightItem[] }} />;
   }
   if (artifact.kind === "data_model") {
-    return <DataModelBody artifact={artifact} />;
+    return (
+      <DataModelBody
+        artifact={artifact}
+        highlightRelIds={highlightRelIds}
+      />
+    );
   }
   if (artifact.kind === "data_model_query") {
     return <DataModelQueryBody result={artifact.result as DataModelQueryResult} />;
@@ -425,7 +444,17 @@ const BAND_LABEL: Record<string, string> = {
 
 const ROLE_OPTIONS = ["fact", "dimension", "summary", "bridge"];
 
-function DataModelBody({ artifact }: { artifact: Artifact }) {
+function DataModelBody({
+  artifact,
+  highlightRelIds,
+}: {
+  artifact: Artifact;
+  // Set of relationship IDs to draw extra attention to (Task #260
+  // deep-link from the upload-page auto-link toast). The matching
+  // rows get a coloured ring and the first one is auto-scrolled into
+  // view as soon as the live bundle resolves.
+  highlightRelIds?: number[];
+}) {
   // The artifact's `result` is a snapshot taken when the tool ran.
   // We refetch the live bundle so the user always sees their latest
   // confirmations and any edits made from this drawer instantly.
@@ -553,6 +582,28 @@ function DataModelBody({ artifact }: { artifact: Artifact }) {
   const tables = bundle.tables ?? [];
   const rels = bundle.relationships ?? [];
   const questions = bundle.questions ?? [];
+
+  const highlightSet = useMemo(
+    () => new Set((highlightRelIds ?? []).map((n) => Number(n))),
+    [highlightRelIds],
+  );
+  const firstHighlightId = highlightRelIds?.[0] ?? null;
+  const firstHighlightRowRef = useRef<HTMLDivElement | null>(null);
+
+  // Scroll the first highlighted relationship into view as soon as
+  // the live bundle resolves and the row is mounted. We re-run when
+  // the live data lands (rels.length flips from 0) so the deep link
+  // still works even on a cold drawer mount.
+  useEffect(() => {
+    if (!firstHighlightId) return;
+    const el = firstHighlightRowRef.current;
+    if (!el) return;
+    try {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch {
+      el.scrollIntoView();
+    }
+  }, [firstHighlightId, rels.length]);
 
   return (
     <div className="space-y-3">
@@ -684,8 +735,25 @@ function DataModelBody({ artifact }: { artifact: Artifact }) {
             Relationships ({rels.length})
           </div>
           <div className="space-y-1.5">
-            {rels.map((r) => (
-              <div key={r.id} className="border border-[var(--border)] rounded p-2">
+            {rels.map((r) => {
+              const isHighlighted = highlightSet.has(Number(r.id));
+              const isFirstHighlight =
+                isHighlighted && Number(r.id) === Number(firstHighlightId);
+              return (
+              <div
+                key={r.id}
+                ref={isFirstHighlight ? firstHighlightRowRef : null}
+                className={`border rounded p-2 transition-colors ${
+                  isHighlighted
+                    ? "border-[var(--accent)] bg-[var(--accent)]/5 ring-1 ring-[var(--accent)]/40"
+                    : "border-[var(--border)]"
+                }`}
+              >
+                {isHighlighted && (
+                  <div className="text-[9px] font-mono uppercase tracking-widest text-[var(--accent)] mb-1">
+                    Auto-linked from upload
+                  </div>
+                )}
                 <div className="text-[11px] font-mono flex items-center gap-1 flex-wrap">
                   <span>{r.left_table}.</span>
                   {(() => {
@@ -799,7 +867,8 @@ function DataModelBody({ artifact }: { artifact: Artifact }) {
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
