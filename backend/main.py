@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,8 +40,37 @@ from .data_model import router as data_model_router  # noqa: E402
 from .predict_guided import router as predict_guided_router  # noqa: E402
 from .support import router as support_router  # noqa: E402
 from .bi import router as bi_router  # noqa: E402
+from .daily_pulse import router as daily_pulse_router  # noqa: E402
+from . import scheduler as _daily_pulse_scheduler  # noqa: E402
 
-app = FastAPI(title="AXIOM API", version="0.2.0")
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """FastAPI startup/shutdown wiring.
+
+    Boots the in-process Daily Pulse cron (Task #248). The scheduler
+    startup is wrapped in a safety net so a misbehaving APScheduler
+    install can never block the rest of the API from serving — the
+    on-demand fallback in ``/api/projects/{project_id}/daily-pulse``
+    will still return fresh data.
+    """
+    started = False
+    try:
+        started = _daily_pulse_scheduler.start()
+    except Exception as exc:  # pragma: no cover - defensive
+        print(f"[axiom] daily pulse scheduler failed to start: {exc}")
+    if not started:
+        print("[axiom] daily pulse scheduler not running; on-demand only")
+    try:
+        yield
+    finally:
+        try:
+            _daily_pulse_scheduler.shutdown()
+        except Exception as exc:  # pragma: no cover - defensive
+            print(f"[axiom] daily pulse scheduler shutdown failed: {exc}")
+
+
+app = FastAPI(title="AXIOM API", version="0.2.0", lifespan=_lifespan)
 
 # CORS: by default we only accept same-origin requests (the Next.js
 # rewrite proxies /api/*, so the browser sees same-origin). Operators can
@@ -108,6 +138,7 @@ app.include_router(data_model_router)
 app.include_router(predict_guided_router)
 app.include_router(support_router)
 app.include_router(bi_router)
+app.include_router(daily_pulse_router)
 
 
 from fastapi import Depends, HTTPException  # noqa: E402

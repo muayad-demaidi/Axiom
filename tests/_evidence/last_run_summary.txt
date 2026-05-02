@@ -2,7 +2,7 @@
 ==============================================================================
 AXIOM consolidated test report (Task #219)
 ==============================================================================
-  total=319  passed=319  failed=0  errors=0  skipped=0  duration=74.01s
+  total=342  passed=342  failed=0  errors=0  skipped=0  duration=90.88s
 
 Failures:
   (none)

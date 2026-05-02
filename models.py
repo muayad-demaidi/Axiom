@@ -3,7 +3,7 @@ import hashlib
 import secrets
 import bcrypt
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Float, JSON, Boolean, ForeignKey, LargeBinary
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Date, Text, Float, JSON, Boolean, ForeignKey, LargeBinary, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
@@ -309,6 +309,34 @@ class ProjectModelQuestion(Base):
     answered_at = Column(DateTime, nullable=True)
 
 
+class DailyPulseSnapshot(Base):
+    """Per-project daily snapshot produced by the Daily Pulse cron job.
+
+    Each row captures a frozen view of the project's headline numbers
+    (auto-profile metrics, predictions engine output, anomalies, deltas
+    versus the previous day's snapshot, and a small recommendations
+    list) so the daily-pulse endpoint can answer "what changed since
+    yesterday" without re-running the full pipeline.
+
+    The unique ``(project_id, snapshot_date)`` constraint prevents
+    accidental double-writes when the scheduler retries or when an
+    on-demand request lands on the same calendar day as the cron run.
+    """
+    __tablename__ = "daily_pulse_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"),
+                        nullable=False, index=True)
+    snapshot_date = Column(Date, nullable=False, index=True)
+    snapshot_json = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "snapshot_date",
+                         name="ux_daily_pulse_snapshots_project_date"),
+    )
+
+
 class AnalysisHistory(Base):
     """Model to store analysis history"""
     __tablename__ = "analysis_history"
@@ -467,7 +495,8 @@ def init_db():
                ProjectSemanticTable.__table__,
                ProjectRelationship.__table__,
                ProjectSemanticModel.__table__,
-               ProjectModelQuestion.__table__):
+               ProjectModelQuestion.__table__,
+               DailyPulseSnapshot.__table__):
         try:
             _t.create(bind=engine, checkfirst=True)
         except Exception:
