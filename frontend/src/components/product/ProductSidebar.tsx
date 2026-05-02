@@ -64,6 +64,7 @@ const TOOL_LINKS: { href: string; label: string }[] = [
   { href: "/app/connectors", label: "Data Connectors" },
   { href: "/app/dashboard", label: "Dashboard" },
   { href: "/app/pivot", label: "Pivot" },
+  { href: "/app/join", label: "Join Datasets" },
   { href: "/app/fields", label: "Field Settings" },
 ];
 

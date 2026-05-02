@@ -335,6 +335,61 @@ TOOL_SCHEMA: list[dict] = [
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "join_datasets",
+            "description": (
+                "Materialise a join of two datasets in the project and "
+                "either preview the result or persist it as a new "
+                "dataset. Use this when the user asks to 'combine', "
+                "'merge', or 'join' two sheets on a shared column. "
+                "join_type maps to SQL semantics: inner keeps only "
+                "matching rows, left keeps every row of the left side, "
+                "right keeps every row of the right side, outer keeps "
+                "every row from both. When preview_only is true the "
+                "tool returns a 20-row sample plus row/null counts so "
+                "you can describe the shape of the join before saving. "
+                "When false, the merged frame is saved as a new dataset "
+                "under the LEFT dataset's project and dataset_id is "
+                "returned."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "left_dataset_id": {"type": "integer"},
+                    "right_dataset_id": {"type": "integer"},
+                    "join_key": {
+                        "type": "string",
+                        "description": (
+                            "Column name present on both datasets. Use "
+                            "left_key / right_key instead when the two "
+                            "sides spell the key differently."
+                        ),
+                    },
+                    "left_key": {"type": "string"},
+                    "right_key": {"type": "string"},
+                    "join_type": {
+                        "type": "string",
+                        "enum": ["inner", "left", "right", "outer"],
+                        "default": "inner",
+                    },
+                    "result_name": {
+                        "type": "string",
+                        "description": (
+                            "Name for the new dataset when persisting. "
+                            "Defaults to '<left> ⋈ <right>'."
+                        ),
+                    },
+                    "preview_only": {
+                        "type": "boolean",
+                        "default": True,
+                    },
+                },
+                "required": ["left_dataset_id", "right_dataset_id"],
+            },
+        },
+    },
 ]
 
 
@@ -1066,6 +1121,143 @@ def _run_explain_model(db, args: dict, ctx: dict) -> tuple[dict, list]:
     return {"explanation": text}, []
 
 
+def _run_join_datasets(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
+    """Chat-tool wrapper around ``POST /api/datasets/join``.
+
+    Mirrors the HTTP body but runs the merge + persistence in-process
+    so it can be invoked from the assistant's tool-call loop. When the
+    join is persisted, an ``artifact`` row is created so the user can
+    see the new dataset land in the artifact rail like any other
+    tool result; preview-only calls return summary data with no
+    artifact (the chat shows the JSON inline).
+    """
+    if "left_dataset_id" not in args or "right_dataset_id" not in args:
+        raise ValueError("left_dataset_id and right_dataset_id are required")
+
+    join_type = str(args.get("join_type") or "inner").lower()
+    valid = {"inner", "left", "right", "outer"}
+    if join_type not in valid:
+        raise ValueError(f"join_type must be one of {sorted(valid)}")
+
+    user_id = ctx["user_id"]
+    project_id = ctx.get("project_id")
+
+    left_id = int(args["left_dataset_id"])
+    right_id = int(args["right_dataset_id"])
+
+    left_rec = models.get_dataset_record_strict(
+        db, left_id, user_id=user_id, project_id=project_id,
+    )
+    right_rec = models.get_dataset_record_strict(
+        db, right_id, user_id=user_id, project_id=project_id,
+    )
+    if not left_rec or not left_rec.source_parquet:
+        raise ValueError(f"left dataset {left_id} not found")
+    if not right_rec or not right_rec.source_parquet:
+        raise ValueError(f"right dataset {right_id} not found")
+
+    left_df = pd.read_parquet(io.BytesIO(left_rec.source_parquet))
+    right_df = pd.read_parquet(io.BytesIO(right_rec.source_parquet))
+
+    join_key = (args.get("join_key") or "").strip()
+    left_key = (args.get("left_key") or join_key or "").strip()
+    right_key = (args.get("right_key") or join_key or "").strip()
+    if not left_key or not right_key:
+        raise ValueError("join_key (or left_key / right_key) is required")
+    if left_key not in left_df.columns:
+        raise ValueError(f"join key '{left_key}' is not in the left dataset")
+    if right_key not in right_df.columns:
+        raise ValueError(f"join key '{right_key}' is not in the right dataset")
+
+    collisions = sorted(
+        (set(left_df.columns) - {left_key}) & (set(right_df.columns) - {right_key})
+    )
+    merged = pd.merge(
+        left_df, right_df,
+        how=join_type,
+        left_on=left_key, right_on=right_key,
+        suffixes=("_left", "_right"),
+    )
+
+    summary = {
+        "join_type": join_type,
+        "left_rows": int(len(left_df)),
+        "right_rows": int(len(right_df)),
+        "result_rows": int(len(merged)),
+        "result_cols": int(len(merged.columns)),
+        "left_key": left_key,
+        "right_key": right_key,
+        "collisions": collisions,
+    }
+
+    preview_only = bool(args.get("preview_only", True))
+    if preview_only:
+        head = merged.head(20)
+        head = head.where(pd.notnull(head), None)
+        summary["preview_rows"] = head.to_dict(orient="records")
+        return summary, []
+
+    # Persist as a brand-new dataset under the LEFT dataset's project.
+    name = (args.get("result_name") or "").strip()
+    if not name:
+        left_label = left_rec.dataset_name or left_rec.filename or "left"
+        right_label = right_rec.dataset_name or right_rec.filename or "right"
+        name = f"{left_label} ⋈ {right_label}"
+
+    parquet_buf = io.BytesIO()
+    merged.to_parquet(parquet_buf, index=False)
+    parquet_bytes = parquet_buf.getvalue()
+    import hashlib as _hashlib
+    from datetime import datetime as _dt
+    data_hash = _hashlib.sha256(parquet_bytes).hexdigest()
+    now = _dt.utcnow()
+    record = models.save_dataset_record(
+        db,
+        filename=f"{name}.parquet",
+        dataset_name=name,
+        period_month=now.month,
+        period_year=now.year,
+        row_count=int(len(merged)),
+        column_count=int(len(merged.columns)),
+        columns_info={str(c): str(merged[c].dtype) for c in merged.columns},
+        data_hash=data_hash,
+        summary_stats={},
+        user_id=user_id,
+        source_parquet=parquet_bytes,
+        project_id=left_rec.project_id,
+    )
+    summary["dataset_id"] = record.id
+    summary["dataset_name"] = record.dataset_name
+
+    a = models.save_chat_artifact(
+        db,
+        session_id=ctx["session_id"],
+        user_id=user_id,
+        project_id=ctx.get("project_id"),
+        kind="dataset_join",
+        title=f"Joined — {record.dataset_name}",
+        params={
+            "left_dataset_id": left_id,
+            "right_dataset_id": right_id,
+            "join_key": join_key or None,
+            "left_key": left_key,
+            "right_key": right_key,
+            "join_type": join_type,
+            "result_name": record.dataset_name,
+        },
+        result={
+            "dataset_id": record.id,
+            "dataset_name": record.dataset_name,
+            "rows": record.row_count,
+            "cols": record.column_count,
+            "summary": {k: v for k, v in summary.items() if k != "preview_rows"},
+        },
+        dataset_id=record.id,
+        pinned=False,
+    )
+    return summary, [_artifact_view(a)]
+
+
 _TOOL_HANDLERS = {
     "profile_dataset": _run_profile,
     "make_chart": _run_make_chart,
@@ -1074,6 +1266,7 @@ _TOOL_HANDLERS = {
     "list_model": _run_list_model,
     "query_model": _run_query_model,
     "explain_model": _run_explain_model,
+    "join_datasets": _run_join_datasets,
 }
 
 
