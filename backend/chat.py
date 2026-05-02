@@ -68,6 +68,18 @@ B. TOOL USAGE — when the user asks for analysis, prefer to **invoke a
   • predict_column(dataset_id, target) — fit a linear regression on
     numeric features; returns metrics and feature importance plus
     enough info to power a what-if slider.
+  • cross_predict_column(target_dataset_id, target_column,
+    date_column?, horizon?) — predict a target column using EVERY
+    dataset in the project. The tool auto-joins related tables on
+    the user-confirmed (and high-confidence inferred) keys before
+    fitting the model, so use it whenever the user asks something
+    like "predict revenue using all my data" or "forecast churn
+    across the whole project". Returns the same dual guided/expert
+    payload as predict_column, plus a ``join_plan`` describing which
+    datasets were joined on which keys. ALWAYS quote the
+    ``join_plan_text`` verbatim in your reply (e.g. "I joined
+    customers on customer_id, then …") so the user can see which
+    datasets contributed.
   • cluster_dataset(dataset_id, k?) — KMeans on numeric columns;
     returns cluster sizes and centroids.
   • list_model() — return the project's semantic model (table roles,
@@ -214,6 +226,61 @@ TOOL_SCHEMA: list[dict] = [
                     "target": {"type": "string"},
                 },
                 "required": ["dataset_id", "target"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "cross_predict_column",
+            "description": (
+                "Predict a target column using EVERY dataset attached "
+                "to the current project. The tool auto-joins related "
+                "tables on user-confirmed (and high-confidence "
+                "inferred) keys before fitting the model. Returns the "
+                "same dual guided/expert payload as predict_column, "
+                "plus a join_plan describing which datasets were "
+                "joined on which keys. Use this whenever the user "
+                "asks to predict/forecast something using more than "
+                "one dataset, or 'using everything I uploaded'."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target_dataset_id": {
+                        "type": "integer",
+                        "description": (
+                            "ID of the dataset that owns the target "
+                            "column. Other project datasets are "
+                            "left-joined onto it on the discovered "
+                            "keys."
+                        ),
+                    },
+                    "target_column": {
+                        "type": "string",
+                        "description": (
+                            "Name of the column to predict. Must "
+                            "exist on the target dataset (or appear "
+                            "in the merged feature matrix)."
+                        ),
+                    },
+                    "date_column": {
+                        "type": "string",
+                        "description": (
+                            "Optional date column for time-series "
+                            "forecasting. If omitted the engine "
+                            "auto-detects one."
+                        ),
+                    },
+                    "horizon": {
+                        "type": "integer",
+                        "description": (
+                            "Forecast horizon in periods. Defaults "
+                            "to 30."
+                        ),
+                    },
+                },
+                "required": ["target_dataset_id", "target_column"],
             },
         },
     },
@@ -855,6 +922,231 @@ def _run_predict(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
     }, [_artifact_view(a)]
 
 
+def _format_join_plan_text(steps: list[dict], target_name: str | None) -> str:
+    """Render a chained join plan as a single plain-language sentence
+    so the assistant can quote it verbatim ('joined customers on
+    customer_id, then …').
+    """
+    if not steps:
+        return (
+            f"no joins were applied — predicted on {target_name} alone"
+            if target_name
+            else "no joins were applied"
+        )
+    parts: list[str] = []
+    for i, s in enumerate(steps):
+        ds_name = s.get("dataset_name") or f"dataset_{s.get('dataset_id')}"
+        left_col = s.get("left_column")
+        right_col = s.get("right_column")
+        rows_before = s.get("rows_before")
+        rows_after = s.get("rows_after")
+        verb = "joined" if i == 0 else "then joined"
+        if left_col and right_col and left_col == right_col:
+            key_clause = f"on `{left_col}`"
+        elif left_col and right_col:
+            key_clause = f"on `{left_col}` = `{right_col}`"
+        else:
+            key_clause = ""
+        row_clause = ""
+        if rows_before is not None and rows_after is not None:
+            row_clause = f" ({rows_before} → {rows_after} rows)"
+        parts.append(
+            f"{verb} {ds_name}{(' ' + key_clause) if key_clause else ''}"
+            f"{row_clause}".strip()
+        )
+    sentence = ", ".join(parts)
+    if target_name:
+        sentence = f"starting from {target_name}, {sentence}"
+    return sentence
+
+
+def _run_cross_predict(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
+    """Cross-dataset prediction tool.
+
+    Mirrors ``POST /api/projects/{project_id}/cross-predict`` but runs
+    in-process so the chat dispatcher can invoke it. Reuses the helpers
+    from :mod:`backend.cross_predict` so the join logic, candidate
+    discovery, and single-dataset fallback stay identical to the HTTP
+    endpoint.
+    """
+    from . import cross_predict as cp
+    from . import predictions_engine as pe
+
+    project_id = ctx.get("project_id")
+    if not project_id:
+        raise ValueError("cross_predict_column requires a project context")
+    if "target_dataset_id" not in args:
+        raise ValueError("target_dataset_id is required")
+    if "target_column" not in args or not str(args["target_column"]).strip():
+        raise ValueError("target_column is required")
+
+    target_dataset_id = int(args["target_dataset_id"])
+    target_column = str(args["target_column"])
+    date_column = args.get("date_column") or None
+    horizon = int(args.get("horizon") or 30)
+
+    records = cp._project_datasets(db, project_id, ctx["user_id"])
+    if not records:
+        raise ValueError("Project has no datasets to predict on.")
+
+    target_record = next(
+        (r for r in records if r.id == target_dataset_id), None,
+    )
+    if target_record is None:
+        raise ValueError(
+            f"target_dataset_id {target_dataset_id} does not "
+            f"belong to project {project_id}.",
+        )
+
+    name_by_id = {r.id: (r.dataset_name or r.filename or f"dataset_{r.id}")
+                  for r in records}
+    id_by_name = {v: k for k, v in name_by_id.items()}
+    frames_by_id: dict[int, pd.DataFrame] = {}
+    for r in records:
+        df = cp._load_frame(r)
+        if df is None:
+            continue
+        frames_by_id[r.id] = df
+
+    target_df = frames_by_id.get(target_record.id)
+    if target_df is None or target_df.empty:
+        raise ValueError(
+            "Target dataset has no rows or could not be loaded.",
+        )
+
+    candidates = cp._candidate_relationships(
+        db, project_id, name_by_id, id_by_name, frames_by_id,
+    )
+    candidates = [
+        c for c in candidates
+        if c["left_id"] in frames_by_id and c["right_id"] in frames_by_id
+    ]
+
+    warnings: list[str] = []
+    if not candidates or len(records) < 2:
+        merged = target_df.copy()
+        steps: list[dict] = []
+        skipped = True
+        if len(records) >= 2:
+            warnings.append(
+                "No relationships were found between this project's "
+                "datasets — predicting on the target dataset alone.",
+            )
+        else:
+            warnings.append(
+                "Only one dataset in this project — predicting on it "
+                "alone.",
+            )
+    else:
+        merged, steps = cp._build_merged(
+            target_record.id, frames_by_id, name_by_id, candidates,
+        )
+        skipped = not steps
+        if skipped:
+            warnings.append(
+                "No relationships were applicable to the target "
+                "dataset — predicting on it alone.",
+            )
+
+    if target_column not in merged.columns:
+        raise ValueError(
+            f"target_column '{target_column}' is not present in the "
+            f"merged feature matrix.",
+        )
+
+    if date_column and date_column not in merged.columns:
+        warnings.append(
+            f"date_column '{date_column}' is not in the merged frame; "
+            f"falling back to auto-detection.",
+        )
+        date_col_for_engine: str | None = None
+    else:
+        date_col_for_engine = date_column
+
+    mode = ctx.get("mode") or "guided"
+    try:
+        result = pe.run_prediction(
+            merged,
+            target_col=target_column,
+            date_col=date_col_for_engine,
+            mode=mode,
+            periods=horizon,
+        )
+    except ValueError as exc:
+        raise ValueError(str(exc))
+
+    target_name = name_by_id.get(target_record.id)
+    join_plan = {
+        "target_dataset_id": target_record.id,
+        "target_dataset_name": target_name,
+        "target_rows": int(len(target_df)),
+        "merged_rows": int(len(merged)),
+        "merged_cols": int(len(merged.columns)),
+        "skipped": skipped,
+        "joins": steps,
+        "warnings": warnings,
+    }
+
+    payload = {
+        "flow": "cross_predict",
+        "target_dataset_id": target_record.id,
+        "target_dataset_name": target_name,
+        "target_column": target_column,
+        "mode": mode,
+        "guided": result.get("guided"),
+        "expert": result.get("expert"),
+        "join_plan": join_plan,
+    }
+
+    title = f"Cross-predict {target_column} — {target_name}"
+    a = models.save_chat_artifact(
+        db,
+        session_id=ctx["session_id"],
+        user_id=ctx["user_id"],
+        project_id=project_id,
+        kind="cross_prediction",
+        title=title,
+        params={
+            "target_dataset_id": target_record.id,
+            "target_column": target_column,
+            "date_column": date_column,
+            "horizon": horizon,
+        },
+        result=payload,
+        dataset_id=target_record.id,
+        pinned=True,
+    )
+
+    join_plan_text = _format_join_plan_text(steps, target_name)
+    guided = result.get("guided") or {}
+    expert = result.get("expert") or {}
+    summary = {
+        "target_dataset": target_name,
+        "target_column": target_column,
+        "merged_rows": int(len(merged)),
+        "merged_cols": int(len(merged.columns)),
+        "skipped": skipped,
+        "join_plan_text": join_plan_text,
+        "joins": [
+            {
+                "dataset_id": s.get("dataset_id"),
+                "dataset_name": s.get("dataset_name"),
+                "left_column": s.get("left_column"),
+                "right_column": s.get("right_column"),
+                "rows_before": s.get("rows_before"),
+                "rows_after": s.get("rows_after"),
+            }
+            for s in steps
+        ],
+        "warnings": warnings,
+        "guided_summary": guided.get("summary"),
+        "guided_confidence": guided.get("confidence"),
+        "model_used": expert.get("model_used"),
+        "metrics": expert.get("metrics"),
+    }
+    return summary, [_artifact_view(a)]
+
+
 def _run_cluster(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
     from sklearn.cluster import KMeans
     from sklearn.decomposition import PCA
@@ -1308,6 +1600,7 @@ _TOOL_HANDLERS = {
     "profile_dataset": _run_profile,
     "make_chart": _run_make_chart,
     "predict_column": _run_predict,
+    "cross_predict_column": _run_cross_predict,
     "cluster_dataset": _run_cluster,
     "list_model": _run_list_model,
     "query_model": _run_query_model,
@@ -1701,6 +1994,7 @@ async def stream(
         "user_id": user.id,
         "project_id": project_id,
         "session_id": session.id if session else None,
+        "mode": effective_mode,
     }
     tools_enabled = session is not None and project_id is not None and bool(datasets_ctx)
 
