@@ -19,7 +19,7 @@ export default function AboutPage() {
         <span className="eyebrow">About AXIOM</span>
         <h1 className="text-3xl md:text-5xl font-bold mt-3">Built by analysts who got tired of the cleanup tax.</h1>
         <div className="prose-mark mt-8">
-          <p>AXIOM started as one person's frustration with the gap between &ldquo;here is a CSV&rdquo; and &ldquo;here is what to do about it.&rdquo; That gap is usually filled with hours of cleaning, formatting, googling, and Excel formulas — and once it&rsquo;s done, the actual analytical thinking takes ten minutes.</p>
+          <p>AXIOM started as one person&rsquo;s frustration with the gap between &ldquo;here is a CSV&rdquo; and &ldquo;here is what to do about it.&rdquo; That gap is usually filled with hours of cleaning, formatting, googling, and Excel formulas — and once it&rsquo;s done, the actual analytical thinking takes ten minutes.</p>
           <p>So we built the workspace we wanted: one place that ingests any CSV or Excel, runs a transparent cleaning pipeline you can audit step by step, computes the statistics that matter, draws restrained charts that don&rsquo;t look like a 2003 BI dashboard, runs ML when you need it, and lets you ask the data questions in plain English.</p>
           <h2>Who we serve</h2>
           <ul>

@@ -271,7 +271,7 @@ function PivotPageInner() {
         ? [{ by: "m0", dir: topDir === "top" ? "desc" : "asc" }]
         : undefined,
     };
-  }, [datasetId, rows, cols, measures, filters, dateGrains, showSubtotals, showGrandTotal, dropNulls, topN, topDir, measures.length]);
+  }, [datasetId, rows, cols, measures, filters, dateGrains, showSubtotals, showGrandTotal, dropNulls, topN, topDir]);
 
   const run = useCallback(async () => {
     const payload = buildRequest();
