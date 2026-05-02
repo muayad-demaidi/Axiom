@@ -6,7 +6,7 @@ run = ["bash", "scripts/start-prod.sh"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["cairo", "cargo", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "libiconv", "libxcrypt", "libyaml", "pkg-config", "qhull", "rustc", "tcl", "tk", "xsimd"]
+packages = ["cairo", "cargo", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "libcxx", "libiconv", "libxcrypt", "libyaml", "pkg-config", "qhull", "rustc", "tcl", "tk", "xsimd"]
 
 [agent]
 integrations = ["python_openai_ai_integrations:1.0.0", "streamlit_database:1.0.0", "resend:1.0.0"]

@@ -507,7 +507,7 @@ const BAND_LABEL: Record<string, string> = {
 
 const ROLE_OPTIONS = ["fact", "dimension", "summary", "bridge"];
 
-function DataModelBody({
+export function DataModelBody({
   artifact,
   highlightRelIds,
 }: {
@@ -962,7 +962,7 @@ function DataModelBody({
   );
 }
 
-function QuestionRow({
+export function QuestionRow({
   q,
   projectId,
   busy,
