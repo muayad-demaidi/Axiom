@@ -1,0 +1,324 @@
+You now have the full picture of how Guided/Expert 
+modes are built. Here is the honest gap:
+
+THE CORE PROBLEM
+The toggle exists and persists correctly.
+But the backend is completely mode-blind.
+Every endpoint outside POST /api/chat/stream 
+returns identical responses regardless of mode.
+Guided vs Expert is only cosmetic CSS/rendering 
+on 6 frontend pages + the chat system prompt.
+
+WHAT I WANT YOU TO BUILD TODAY
+
+## TASK 1 — Mode Middleware (Backend)
+Create a reusable mode resolver so every endpoint 
+can know the effective mode without repeating the 
+4-step priority logic from chat.py:1269-1292.
+
+Create: backend/mode_resolver.py
+
+def resolve_mode(
+    db,
+    user,
+    project_id: int | None = None,
+    request_mode: str | None = None
+) -> str:  # returns "guided" or "expert"
+
+Resolution priority:
+1. Per-project override (projects.mode)
+2. Request-supplied mode
+3. User preference (users.assistant_mode)
+4. Default → "guided"
+
+## TASK 2 — Predictions Engine (Mode-Aware)
+Replace the naive LinearRegression in predictions.py
+with a smart pipeline.
+
+Auto-detect prediction type:
+- Has date column + one numeric → Prophet
+- Target is categorical → RandomForest classifier
+- Target is numeric → try LinearRegression vs 
+  RandomForest, pick best RMSE
+
+Add proper math:
+- 5-fold cross-validation on all sklearn models
+- Confidence intervals on all predictions
+- Metrics: RMSE, MAE, R² for regression |
+  accuracy, F1, precision, recall for classification |
+  MAE, MAPE for time series
+
+For inventory/sales specifically:
+- Predict demand: next 7, 14, 30 days per product
+- Flag: products with declining trend (slope < 0)
+- Flag: products hitting zero stock in X days
+- Suggest discount % based on days_in_stock:
+  > 60 days → suggest 20% discount
+  > 90 days → suggest 30% discount
+  > 120 days → suggest bundle or clearance
+
+API response must return BOTH layers always:
+{
+  "guided": {
+    "summary": "Your sales will grow 12% next month",
+    "confidence": "high",
+    "confidence_score": 0.87,
+    "recommendations": [
+      {
+        "type": "discount",
+        "product": "Product A",
+        "message": "Hasn't sold in 90 days → 
+                    Consider 30% discount",
+        "priority": "high",
+        "suggested_action": "Apply 30% discount",
+        "deadline": "within 7 days"
+      },
+      {
+        "type": "reorder",
+        "product": "Product B", 
+        "message": "Running low → Reorder in 5 days",
+        "priority": "high",
+        "suggested_action": "Create purchase order"
+      }
+    ]
+  },
+  "expert": {
+    "model_used": "Prophet",
+    "metrics": {
+      "mae": 234,
+      "mape": 0.08,
+      "rmse": 310,
+      "r2": 0.87
+    },
+    "cross_validation": {
+      "folds": 5,
+      "mean_rmse": 298,
+      "std_rmse": 45
+    },
+    "parameters": {
+      "changepoint_prior_scale": 0.05,
+      "seasonality_mode": "multiplicative"
+    },
+    "feature_importance": {
+      "price": 0.42,
+      "season": 0.31,
+      "promotions": 0.27
+    },
+    "confidence_interval": {
+      "lower": [...],
+      "upper": [...]
+    },
+    "trend_direction": "declining",
+    "trend_slope": -0.023
+  }
+}
+
+## TASK 3 — Multi-File Intelligence
+On every new file upload (POST /api/datasets/upload):
+- Auto-trigger relationship discovery in background
+- No manual refresh needed
+
+New endpoint:
+POST /api/projects/{id}/cross-predict
+- Finds all datasets in project
+- Detects join keys automatically
+- Merges into one feature matrix
+- Runs prediction pipeline on merged data
+- Returns same guided/expert response structure
+
+## TASK 4 — Data Manipulation Layer (Explicit Joins)
+Add "transform and save result" joins as a real 
+user-facing feature, not just inside the model layer.
+
+New endpoint:
+POST /api/datasets/join
+Body:
+{
+  "left_dataset_id": 1,
+  "right_dataset_id": 2,
+  "join_key": "product_id",
+  "join_type": "inner" | "left" | "right" | "outer",
+  "result_name": "sales_with_inventory"
+}
+
+Behavior:
+- Load both datasets from Parquet
+- Validate join key exists in both
+- Execute pandas merge
+- Handle duplicates (suffix _left, _right)
+- Show preview (first 20 rows) before saving
+- On confirm → save as new dataset_record
+- Return dataset_id of the result
+
+Also expose as chat tool in backend/chat.py:
+"join my sales file with my inventory file 
+on product_id"
+
+Frontend (Next.js):
+- New page: /app/join
+- Step 1: pick left dataset
+- Step 2: pick right dataset  
+- Step 3: detect common columns, suggest join key
+- Step 4: pick join type with visual explanation:
+  * Inner → only matching rows
+  * Left → all from left + matches from right
+  * Right → all from right + matches from left
+  * Outer → everything from both
+- Step 5: preview result (first 20 rows)
+- Step 6: name and save
+
+In Guided mode:
+- No join type jargon
+- Instead ask: "What do you want to keep?"
+  * "Only rows that match in both files" → inner
+  * "Everything from my main file" → left
+  * "Everything from both files" → outer
+
+In Expert mode:
+- Full SQL-style join type selector
+- Show row count before/after
+- Show null count introduced by join
+- Show column overlap warnings
+
+## TASK 5 — Daily Pulse (Lightweight Cron)
+Add APScheduler inside FastAPI (no Celery):
+
+Create: backend/scheduler.py
+- Run every 24h per active project
+- Re-run insights + predictions
+- Store delta vs yesterday
+- Flag anomalies automatically
+
+New endpoint:
+GET /api/projects/{id}/daily-pulse
+
+Returns:
+{
+  "generated_at": "2026-05-02T08:00:00",
+  "top_changes": [
+    {
+      "metric": "Product A sales",
+      "yesterday": 120,
+      "today": 89,
+      "change_pct": -25.8,
+      "alert": true,
+      "message": "Sales dropped 26% vs yesterday"
+    }
+  ],
+  "anomalies": [...],
+  "predictions": {...},
+  "recommendations": [...]
+}
+
+New DB table:
+daily_pulse_snapshots(
+  project_id, date, snapshot_json
+)
+
+## TASK 6 — Frontend Mode-Aware Pages
+Extend mode-awareness beyond the current 6 pages
+to ALL workspace pages that currently ignore mode:
+
+Pages to update:
+- /app/dashboard → Guided: KPI cards + plain text
+  Expert: full metric strip + raw values
+- /app/pivot → Guided: hide pivot builder, show 
+  pre-built summary tables
+  Expert: full pivot builder as-is
+- /app/report → Guided: narrative summary first,
+  charts second, no raw tables
+  Expert: full report with all data
+- /app/upload → Guided: friendly dropzone with 
+  "what is this file about?" prompt
+  Expert: show column types, null counts, 
+  cardinality on upload preview
+- /app/chat → Guided: outcome chips only
+  Expert: already done, keep as-is
+
+For each page use existing ModeAware components:
+ModeAwareSection, ModeAwareHeading, 
+GuidedActionCard, TechnicalDetails
+
+## TASK 7 — Expert Mode Missing Features
+Add what Expert mode promises but doesn't deliver:
+
+Statistical tests (backend/analysis.py):
+- t-test (compare two numeric columns)
+- ANOVA (compare 3+ groups)
+- Chi-square (categorical independence)
+- ADF test (check if time series is stationary)
+New endpoint: POST /api/analysis/statistical-tests
+
+Expert-only charts (backend/analysis.py):
+- Residuals plot (after any regression)
+- QQ plot (normality check)
+- ACF/PACF (autocorrelation for time series)
+New endpoint: POST /api/visualize/expert-charts
+
+SHAP values (predictions engine):
+- After any RandomForest prediction
+- Return top 5 features with SHAP values
+- Include in expert response object
+
+## TASK 8 — Recommendation Engine
+Replace AI narrative text with structured objects
+that can be acted on:
+
+Create: backend/recommendations.py
+
+Every recommendation must have:
+{
+  "id": "uuid",
+  "type": "discount" | "reorder" | "bundle" | 
+          "clearance" | "promote" | "investigate",
+  "product": "Product name",
+  "reason": "90 days in stock, trend -15%",
+  "suggested_action": "Apply 30% discount",
+  "expected_impact": "Recover ~$2,400 in stuck inventory",
+  "priority": "high" | "medium" | "low",
+  "deadline": "within 7 days",
+  "confidence": 0.84,
+  "dismissed": false,
+  "created_at": "..."
+}
+
+New endpoints:
+GET /api/projects/{id}/recommendations
+POST /api/projects/{id}/recommendations/{id}/dismiss
+POST /api/projects/{id}/recommendations/{id}/apply
+
+Frontend:
+- Guided: action cards with one-click buttons
+- Expert: full table with confidence scores + reasoning
+
+## HARD CONSTRAINTS
+- DO NOT touch app.py or any Streamlit files
+- DO NOT break any existing endpoints
+- New files:
+  backend/mode_resolver.py
+  backend/scheduler.py
+  backend/predictions_engine.py
+  backend/recommendations.py
+- Modify:
+  backend/main.py (mount scheduler on startup)
+  backend/analysis.py (use new engine + stat tests)
+  backend/chat.py (add join tool)
+  backend/datasets.py (trigger auto relationship 
+  discovery on upload)
+  frontend pages listed in TASK 6
+- Add to pyproject.toml only if installs clean 
+  on Replit:
+  apscheduler
+  xgboost (wrap in try/except — optional)
+  shap (wrap in try/except — optional)
+
+## OUTPUT FORMAT
+For each task:
+1. Exact files to create or modify
+2. Complete working code (not pseudocode)
+3. New dependencies for pyproject.toml
+4. How to test in 5 minutes
+
+Start with TASK 1 only.
+Complete code. Then wait for my confirmation
+before moving to TASK 2.
