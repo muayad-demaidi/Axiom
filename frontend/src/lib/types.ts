@@ -34,6 +34,17 @@ export type DatasetSummary = {
   report?: Record<string, unknown>;
 };
 
+export type JoinProvenance = {
+  left_dataset_id: number;
+  right_dataset_id: number;
+  left_dataset_name?: string | null;
+  right_dataset_name?: string | null;
+  left_key: string;
+  right_key: string;
+  join_type: string;
+  created_at?: string;
+};
+
 export type AxiomDataset = {
   id: number;
   filename: string;
@@ -42,6 +53,10 @@ export type AxiomDataset = {
   cols: number;
   project_id?: number | null;
   summary?: DatasetSummary;
+  /** Present when the dataset was created by the Join page / chat tool.
+   * Used to render the "Joined from X ⋈ Y on KEY" badge and the
+   * one-click Undo affordance. */
+  join_provenance?: JoinProvenance | null;
 };
 
 export type AuthResponse = { token: string; user: AxiomUser };

@@ -1549,6 +1549,19 @@ def _run_join_datasets(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
     from datetime import datetime as _dt
     data_hash = _hashlib.sha256(parquet_bytes).hexdigest()
     now = _dt.utcnow()
+    # Mirror the HTTP save branch: stash the join recipe on parse_meta
+    # so the resulting dataset can be undone / badged by the Join + Files
+    # pages even when it was created via the chat tool.
+    join_provenance = {
+        "left_dataset_id": left_rec.id,
+        "right_dataset_id": right_rec.id,
+        "left_dataset_name": left_rec.dataset_name or left_rec.filename,
+        "right_dataset_name": right_rec.dataset_name or right_rec.filename,
+        "left_key": left_key,
+        "right_key": right_key,
+        "join_type": join_type,
+        "created_at": now.isoformat() + "Z",
+    }
     record = models.save_dataset_record(
         db,
         filename=f"{name}.parquet",
@@ -1563,6 +1576,7 @@ def _run_join_datasets(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
         user_id=user_id,
         source_parquet=parquet_bytes,
         project_id=left_rec.project_id,
+        parse_meta={"join_provenance": join_provenance},
     )
     summary["dataset_id"] = record.id
     summary["dataset_name"] = record.dataset_name

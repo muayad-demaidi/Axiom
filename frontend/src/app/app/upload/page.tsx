@@ -304,15 +304,41 @@ export default function UploadPage() {
         <div className="card text-[var(--text-muted)] text-sm">No datasets yet.</div>
       ) : (
         <ul className="space-y-2">
-          {datasets.map((d) => (
-            <li key={d.id} className="card flex items-center justify-between">
-              <div>
-                <div className="font-semibold">{d.dataset_name}</div>
-                <div className="text-xs text-[var(--text-muted)]">{d.filename} · {d.rows.toLocaleString()} rows × {d.cols} cols</div>
-              </div>
-              <button className="btn btn-primary text-xs" onClick={() => pick(d)}>Open</button>
-            </li>
-          ))}
+          {datasets.map((d) => {
+            const p = d.join_provenance ?? null;
+            const left = p?.left_dataset_name || (p ? `#${p.left_dataset_id}` : "");
+            const right = p?.right_dataset_name || (p ? `#${p.right_dataset_id}` : "");
+            const keyLabel = p
+              ? p.left_key === p.right_key
+                ? p.left_key
+                : `${p.left_key} = ${p.right_key}`
+              : "";
+            return (
+              <li key={d.id} className="card flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-semibold flex items-center gap-2 flex-wrap">
+                    {d.dataset_name}
+                    {p && (
+                      <span
+                        title={`Joined from ${left} ⋈ ${right} on ${keyLabel} (${p.join_type})`}
+                        className="text-[10px] uppercase tracking-wide font-mono px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)]"
+                      >
+                        joined
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">{d.filename} · {d.rows.toLocaleString()} rows × {d.cols} cols</div>
+                  {p && (
+                    <div className="text-xs text-[var(--text-muted)] mt-1">
+                      Joined from <strong>{left}</strong> ⋈ <strong>{right}</strong> on{" "}
+                      <code className="font-mono">{keyLabel}</code> · {p.join_type}
+                    </div>
+                  )}
+                </div>
+                <button className="btn btn-primary text-xs" onClick={() => pick(d)}>Open</button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

@@ -2,9 +2,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, getToken } from "@/lib/api";
-import type { AxiomDataset, DatasetSummaryColumn } from "@/lib/types";
+import type { AxiomDataset, DatasetSummaryColumn, JoinProvenance } from "@/lib/types";
 import { errMessage } from "@/lib/types";
-import { getActiveProjectId, setActiveDatasetId } from "@/lib/projectContext";
+import {
+  getActiveDatasetId,
+  getActiveProjectId,
+  setActiveDatasetId,
+} from "@/lib/projectContext";
 import { useMode } from "@/lib/modeContext";
 import {
   AdvancedExpander,
@@ -20,6 +24,7 @@ type DatasetListItem = {
   rows: number;
   cols: number;
   project_id: number | null;
+  join_provenance?: JoinProvenance | null;
 };
 
 type JoinType = "inner" | "left" | "right" | "outer";
@@ -59,6 +64,7 @@ type SaveResponse = {
   project_id: number | null;
   rows: number;
   cols: number;
+  join_provenance?: JoinProvenance | null;
 };
 
 const GUIDED_OPTIONS: {
@@ -340,7 +346,46 @@ export default function JoinPage() {
       } else {
         setSaved(r);
         setActiveDatasetId(r.dataset_id);
+        // Reflect the new dataset in the in-page list immediately so the
+        // "Joined datasets in this project" panel and the Undo button
+        // both see it without a refetch round-trip.
+        setDatasets((arr) => [
+          {
+            id: r.dataset_id,
+            filename: `${r.dataset_name}.parquet`,
+            dataset_name: r.dataset_name,
+            rows: r.rows,
+            cols: r.cols,
+            project_id: r.project_id,
+            join_provenance: r.join_provenance ?? null,
+          },
+          ...arr.filter((d) => d.id !== r.dataset_id),
+        ]);
       }
+    } catch (e) {
+      setError(errMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Delete a previously-saved join. Powers the "Undo" button shown
+   * after a successful save and on each derived dataset in the
+   * "Joined datasets" list. Clears the active dataset id when the
+   * one being deleted was selected so downstream pages don't try to
+   * fetch a now-gone dataset. */
+  async function undoJoin(datasetId: number) {
+    setError(null);
+    setBusy(true);
+    try {
+      await api(`/api/datasets/${datasetId}`, { method: "DELETE" });
+      setDatasets((arr) => arr.filter((d) => d.id !== datasetId));
+      if (saved?.dataset_id === datasetId) setSaved(null);
+      if (typeof window !== "undefined" && getActiveDatasetId() === datasetId) {
+        setActiveDatasetId(null);
+      }
+      if (leftId === datasetId) setLeftId(null);
+      if (rightId === datasetId) setRightId(null);
     } catch (e) {
       setError(errMessage(e));
     } finally {
@@ -784,14 +829,25 @@ export default function JoinPage() {
           </div>
         )}
         {saved && (
-          <div className="mt-3 text-sm text-green-700">
-            Saved as “{saved.dataset_name}” ({saved.rows} rows ·{" "}
-            {saved.cols} cols).{" "}
+          <div className="mt-3 text-sm text-green-700 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span>
+              Saved as “{saved.dataset_name}” ({saved.rows} rows ·{" "}
+              {saved.cols} cols).
+            </span>
             <button
               className="underline"
               onClick={() => router.push("/app/upload")}
             >
               Open in Files
+            </button>
+            <button
+              type="button"
+              className="underline text-red-600 disabled:opacity-50"
+              onClick={() => undoJoin(saved.dataset_id)}
+              disabled={busy}
+              title="Delete the joined dataset and clear it from the active selection."
+            >
+              Undo this join
             </button>
           </div>
         )}
@@ -800,6 +856,56 @@ export default function JoinPage() {
       {error && (
         <div className="card mt-3 text-sm text-red-600">{error}</div>
       )}
+
+      {/* Existing joined datasets in the active project — each one
+          carries its own one-click Undo button so the user doesn't
+          need to revisit Files to discard a bad merge. */}
+      {(() => {
+        const joined = datasets.filter((d) => d.join_provenance);
+        if (joined.length === 0) return null;
+        return (
+          <div className="card mt-4">
+            <div className="text-xs font-mono text-[var(--text-muted)] mb-2">
+              Joined datasets in this project
+            </div>
+            <ul className="space-y-2">
+              {joined.map((d) => {
+                const p = d.join_provenance!;
+                const left = p.left_dataset_name || `#${p.left_dataset_id}`;
+                const right = p.right_dataset_name || `#${p.right_dataset_id}`;
+                const keyLabel =
+                  p.left_key === p.right_key
+                    ? p.left_key
+                    : `${p.left_key} = ${p.right_key}`;
+                return (
+                  <li
+                    key={d.id}
+                    className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-2 last:border-b-0"
+                  >
+                    <div className="text-sm">
+                      <div className="font-semibold">{d.dataset_name}</div>
+                      <div className="text-xs text-[var(--text-muted)]">
+                        Joined from <strong>{left}</strong> ⋈{" "}
+                        <strong>{right}</strong> on{" "}
+                        <code className="font-mono">{keyLabel}</code> ·{" "}
+                        {p.join_type}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-xs underline text-red-600 disabled:opacity-50"
+                      onClick={() => undoJoin(d.id)}
+                      disabled={busy}
+                    >
+                      Undo this join
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })()}
 
       <AdvancedExpander
         projectId={projectId}

@@ -613,6 +613,147 @@ def test_join_suggest_finds_differently_named_fk_pair(
     assert fk_pair["overlap_score"] > 0
 
 
+# ---------------------------------------------------------------------------
+# Task #253 — join provenance + DELETE /api/datasets/{id} (Undo)
+# ---------------------------------------------------------------------------
+
+def test_join_save_records_provenance_on_parse_meta(client, joined_pair):
+    """Saved joins must stamp ``join_provenance`` (left + right ids,
+    keys, type, frozen names) on the new dataset's ``parse_meta`` so
+    the Files page can render the badge and the Join page can offer
+    one-click Undo without an extra round-trip."""
+    u, _pid, cust, ords = joined_pair
+    r = _post_join(client, u["headers"], {
+        "left_dataset_id": ords,
+        "right_dataset_id": cust,
+        "join_key": "customer_id",
+        "join_type": "left",
+        "preview_only": False,
+        "result_name": "orders_left_customers",
+    })
+    assert r.status_code == 200, r.text
+    body = r.json()
+    new_id = body["dataset_id"]
+    # Save response surfaces the provenance inline.
+    prov = body["join_provenance"]
+    assert prov["left_dataset_id"] == ords
+    assert prov["right_dataset_id"] == cust
+    assert prov["left_key"] == "customer_id"
+    assert prov["right_key"] == "customer_id"
+    assert prov["join_type"] == "left"
+    assert prov["left_dataset_name"] == "orders"
+    assert prov["right_dataset_name"] == "customers"
+    # GET single + list both echo the same provenance back.
+    fetched = client.get(
+        f"/api/datasets/{new_id}", headers=u["headers"],
+    ).json()
+    assert fetched["join_provenance"]["join_type"] == "left"
+    assert fetched["join_provenance"]["left_dataset_id"] == ords
+    rows = client.get("/api/datasets", headers=u["headers"]).json()
+    derived = next(d for d in rows if d["id"] == new_id)
+    assert derived["join_provenance"]["right_dataset_name"] == "customers"
+    # Vanilla uploads still get a null provenance, not an empty dict.
+    parent = next(d for d in rows if d["id"] == cust)
+    assert parent["join_provenance"] is None
+
+
+def test_join_undo_deletes_saved_dataset(client, joined_pair):
+    u, _pid, cust, ords = joined_pair
+    save = _post_join(client, u["headers"], {
+        "left_dataset_id": ords,
+        "right_dataset_id": cust,
+        "join_key": "customer_id",
+        "join_type": "inner",
+        "preview_only": False,
+        "result_name": "to_be_undone",
+    }).json()
+    new_id = save["dataset_id"]
+    r = client.delete(
+        f"/api/datasets/{new_id}", headers=u["headers"],
+    )
+    assert r.status_code == 200, r.text
+    assert r.json() == {"deleted": True, "dataset_id": new_id}
+    # Subsequent GET should now 404 — the dataset is gone, parents stay.
+    assert client.get(
+        f"/api/datasets/{new_id}", headers=u["headers"],
+    ).status_code == 404
+    rows = client.get("/api/datasets", headers=u["headers"]).json()
+    ids = {d["id"] for d in rows}
+    assert new_id not in ids
+    assert cust in ids and ords in ids
+
+
+def test_join_undo_cross_user_isolation(
+    client, register, project, upload_dataset, customers_csv, orders_csv,
+):
+    """User B must not be able to delete user A's saved join."""
+    a, pid_a = project("ua-undo", user=register("alice2"))
+    cust = upload_dataset(a["headers"], pid_a, "customers", customers_csv)
+    ords = upload_dataset(a["headers"], pid_a, "orders", orders_csv)
+    save = _post_join(client, a["headers"], {
+        "left_dataset_id": ords,
+        "right_dataset_id": cust,
+        "join_key": "customer_id",
+        "preview_only": False,
+    }).json()
+    new_id = save["dataset_id"]
+    b, _pid_b = project("ub-undo", user=register("bob2"))
+    r = client.delete(
+        f"/api/datasets/{new_id}", headers=b["headers"],
+    )
+    assert r.status_code == 404, r.text
+    # Owner can still see + delete it themselves.
+    assert client.get(
+        f"/api/datasets/{new_id}", headers=a["headers"],
+    ).status_code == 200
+
+
+def test_join_chat_tool_save_records_provenance(
+    client, register, project, upload_dataset, chat_session,
+    customers_csv, orders_csv, stub_openai,
+):
+    """The chat-tool save branch must stamp the same provenance the
+    HTTP save branch does, so chat-driven joins are also undoable."""
+    from backend import chat as chat_mod
+    from backend.auth import get_db_session
+    u, pid = project("chat-join-prov")
+    cust = upload_dataset(u["headers"], pid, "customers", customers_csv)
+    ords = upload_dataset(u["headers"], pid, "orders", orders_csv)
+    sid = chat_session(u["headers"], pid)
+    ctx = {"user_id": u["user"]["id"], "project_id": pid, "session_id": sid}
+    db = next(get_db_session())
+    try:
+        summary, _ = chat_mod._run_join_datasets(
+            db,
+            {
+                "left_dataset_id": ords,
+                "right_dataset_id": cust,
+                "join_key": "customer_id",
+                "join_type": "inner",
+                "preview_only": False,
+                "result_name": "chat_undoable",
+            },
+            ctx,
+        )
+    finally:
+        db.close()
+    new_id = summary["dataset_id"]
+    fetched = client.get(
+        f"/api/datasets/{new_id}", headers=u["headers"],
+    ).json()
+    prov = fetched["join_provenance"]
+    assert prov is not None
+    assert prov["left_dataset_id"] == ords
+    assert prov["right_dataset_id"] == cust
+    assert prov["join_type"] == "inner"
+
+
+def test_delete_unknown_dataset_returns_404(client, register):
+    u = register("solo-deleter")
+    r = client.delete("/api/datasets/9999999", headers=u["headers"])
+    assert r.status_code == 404
+
+
 def test_join_datasets_registered_in_tool_handlers_and_schema():
     """Smoke check: the chat tool name shows up in both the OpenAI
     schema and the dispatcher map. Catches the case where someone adds

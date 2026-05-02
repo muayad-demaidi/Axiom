@@ -195,6 +195,22 @@ async def upload_dataset(
     })
 
 
+def _join_provenance(record) -> dict | None:
+    """Pull the join-provenance dict off ``parse_meta`` if present.
+
+    Saved joins (see the ``/api/datasets/join`` save branch) stash a
+    ``join_provenance`` block on ``parse_meta`` so the Files / Join page
+    can show a "Joined from X ⋈ Y on KEY" badge and the one-click Undo
+    button without round-tripping a second lookup.
+    """
+    meta = getattr(record, "parse_meta", None) or {}
+    if isinstance(meta, dict):
+        prov = meta.get("join_provenance")
+        if isinstance(prov, dict):
+            return prov
+    return None
+
+
 @router.get("")
 async def list_datasets(user=Depends(get_current_user), db=Depends(get_db_session)):
     rows = (
@@ -207,7 +223,10 @@ async def list_datasets(user=Depends(get_current_user), db=Depends(get_db_sessio
     # the sidebar/grid needs. Heavier per-dataset payloads (`summary` /
     # `summary_stats`) are still served by GET /api/datasets/{id} when a
     # caller actually needs them, keeping this list response small even
-    # for users with dozens of attached datasets.
+    # for users with dozens of attached datasets. ``join_provenance`` is
+    # cheap (a dict of ids + the join key) and the Files page needs it
+    # to render the "Joined from …" badge inline, so it ships in the
+    # list payload too.
     return [
         {
             "id": r.id,
@@ -216,6 +235,7 @@ async def list_datasets(user=Depends(get_current_user), db=Depends(get_db_sessio
             "rows": r.row_count,
             "cols": r.column_count,
             "project_id": r.project_id,
+            "join_provenance": _join_provenance(r),
         }
         for r in rows
     ]
@@ -234,7 +254,29 @@ async def get_dataset(dataset_id: int, user=Depends(get_current_user), db=Depend
         "cols": record.column_count,
         "summary": record.summary_stats or {},
         "project_id": record.project_id,
+        "join_provenance": _join_provenance(record),
     })
+
+
+@router.delete("/{dataset_id}")
+async def delete_dataset(
+    dataset_id: int,
+    user=Depends(get_current_user),
+    db=Depends(get_db_session),
+):
+    """Delete a dataset the caller owns.
+
+    Powers the "Undo this join" button on the Join page (and any future
+    Files-page delete affordance). Scoped to ``user_id`` via
+    ``models.delete_dataset_record`` so users can never delete each
+    other's data — a missing or mismatched id returns 404.
+    """
+    ok = models.delete_dataset_record(
+        db, dataset_id=dataset_id, user_id=user.id,
+    )
+    if not ok:
+        raise HTTPException(404, "Dataset not found")
+    return {"deleted": True, "dataset_id": dataset_id}
 
 
 def load_dataset_dataframe(record) -> pd.DataFrame:
@@ -425,6 +467,21 @@ async def join_datasets(
     data_hash = hashlib.sha256(parquet_bytes).hexdigest()
     now = datetime.utcnow()
     df_summary = _df_summary(merged)
+    # Stash the join recipe on parse_meta so the Join page can offer a
+    # one-click "Undo this join" and the Files list can render a
+    # "Joined from X ⋈ Y on KEY" badge without re-querying both parents.
+    # We freeze the parent labels at save time so the badge keeps
+    # rendering even if a parent is later renamed or deleted.
+    join_provenance = {
+        "left_dataset_id": left_rec.id,
+        "right_dataset_id": right_rec.id,
+        "left_dataset_name": left_rec.dataset_name or left_rec.filename,
+        "right_dataset_name": right_rec.dataset_name or right_rec.filename,
+        "left_key": left_key,
+        "right_key": right_key,
+        "join_type": join_type,
+        "created_at": now.isoformat() + "Z",
+    }
     record = models.save_dataset_record(
         db,
         filename=f"{name}.parquet",
@@ -439,6 +496,7 @@ async def join_datasets(
         user_id=user.id,
         source_parquet=parquet_bytes,
         project_id=left_rec.project_id,
+        parse_meta={"join_provenance": join_provenance},
     )
     return jsonify({
         "preview_only": False,
@@ -448,6 +506,7 @@ async def join_datasets(
         "project_id": record.project_id,
         "rows": record.row_count,
         "cols": record.column_count,
+        "join_provenance": join_provenance,
     })
 
 
