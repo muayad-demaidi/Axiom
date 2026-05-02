@@ -107,10 +107,28 @@ function extractColumns(d: AxiomDataset): string[] {
   return raw.map((c) => (typeof c === "string" ? c : c.name));
 }
 
-/** Trivial overlap heuristic: rank shared column names by exact match
- * first, then case-insensitive, then "endswith id" affinity. Mirrors the
- * server-side suggest_relationships scoring without re-fetching the
- * full payload — we only need a starting suggestion. */
+type JoinSuggestion = {
+  left_column: string;
+  right_column: string;
+  name_score: number;
+  dtype_score: number;
+  overlap_score: number;
+  cardinality: string;
+  confidence: number;
+};
+
+type JoinSuggestResponse = {
+  left_dataset_id: number;
+  right_dataset_id: number;
+  suggestions: JoinSuggestion[];
+};
+
+/** Fallback when the backend has no real-value suggestions to offer:
+ * rank shared column *names* by exact match first, then case-insensitive,
+ * then "endswith id" affinity. We only fall back to this when the
+ * /api/datasets/join/suggest endpoint returns an empty list (e.g.
+ * neither side has any overlapping values), so the user can still
+ * pick a column manually instead of being stuck. */
 function rankCommonKeys(left: string[], right: string[]): string[] {
   const rightSet = new Set(right);
   const rightLower = new Map(right.map((c) => [c.toLowerCase(), c] as const));
@@ -140,6 +158,9 @@ export default function JoinPage() {
   const [leftCols, setLeftCols] = useState<string[]>([]);
   const [rightCols, setRightCols] = useState<string[]>([]);
   const [joinKey, setJoinKey] = useState<string>("");
+  const [suggestions, setSuggestions] = useState<JoinSuggestion[]>([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
   // Expert users may want different keys on each side ("customer_id"
   // joined to "id" on the customers table). We fall back to joinKey
   // for both if the user only sets the simple field.
@@ -195,16 +216,86 @@ export default function JoinPage() {
       .catch((e) => setError(errMessage(e)));
   }, [rightId]);
 
-  const ranked = useMemo(
-    () => rankCommonKeys(leftCols, rightCols),
-    [leftCols, rightCols],
-  );
-  // Auto-pick the strongest suggestion the first time we have one.
+  // Pull real-value-based suggestions from the backend whenever the
+  // user picks a fresh pair of datasets. The endpoint runs the same
+  // ``suggest_relationships`` engine the Data Model screen uses, so
+  // value overlap (Jaccard) drives the ranking instead of name match
+  // alone — a column whose name matches but whose values don't won't
+  // be auto-picked anymore.
   useEffect(() => {
-    if (!joinKey && ranked.length > 0) {
+    if (leftId == null || rightId == null) {
+      setSuggestions([]);
+      setSuggestError(null);
+      return;
+    }
+    let cancelled = false;
+    setSuggestLoading(true);
+    setSuggestError(null);
+    api<JoinSuggestResponse>("/api/datasets/join/suggest", {
+      method: "POST",
+      json: { left_dataset_id: leftId, right_dataset_id: rightId },
+    })
+      .then((r) => {
+        if (cancelled) return;
+        setSuggestions(r.suggestions || []);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setSuggestError(errMessage(e));
+        setSuggestions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSuggestLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [leftId, rightId]);
+
+  // Promote any backend-suggested same-named column-pair to the top of
+  // the manual list (in addition to the suggestion banner). When the
+  // backend returns nothing — e.g. value overlap is null on every pair
+  // — we fall back to the trivial name-only ranking so the user can
+  // still pick something.
+  const ranked = useMemo(() => {
+    const named = suggestions
+      .filter((s) => s.left_column === s.right_column)
+      .map((s) => s.left_column);
+    const fallback = rankCommonKeys(leftCols, rightCols);
+    const merged = [...named, ...fallback.filter((c) => !named.includes(c))];
+    return Array.from(new Set(merged));
+  }, [suggestions, leftCols, rightCols]);
+
+  // The strongest suggestion we'll surface in the banner. Only auto-pick
+  // it when it actually has overlapping values — otherwise we leave the
+  // join key empty so the user has to make a deliberate choice and we
+  // can flag the warning instead of silently selecting a bad column.
+  const topSuggestion = suggestions[0] || null;
+  const topSuggestionUsable =
+    topSuggestion != null && topSuggestion.overlap_score > 0;
+  const topSuggestionSameName =
+    topSuggestion != null &&
+    topSuggestion.left_column === topSuggestion.right_column;
+
+  useEffect(() => {
+    if (joinKey) return;
+    if (topSuggestionUsable && topSuggestion && topSuggestionSameName) {
+      setJoinKey(topSuggestion.left_column);
+    } else if (topSuggestionUsable && topSuggestion && !topSuggestionSameName) {
+      // Different names on each side → fill the expert overrides so
+      // the join is still ready to run with one click.
+      setLeftKeyOverride(topSuggestion.left_column);
+      setRightKeyOverride(topSuggestion.right_column);
+    } else if (!topSuggestion && ranked.length > 0) {
       setJoinKey(ranked[0]);
     }
-  }, [ranked, joinKey]);
+  }, [
+    joinKey,
+    topSuggestion,
+    topSuggestionUsable,
+    topSuggestionSameName,
+    ranked,
+  ]);
 
   const leftDs = datasets.find((d) => d.id === leftId) || null;
   const rightDs = datasets.find((d) => d.id === rightId) || null;
@@ -355,6 +446,83 @@ export default function JoinPage() {
         <div className="text-xs font-mono text-[var(--text-muted)] mb-1">
           Step 3 · Shared column
         </div>
+
+        {/* Suggestion banner — backed by suggest_relationships ----------*/}
+        {suggestLoading && (
+          <div className="text-xs text-[var(--text-muted)] mb-2">
+            Scoring shared columns by actual values…
+          </div>
+        )}
+        {!suggestLoading && topSuggestion && (
+          <div
+            className={`mb-3 rounded border px-3 py-2 text-xs ${
+              topSuggestionUsable
+                ? "border-[var(--accent)] bg-[var(--surface-2)]"
+                : "border-amber-400 bg-amber-50 text-amber-800"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="font-mono text-[11px] text-[var(--text-muted)]">
+                  Suggested join
+                </div>
+                <div className="text-sm font-semibold mt-0.5">
+                  {topSuggestionSameName ? (
+                    <>{topSuggestion.left_column}</>
+                  ) : (
+                    <>
+                      {topSuggestion.left_column}{" "}
+                      <span className="text-[var(--text-muted)]">↔</span>{" "}
+                      {topSuggestion.right_column}
+                    </>
+                  )}
+                </div>
+                <div className="mt-1 text-[11px]">
+                  {Math.round(topSuggestion.overlap_score * 100)}% overlap ·{" "}
+                  {topSuggestion.cardinality}
+                  {!topSuggestionUsable && (
+                    <>
+                      {" "}
+                      · <strong>no overlapping values</strong> — pick a
+                      different column or confirm this is intentional.
+                    </>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (topSuggestionSameName) {
+                    setJoinKey(topSuggestion.left_column);
+                    setLeftKeyOverride("");
+                    setRightKeyOverride("");
+                  } else {
+                    setJoinKey("");
+                    setLeftKeyOverride(topSuggestion.left_column);
+                    setRightKeyOverride(topSuggestion.right_column);
+                  }
+                  setPreview(null);
+                }}
+                className="btn btn-ghost text-xs whitespace-nowrap"
+              >
+                Use this
+              </button>
+            </div>
+          </div>
+        )}
+        {!suggestLoading && !topSuggestion && suggestions.length === 0 &&
+          leftId != null && rightId != null && !suggestError && (
+            <div className="mb-2 text-xs text-amber-700">
+              No strong join candidate found by value overlap. Pick a column
+              manually below.
+            </div>
+          )}
+        {suggestError && (
+          <div className="mb-2 text-xs text-red-600">
+            Couldn't score join candidates: {suggestError}
+          </div>
+        )}
+
         {ranked.length === 0 ? (
           <div className="text-sm text-amber-600">
             No exact column-name match. Pick a column on each side below.

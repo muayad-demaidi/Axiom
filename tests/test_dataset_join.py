@@ -478,6 +478,141 @@ def test_join_datasets_chat_tool_save_persists_artifact(
     assert any(r["id"] == summary["dataset_id"] for r in rows)
 
 
+# ---------------------------------------------------------------------------
+# Task #252 — POST /api/datasets/join/suggest
+# ---------------------------------------------------------------------------
+
+def test_join_suggest_ranks_real_value_overlap_above_name_match(
+    client, project, upload_dataset,
+):
+    """A column whose name matches but whose values don't must NOT
+    out-rank a column whose values genuinely overlap. This is the
+    headline behaviour the task adds: pre-Task #252 the picker would
+    have grabbed ``id`` because the name matched on both sides; post-
+    Task #252 it has to pick ``customer_id`` because the values overlap.
+    """
+    u, pid = project("join-suggest-overlap")
+    left = pd.DataFrame({
+        "id": [9001, 9002, 9003, 9004, 9005],
+        "customer_id": [1, 2, 3, 4, 5],
+        "amount": [10, 20, 30, 40, 50],
+    }).to_csv(index=False).encode()
+    right = pd.DataFrame({
+        # Same name "id" but completely disjoint values from left.id.
+        "id": [50_001, 50_002, 50_003, 50_004, 50_005],
+        "customer_id": [1, 2, 3, 4, 5],
+        "name": ["Ada", "Linus", "Grace", "Hopper", "Turing"],
+    }).to_csv(index=False).encode()
+    da = upload_dataset(u["headers"], pid, "left_t", left)
+    dr = upload_dataset(u["headers"], pid, "right_t", right)
+    r = client.post(
+        "/api/datasets/join/suggest",
+        json={"left_dataset_id": da, "right_dataset_id": dr},
+        headers=u["headers"],
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["left_dataset_id"] == da
+    assert body["right_dataset_id"] == dr
+    suggestions = body["suggestions"]
+    assert len(suggestions) >= 1
+    top = suggestions[0]
+    assert top["left_column"] == "customer_id"
+    assert top["right_column"] == "customer_id"
+    # Real-value overlap is the dominant signal — the top hit should
+    # have a perfect Jaccard since both sides cover {1..5}.
+    assert top["overlap_score"] == 1.0
+    # And it should beat the same-named "id" column-pair, which has
+    # zero overlap. The "id" pair may still surface because
+    # name+dtype clear the threshold, but it must rank below.
+    id_pair = next(
+        (s for s in suggestions
+         if s["left_column"] == "id" and s["right_column"] == "id"),
+        None,
+    )
+    if id_pair is not None:
+        assert id_pair["overlap_score"] == 0.0
+        assert top["confidence"] > id_pair["confidence"]
+
+
+def test_join_suggest_returns_empty_for_unrelated_datasets(
+    client, project, upload_dataset,
+):
+    """Two datasets with no name match AND no value overlap should
+    return an empty list — the frontend then falls back to the manual
+    column picker."""
+    u, pid = project("join-suggest-empty")
+    a = pd.DataFrame({
+        "alpha": ["foo", "bar", "baz"],
+        "beta": [1, 2, 3],
+    }).to_csv(index=False).encode()
+    b = pd.DataFrame({
+        "gamma": ["qux", "quux", "quuux"],
+        "delta": [100.5, 200.5, 300.5],
+    }).to_csv(index=False).encode()
+    da = upload_dataset(u["headers"], pid, "alpha_t", a)
+    dr = upload_dataset(u["headers"], pid, "gamma_t", b)
+    r = client.post(
+        "/api/datasets/join/suggest",
+        json={"left_dataset_id": da, "right_dataset_id": dr},
+        headers=u["headers"],
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["suggestions"] == []
+
+
+def test_join_suggest_cross_user_isolation_returns_404(
+    client, register, project, upload_dataset, customers_csv, orders_csv,
+):
+    a, pid_a = project("ua-suggest", user=register("alice2"))
+    cust = upload_dataset(a["headers"], pid_a, "customers", customers_csv)
+    ords = upload_dataset(a["headers"], pid_a, "orders", orders_csv)
+    b, _pid_b = project("ub-suggest", user=register("bob2"))
+    r = client.post(
+        "/api/datasets/join/suggest",
+        json={"left_dataset_id": ords, "right_dataset_id": cust},
+        headers=b["headers"],
+    )
+    assert r.status_code == 404, r.text
+
+
+def test_join_suggest_finds_differently_named_fk_pair(
+    client, project, upload_dataset,
+):
+    """The classic FK case: ``customer_id`` on one side, ``id`` on
+    the other, with overlapping values. The endpoint must surface the
+    pair so the frontend can pre-fill the expert overrides."""
+    u, pid = project("join-suggest-fk")
+    customers = pd.DataFrame({
+        "id": [1, 2, 3, 4, 5],
+        "name": ["a", "b", "c", "d", "e"],
+    }).to_csv(index=False).encode()
+    orders = pd.DataFrame({
+        "order_id": [10, 11, 12, 13],
+        "customer_id": [1, 1, 3, 5],
+        "amount": [10, 20, 30, 40],
+    }).to_csv(index=False).encode()
+    dc = upload_dataset(u["headers"], pid, "customers_x", customers)
+    do = upload_dataset(u["headers"], pid, "orders_x", orders)
+    r = client.post(
+        "/api/datasets/join/suggest",
+        json={"left_dataset_id": do, "right_dataset_id": dc},
+        headers=u["headers"],
+    )
+    assert r.status_code == 200, r.text
+    suggestions = r.json()["suggestions"]
+    assert len(suggestions) >= 1
+    # The (customer_id, id) pair should be among the suggestions with
+    # non-zero overlap.
+    fk_pair = next(
+        (s for s in suggestions
+         if s["left_column"] == "customer_id" and s["right_column"] == "id"),
+        None,
+    )
+    assert fk_pair is not None, suggestions
+    assert fk_pair["overlap_score"] > 0
+
+
 def test_join_datasets_registered_in_tool_handlers_and_schema():
     """Smoke check: the chat tool name shows up in both the OpenAI
     schema and the dispatcher map. Catches the case where someone adds

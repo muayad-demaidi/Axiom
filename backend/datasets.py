@@ -18,7 +18,7 @@ from pydantic import BaseModel
 
 import models  # type: ignore
 from data_analyzer import generate_summary_report  # type: ignore
-from data_modelling import _cardinality  # type: ignore
+from data_modelling import _cardinality, suggest_relationships  # type: ignore
 
 from ._json import jsonify
 from .auth import get_current_user, get_db_session
@@ -448,4 +448,59 @@ async def join_datasets(
         "project_id": record.project_id,
         "rows": record.row_count,
         "cols": record.column_count,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Suggest the strongest join column based on actual values — Task #252
+# ---------------------------------------------------------------------------
+
+
+class JoinSuggestRequest(BaseModel):
+    """Body for ``POST /api/datasets/join/suggest``.
+
+    Returns the same ranked list the Data Model screen uses, so the
+    Join page can pick the strongest column-pair by *real* value
+    overlap (Jaccard) + name similarity + dtype compatibility instead
+    of just naming heuristics.
+    """
+
+    left_dataset_id: int
+    right_dataset_id: int
+
+
+@router.post("/join/suggest")
+async def suggest_join_columns(
+    body: JoinSuggestRequest,
+    user=Depends(get_current_user),
+    db=Depends(get_db_session),
+):
+    """Score every (left_col, right_col) pair across the two selected
+    datasets and return the ranked candidates.
+
+    The Join page calls this after the user picks two datasets so it
+    can pre-select a column pair backed by actual value overlap rather
+    than name match alone. A null-overlap candidate is still returned
+    (when name + dtype clear the threshold) so the UI can flag it as
+    a warning instead of silently auto-accepting it.
+    """
+    left_rec = models.get_dataset_record_strict(
+        db, body.left_dataset_id, user_id=user.id,
+    )
+    right_rec = models.get_dataset_record_strict(
+        db, body.right_dataset_id, user_id=user.id,
+    )
+    if not left_rec or not left_rec.source_parquet:
+        raise HTTPException(404, "Left dataset not found")
+    if not right_rec or not right_rec.source_parquet:
+        raise HTTPException(404, "Right dataset not found")
+
+    left_df = pd.read_parquet(io.BytesIO(left_rec.source_parquet))
+    right_df = pd.read_parquet(io.BytesIO(right_rec.source_parquet))
+
+    suggestions = suggest_relationships(left_df, right_df)
+    return jsonify({
+        "left_dataset_id": body.left_dataset_id,
+        "right_dataset_id": body.right_dataset_id,
+        "suggestions": [s.to_dict() for s in suggestions],
     })
