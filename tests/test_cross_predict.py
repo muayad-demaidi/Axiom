@@ -432,3 +432,221 @@ def test_cross_predict_request_mode_overrides_default(
     )
     assert r.status_code == 200, r.text
     assert r.json()["mode"] == "expert"
+
+
+# ---------------------------------------------------------------------------
+# Big-project safety: lazy loading + persisted-first + size cap
+# (Task #261)
+# ---------------------------------------------------------------------------
+
+def test_cross_predict_skips_propose_pass_when_persisted_exists(
+    client, project, upload_dataset, cp_customers_csv, cp_orders_csv,
+    monkeypatch,
+):
+    """When the persisted ``project_relationships`` rows already
+    cover the join graph, cross-predict must NOT re-run the heavy
+    profile + propose pass — that work was already done at upload
+    time. We assert this by monkey-patching
+    ``propose_relationships_for_project`` to a sentinel that explodes
+    if called, and verifying the endpoint still returns 200 with a
+    populated join plan.
+    """
+    u, pid = project("cp-no-repropose")
+    upload_dataset(u["headers"], pid, "customers", cp_customers_csv)
+    orders_id = upload_dataset(u["headers"], pid, "orders", cp_orders_csv)
+
+    # Auto-discovery on the second upload should already have written
+    # the high-confidence customer_id↔customer_id relationship.
+    import semantic_model as sm
+    calls = {"n": 0}
+
+    def _explode(*_a, **_kw):
+        calls["n"] += 1
+        raise AssertionError(
+            "propose_relationships_for_project must NOT be called when "
+            "persisted relationships already cover the join graph."
+        )
+
+    monkeypatch.setattr(sm, "propose_relationships_for_project", _explode)
+    # Also patch where the function is referenced by cross_predict's
+    # `import semantic_model as sm` — same module so the patch above
+    # is sufficient, but be explicit for safety.
+    from backend import cross_predict as cp
+    monkeypatch.setattr(cp.sm, "propose_relationships_for_project", _explode)
+
+    r = client.post(
+        f"/api/projects/{pid}/cross-predict",
+        json={"target_dataset_id": orders_id, "target_column": "sales"},
+        headers=u["headers"],
+    )
+    assert r.status_code == 200, r.text
+    plan = r.json()["join_plan"]
+    assert plan["joins"], plan
+    assert calls["n"] == 0
+
+
+def test_cross_predict_lazy_loads_only_needed_frames(
+    client, project, upload_dataset,
+    cp_customers_csv, cp_orders_csv, cp_unrelated_csv,
+    monkeypatch,
+):
+    """A project with three datasets where only two participate in
+    the join graph must NOT deserialise the parquet for the orphan
+    third dataset. We monkey-patch ``_load_frame`` to count calls per
+    dataset id and assert the orphan was never touched.
+    """
+    u, pid = project("cp-lazy")
+    upload_dataset(u["headers"], pid, "customers", cp_customers_csv)
+    orders_id = upload_dataset(u["headers"], pid, "orders", cp_orders_csv)
+    fx_id = upload_dataset(u["headers"], pid, "fx", cp_unrelated_csv)
+
+    # Wrap _load_frame to record which dataset ids were loaded.
+    from backend import cross_predict as cp
+    loaded_ids: list[int] = []
+    original = cp._load_frame
+
+    def _tracking_load(record):
+        if record is not None:
+            loaded_ids.append(int(record.id))
+        return original(record)
+
+    monkeypatch.setattr(cp, "_load_frame", _tracking_load)
+
+    r = client.post(
+        f"/api/projects/{pid}/cross-predict",
+        json={"target_dataset_id": orders_id, "target_column": "sales"},
+        headers=u["headers"],
+    )
+    assert r.status_code == 200, r.text
+    plan = r.json()["join_plan"]
+    assert plan["joins"], plan
+
+    # The orphan fx dataset has no relationship and must not have been
+    # loaded into memory.
+    assert fx_id not in loaded_ids, (
+        f"fx_id {fx_id} should not have been loaded; loaded_ids={loaded_ids}"
+    )
+    # Target + customers should both have been loaded exactly once.
+    assert orders_id in loaded_ids
+    # customers id is the one we don't have a handle on; check that
+    # exactly two distinct ids were loaded (target + dimension).
+    assert len(set(loaded_ids)) == 2, loaded_ids
+
+
+def test_cross_predict_caps_merged_frame_size(
+    client, project, upload_dataset, cp_customers_csv, cp_orders_csv,
+    monkeypatch,
+):
+    """When the projected merged frame would exceed the
+    ``MAX_MERGED_ROWS`` cap, the engine must downsample (rather than
+    OOM) and surface a warning in the join plan.
+    """
+    u, pid = project("cp-cap")
+    upload_dataset(u["headers"], pid, "customers", cp_customers_csv)
+    orders_id = upload_dataset(u["headers"], pid, "orders", cp_orders_csv)
+
+    # Force the cap below the natural merged size (40 orders × 1
+    # matching customer row → 40-row merged frame; cap at 10).
+    monkeypatch.setenv("AXIOM_CROSS_PREDICT_MAX_ROWS", "10")
+
+    r = client.post(
+        f"/api/projects/{pid}/cross-predict",
+        json={"target_dataset_id": orders_id, "target_column": "sales"},
+        headers=u["headers"],
+    )
+    assert r.status_code == 200, r.text
+    plan = r.json()["join_plan"]
+    assert plan["max_merged_rows"] == 10, plan
+    assert plan["merged_rows"] <= 10, plan
+    # At least one warning should mention the downsample.
+    assert any("cap" in w.lower() or "downsample" in w.lower()
+               for w in plan["warnings"]), plan
+
+
+def test_cross_predict_runs_fallback_when_persisted_orphans_target(
+    client, project, upload_dataset,
+    cp_customers_csv, cp_orders_csv, cp_unrelated_csv,
+):
+    """Persisted relationships exist but none touch the target. The
+    propose-pass fallback must still run so the endpoint can find a
+    usable join (or confirm there genuinely isn't one) — it must NOT
+    silently fall through to a target-only prediction just because
+    the persisted set is non-empty.
+
+    Setup: orders + customers + fx, then hand-write a confirmed
+    relationship between customers and fx (which doesn't help orders).
+    Querying cross-predict on orders must surface the
+    customers↔orders join via the propose fallback.
+    """
+    from backend.auth import get_db_session
+    u, pid = project("cp-orphan-target")
+    customers_id = upload_dataset(u["headers"], pid, "customers", cp_customers_csv)
+    orders_id = upload_dataset(u["headers"], pid, "orders", cp_orders_csv)
+    fx_id = upload_dataset(u["headers"], pid, "fx", cp_unrelated_csv)
+
+    # Wipe whatever auto-discovery wrote, then plant a single
+    # persisted relationship between customers and fx — neither side
+    # touches the orders target.
+    db = next(get_db_session())
+    try:
+        db.query(models.ProjectRelationship).filter(
+            models.ProjectRelationship.project_id == pid,
+        ).delete()
+        db.commit()
+        lo, hi = sorted([customers_id, fx_id])
+        db.add(models.ProjectRelationship(
+            project_id=pid,
+            left_dataset_id=lo, left_column="customer_id",
+            right_dataset_id=hi, right_column="country",
+            cardinality="N:1", join_type="left",
+            status="confirmed",
+            band="user",
+            confidence=0.99,
+            evidence={},
+            overlap_score=0.0,
+            name_score=0.0,
+            dtype_score=0.0,
+            user_locked=True,
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    r = client.post(
+        f"/api/projects/{pid}/cross-predict",
+        json={"target_dataset_id": orders_id, "target_column": "sales"},
+        headers=u["headers"],
+    )
+    assert r.status_code == 200, r.text
+    plan = r.json()["join_plan"]
+    # Fallback must have run and found the customer_id↔customer_id
+    # link, joining customers into the orders feature matrix.
+    join_steps = [s for s in plan["joins"] if s.get("source") != "target_clip"]
+    assert join_steps, plan
+    assert plan["skipped"] is False, plan
+    assert any(s.get("dataset_id") == customers_id for s in join_steps), plan
+
+
+def test_cross_predict_caps_huge_target_dataset(
+    client, project, upload_dataset, cp_orders_csv, monkeypatch,
+):
+    """Even on a single-dataset project, a target with more rows than
+    the cap must be downsampled before the prediction engine sees it.
+    """
+    u, pid = project("cp-cap-single")
+    orders_id = upload_dataset(u["headers"], pid, "orders", cp_orders_csv)
+    monkeypatch.setenv("AXIOM_CROSS_PREDICT_MAX_ROWS", "15")
+
+    r = client.post(
+        f"/api/projects/{pid}/cross-predict",
+        json={"target_dataset_id": orders_id, "target_column": "sales"},
+        headers=u["headers"],
+    )
+    assert r.status_code == 200, r.text
+    plan = r.json()["join_plan"]
+    assert plan["max_merged_rows"] == 15
+    assert plan["merged_rows"] <= 15
+    # The target rows reported should be the original (40) — only the
+    # merged frame is downsampled.
+    assert plan["target_rows"] == 40
+    assert any("downsample" in w.lower() for w in plan["warnings"]), plan
