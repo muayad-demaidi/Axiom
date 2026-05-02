@@ -337,6 +337,46 @@ class DailyPulseSnapshot(Base):
     )
 
 
+class Recommendation(Base):
+    """Structured, actionable recommendation produced by the rule-based
+    recommendation engine (Task #251).
+
+    Each row represents one suggestion the engine derived from the
+    project's latest predictions/inventory snapshot. The engine fires
+    one of six rule types — ``discount``, ``reorder``, ``bundle``,
+    ``clearance``, ``promote``, ``investigate`` — each anchored on a
+    concrete ``product`` so the user can act on it directly.
+
+    The unique partial index on
+    ``(project_id, type, product, DATE(created_at))`` (created in
+    :func:`init_db`) collapses same-day re-runs into a single row per
+    (project, type, product) tuple. The Python-side dedupe in
+    :func:`backend.recommendations.generate_for_project` makes the same
+    guarantee under in-memory races.
+    """
+    __tablename__ = "recommendations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"),
+                        nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"),
+                     nullable=False, index=True)
+    type = Column(String(32), nullable=False, index=True)
+    product = Column(String(255), nullable=False, index=True)
+    reason = Column(Text, nullable=False)
+    suggested_action = Column(Text, nullable=False)
+    expected_impact = Column(String(255), nullable=True)
+    priority = Column(String(16), nullable=False, default="medium", index=True)
+    deadline = Column(DateTime, nullable=True)
+    confidence = Column(Float, nullable=False, default=0.5)
+    dismissed = Column(Boolean, nullable=False, default=False, index=True)
+    dismissed_at = Column(DateTime, nullable=True)
+    applied = Column(Boolean, nullable=False, default=False, index=True)
+    applied_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow,
+                        nullable=False, index=True)
+
+
 class AnalysisHistory(Base):
     """Model to store analysis history"""
     __tablename__ = "analysis_history"
@@ -496,7 +536,8 @@ def init_db():
                ProjectRelationship.__table__,
                ProjectSemanticModel.__table__,
                ProjectModelQuestion.__table__,
-               DailyPulseSnapshot.__table__):
+               DailyPulseSnapshot.__table__,
+               Recommendation.__table__):
         try:
             _t.create(bind=engine, checkfirst=True)
         except Exception:
@@ -540,6 +581,14 @@ def init_db():
         "ON reports (project_id, created_at DESC, id DESC)",
         "CREATE INDEX IF NOT EXISTS ix_project_learned_notes_project_created "
         "ON project_learned_notes (project_id, created_at DESC)",
+        # Recommendation engine (Task #251). Unique-per-day so the same
+        # rule firing twice on the same calendar day collapses to a
+        # single row. Partial unique index on the date-truncated
+        # ``created_at`` is the cleanest portable form in Postgres.
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_recommendations_project_type_product_day "
+        "ON recommendations (project_id, type, product, (DATE(created_at)))",
+        "CREATE INDEX IF NOT EXISTS ix_recommendations_project_status "
+        "ON recommendations (project_id, dismissed, applied, priority, created_at DESC)",
     ])
     with engine.begin() as conn:
         for stmt in _migrations:

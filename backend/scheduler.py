@@ -219,6 +219,21 @@ def build_pulse_snapshot(
     }
 
     _upsert_snapshot(db, project_id, snapshot_date, payload)
+
+    # Recommendations engine (Task #251) feeds off the snapshot we
+    # just persisted, so chain it here. Best-effort — a recommendations
+    # failure must not block the snapshot itself.
+    try:
+        from . import recommendations as _recs
+        _recs.generate_for_project(db, project_id, today=snapshot_date)
+    except Exception as exc:  # pragma: no cover - defensive
+        log.info("recommendations engine skipped for project %s: %s",
+                 project_id, exc)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+
     return payload
 
 

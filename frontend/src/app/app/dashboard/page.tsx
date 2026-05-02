@@ -42,6 +42,7 @@ import type {
 import { getActiveDatasetId, getActiveProjectId } from "@/lib/projectContext";
 import { useMode } from "@/lib/modeContext";
 import { ModeAwareHeading, MissingDatasetNotice } from "@/components/product/ModeAware";
+import { RecommendationsPanel } from "@/components/product/RecommendationsPanel";
 
 const PALETTE = ["#2563eb", "#60a5fa", "#3b82f6", "#1d4ed8", "#93c5fd", "#0ea5e9", "#1e40af"];
 
@@ -440,6 +441,8 @@ export default function DashboardPage() {
               &nbsp;page to build something, or click &quot;Reset&quot; to auto-suggest tiles.
             </div>
           )}
+
+          <RecommendationsPanel projectId={projectId} />
         </>
       )}
 
