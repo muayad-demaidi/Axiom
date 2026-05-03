@@ -67,6 +67,10 @@ type AnalyzePayload =
       drivers: { column: string; correlation: number; abs_correlation: number }[];
       questions: WizardQuestion[];
       partial_confidence: PartialConfidence;
+      domain?: string;
+      target_reason?: string;
+      problem_type?: string;
+      numeric_columns?: string[];
       flow: "guided";
     }
   | {
@@ -116,6 +120,7 @@ export function GuidedPredictionWizard({
   const [answers, setAnswers] = useState<Record<string, string | number>>({});
   const [questionIndex, setQuestionIndex] = useState(0);
   const [result, setResult] = useState<GuidedPredictionResult | null>(null);
+  const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
   const reloadTokenRef = useRef(0);
 
   const startAnalyze = useCallback(() => {
@@ -123,6 +128,7 @@ export function GuidedPredictionWizard({
     setPhase("scanning");
     setError(null);
     setResult(null);
+    setSelectedTarget(null);
     emitState("scanning");
     api<AnalyzePayload>("/api/predict/guided/analyze", {
       method: "POST",
@@ -166,7 +172,16 @@ export function GuidedPredictionWizard({
     emitState("running");
     try {
       const horizon = Number(answers["horizon_periods"] ?? 30) || 30;
-      const driverCols = analysis.drivers.map((d) => d.column);
+      const effectiveTarget = selectedTarget || analysis.target;
+      // When the user picks a different target, the pre-ranked drivers
+      // from the original analysis are no longer meaningful.  Send all
+      // eligible numeric columns (excluding the new target) so the
+      // backend can rank them correctly against the chosen target.
+      // When the target is unchanged we keep the pre-ranked list.
+      const driverCols =
+        selectedTarget && selectedTarget !== analysis.target
+          ? (analysis.numeric_columns ?? []).filter((c) => c !== effectiveTarget)
+          : analysis.drivers.map((d) => d.column).filter((c) => c !== effectiveTarget);
       const resp = await api<{
         result: GuidedPredictionResult;
         artifact: unknown | null;
@@ -174,7 +189,7 @@ export function GuidedPredictionWizard({
         method: "POST",
         json: {
           dataset_id: datasetId,
-          target: analysis.target,
+          target: effectiveTarget,
           time_column: analysis.time_column,
           drivers: driverCols,
           answers,
@@ -195,7 +210,7 @@ export function GuidedPredictionWizard({
     } finally {
       emitState("idle");
     }
-  }, [analysis, answers, datasetId, sessionId, onArtifactCreated]);
+  }, [analysis, answers, selectedTarget, datasetId, sessionId, onArtifactCreated]);
 
   return (
     <div
@@ -212,11 +227,16 @@ export function GuidedPredictionWizard({
           index={questionIndex}
           setIndex={setQuestionIndex}
           onSubmit={submit}
+          selectedTarget={selectedTarget}
+          onTargetChange={setSelectedTarget}
         />
       )}
       {phase === "running" && (
         <RunningPhase
-          target={(analysis && "ok" in analysis && analysis.ok && analysis.target) || ""}
+          target={
+            (analysis && "ok" in analysis && analysis.ok &&
+              (selectedTarget || analysis.target)) || ""
+          }
         />
       )}
       {phase === "result" && result && (
@@ -336,6 +356,8 @@ function QuestioningPhase({
   index,
   setIndex,
   onSubmit,
+  selectedTarget,
+  onTargetChange,
 }: {
   analysis: Extract<AnalyzePayload, { ok: true }>;
   answers: Record<string, string | number>;
@@ -343,38 +365,84 @@ function QuestioningPhase({
   index: number;
   setIndex: (n: number) => void;
   onSubmit: () => void;
+  selectedTarget: string | null;
+  onTargetChange: (t: string | null) => void;
 }) {
   const total = analysis.questions.length;
   const safeIndex = Math.max(0, Math.min(index, total - 1));
   const current = analysis.questions[safeIndex];
   const isLast = safeIndex >= total - 1;
   const progress = total > 0 ? ((safeIndex + 1) / total) * 100 : 100;
+  const effectiveTarget = selectedTarget || analysis.target;
+  const numericCols = analysis.numeric_columns ?? [];
+  const [showTargetPicker, setShowTargetPicker] = useState(false);
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-[var(--border)]/60 bg-[var(--surface)] p-3">
-        <div className="text-[11px] text-[var(--text-muted)] mb-1">
-          What we found:
-        </div>
-        <div className="text-sm">
-          We'll forecast <span className="font-semibold text-[var(--accent)]">{analysis.target}</span>
+      <div className="rounded-lg border border-[var(--border)]/60 bg-[var(--surface)] p-3 space-y-2">
+        {analysis.domain && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
+              المجال
+            </span>
+            <span className="text-[11px] font-semibold text-[var(--accent)]">
+              {analysis.domain}
+            </span>
+          </div>
+        )}
+        <div className="text-[11px] text-[var(--text-muted)]">ما وجدناه:</div>
+        <div className="text-sm flex flex-wrap items-center gap-1.5">
+          <span>سنتنبأ بـ</span>
+          <span className="font-semibold text-[var(--accent)]">{effectiveTarget}</span>
+          {numericCols.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setShowTargetPicker((p) => !p)}
+              className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+            >
+              غيّر الهدف
+            </button>
+          )}
           {analysis.time_column ? (
-            <>
-              {" "}over time using column{" "}
-              <span className="font-mono text-[11px]">{analysis.time_column}</span>.
-            </>
+            <span>
+              {" "}عبر الزمن باستخدام{" "}
+              <span className="font-mono text-[11px]">{analysis.time_column}</span>
+            </span>
           ) : analysis.drivers.length ? (
-            <>
-              {" "}based on {analysis.drivers.length} driving factors:{" "}
+            <span>
+              {" "}بناءً على {analysis.drivers.length} عوامل مؤثرة:{" "}
               <span className="font-mono text-[11px]">
                 {analysis.drivers.slice(0, 3).map((d) => d.column).join(" · ")}
               </span>
               {analysis.drivers.length > 3 ? "…" : ""}
-            </>
+            </span>
           ) : (
-            <> based on the available data.</>
+            <span> بناءً على البيانات المتاحة.</span>
           )}
         </div>
+        {showTargetPicker && numericCols.length > 1 && (
+          <div className="pt-1">
+            <select
+              value={effectiveTarget}
+              onChange={(e) => {
+                onTargetChange(e.target.value === analysis.target ? null : e.target.value);
+                setShowTargetPicker(false);
+              }}
+              className="w-full text-xs px-2 py-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
+            >
+              {numericCols.map((col) => (
+                <option key={col} value={col}>{col}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        {analysis.target_reason && (
+          <div className="text-[11px] text-[var(--text-muted)] border-t border-[var(--border)]/40 pt-1.5 mt-1">
+            {selectedTarget && selectedTarget !== analysis.target
+              ? `السبب أعلاه يخص الهدف المقترح تلقائياً — الهدف الحالي: ${selectedTarget}`
+              : analysis.target_reason}
+          </div>
+        )}
       </div>
 
       {analysis.partial_confidence && (

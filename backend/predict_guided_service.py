@@ -12,7 +12,7 @@ Pure ML + LLM logic — no FastAPI imports here. Public surface:
     compute a confidence score with sub-scores, and wrap the ML
     numbers in an Arabic narrative via GPT-4o.
 
-The two LLM calls are isolated in ``_arabic_questions`` and
+The two LLM calls are isolated in ``_gpt4o_analyze`` and
 ``_arabic_narrative`` so tests can stub them via monkeypatching the
 module-level ``_chat_completion`` helper.
 
@@ -504,51 +504,196 @@ def _chat_completion(
         return ""
 
 
-def _arabic_questions(
+def build_dataset_profile(df: pd.DataFrame) -> dict[str, Any]:
+    """Build a rich profile of the dataset for GPT-4o analysis.
+
+    For each column: name, dtype, null%, min/max/mean (numeric) or
+    top-3 unique values (text). Includes first 5 rows as a sample.
+    Hard budget enforced in layers so the serialised profile stays
+    inside the ~2000-symbol (≈5000-char) limit set in the task spec:
+      1. Column count capped at 30 (priority to target/time hint cols).
+      2. sample_rows dropped if still over budget.
+      3. top_values shrunk to 1 entry per text column as last resort.
+    """
+    MAX_CHARS = 5000  # safe ceiling (~1250 tokens — stays inside the 2000-symbol budget)
+    MAX_COLS = 30     # cap on number of columns profiled
+    TOP_N = 3         # unique-value samples per text column
+
+    # Cap column count — prioritise target-hint and time-hint cols.
+    cols = list(df.columns)
+    if len(cols) > MAX_COLS:
+        priority = sorted(
+            cols,
+            key=lambda c: (
+                -_column_score(c, _TARGET_COLUMN_HINTS)
+                - _column_score(c, _TIME_COLUMN_HINTS)
+            ),
+        )
+        cols = priority[:MAX_COLS]
+
+    columns_info: list[dict[str, Any]] = []
+    for col in cols:
+        col_info: dict[str, Any] = {
+            "name": str(col),
+            "dtype": str(df[col].dtype),
+            "null_pct": round(float(df[col].isna().mean()) * 100, 1),
+        }
+        if pd.api.types.is_numeric_dtype(df[col]):
+            clean = df[col].dropna()
+            if len(clean) > 0:
+                col_info["min"] = round(float(clean.min()), 4)
+                col_info["max"] = round(float(clean.max()), 4)
+                col_info["mean"] = round(float(clean.mean()), 4)
+        else:
+            top_vals = (
+                df[col].dropna().astype(str).value_counts().head(TOP_N).index.tolist()
+            )
+            # Hard-clamp each string value to 40 chars to prevent
+            # high-cardinality free-text columns from blowing the budget.
+            col_info["top_values"] = [v[:40] for v in top_vals]
+        columns_info.append(col_info)
+
+    sample_rows = df.head(5).astype(str).to_dict(orient="records")
+
+    profile: dict[str, Any] = {
+        "n_rows": len(df),
+        "n_cols": len(df.columns),
+        "columns": columns_info,
+        "sample_rows": sample_rows,
+    }
+
+    # Layer-2 truncation: drop sample_rows.
+    if len(json.dumps(profile, ensure_ascii=False)) > MAX_CHARS:
+        profile.pop("sample_rows", None)
+
+    # Layer-3 truncation: shrink top_values to 1 entry per column.
+    if len(json.dumps(profile, ensure_ascii=False)) > MAX_CHARS:
+        for ci in profile["columns"]:
+            if "top_values" in ci:
+                ci["top_values"] = ci["top_values"][:1]
+
+    # Layer-4 (last resort): truncate column names and string values
+    # that are still extremely long after the above passes.
+    if len(json.dumps(profile, ensure_ascii=False)) > MAX_CHARS:
+        for ci in profile["columns"]:
+            ci["name"] = ci["name"][:30]
+            if "top_values" in ci:
+                ci["top_values"] = [v[:20] for v in ci["top_values"]]
+
+    return profile
+
+
+def _infer_problem_type(
+    df: pd.DataFrame, target: str, time_column: str | None
+) -> str:
+    """Deterministically infer problem type when GPT-4o is unavailable.
+
+    - ``timeseries`` if a valid time column exists.
+    - ``classification`` if the target looks categorical: ≤20 unique
+      values and cardinality ratio < 5 % of row count.
+    - ``regression`` otherwise.
+    """
+    if time_column:
+        return "timeseries"
+    if target not in df.columns:
+        return "regression"
+    col = df[target].dropna()
+    n_unique = int(col.nunique())
+    ratio = n_unique / max(len(col), 1)
+    if n_unique <= 20 and ratio < 0.05:
+        return "classification"
+    return "regression"
+
+
+def _gpt4o_analyze(
+    profile: dict[str, Any],
     target: str,
     time_column: str | None,
     drivers: list[dict[str, Any]],
-    n_rows: int,
-) -> list[dict[str, Any]]:
-    """Ask GPT-4o for 3–5 Arabic clarifying questions for the wizard.
+) -> dict[str, Any]:
+    """Single GPT-4o call: domain inference + questions.
 
-    Falls back to a deterministic Arabic question set when the LLM
-    returns nothing parseable, so the wizard always has questions to
-    show.
+    Returns a dict with keys: ``domain``, ``target_reason``,
+    ``problem_type``, and ``questions``.  Returns an empty dict when
+    the LLM is unavailable so callers can fall back gracefully.
     """
     summary = {
-        "target": target,
-        "time_column": time_column,
-        "drivers": [d["column"] for d in drivers],
-        "row_count": n_rows,
+        "profile": profile,
+        "detected_target": target,
+        "detected_time_column": time_column,
+        "top_drivers": [d["column"] for d in drivers[:5]],
     }
     system = (
-        "You generate clarifying questions for an Arabic-speaking "
-        "business user about to run a forecast on their dataset. "
-        "Output ONLY valid JSON of the form "
-        "{\"questions\":[{\"id\":\"...\",\"text\":\"...\",\"kind\":"
-        "\"slider|yesno|dropdown\",\"options\":[...],\"min\":0,\"max\":"
-        "100,\"default\":50}]}. Provide between 3 and 5 questions. All "
-        "user-facing text must be in Modern Standard Arabic. Do NOT "
-        "ask for raw numeric column values; ask about business "
-        "context (e.g. expected promotion lift, planned spend "
-        "change, season expectations)."
+        "You are an expert data analyst. Given a dataset profile, you must:\n"
+        "1. Infer the business domain (short Arabic phrase, e.g. 'بيانات مبيعات إقليمية').\n"
+        "2. Explain in one Arabic sentence why the detected target column was chosen.\n"
+        "3. Classify the problem type: 'timeseries' if a time column exists, "
+        "'regression' for continuous numeric targets, 'classification' for categorical.\n"
+        "4. Generate 3–5 clarifying questions TAILORED to the actual domain "
+        "(HR data → turnover/attendance questions, sales data → promotions/seasonality, "
+        "manufacturing → production rates/downtime, etc.).\n\n"
+        "Output ONLY valid JSON — no markdown, no commentary:\n"
+        '{"domain":"...","target_reason":"...","problem_type":"timeseries|regression|classification",'
+        '"questions":[{"id":"...","text":"...","kind":"slider|yesno|dropdown",'
+        '"min":0,"max":100,"default":50,"unit":"%","options":["..."]}]}\n\n'
+        "Rules:\n"
+        "- domain and target_reason must be in Modern Standard Arabic.\n"
+        "- All question text must be in Modern Standard Arabic.\n"
+        "- Do NOT ask about raw numeric column values; ask about business context.\n"
+        "- Always include a 'horizon_periods' dropdown question "
+        "({\"id\":\"horizon_periods\",\"kind\":\"dropdown\",\"options\":[\"7\",\"14\",\"30\",\"60\",\"90\"],\"default\":\"30\"}) "
+        "if problem_type is 'timeseries'."
     )
-    user = (
-        "Dataset summary (JSON): " + json.dumps(summary, ensure_ascii=False)
-    )
+    user_payload = json.dumps(summary, ensure_ascii=False)
+    # If the profile is very large, strip sample_rows to stay within token limits.
+    if len(user_payload) > 6000:
+        light_profile = {k: v for k, v in profile.items() if k != "sample_rows"}
+        light_summary = {**summary, "profile": light_profile}
+        user_payload = json.dumps(light_summary, ensure_ascii=False)
+
     raw = _chat_completion(
         [
             {"role": "system", "content": system},
-            {"role": "user", "content": user},
+            {"role": "user", "content": "Dataset profile (JSON): " + user_payload},
         ],
         temperature=0.2,
-        max_tokens=600,
+        max_tokens=900,
     )
-    parsed = _parse_questions(raw)
-    if parsed:
-        return parsed
-    return _default_questions(target, time_column)
+    if not raw:
+        return {}
+
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.lower().startswith("json"):
+            text = text[4:].strip()
+    try:
+        obj = json.loads(text)
+    except Exception:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            return {}
+        try:
+            obj = json.loads(text[start : end + 1])
+        except Exception:
+            return {}
+
+    if not isinstance(obj, dict):
+        return {}
+
+    result: dict[str, Any] = {
+        "domain": str(obj.get("domain") or "").strip(),
+        "target_reason": str(obj.get("target_reason") or "").strip(),
+        "problem_type": str(obj.get("problem_type") or "regression").strip(),
+    }
+
+    # Re-use the existing question parser against the already-parsed object
+    # by reconstructing a minimal JSON string for _parse_questions.
+    q_raw = json.dumps({"questions": obj.get("questions", [])}, ensure_ascii=False)
+    result["questions"] = _parse_questions(q_raw)
+
+    return result
 
 
 def _parse_questions(raw: str) -> list[dict[str, Any]]:
@@ -606,25 +751,62 @@ def _parse_questions(raw: str) -> list[dict[str, Any]]:
 
 
 def _default_questions(
+    target: str,
+    time_column: str | None,
+    problem_type: str = "regression",
+) -> list[dict[str, Any]]:
+    """Branched deterministic Arabic question set used when the LLM is offline.
+
+    Branches by ``problem_type`` so HR data doesn't get sales questions
+    and manufacturing data doesn't get seasonality questions.
+    """
+    if problem_type == "timeseries" or time_column:
+        return _default_questions_timeseries(target, time_column)
+    if problem_type == "classification":
+        return _default_questions_classification(target)
+    return _default_questions_regression(target)
+
+
+def _default_questions_timeseries(
     target: str, time_column: str | None
 ) -> list[dict[str, Any]]:
-    """Deterministic Arabic question set used when the LLM is offline."""
-    questions = [
+    """Fallback questions for time-series problems."""
+    return [
         {
-            "id": "horizon_change",
-            "text": (
-                "هل تتوقع أن يتغير سلوك "
-                f"{target} بشكل كبير خلال الفترة القادمة؟"
-            ),
+            "id": "horizon_periods",
+            "text": "كم فترة مستقبلية ترغب بتوقعها؟",
+            "kind": "dropdown",
+            "options": ["7", "14", "30", "60", "90"],
+            "default": "30",
+        },
+        {
+            "id": "season_effect",
+            "text": f"ما مستوى التأثير الموسمي المتوقع على {target}؟",
+            "kind": "dropdown",
+            "options": ["منخفض", "متوسط", "مرتفع"],
+            "default": "متوسط",
+        },
+        {
+            "id": "trend_change",
+            "text": f"هل تتوقع تغيراً في اتجاه {target} خلال الفترة القادمة؟",
             "kind": "yesno",
             "default": "no",
         },
         {
-            "id": "promo_lift",
-            "text": (
-                "ما النسبة المتوقعة لتأثير العروض أو التغييرات "
-                "التشغيلية على النتيجة؟"
-            ),
+            "id": "external_shock",
+            "text": "هل ثمة أحداث خارجية متوقعة (حملات، إجازات، أزمات) قد تؤثر على التوقع؟",
+            "kind": "yesno",
+            "default": "no",
+        },
+    ]
+
+
+def _default_questions_regression(target: str) -> list[dict[str, Any]]:
+    """Fallback questions for regression problems."""
+    return [
+        {
+            "id": "expected_change",
+            "text": f"ما النسبة المتوقعة للتغير في {target} مقارنةً بالفترة السابقة؟",
             "kind": "slider",
             "min": -50.0,
             "max": 50.0,
@@ -632,24 +814,45 @@ def _default_questions(
             "unit": "%",
         },
         {
-            "id": "season_effect",
-            "text": "ما درجة التأثير الموسمي المتوقع؟",
+            "id": "key_driver_change",
+            "text": "هل ستطرأ تغييرات على العوامل الرئيسية المؤثرة في النتيجة؟",
+            "kind": "yesno",
+            "default": "no",
+        },
+        {
+            "id": "confidence_level",
+            "text": "ما مستوى الدقة المطلوب في التوقع؟",
             "kind": "dropdown",
-            "options": ["منخفض", "متوسط", "مرتفع"],
-            "default": "متوسط",
+            "options": ["تقديري (سريع)", "متوازن", "عالي الدقة"],
+            "default": "متوازن",
         },
     ]
-    if time_column:
-        questions.append(
-            {
-                "id": "horizon_periods",
-                "text": "كم فترة مستقبلية ترغب بتوقعها؟",
-                "kind": "dropdown",
-                "options": ["7", "14", "30", "60", "90"],
-                "default": "30",
-            }
-        )
-    return questions
+
+
+def _default_questions_classification(target: str) -> list[dict[str, Any]]:
+    """Fallback questions for classification problems."""
+    return [
+        {
+            "id": "class_balance",
+            "text": f"هل توزيع الفئات في {target} متوازن أم يوجد فئات نادرة؟",
+            "kind": "dropdown",
+            "options": ["متوازن", "غير متوازن", "لا أعرف"],
+            "default": "لا أعرف",
+        },
+        {
+            "id": "threshold_priority",
+            "text": "ما الأهم بالنسبة لك: تجنب الإيجابيات الخاطئة أم السلبيات الخاطئة؟",
+            "kind": "dropdown",
+            "options": ["تجنب الإيجابيات الخاطئة", "تجنب السلبيات الخاطئة", "متوازن"],
+            "default": "متوازن",
+        },
+        {
+            "id": "key_factor",
+            "text": "هل هناك عامل تعتقد أنه الأكثر تأثيراً في تحديد الفئة؟",
+            "kind": "yesno",
+            "default": "no",
+        },
+    ]
 
 
 def _arabic_narrative(
@@ -780,7 +983,13 @@ def _default_narrative(
 # ---------------------------------------------------------------------------
 
 def analyze_dataset(df: pd.DataFrame) -> dict[str, Any]:
-    """Profile the dataset and prepare the wizard's "Questioning" payload."""
+    """Profile the dataset and prepare the wizard's "Questioning" payload.
+
+    Builds a rich dataset profile and sends it to GPT-4o in a single
+    call that returns the inferred domain, reason for the target choice,
+    problem type, and data-aware clarifying questions.  Falls back to
+    branched deterministic questions when GPT-4o is unavailable.
+    """
     if df is None or df.empty:
         return {
             "ok": False,
@@ -815,16 +1024,38 @@ def analyze_dataset(df: pd.DataFrame) -> dict[str, Any]:
             ),
         }
     drivers = rank_drivers(df, target, time_column)
-    questions = _arabic_questions(target, time_column, drivers, n_rows)
+
+    # Build a rich profile and call GPT-4o once for domain + questions.
+    profile = build_dataset_profile(df)
+    gpt_result = _gpt4o_analyze(profile, target, time_column, drivers)
+
+    domain: str = gpt_result.get("domain") or ""
+    target_reason: str = gpt_result.get("target_reason") or ""
+    _VALID_PROBLEM_TYPES = {"timeseries", "regression", "classification"}
+    _raw_problem_type = str(gpt_result.get("problem_type") or "").strip().lower()
+    problem_type: str = (
+        _raw_problem_type
+        if _raw_problem_type in _VALID_PROBLEM_TYPES
+        else _infer_problem_type(df, target, time_column)
+    )
+    questions: list[dict[str, Any]] = gpt_result.get("questions") or []
+    if not questions:
+        questions = _default_questions(target, time_column, problem_type)
+
+    # Collect all numeric columns (excluding time column) so the
+    # frontend can let the user change the target if needed.
+    numeric_columns = [
+        c for c in df.columns
+        if pd.api.types.is_numeric_dtype(df[c])
+        and c != time_column
+        and df[c].dropna().size >= 3
+    ]
 
     # Partial / pre-run confidence breakdown — every component except
     # `signal_strength` can be estimated before fitting any model, so
     # the wizard can preview "where confidence will come from" already
-    # in the Questioning phase. `signal_strength` is approximated by
-    # the strongest absolute correlation with the target (capped at 1).
-    pre_signal = (
-        float(drivers[0]["abs_correlation"]) if drivers else 0.4
-    )
+    # in the Questioning phase.
+    pre_signal = float(drivers[0]["abs_correlation"]) if drivers else 0.4
     columns_for_quality = [target] + (
         [time_column] if time_column else []
     ) + [d["column"] for d in drivers[:5]]
@@ -849,6 +1080,10 @@ def analyze_dataset(df: pd.DataFrame) -> dict[str, Any]:
         "drivers": drivers,
         "questions": questions,
         "partial_confidence": partial_confidence,
+        "domain": domain,
+        "target_reason": target_reason,
+        "problem_type": problem_type,
+        "numeric_columns": numeric_columns,
         "flow": GUIDED_FLOW_TAG,
     }
 
