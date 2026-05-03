@@ -1001,25 +1001,20 @@ def _run_cross_predict(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
     name_by_id = {r.id: (r.dataset_name or r.filename or f"dataset_{r.id}")
                   for r in records}
     id_by_name = {v: k for k, v in name_by_id.items()}
-    frames_by_id: dict[int, pd.DataFrame] = {}
-    for r in records:
-        df = cp._load_frame(r)
-        if df is None:
-            continue
-        frames_by_id[r.id] = df
+    loader = cp._FrameLoader(records)
 
-    target_df = frames_by_id.get(target_record.id)
+    target_df = loader.get(target_record.id)
     if target_df is None or target_df.empty:
         raise ValueError(
             "Target dataset has no rows or could not be loaded.",
         )
 
     candidates = cp._candidate_relationships(
-        db, project_id, name_by_id, id_by_name, frames_by_id,
+        db, project_id, target_record.id, name_by_id, id_by_name, loader,
     )
     candidates = [
         c for c in candidates
-        if c["left_id"] in frames_by_id and c["right_id"] in frames_by_id
+        if loader.has(c["left_id"]) and loader.has(c["right_id"])
     ]
 
     warnings: list[str] = []
@@ -1039,7 +1034,7 @@ def _run_cross_predict(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
             )
     else:
         merged, steps = cp._build_merged(
-            target_record.id, frames_by_id, name_by_id, candidates,
+            target_record.id, loader, name_by_id, candidates,
         )
         skipped = not steps
         if skipped:

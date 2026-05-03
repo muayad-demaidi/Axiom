@@ -1577,6 +1577,17 @@ def delete_project(db, project_id, user_id):
     (db.query(ProjectModelQuestion)
        .filter(ProjectModelQuestion.project_id == project_id)
        .delete(synchronize_session=False))
+    # Passive notifications, daily-pulse snapshots, and recommendations
+    # all carry NOT NULL FKs into projects.id and would block the delete.
+    (db.query(UploadNotification)
+       .filter(UploadNotification.project_id == project_id)
+       .delete(synchronize_session=False))
+    (db.query(DailyPulseSnapshot)
+       .filter(DailyPulseSnapshot.project_id == project_id)
+       .delete(synchronize_session=False))
+    (db.query(Recommendation)
+       .filter(Recommendation.project_id == project_id)
+       .delete(synchronize_session=False))
     # Reports' project_id AND dataset_id are both nullable; null them
     # out instead of dropping the row so the user's "recent reports"
     # list still shows them as historical entries (the dataset is
