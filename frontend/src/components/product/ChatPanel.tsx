@@ -32,6 +32,7 @@ const PredictionCard = dynamic(
   () => import("./PredictionCard").then((m) => m.PredictionCard),
   { ssr: false }
 );
+import { ChunkErrorBoundary } from "./ChunkErrorBoundary";
 import { FloatingComposer, type FloatingComposerHandle } from "./FloatingComposer";
 import type { Artifact, PendingTool } from "./ArtifactDrawer";
 
@@ -1048,10 +1049,23 @@ function InlineArtifact({ artifact }: { artifact: Artifact }) {
         </div>
       </div>
       {artifact.kind === "chart" && (
-        <ChartRenderer payload={chartPayload} height={200} />
+        <ChunkErrorBoundary>
+          <ChartRenderer payload={chartPayload} height={200} />
+        </ChunkErrorBoundary>
       )}
       {artifact.kind === "prediction" && (
-        <PredictionCard title="" result={predictionResult} />
+        <ChunkErrorBoundary
+          fallback={
+            <div
+              role="alert"
+              className="text-[12px] text-[var(--text-muted)] p-3 border border-dashed border-[var(--border)] rounded text-center"
+            >
+              Couldn&apos;t load prediction view — refresh to try again.
+            </div>
+          }
+        >
+          <PredictionCard title="" result={predictionResult} />
+        </ChunkErrorBoundary>
       )}
       {artifact.kind === "profile" && (
         <div className="text-[11px] text-[var(--text-muted)]">

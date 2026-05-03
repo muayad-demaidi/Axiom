@@ -63,6 +63,15 @@ export function generateStaticParams() {
 
 const themeBootScript = `(function(){try{var q=location.search.indexOf('theme=dark')>=0;var s=localStorage.getItem('axiom-theme');var m=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;var d=q||s==='dark'||(!s&&m);if(d)document.documentElement.classList.add('dark');}catch(e){}})();`;
 
+// Global ChunkLoadError recovery: when a redeploy invalidates the
+// hashed JS chunks referenced by an already-open tab, dynamic imports
+// (Charts.tsx, PredictionCard.tsx, etc.) start throwing
+// ChunkLoadError. We do a one-time silent reload per session so users
+// auto-pick up the new bundle instead of seeing the Next.js red
+// runtime overlay. The sessionStorage flag prevents reload loops if
+// the chunk is genuinely broken.
+const chunkReloadScript = `(function(){try{var FLAG='axiom-chunk-reloaded';function isChunkErr(err){if(!err)return false;var n=String(err.name||'');var m=String(err.message||'');return n==='ChunkLoadError'||/ChunkLoadError/i.test(m)||/Loading chunk [^ ]+ failed/i.test(m)||/Loading CSS chunk/i.test(m);}function maybeReload(err){if(!isChunkErr(err))return;try{if(sessionStorage.getItem(FLAG))return;sessionStorage.setItem(FLAG,'1');}catch(_e){}window.location.reload();}window.addEventListener('error',function(e){maybeReload(e&&e.error);});window.addEventListener('unhandledrejection',function(e){maybeReload(e&&e.reason);});}catch(_e){}})();`;
+
 export default async function LocaleLayout({
   children,
   params,
@@ -91,6 +100,9 @@ export default async function LocaleLayout({
       <body suppressHydrationWarning>
         <script
           dangerouslySetInnerHTML={{ __html: themeBootScript }}
+        />
+        <script
+          dangerouslySetInnerHTML={{ __html: chunkReloadScript }}
         />
         <script
           type="application/ld+json"
