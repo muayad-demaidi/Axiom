@@ -14,6 +14,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Inbox, Pin, X as XIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { api } from "@/lib/api";
 import { errMessage } from "@/lib/types";
 import { useToast } from "@/components/ui/Toast";
@@ -1375,27 +1376,24 @@ function hasGuidedArtifactForDataset(
 }
 
 function GuidedStartCTA({ onStart }: { onStart: () => void }) {
+  const t = useTranslations("chat");
   return (
-    <div
-      dir="rtl"
-      className="border border-dashed border-[var(--accent)]/40 rounded-xl p-5 text-right bg-[var(--accent)]/5"
-    >
+    <div className="border border-dashed border-[var(--accent)]/40 rounded-xl p-5 bg-[var(--accent)]/5">
       <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
-        التنبؤ الموجّه · جديد
+        {t("guidedPredictEyebrow")}
       </div>
       <div className="text-sm font-semibold mt-1">
-        دعنا نتنبأ بناءً على بياناتك بثلاث خطوات بسيطة.
+        {t("guidedPredictTitle")}
       </div>
       <p className="text-xs text-[var(--text-muted)] mt-2 leading-relaxed">
-        نقوم بفحص الأعمدة، نسأل بعض الأسئلة التوضيحية بالعربية، ثم
-        نعرض النتيجة مع شرح ودرجة ثقة.
+        {t("guidedPredictBody")}
       </p>
       <div className="mt-3 flex justify-end">
         <button
           onClick={onStart}
           className="text-xs font-semibold px-4 py-1.5 rounded-full bg-[var(--accent)] text-white hover:opacity-90"
         >
-          ابدأ التنبؤ
+          {t("guidedPredictStart")}
         </button>
       </div>
     </div>

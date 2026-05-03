@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { api, ApiError, getToken } from "@/lib/api";
 import { errMessage, type AxiomDataset, type AxiomProject } from "@/lib/types";
 import {
@@ -34,6 +35,7 @@ type ChatSession = {
 const DRAWER_PREF_KEY = "axiom_drawer_open";
 
 export function ProjectWorkspace({ projectId }: { projectId: number }) {
+  const tChat = useTranslations("chat");
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedSessionId = useMemo(() => {
@@ -499,9 +501,9 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
             href={`/app/project/${projectId}/report?session=${activeSessionId}`}
             className="hidden md:inline-flex items-center text-[12px] px-3 rounded-md border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--text-muted)]"
             style={{ minHeight: 32 }}
-            title="افتح التقرير النهائي لهذه المحادثة"
+            title={tChat("finalReportTitle")}
           >
-            التقرير النهائي ↗
+            {tChat("finalReportLink")}
           </Link>
         )}
         {/*
@@ -517,11 +519,11 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
           style={{ minHeight: 32 }}
           title={
             drawerOpen
-              ? "إخفاء لوحة المخرجات (الرسوم والجداول ونتائج النماذج)"
-              : "فتح لوحة المخرجات (الرسوم والجداول ونتائج النماذج)"
+              ? tChat("closeOutputsTitle")
+              : tChat("openOutputsTitle")
           }
           aria-label={
-            drawerOpen ? "إخفاء لوحة المخرجات" : "فتح لوحة المخرجات"
+            drawerOpen ? tChat("closeOutputsAria") : tChat("openOutputsAria")
           }
           aria-pressed={drawerOpen}
         >
@@ -530,11 +532,11 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
           ) : (
             <ChevronLeft className="h-3 w-3" aria-hidden="true" />
           )}
-          المخرجات
+          {tChat("outputsTab")}
         </button>
       </div>
     ),
-    [activeSessionId, projectId, toggleDrawer, drawerOpen]
+    [activeSessionId, projectId, toggleDrawer, drawerOpen, tChat]
   );
 
   return (
@@ -557,12 +559,12 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-4 sm:px-6 py-6">
           <div className="mx-auto w-full max-w-[800px] flex-1 min-h-0 flex flex-col gap-4">
             {error && <div className="text-red-600 text-sm shrink-0">{error}</div>}
-            <div className="shrink-0" dir="rtl">
+            <div className="shrink-0">
               <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
-                محادثة
+                {tChat("chatEyebrow")}
               </span>
               <h1 className="text-lg font-semibold mt-0.5 text-[var(--text)]">
-                {activeSession?.title ?? "محادثة جديدة"}
+                {activeSession?.title ?? tChat("newChatTitle")}
               </h1>
             </div>
 

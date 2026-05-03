@@ -520,7 +520,29 @@
     "followupPlotTrends": "Plot trends",
     "followupPredictNext": "Predict the next period",
     "followupSummarize": "Summarise the most important findings",
-    "tryLabel": "Try"
+    "tryLabel": "Try",
+    "composerPlaceholderGuided": "Ask anything about your data…",
+    "composerPlaceholderExpert": "Describe the analysis (algorithm, params, columns)…",
+    "messageBoxAria": "Message box",
+    "attachLabel": "Attach data",
+    "attachTitle": "Upload a CSV or Excel file",
+    "connectorsLabel": "Connectors",
+    "connectorsTitle": "Connect a data source",
+    "sendLabel": "Send",
+    "sendingLabel": "Sending…",
+    "chatEyebrow": "Chat",
+    "newChatTitle": "New chat",
+    "outputsTab": "Outputs",
+    "openOutputsTitle": "Show outputs panel (charts, tables, model results)",
+    "closeOutputsTitle": "Hide outputs panel (charts, tables, model results)",
+    "openOutputsAria": "Show outputs panel",
+    "closeOutputsAria": "Hide outputs panel",
+    "finalReportLink": "Final report ↗",
+    "finalReportTitle": "Open the final report for this chat",
+    "guidedPredictEyebrow": "Guided prediction · new",
+    "guidedPredictTitle": "Let's predict from your data in three simple steps.",
+    "guidedPredictBody": "We scan your columns, ask a few clarifying questions, then show the result with a clear explanation and a confidence score.",
+    "guidedPredictStart": "Start prediction"
   },
   "footer": {
     "productTitle": "Product",
@@ -598,5 +620,14 @@
     "requestFailed": "Request failed ({status})",
     "metaTitle": "Contact",
     "metaDescription": "Get in touch with the AXIOM team for support, partnerships, or feedback."
+  },
+  "appShell": {
+    "workspaceLabel": "Workspace",
+    "trialBanner": "Free trial active (60 days)",
+    "modeAria": "AXIOM mode",
+    "modeGuided": "Guided",
+    "modeExpert": "Expert",
+    "modeGuidedTitle": "Plain-language answers and fewer options",
+    "modeExpertTitle": "Full control with technical answers, JSON and metrics"
   }
 }

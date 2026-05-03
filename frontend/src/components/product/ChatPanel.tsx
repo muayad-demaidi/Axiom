@@ -753,8 +753,8 @@ function ChatPanelInner({
           }}
           placeholder={
             mode === "expert"
-              ? "Describe the analysis (algorithm, params, columns)…"
-              : "Ask anything about your data… · اسأل عن بياناتك"
+              ? tChat("composerPlaceholderExpert")
+              : tChat("composerPlaceholderGuided")
           }
           busy={streaming}
           disabled={loadingHistory}

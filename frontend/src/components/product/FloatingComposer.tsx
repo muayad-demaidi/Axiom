@@ -3,6 +3,7 @@ import Link from "next/link";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowUp, Loader2, Paperclip, Plug } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export type FloatingComposerHandle = {
   focus: () => void;
@@ -36,7 +37,7 @@ export const FloatingComposer = forwardRef<FloatingComposerHandle, FloatingCompo
       value,
       onValueChange,
       onSubmit,
-      placeholder = "اسأل عن بياناتك…",
+      placeholder,
       busy = false,
       disabled = false,
       onAttachFile,
@@ -49,6 +50,8 @@ export const FloatingComposer = forwardRef<FloatingComposerHandle, FloatingCompo
     },
     ref
   ) {
+    const t = useTranslations("chat");
+    const resolvedPlaceholder = placeholder ?? t("composerPlaceholderGuided");
     const taRef = useRef<HTMLTextAreaElement | null>(null);
     const fileRef = useRef<HTMLInputElement | null>(null);
     const reduceMotion = useReducedMotion();
@@ -114,14 +117,14 @@ export const FloatingComposer = forwardRef<FloatingComposerHandle, FloatingCompo
             value={value}
             onChange={(e) => onValueChange(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder={placeholder}
+            placeholder={resolvedPlaceholder}
             rows={1}
             // The autosize effect mutates `style.height` on mount, which
             // would otherwise produce a hydration mismatch warning.
             suppressHydrationWarning
             className="w-full resize-none bg-transparent outline-none text-sm leading-6 text-[var(--text)] placeholder:text-[var(--text-muted)] px-1 py-2"
             disabled={disabled}
-            aria-label="مربّع الرسالة"
+            aria-label={t("messageBoxAria")}
             data-testid="composer-textarea"
             dir="auto"
           />
@@ -134,26 +137,26 @@ export const FloatingComposer = forwardRef<FloatingComposerHandle, FloatingCompo
                   disabled={attachBusy || busy}
                   className="inline-flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1.5 rounded-md hover:bg-[var(--surface-alt)] disabled:opacity-50"
                   style={{ minHeight: 32 }}
-                  title="ارفع ملف CSV أو Excel"
-                  aria-label="إرفاق بيانات"
+                  title={t("attachTitle")}
+                  aria-label={t("attachLabel")}
                 >
                   {attachBusy ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <Paperclip className="h-3.5 w-3.5" />
                   )}
-                  <span>إرفاق بيانات</span>
+                  <span>{t("attachLabel")}</span>
                 </button>
               ) : attachHref ? (
                 <Link
                   href={attachHref}
                   className="inline-flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1.5 rounded-md hover:bg-[var(--surface-alt)]"
                   style={{ minHeight: 32 }}
-                  title="ارفع ملف CSV أو Excel"
-                  aria-label="إرفاق بيانات"
+                  title={t("attachTitle")}
+                  aria-label={t("attachLabel")}
                 >
                   <Paperclip className="h-3.5 w-3.5" />
-                  <span>إرفاق بيانات</span>
+                  <span>{t("attachLabel")}</span>
                 </Link>
               ) : null}
               {connectorsHref && (
@@ -161,11 +164,11 @@ export const FloatingComposer = forwardRef<FloatingComposerHandle, FloatingCompo
                   href={connectorsHref}
                   className="inline-flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1.5 rounded-md hover:bg-[var(--surface-alt)]"
                   style={{ minHeight: 32 }}
-                  title="اتّصل بمصدر بيانات"
-                  aria-label="موصّلات البيانات"
+                  title={t("connectorsTitle")}
+                  aria-label={t("connectorsLabel")}
                 >
                   <Plug className="h-3.5 w-3.5" />
-                  <span>الموصّلات</span>
+                  <span>{t("connectorsLabel")}</span>
                 </Link>
               )}
             </div>
@@ -174,7 +177,7 @@ export const FloatingComposer = forwardRef<FloatingComposerHandle, FloatingCompo
               type="submit"
               disabled={busy || disabled || !value.trim()}
               className="inline-flex items-center justify-center h-11 w-11 rounded-full bg-[var(--accent)] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
-              aria-label={busy ? "جاري الإرسال…" : "إرسال"}
+              aria-label={busy ? t("sendingLabel") : t("sendLabel")}
               data-testid="composer-send"
             >
               {busy ? (

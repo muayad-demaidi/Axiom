@@ -8,6 +8,7 @@
  * edit that project's per-project mode override.
  */
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useMode, type Mode } from "@/lib/modeContext";
 
 type Size = "md" | "sm";
@@ -32,6 +33,7 @@ export function ModeToggle({
   className = "",
 }: ModeToggleProps) {
   const { mode, setMode } = useMode(projectId);
+  const t = useTranslations("appShell");
 
   // The resolved mode comes from a context whose state is rehydrated
   // from localStorage / the API inside an effect. Until that first
@@ -56,7 +58,7 @@ export function ModeToggle({
   return (
     <div
       role="group"
-      aria-label="وضع AXIOM"
+      aria-label={t("modeAria")}
       suppressHydrationWarning
       className={`inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] p-0.5 ${className}`}
     >
@@ -70,18 +72,18 @@ export function ModeToggle({
         padding={padding}
         dot={dot}
         onClick={() => pick("guided")}
-        title="إجابات مبسّطة بلغة واضحة وعدد أقل من الخيارات"
+        title={t("modeGuidedTitle")}
       >
-        موجَّه
+        {t("modeGuided")}
       </Segment>
       <Segment
         active={mounted && mode === "expert"}
         padding={padding}
         dot={dot}
         onClick={() => pick("expert")}
-        title="تحكّم كامل وإجابات تقنية مع عرض JSON والمقاييس"
+        title={t("modeExpertTitle")}
       >
-        خبير
+        {t("modeExpert")}
       </Segment>
     </div>
   );

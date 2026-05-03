@@ -1,13 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Suspense } from "react";
+import { getTranslations } from "next-intl/server";
 import { ProductSidebar } from "@/components/product/ProductSidebar";
 import { UserMenu } from "@/components/UserMenu";
 import { AppChrome, HeaderToggle } from "@/components/product/AppChrome";
 
 export const metadata = { title: "AXIOM — Workspace" };
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const t = await getTranslations("appShell");
   return (
     <AppChrome>
       <div className="min-h-screen flex flex-col bg-[var(--surface)]">
@@ -28,11 +30,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 className="h-[26px] w-[26px] object-contain"
               />
               <span>AXIOM</span>
-              <span className="ml-2 text-xs font-mono text-[var(--text-muted)] font-normal">مساحة العمل</span>
+              <span className="ml-2 text-xs font-mono text-[var(--text-muted)] font-normal">{t("workspaceLabel")}</span>
             </Link>
             <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
               <HeaderToggle />
-              <span className="hidden sm:inline">التجربة المجانية مفعّلة (60 يومًا)</span>
+              <span className="hidden sm:inline">{t("trialBanner")}</span>
               <UserMenu variant="app" />
             </div>
           </div>

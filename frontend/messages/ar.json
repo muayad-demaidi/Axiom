@@ -520,7 +520,29 @@
     "followupPlotTrends": "ارسم الاتجاهات",
     "followupPredictNext": "تنبّأ بالفترة القادمة",
     "followupSummarize": "لخّص أهم الملاحظات",
-    "tryLabel": "جرّب"
+    "tryLabel": "جرّب",
+    "composerPlaceholderGuided": "اسأل عن بياناتك…",
+    "composerPlaceholderExpert": "صِف التحليل (الخوارزمية، المعاملات، الأعمدة)…",
+    "messageBoxAria": "مربّع الرسالة",
+    "attachLabel": "إرفاق بيانات",
+    "attachTitle": "ارفع ملف CSV أو Excel",
+    "connectorsLabel": "الموصّلات",
+    "connectorsTitle": "اتّصل بمصدر بيانات",
+    "sendLabel": "إرسال",
+    "sendingLabel": "جاري الإرسال…",
+    "chatEyebrow": "محادثة",
+    "newChatTitle": "محادثة جديدة",
+    "outputsTab": "المخرجات",
+    "openOutputsTitle": "فتح لوحة المخرجات (الرسوم والجداول ونتائج النماذج)",
+    "closeOutputsTitle": "إخفاء لوحة المخرجات (الرسوم والجداول ونتائج النماذج)",
+    "openOutputsAria": "فتح لوحة المخرجات",
+    "closeOutputsAria": "إخفاء لوحة المخرجات",
+    "finalReportLink": "التقرير النهائي ↗",
+    "finalReportTitle": "افتح التقرير النهائي لهذه المحادثة",
+    "guidedPredictEyebrow": "التنبؤ الموجّه · جديد",
+    "guidedPredictTitle": "دعنا نتنبأ بناءً على بياناتك بثلاث خطوات بسيطة.",
+    "guidedPredictBody": "نقوم بفحص الأعمدة، نسأل بعض الأسئلة التوضيحية، ثم نعرض النتيجة مع شرح ودرجة ثقة.",
+    "guidedPredictStart": "ابدأ التنبؤ"
   },
   "footer": {
     "productTitle": "المنتج",
@@ -598,5 +620,14 @@
     "requestFailed": "فشل الطلب ({status})",
     "metaTitle": "تواصل معنا",
     "metaDescription": "تواصل مع فريق AXIOM للدعم أو الشراكات أو الملاحظات."
+  },
+  "appShell": {
+    "workspaceLabel": "مساحة العمل",
+    "trialBanner": "التجربة المجانية مفعّلة (60 يومًا)",
+    "modeAria": "وضع AXIOM",
+    "modeGuided": "موجَّه",
+    "modeExpert": "خبير",
+    "modeGuidedTitle": "إجابات مبسّطة بلغة واضحة وعدد أقل من الخيارات",
+    "modeExpertTitle": "تحكّم كامل وإجابات تقنية مع عرض JSON والمقاييس"
   }
 }
