@@ -1,8 +1,12 @@
+"use client";
 import Link from "next/link";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { SITE } from "@/lib/site";
 
 export function Footer() {
+  const tNav = useTranslations("nav");
+  const tF = useTranslations("footer");
   const year = new Date().getFullYear();
   return (
     <footer className="border-t border-[var(--border)] mt-20 bg-[var(--surface-alt)]">
@@ -20,32 +24,31 @@ export function Footer() {
             <span className="text-lg font-semibold tracking-tight">AXIOM</span>
           </Link>
           <p className="text-sm text-[var(--text-muted)] mt-3 max-w-[320px]">
-            An intelligent data analytics platform that turns raw datasets into clear, actionable
-            insights — in seconds, no code required.
+            {tF("tagline")}
           </p>
         </div>
-        <FooterCol title="Product" links={[
-          { href: "/features", label: "Features" },
-          { href: "/pricing", label: "Pricing & Plans" },
-          { href: SITE.appUrl, label: "Launch App" },
-          { href: SITE.appUrl, label: "60-Day Free Trial" },
+        <FooterCol title={tF("productTitle")} links={[
+          { href: "/features", label: tNav("features") },
+          { href: "/pricing", label: tF("pricingPlans") },
+          { href: SITE.appUrl, label: tF("launchApp") },
+          { href: SITE.appUrl, label: tF("freeTrial") },
         ]} />
-        <FooterCol title="Learn" links={[
-          { href: "/glossary", label: "Glossary" },
-          { href: "/guides", label: "Guides" },
-          { href: "/compare", label: "Compare" },
-          { href: "/about", label: "About" },
+        <FooterCol title={tF("learnTitle")} links={[
+          { href: "/glossary", label: tNav("glossary") },
+          { href: "/guides", label: tNav("guides") },
+          { href: "/compare", label: tNav("compare") },
+          { href: "/about", label: tNav("about") },
         ]} />
-        <FooterCol title="Support" links={[
-          { href: "/contact", label: "Contact" },
-          { href: `mailto:${SITE.supportEmail}`, label: "Email Support" },
-          { href: "/sitemap.xml", label: "Sitemap" },
-          { href: "/robots.txt", label: "Robots" },
+        <FooterCol title={tF("supportTitle")} links={[
+          { href: "/contact", label: tNav("contact") },
+          { href: `mailto:${SITE.supportEmail}`, label: tF("emailSupport") },
+          { href: "/sitemap.xml", label: tF("sitemap") },
+          { href: "/robots.txt", label: tF("robots") },
         ]} />
       </div>
       <div className="container-x flex items-center justify-between py-5 text-xs font-mono text-[var(--text-muted)] border-t border-[var(--border)]">
-        <span>© {year} {SITE.name}. All rights reserved.</span>
-        <span><span className="text-[var(--accent)]">●</span> All systems operational</span>
+        <span>© {year} {SITE.name}. {tF("rights")}</span>
+        <span><span className="text-[var(--accent)]">●</span> {tF("systemsOperational")}</span>
       </div>
     </footer>
   );

@@ -1,10 +1,21 @@
+"use client";
 import Link from "next/link";
 import Image from "next/image";
-import { NAV_LINKS } from "@/lib/site";
+import { useTranslations } from "next-intl";
 import { ThemeToggle } from "./ThemeToggle";
 import { UserMenu } from "./UserMenu";
 
+const LINKS: { href: string; key: "features" | "pricing" | "glossary" | "guides" | "compare" | "about" }[] = [
+  { href: "/features", key: "features" },
+  { href: "/pricing", key: "pricing" },
+  { href: "/glossary", key: "glossary" },
+  { href: "/guides", key: "guides" },
+  { href: "/compare", key: "compare" },
+  { href: "/about", key: "about" },
+];
+
 export function Header({ current = "" }: { current?: string }) {
+  const t = useTranslations("nav");
   return (
     <header className="sticky top-0 z-50 backdrop-blur bg-[var(--surface)]/80 border-b border-[var(--border)]">
       <div className="container-x flex items-center justify-between gap-6 py-3">
@@ -25,7 +36,7 @@ export function Header({ current = "" }: { current?: string }) {
           <span>AXIOM</span>
         </Link>
         <nav aria-label="Primary" className="hidden md:flex gap-5 text-sm">
-          {NAV_LINKS.map((l) => {
+          {LINKS.map((l) => {
             const active = current === l.href;
             return (
               <Link
@@ -33,7 +44,7 @@ export function Header({ current = "" }: { current?: string }) {
                 href={l.href}
                 className={`hover:text-[var(--accent)] ${active ? "text-[var(--accent)] font-medium" : "text-[var(--text-muted)]"}`}
               >
-                {l.label}
+                {t(l.key)}
               </Link>
             );
           })}

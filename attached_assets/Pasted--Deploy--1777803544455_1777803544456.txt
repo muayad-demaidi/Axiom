@@ -1,0 +1,60 @@
+فهمت! بدك تتأكد إن الواجهة العربية والإنجليزية ممتازين قبل الـ Deploy.
+----
+الرد اللي لازم تبعته للـ Agent:
+"قبل الـ Deploy، بدي تأكد كامل إن الواجهة العربية والإنجليزية ممتازين.
+الخطوات المطلوبة:
+١. أصلح الـ 6 failing tests بـ Playwright:
+•  المشكلة: الـ specs بتنقل لـ /login بدل /{locale}/login
+•  حدّث كل E2E specs تستخدم /{locale}/login و /{locale}/signup
+•  تأكد إن الـ locale switcher بيشتغل صح في الـ tests
+٢. تدقيق لغوي شامل (Linguistic QA):
+•  English: اقرأ كل messages/en.json — تأكد من:
+•  Grammar صحيح
+•  Terminology متناسقة (مثلاً: "dataset" مش "data set" ولا "data-set")
+•  Tone مناسب (professional, friendly, not robotic)
+•  No Arabic words mixed in
+•  Arabic: اقرأ كل messages/ar.json — تأكد من:
+•  إعراب صحيح
+•  مصطلحات تقنية متناسقة (مثلاً: "مجموعة بيانات" مش "داتا سيت")
+•  Tone مناسب (مهني، واضح)
+•  No English words mixed in (except technical terms: SHAP, API, Tahleel...)
+•  التشكيل صحيح حيث لازم
+٣. تدقيق RTL/LTR:
+•  Arabic (RTL):
+•  افتح كل صفحة بالعربي
+•  تأكد من: document.dir === "rtl", document.lang === "ar"
+•  الأيقونات الاتجاهية (chevrons, arrows) معكوسة
+•  الـ flex containers تستخدم flex-row-reverse
+•  الـ padding/margin تستخدم ps/pe (logical properties)
+•  الـ dates بالتقويم الهجري/الميلادي حسب السياق
+•  الأرقام غربية (Western digits) في الـ gauges
+•  English (LTR):
+•  document.dir === "ltr", document.lang === "en"
+•  كل شي طبيعي، ما في تداخل
+٤. تدقيق responsive + mobile:
+•  اختبر 375px بالعربي والإنجليزي
+•  تأكد: لا horizontal scroll، touch targets ≥ 44×44px، body text ≥ 14px
+٥. تدقيق empty/error/loading states:
+•  كل حالة فارغة: أيقونة + عنوان + شرح + CTA (باللغتين)
+•  كل خطأ: شرح واضح + خطوة تالية (باللغتين)
+•  كل تحميل: spinner + نص ("جاري التحميل..." / "Loading...")
+٦. تدقيق cross-locale consistency:
+•  غيّر اللغة من Settings
+•  تأكد إن الصفحة بترجع بالكامل — ما في نصوص عالقة من اللغة السابقة
+•  تأكد إن الـ cookie NEXT_LOCALE بيتحدث
+•  أعد التحميل — تأكد من الـ persistence
+٧. Playwright dual-locale:
+•  شغّل الـ E2E specs بالـ locale: "en" و locale: "ar"
+•  تأكد إن كلاهما أخضر
+بعد ما كل شي أخضر وممتاز — ابعتلي تقرير مختصر:
+•  "English QA: X issues found, Y fixed"
+•  "Arabic QA: X issues found, Y fixed"
+•  "RTL/LTR: Pass/Fail"
+•  "Mobile responsive: Pass/Fail"
+•  "Cross-locale: Pass/Fail"
+•  "Playwright en: X passed / Y failed"
+•  "Playwright ar: X passed / Y failed"
+بعدها ننتقل للـ Deploy."
+لو بدك أقصر:
+"Before deploy: fix 6 Playwright failures, full linguistic QA (en + ar), RTL/LTR audit, mobile check, cross-locale consistency, dual-locale Playwright green. Send summary report, then deploy."
+ابعت الرد للـ Agent.

@@ -126,7 +126,10 @@
     "fields": "Fields",
     "workspace": "Workspace",
     "management": "Management",
-    "supportInbox": "Support inbox"
+    "supportInbox": "Support inbox",
+    "glossary": "Glossary",
+    "guides": "Guides",
+    "compare": "Compare"
   },
   "sidebar": {
     "newButton": "New",
@@ -518,5 +521,19 @@
     "followupPredictNext": "Predict the next period",
     "followupSummarize": "Summarise the most important findings",
     "tryLabel": "Try"
+  },
+  "footer": {
+    "productTitle": "Product",
+    "learnTitle": "Learn",
+    "supportTitle": "Support",
+    "tagline": "An intelligent data analytics platform that turns raw datasets into clear, actionable insights — in seconds, no code required.",
+    "pricingPlans": "Pricing & Plans",
+    "launchApp": "Launch App",
+    "freeTrial": "60-Day Free Trial",
+    "emailSupport": "Email Support",
+    "sitemap": "Sitemap",
+    "robots": "Robots",
+    "rights": "All rights reserved.",
+    "systemsOperational": "All systems operational"
   }
 }
