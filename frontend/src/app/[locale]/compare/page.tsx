@@ -1,16 +1,27 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { MarketingShell } from "@/components/MarketingShell";
 import { Breadcrumbs, breadcrumbsJsonLd } from "@/components/Breadcrumbs";
 import { getAllCompare } from "@/lib/content";
 import { SITE } from "@/lib/site";
+import { pageMetadata } from "@/lib/seo";
+import { asLocale } from "@/i18n/config";
 
 export const revalidate = 3600;
 
-export const metadata = {
-  title: "Compare AXIOM with other tools",
-  description: "Honest, side-by-side comparisons of AXIOM with Power BI, Tableau, Excel, Google Sheets, and Looker Studio.",
-  alternates: { canonical: SITE.url + "/compare" },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return pageMetadata({
+    title: "Compare AXIOM with other tools",
+    description: "Honest, side-by-side comparisons of AXIOM with Power BI, Tableau, Excel, Google Sheets, and Looker Studio.",
+    path: "/compare",
+    locale: asLocale(locale),
+  });
+}
 
 export default async function CompareIndex() {
   const items = await getAllCompare();

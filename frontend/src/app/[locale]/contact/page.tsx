@@ -1,13 +1,24 @@
+import type { Metadata } from "next";
 import { MarketingShell } from "@/components/MarketingShell";
 import { Breadcrumbs, breadcrumbsJsonLd } from "@/components/Breadcrumbs";
 import { SITE } from "@/lib/site";
 import { ContactForm } from "@/components/ContactForm";
+import { pageMetadata } from "@/lib/seo";
+import { asLocale } from "@/i18n/config";
 
-export const metadata = {
-  title: "Contact",
-  description: "Get in touch with the AXIOM team for support, partnerships, or feedback.",
-  alternates: { canonical: SITE.url + "/contact" },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return pageMetadata({
+    title: "Contact",
+    description: "Get in touch with the AXIOM team for support, partnerships, or feedback.",
+    path: "/contact",
+    locale: asLocale(locale),
+  });
+}
 
 export default function ContactPage() {
   const crumbs = [{ href: "/", label: "Home" }, { label: "Contact" }];

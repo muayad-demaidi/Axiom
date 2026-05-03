@@ -5,14 +5,22 @@ import { MarketingShell } from "@/components/MarketingShell";
 import { FAQ } from "@/components/FAQ";
 import { DataStreamBackground } from "@/components/DataStreamBackground";
 import { SITE } from "@/lib/site";
+import { pageMetadata } from "@/lib/seo";
+import { asLocale } from "@/i18n/config";
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
   const t = await getTranslations("marketing");
-  return {
+  const { locale } = await params;
+  return pageMetadata({
     title: t("homeTitle"),
     description: SITE.description,
-    alternates: { canonical: SITE.url + "/" },
-  };
+    path: "/",
+    locale: asLocale(locale),
+  });
 }
 
 export default async function HomePage() {

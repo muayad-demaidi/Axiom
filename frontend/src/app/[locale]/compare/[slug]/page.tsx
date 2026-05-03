@@ -4,6 +4,8 @@ import { MarketingShell } from "@/components/MarketingShell";
 import { Breadcrumbs, breadcrumbsJsonLd } from "@/components/Breadcrumbs";
 import { getCompareEntry, listCompareSlugs } from "@/lib/content";
 import { SITE } from "@/lib/site";
+import { localizedAlternates } from "@/lib/seo";
+import { asLocale } from "@/i18n/config";
 
 export const revalidate = 3600;
 export const dynamicParams = false;
@@ -13,13 +15,14 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({ slug }));
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
+export async function generateMetadata({ params }: { params: { slug: string; locale?: string } }) {
   const entry = await getCompareEntry(params.slug);
   if (!entry) return {};
+  const alternates = localizedAlternates(`/compare/${entry.slug}`, asLocale(params.locale));
   return {
     title: entry.data.title,
     description: entry.data.description,
-    alternates: { canonical: `${SITE.url}/compare/${entry.slug}` },
+    alternates,
   };
 }
 

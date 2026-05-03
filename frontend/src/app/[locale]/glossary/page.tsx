@@ -1,16 +1,27 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { MarketingShell } from "@/components/MarketingShell";
 import { Breadcrumbs, breadcrumbsJsonLd } from "@/components/Breadcrumbs";
 import { getAllGlossary } from "@/lib/content";
 import { SITE } from "@/lib/site";
+import { pageMetadata } from "@/lib/seo";
+import { asLocale } from "@/i18n/config";
 
 export const revalidate = 3600;
 
-export const metadata = {
-  title: "Glossary — data analytics terms explained",
-  description: "Plain-English definitions for the terms data analysts actually use, with stats, FAQs, and how-to context.",
-  alternates: { canonical: SITE.url + "/glossary" },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return pageMetadata({
+    title: "Glossary — data analytics terms explained",
+    description: "Plain-English definitions for the terms data analysts actually use, with stats, FAQs, and how-to context.",
+    path: "/glossary",
+    locale: asLocale(locale),
+  });
+}
 
 export default async function GlossaryIndexPage() {
   const entries = await getAllGlossary();

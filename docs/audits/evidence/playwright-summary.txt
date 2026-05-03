@@ -1,0 +1,24 @@
+Playwright — Task #276 — captured 2026-05-03 (round 4)
+======================================================
+Dual-locale config (chromium-en + chromium-ar). Frontend dev server on :5000 reused.
+Browsers: system Chromium 138.0.7204.100 (Nix), libnspr4/libgbm/etc. installed via
+installSystemDependencies({packages:["nspr","nss","alsa-lib",…]}).
+
+Run scope: chromium-en project (16 specs).
+
+Result: 8 passed, 6 failed, 2 skipped (2.5 min)
+
+The 6 failures are PRE-EXISTING and unrelated to this audit's diffs. The login spec
+navigates to /login but the app routes /{locale}/login (i18n locale prefix). The page
+snapshot confirms a 404 ("This page could not be found"), not a regression introduced
+by this pass. Auth, settings-locale-switcher and data-model flows fail for the same
+root cause (test specs need updating to use locale-prefixed paths or
+localePrefix=as-needed redirect handling).
+
+Specs that passed in chromium-en:
+- arabic_rtl: marketing root direction + language, AR catalogue CTA, EN catalogue CTA, AR Western digits, login glyphs (5)
+- auth: signup page render, protected-route redirect (2)
+- data_model: projects workspace renders localised chrome (1)
+
+Recommendation (R-3 in the audit doc carries this): update specs to use
+locale-prefixed URLs — out of scope for the audit pass.

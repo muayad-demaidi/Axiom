@@ -1,15 +1,26 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { MarketingShell } from "@/components/MarketingShell";
 import { Breadcrumbs, breadcrumbsJsonLd } from "@/components/Breadcrumbs";
 import { FAQ } from "@/components/FAQ";
 import { SITE } from "@/lib/site";
+import { pageMetadata } from "@/lib/seo";
+import { asLocale } from "@/i18n/config";
 
-export const metadata = {
-  title: "Pricing — start free for 60 days",
-  description:
-    "Three transparent tiers, every account starts with 60 days of full Tier 3 access. No credit card required.",
-  alternates: { canonical: SITE.url + "/pricing" },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return pageMetadata({
+    title: "Pricing — start free for 60 days",
+    description:
+      "Three transparent tiers, every account starts with 60 days of full Tier 3 access. No credit card required.",
+    path: "/pricing",
+    locale: asLocale(locale),
+  });
+}
 
 const tiers = [
   {

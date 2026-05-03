@@ -1,16 +1,27 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { MarketingShell } from "@/components/MarketingShell";
 import { Breadcrumbs, breadcrumbsJsonLd } from "@/components/Breadcrumbs";
 import { getAllGuides } from "@/lib/content";
 import { SITE } from "@/lib/site";
+import { pageMetadata } from "@/lib/seo";
+import { asLocale } from "@/i18n/config";
 
 export const revalidate = 3600;
 
-export const metadata = {
-  title: "Guides — practical data analysis walkthroughs",
-  description: "Step-by-step walkthroughs for cleaning, analysing, and acting on data with AXIOM.",
-  alternates: { canonical: SITE.url + "/guides" },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return pageMetadata({
+    title: "Guides — practical data analysis walkthroughs",
+    description: "Step-by-step walkthroughs for cleaning, analysing, and acting on data with AXIOM.",
+    path: "/guides",
+    locale: asLocale(locale),
+  });
+}
 
 export default async function GuidesIndex() {
   const guides = await getAllGuides();

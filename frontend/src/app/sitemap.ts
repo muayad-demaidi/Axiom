@@ -1,11 +1,39 @@
 import type { MetadataRoute } from "next";
 import { SITE } from "@/lib/site";
 import { getAllGlossary, getAllGuides, getAllCompare } from "@/lib/content";
+import { LOCALES, DEFAULT_LOCALE } from "@/i18n/config";
 
 function parseUpdated(s: string | undefined): Date {
   if (!s) return new Date(SITE.defaultUpdated);
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? new Date(SITE.defaultUpdated) : d;
+}
+
+// Build a sitemap entry that lists every locale variant of the same
+// route under `alternates.languages` so search engines understand the
+// EN/AR pair (mirrors `localePrefix: "as-needed"` from the middleware
+// and the `pageMetadata` helper). Default-locale URL has no prefix.
+function localizedEntry(
+  base: string,
+  path: string,
+  lastModified: Date,
+  changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"],
+  priority: number,
+): MetadataRoute.Sitemap[number] {
+  const cleanPath = path === "/" ? "" : path;
+  const languages: Record<string, string> = {};
+  for (const loc of LOCALES) {
+    languages[loc] = loc === DEFAULT_LOCALE
+      ? `${base}${cleanPath || "/"}`
+      : `${base}/${loc}${cleanPath}`;
+  }
+  return {
+    url: `${base}${cleanPath || "/"}`,
+    lastModified,
+    changeFrequency,
+    priority,
+    alternates: { languages },
+  };
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -23,19 +51,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const baseUpdated = new Date(SITE.defaultUpdated);
   const staticEntries: MetadataRoute.Sitemap = [
-    { url: `${base}/`,         lastModified: baseUpdated,        changeFrequency: "weekly",  priority: 1.0 },
-    { url: `${base}/features`, lastModified: baseUpdated,        changeFrequency: "monthly", priority: 0.9 },
-    { url: `${base}/pricing`,  lastModified: baseUpdated,        changeFrequency: "monthly", priority: 0.9 },
-    { url: `${base}/about`,    lastModified: baseUpdated,        changeFrequency: "yearly",  priority: 0.6 },
-    { url: `${base}/contact`,  lastModified: baseUpdated,        changeFrequency: "yearly",  priority: 0.5 },
-    { url: `${base}/glossary`, lastModified: newest(glossary),  changeFrequency: "weekly",  priority: 0.8 },
-    { url: `${base}/guides`,   lastModified: newest(guides),    changeFrequency: "weekly",  priority: 0.7 },
-    { url: `${base}/compare`,  lastModified: newest(compare),   changeFrequency: "weekly",  priority: 0.8 },
+    localizedEntry(base, "/",         baseUpdated,        "weekly",  1.0),
+    localizedEntry(base, "/features", baseUpdated,        "monthly", 0.9),
+    localizedEntry(base, "/pricing",  baseUpdated,        "monthly", 0.9),
+    localizedEntry(base, "/about",    baseUpdated,        "yearly",  0.6),
+    localizedEntry(base, "/contact",  baseUpdated,        "yearly",  0.5),
+    localizedEntry(base, "/glossary", newest(glossary),  "weekly",  0.8),
+    localizedEntry(base, "/guides",   newest(guides),    "weekly",  0.7),
+    localizedEntry(base, "/compare",  newest(compare),   "weekly",  0.8),
   ];
   const dyn: MetadataRoute.Sitemap = [
-    ...glossary.map((e) => ({ url: `${base}/glossary/${e.slug}`, lastModified: parseUpdated(e.data.updated), changeFrequency: "monthly" as const, priority: 0.7 })),
-    ...guides.map((e)   => ({ url: `${base}/guides/${e.slug}`,   lastModified: parseUpdated(e.data.updated), changeFrequency: "monthly" as const, priority: 0.7 })),
-    ...compare.map((e)  => ({ url: `${base}/compare/${e.slug}`,  lastModified: parseUpdated(e.data.updated), changeFrequency: "monthly" as const, priority: 0.7 })),
+    ...glossary.map((e) => localizedEntry(base, `/glossary/${e.slug}`, parseUpdated(e.data.updated), "monthly", 0.7)),
+    ...guides.map((e)   => localizedEntry(base, `/guides/${e.slug}`,   parseUpdated(e.data.updated), "monthly", 0.7)),
+    ...compare.map((e)  => localizedEntry(base, `/compare/${e.slug}`,  parseUpdated(e.data.updated), "monthly", 0.7)),
   ];
   return [...staticEntries, ...dyn];
 }

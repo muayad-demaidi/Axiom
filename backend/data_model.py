@@ -21,7 +21,9 @@ from __future__ import annotations
 
 import io
 import re
+import time
 from datetime import datetime
+from threading import Lock
 from typing import Any
 
 import pandas as pd
@@ -36,6 +38,51 @@ from .auth import get_current_user, get_db_session
 
 
 router = APIRouter(tags=["data-model"])
+
+
+# --------------------------------------------------------------------------
+# Read-through cache for the data-model bundle (Task #276 / R-1).
+#
+# At 1000 concurrent users the GET endpoint p95 was 1.1 s (4× over the
+# 300 ms read budget) because every request re-walks four ORM queries
+# and rebuilds the JSON payload. The bundle only changes on writes
+# performed via the endpoints in this file, so we wrap the read in a
+# tiny in-process TTL cache keyed by (project_id, user_id) and
+# explicitly invalidate it from every write path below. The TTL is a
+# safety net for any out-of-band writer (chat tools that touch
+# ProjectRelationship rows directly): 30 s caps the staleness without
+# making invalidation correctness-critical.
+# --------------------------------------------------------------------------
+
+_BUNDLE_CACHE_TTL_SECONDS = 30.0
+_BUNDLE_CACHE: dict[tuple[int, int], tuple[float, dict]] = {}
+_BUNDLE_CACHE_LOCK = Lock()
+
+
+def _bundle_cached(db, project_id: int, user_id: int) -> dict:
+    key = (project_id, user_id)
+    now = time.monotonic()
+    with _BUNDLE_CACHE_LOCK:
+        hit = _BUNDLE_CACHE.get(key)
+        if hit is not None and (now - hit[0]) < _BUNDLE_CACHE_TTL_SECONDS:
+            return hit[1]
+    fresh = _bundle(db, project_id, user_id)
+    with _BUNDLE_CACHE_LOCK:
+        _BUNDLE_CACHE[key] = (now, fresh)
+    return fresh
+
+
+def _invalidate_bundle_cache(project_id: int, user_id: int | None = None) -> None:
+    """Drop cached bundles for a project. ``user_id=None`` drops every
+    user's view of the project (used after a relationship/table write
+    that any project member could be reading)."""
+    with _BUNDLE_CACHE_LOCK:
+        if user_id is None:
+            stale = [k for k in _BUNDLE_CACHE if k[0] == project_id]
+        else:
+            stale = [(project_id, user_id)] if (project_id, user_id) in _BUNDLE_CACHE else []
+        for k in stale:
+            _BUNDLE_CACHE.pop(k, None)
 
 
 # --------------------------------------------------------------------------
@@ -228,7 +275,7 @@ async def get_data_model(
     db=Depends(get_db_session),
 ):
     _require_project(db, project_id, user.id)
-    return jsonify(_bundle(db, project_id, user.id))
+    return jsonify(_bundle_cached(db, project_id, user.id))
 
 
 # --------------------------------------------------------------------------
@@ -466,7 +513,9 @@ async def post_refresh(
     db=Depends(get_db_session),
 ):
     _require_project(db, project_id, user.id)
-    return jsonify(refresh_project_model(db, project_id, user.id))
+    result = refresh_project_model(db, project_id, user.id)
+    _invalidate_bundle_cache(project_id)
+    return jsonify(result)
 
 
 # --------------------------------------------------------------------------
@@ -509,6 +558,7 @@ async def patch_table(
         row.confirmed = bool(req.confirmed)
         row.confirmed_at = datetime.utcnow() if req.confirmed else None
     db.commit()
+    _invalidate_bundle_cache(project_id)
     return jsonify(_bundle(db, project_id, user.id))
 
 
@@ -579,6 +629,7 @@ async def patch_relationship(
         row.user_locked = bool(req.user_locked)
     row.updated_at = datetime.utcnow()
     db.commit()
+    _invalidate_bundle_cache(project_id)
     return jsonify(_bundle(db, project_id, user.id))
 
 
@@ -626,6 +677,7 @@ async def post_relationship(
     )
     db.add(row)
     db.commit()
+    _invalidate_bundle_cache(project_id)
     return jsonify(_bundle(db, project_id, user.id))
 
 
@@ -798,6 +850,7 @@ async def put_description(
     # won't overwrite it.
     _apply_description_overrides(db, project_id, user.id, desc_text)
     db.commit()
+    _invalidate_bundle_cache(project_id)
     return jsonify(_bundle(db, project_id, user.id))
 
 
@@ -921,6 +974,7 @@ async def patch_question(
     except Exception:
         db.rollback()
 
+    _invalidate_bundle_cache(project_id)
     return jsonify(_bundle(db, project_id, user.id))
 
 

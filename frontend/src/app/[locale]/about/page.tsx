@@ -1,14 +1,25 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { MarketingShell } from "@/components/MarketingShell";
 import { Breadcrumbs, breadcrumbsJsonLd } from "@/components/Breadcrumbs";
 import { SITE } from "@/lib/site";
+import { pageMetadata } from "@/lib/seo";
+import { asLocale } from "@/i18n/config";
 
-export const metadata = {
-  title: "About — building the analyst's missing copilot",
-  description:
-    "AXIOM is an analyst-built workspace that automates the boring 80% of data work and frees the human for the part that actually moves the business.",
-  alternates: { canonical: SITE.url + "/about" },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return pageMetadata({
+    title: "About — building the analyst's missing copilot",
+    description:
+      "AXIOM is an analyst-built workspace that automates the boring 80% of data work and frees the human for the part that actually moves the business.",
+    path: "/about",
+    locale: asLocale(locale),
+  });
+}
 
 export default function AboutPage() {
   const crumbs = [{ href: "/", label: "Home" }, { label: "About" }];

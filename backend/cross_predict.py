@@ -47,6 +47,7 @@ import semantic_model as sm  # type: ignore
 from . import predictions_engine as pe
 from ._json import jsonify
 from .auth import get_current_user, get_db_session
+from .data_model import _invalidate_bundle_cache
 from .mode_resolver import mode_dependency
 
 
@@ -653,6 +654,12 @@ def discover_relationships_after_upload(
                 joins_payload, trigger_dataset_id, name_by_id,
             )
             db.commit()
+            # Background-task writers must invalidate the data-model
+            # bundle cache too, otherwise the auto-discovered joins
+            # would only show up after the 30 s TTL elapsed (Task #276
+            # round-3 review concern). The router-side write paths
+            # already invalidate; this closes the out-of-band gap.
+            _invalidate_bundle_cache(project_id)
             summary["notification_id"] = (
                 int(note.id) if note is not None else None
             )

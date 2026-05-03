@@ -1,14 +1,25 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { MarketingShell } from "@/components/MarketingShell";
 import { Breadcrumbs, breadcrumbsJsonLd } from "@/components/Breadcrumbs";
 import { SITE } from "@/lib/site";
+import { pageMetadata } from "@/lib/seo";
+import { asLocale } from "@/i18n/config";
 
-export const metadata = {
-  title: "Features — every analysis tool, one workspace",
-  description:
-    "Auto cleaning pipeline, descriptive stats, visualizations, ML & K-Means clustering, predictions, and an AI assistant — all in one no-code workspace.",
-  alternates: { canonical: SITE.url + "/features" },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return pageMetadata({
+    title: "Features — every analysis tool, one workspace",
+    description:
+      "Auto cleaning pipeline, descriptive stats, visualizations, ML & K-Means clustering, predictions, and an AI assistant — all in one no-code workspace.",
+    path: "/features",
+    locale: asLocale(locale),
+  });
+}
 
 const features = [
   { h: "Auto-cleaning pipeline", p: "Trim, dedupe, infer types, impute missing, and flag outliers as ordered, toggleable substeps with per-step impact metrics. Save as a reusable recipe." },

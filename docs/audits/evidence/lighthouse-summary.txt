@@ -1,0 +1,19 @@
+Lighthouse — Task #276 — captured 2026-05-03 (round 4 — corrected scope)
+======================================================================
+Pages: home (/), app shell (/app), one project (/app/project/1) — en+ar, mobile+desktop
+Chromium 138.0.7204.100 (Nix), --headless=new, against `next dev` on localhost:5000.
+Dev-mode scores; production-build perf typically +15-30 pts.
+
+page                        perf  a11y  BP   SEO   FCP    LCP    CLS    TBT
+app_ar_desktop                67   100  100   100    258   1099  0.000  2061
+app_ar_mobile                 56   100  100   100    925   3900  0.007  10192
+app_desktop                   68   100  100   100    257   1088  0.000  1279
+app_mobile                    52   100  100   100   1043   4452  0.001  8220
+home_ar_desktop               54   100  100    92    256   2698  0.113   712
+home_ar_mobile                44   100  100    92    914   5243  0.141  4129
+home_desktop                  55   100  100    92    256   2688  0.090   752
+home_mobile                   58   100  100    92   1037   2394  0.134  8299
+project_1_ar_desktop          60    95   96    63    259   1879  0.012  1711
+project_1_ar_mobile           48    95   96    63    926   5637  0.000  6808
+project_1_desktop             57    95   96    63    251   1914  0.001  2407
+project_1_mobile              66   100   96    63    960   2010  0.000  8503
