@@ -227,22 +227,10 @@ export const handlers = [
   http.post("/api/chats", async () =>
     HttpResponse.json({ id: 42, project_id: 1, title: "New chat" }),
   ),
-  // i18n / auth-me handlers (Task #223 follow-up). The Settings page
-  // and any locale-aware chrome call /api/auth/me to read the saved
-  // locale and PATCH the same path to persist a new choice.
+  // i18n user/locale handlers (Task #273 contract).
   http.get("/api/auth/me", () =>
     HttpResponse.json({ id: 1, email: "demo@axiom.app", locale: "en" }),
   ),
-  http.patch("/api/auth/me", async ({ request }) => {
-    const body = (await request.json()) as { locale?: string };
-    return HttpResponse.json({
-      id: 1,
-      email: "demo@axiom.app",
-      locale: body?.locale ?? "en",
-    });
-  }),
-  // Aliases for any consumer that follows the proposed
-  // `/api/users/me` naming from the original Task #273 brief.
   http.get("/api/users/me", () =>
     HttpResponse.json({ id: 1, email: "demo@axiom.app", locale: "en" }),
   ),
@@ -252,6 +240,18 @@ export const handlers = [
       id: 1,
       email: "demo@axiom.app",
       locale: body?.locale ?? "en",
+    });
+  }),
+  // Login response echoes the Accept-Language header into the
+  // returned `locale` so hydration paths that read it post-login can
+  // be exercised under both `en` and `ar`.
+  http.post("/api/auth/login", async ({ request }) => {
+    const accept = request.headers.get("accept-language") || "en";
+    const locale = /^ar(\b|-)/i.test(accept) ? "ar" : "en";
+    return HttpResponse.json({
+      access_token: "test-token",
+      token_type: "bearer",
+      user: { id: 1, email: "demo@axiom.app", locale },
     });
   }),
 ];

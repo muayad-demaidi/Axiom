@@ -1,16 +1,4 @@
-/**
- * SettingsLanguage — covers the locale selector landed in #273:
- *   1. Initial selection mirrors the active locale.
- *   2. Switching the radio + clicking Save issues PATCH /api/auth/me
- *      with the chosen locale and writes the NEXT_LOCALE cookie.
- *   3. Save button is disabled until the user picks a different locale.
- *
- * The page imports next-intl helpers (useLocale/useTranslations) which
- * are already mocked in `src/tests/setup.ts` to resolve keys against
- * `messages/en.json`. We mount the page directly because it's a Client
- * Component with no server-only dependencies once the mocks are in
- * place.
- */
+// Settings → language selector (Task #275).
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -21,9 +9,33 @@ import { setToken } from "@/lib/api";
 import { t } from "@/tests/utils/i18n";
 import { LOCALE_COOKIE } from "@/i18n/config";
 
+const replaceMock = vi.fn();
+const refreshMock = vi.fn();
+vi.mock("next/navigation", async () => {
+  const React = await import("react");
+  void React;
+  return {
+    useRouter: () => ({
+      push: vi.fn(),
+      replace: replaceMock,
+      refresh: refreshMock,
+      back: vi.fn(),
+      forward: vi.fn(),
+      prefetch: vi.fn(),
+    }),
+    useSearchParams: () => new URLSearchParams(""),
+    usePathname: () => "/app/settings",
+    useParams: () => ({ locale: "en" }),
+    redirect: vi.fn(),
+    notFound: vi.fn(),
+  };
+});
+
 beforeEach(() => {
   setToken("test-token");
   document.cookie = `${LOCALE_COOKIE}=; Path=/; Max-Age=0`;
+  replaceMock.mockClear();
+  refreshMock.mockClear();
 });
 
 describe("Settings → language selector", () => {
@@ -32,7 +44,6 @@ describe("Settings → language selector", () => {
     expect(
       await screen.findByText(t("en", "settings.languageSection")),
     ).toBeInTheDocument();
-    // English option label comes from `common.english`.
     expect(screen.getByText(t("en", "common.english"))).toBeInTheDocument();
     expect(screen.getByText(t("en", "common.arabic"))).toBeInTheDocument();
   });
@@ -45,36 +56,38 @@ describe("Settings → language selector", () => {
     expect(save).toBeDisabled();
   });
 
-  it(
-    "PATCHes /api/auth/me with the chosen locale and writes the NEXT_LOCALE cookie",
-    async () => {
-      const patched = vi.fn<(body: unknown) => void>();
-      server.use(
-        http.patch("/api/auth/me", async ({ request }) => {
-          const body = await request.json();
-          patched(body);
-          return HttpResponse.json({
-            id: 1,
-            email: "demo@axiom.app",
-            locale: (body as { locale?: string }).locale ?? "en",
-          });
-        }),
-      );
-      const user = userEvent.setup();
-      render(<SettingsPage />);
-      // Wait for the form to settle (initial /api/auth/me GET resolves).
-      await screen.findByText(t("en", "settings.languageSection"));
-      const arRadio = document.getElementById("locale-ar") as HTMLInputElement;
-      expect(arRadio).not.toBeNull();
-      await user.click(arRadio);
-      const save = screen.getByRole("button", {
-        name: t("en", "common.save"),
-      });
-      expect(save).not.toBeDisabled();
-      await user.click(save);
-      await waitFor(() => expect(patched).toHaveBeenCalled());
-      expect(patched.mock.calls[0][0]).toEqual({ locale: "ar" });
-      expect(document.cookie).toContain(`${LOCALE_COOKIE}=ar`);
-    },
-  );
+  it("PATCHes /api/users/me/locale, writes the cookie, and navigates to /ar", async () => {
+    const patched = vi.fn<(body: unknown) => void>();
+    let calledPath = "";
+    server.use(
+      http.patch("/api/users/me/locale", async ({ request }) => {
+        calledPath = new URL(request.url).pathname;
+        const body = await request.json();
+        patched(body);
+        return HttpResponse.json({
+          id: 1,
+          email: "demo@axiom.app",
+          locale: (body as { locale?: string }).locale ?? "en",
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+    await screen.findByText(t("en", "settings.languageSection"));
+
+    const arRadio = document.getElementById("locale-ar") as HTMLInputElement;
+    await user.click(arRadio);
+
+    const save = screen.getByRole("button", { name: t("en", "common.save") });
+    await user.click(save);
+
+    await waitFor(() => expect(patched).toHaveBeenCalled());
+    expect(calledPath).toBe("/api/users/me/locale");
+    expect(patched.mock.calls[0][0]).toEqual({ locale: "ar" });
+    expect(document.cookie).toContain(`${LOCALE_COOKIE}=ar`);
+
+    await waitFor(() => expect(replaceMock).toHaveBeenCalled());
+    expect(replaceMock.mock.calls[0][0]).toMatch(/^\/ar(\/|$)/);
+    expect(refreshMock).toHaveBeenCalled();
+  });
 });

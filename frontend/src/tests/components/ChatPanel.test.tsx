@@ -4,8 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { ChatPanel } from "@/components/product/ChatPanel";
 import { t } from "@/tests/utils/i18n";
 
-const GREETING_EN = t("en", "chat.greetingNew");
-const GREETING_PROBE = GREETING_EN.slice(0, 18);
+const GREETING_PROBE = t("en", "chat.greetingNew").slice(0, 18);
 
 function mockNDJSONStream(lines: string[]): Response {
   const enc = new TextEncoder();
@@ -28,8 +27,7 @@ describe("ChatPanel", () => {
   it("renders the greeting and a disabled send while input is empty", async () => {
     render(<ChatPanel sessionId={null} hasData />);
     expect(await screen.findByText(new RegExp(GREETING_PROBE))).toBeInTheDocument();
-    const send = screen.getByLabelText(/إرسال/);
-    expect(send).toBeDisabled();
+    expect(screen.getByTestId("composer-send")).toBeDisabled();
   });
 
   it("Enter on the textarea sends the message", async () => {
@@ -46,13 +44,10 @@ describe("ChatPanel", () => {
     const user = userEvent.setup();
     render(<ChatPanel sessionId={null} hasData />);
     await screen.findByText(new RegExp(GREETING_PROBE));
-    const ta = screen.getByLabelText(/مربّع الرسالة/);
-    await user.type(ta, "test prompt{Enter}");
+    await user.type(screen.getByTestId("composer-textarea"), "test prompt{Enter}");
     await waitFor(() =>
       expect(
-        fetchSpy.mock.calls.some((c) =>
-          String(c[0]).includes("/api/chat/stream"),
-        ),
+        fetchSpy.mock.calls.some((c) => String(c[0]).includes("/api/chat/stream")),
       ).toBe(true),
     );
     vi.unstubAllGlobals();
@@ -74,8 +69,7 @@ describe("ChatPanel", () => {
     const user = userEvent.setup();
     render(<ChatPanel sessionId={null} hasData />);
     await screen.findByText(new RegExp(GREETING_PROBE));
-    const ta = screen.getByLabelText(/مربّع الرسالة/);
-    await user.type(ta, "stream test{Enter}");
+    await user.type(screen.getByTestId("composer-textarea"), "stream test{Enter}");
     await waitFor(() => expect(screen.getByText(/Hello world/)).toBeInTheDocument());
     vi.unstubAllGlobals();
   });
@@ -100,8 +94,7 @@ describe("ChatPanel", () => {
     const user = userEvent.setup();
     render(<ChatPanel sessionId={null} hasData onToolStarted={onToolStarted} />);
     await screen.findByText(new RegExp(GREETING_PROBE));
-    const ta = screen.getByLabelText(/مربّع الرسالة/);
-    await user.type(ta, "draw chart{Enter}");
+    await user.type(screen.getByTestId("composer-textarea"), "draw chart{Enter}");
     await waitFor(() => expect(onToolStarted).toHaveBeenCalled());
     vi.unstubAllGlobals();
   });

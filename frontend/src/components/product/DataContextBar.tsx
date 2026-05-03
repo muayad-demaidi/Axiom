@@ -377,7 +377,7 @@ function StatusPill({
           className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--accent)]/12 text-[var(--accent)] border border-[var(--accent)]/30 whitespace-nowrap"
         >
           <Sparkles className="h-2.5 w-2.5" />
-          جاري التنبؤ…
+          <span data-testid="pill-predicting">جاري التنبؤ…</span>
         </motion.span>
       ) : streaming ? (
         <motion.span
@@ -392,7 +392,7 @@ function StatusPill({
           aria-live="polite"
         >
           <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
-          جاري التحليل…
+          <span data-testid="pill-analyzing">جاري التحليل…</span>
         </motion.span>
       ) : null}
     </AnimatePresence>

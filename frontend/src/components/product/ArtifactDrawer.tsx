@@ -988,6 +988,7 @@ export function QuestionRow({
           <button
             onClick={() => onAnswer({ status: "dismissed" })}
             disabled={busy}
+            data-testid="qr-dismiss"
             className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
           >
             Dismiss
@@ -1021,6 +1022,7 @@ export function QuestionRow({
           <button
             onClick={() => setShowFreeText(true)}
             disabled={busy}
+            data-testid="qr-write-answer"
             className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
           >
             Write an answer
@@ -1037,6 +1039,7 @@ export function QuestionRow({
               }
             }}
             disabled={busy}
+            data-testid="qr-discuss"
             className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
           >
             Discuss in chat
@@ -1051,6 +1054,7 @@ export function QuestionRow({
             onChange={(e) => setFreeText(e.target.value)}
             rows={2}
             placeholder="Your answer…"
+            data-testid="qr-free-text"
             className="w-full text-[11px] p-1.5 rounded border border-[var(--border)] bg-[var(--surface)] font-sans"
           />
           <div className="flex gap-1 justify-end">
@@ -1075,6 +1079,7 @@ export function QuestionRow({
                 setFreeText("");
               }}
               disabled={busy || !freeText.trim()}
+              data-testid="qr-submit"
               className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
             >
               Submit

@@ -1,13 +1,9 @@
 "use client";
 /**
- * User settings page.
- *
- * Lets the user pick a UI language (EN / AR). Saving:
- *  1. Persists `locale` to the user profile via PATCH /api/auth/me.
- *  2. Writes the `NEXT_LOCALE` cookie so middleware honours the
- *     choice on every subsequent request.
- *  3. Navigates to the locale-prefixed (or unprefixed-default) URL so
- *     the document `dir` / `lang` flip immediately.
+ * User settings page. Lets the user pick a UI language (EN / AR).
+ * Saving persists the `locale` via PATCH /api/users/me/locale (the
+ * Task #273 contract), writes the NEXT_LOCALE cookie, and navigates
+ * to the new locale prefix so document dir/lang flip immediately.
  */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
@@ -76,7 +72,7 @@ export default function SettingsPage() {
     setError(null);
     try {
       if (authed) {
-        await api("/api/auth/me", {
+        await api("/api/users/me/locale", {
           method: "PATCH",
           json: { locale: selected },
         });

@@ -4,11 +4,7 @@ import React from "react";
 import { server } from "./mocks/server";
 import enMessages from "../../messages/en.json";
 
-// next-intl mocks ------------------------------------------------------------
-// Resolve translations from the bundled EN catalogue so component tests
-// can assert against the user-visible copy without hand-rolling fixtures.
-// `t("foo.bar")` returns the value under "foo.bar"; `t("greeting", {name})`
-// substitutes the {name} placeholder.
+// Resolve translations from messages/en.json; missing keys throw.
 function resolveKey(scope: string | undefined, key: string): string {
   const path = scope ? `${scope}.${key}` : key;
   const parts = path.split(".");
@@ -17,10 +13,13 @@ function resolveKey(scope: string | undefined, key: string): string {
     if (cur && typeof cur === "object" && p in (cur as Record<string, unknown>)) {
       cur = (cur as Record<string, unknown>)[p];
     } else {
-      return path;
+      throw new Error(`[i18n test mock] missing key "${path}" in en.json`);
     }
   }
-  return typeof cur === "string" ? cur : path;
+  if (typeof cur !== "string") {
+    throw new Error(`[i18n test mock] key "${path}" is not a string`);
+  }
+  return cur;
 }
 function interpolate(template: string, values?: Record<string, unknown>): string {
   if (!values) return template;
@@ -92,12 +91,7 @@ vi.mock("next/dynamic", () => ({
   },
 }));
 
-// MSW lifecycle --------------------------------------------------------------
-// NOTE: Do not override globalThis.fetch here. MSW (`setupServer` from
-// `msw/node`) wraps the runtime fetch via @mswjs/interceptors when
-// `server.listen()` runs, and any pre-installed stub would short-circuit
-// the interception layer and silently bypass the registered handlers
-// (which is what caused two carried-over failures from #223).
+// Do not pre-stub globalThis.fetch — MSW must own the fetch wrapper.
 beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
 afterEach(() => {
   server.resetHandlers();

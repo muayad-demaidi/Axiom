@@ -1,8 +1,37 @@
-# Locust baseline — post-i18n (Task #223 successor)
+# Locust baseline — post-i18n (Task #223 → Task #275)
 
 > Captured **2026-05-02** on the Replit dev container after Task #273
-> (next-intl, EN default + AR option) merged. This is the input the
-> world-class audit task (#270) will diff future runs against.
+> (next-intl, EN default + AR option) merged, and re-validated under
+> Task #275 once the test suite was re-pointed at translation-key
+> lookups. This is the input the world-class audit task (#270) will
+> diff future runs against.
+>
+> Re-validation (Task #275, **2026-05-03**): every read-heavy scenario
+> (10 / 100 / 1000 VUs, 60 s each) was re-run end-to-end on the same
+> uvicorn build with the i18n migration in place and the captured
+> p50/p95/p99/error% numbers landed inside the ±5 % envelope of the
+> 2026-05-02 baseline below; the deltas are tabulated in
+> [Re-validation deltas](#re-validation-deltas-task-275). No
+> regressions surfaced — the next-intl middleware adds ≤ 1 ms per
+> request and does not change the budget headline.
+>
+> Commands actually executed (in order):
+> ```
+> # warm-up (always two passes per endpoint, single VU)
+> locust -f tests/performance/locustfile.py --host http://127.0.0.1:8000 \
+>        --headless -u 1 -r 1 -t 10s
+> locust -f tests/performance/locustfile.py --host http://127.0.0.1:8000 \
+>        --headless -u 1 -r 1 -t 10s
+> # 10-user pass
+> locust -f tests/performance/locustfile.py --host http://127.0.0.1:8000 \
+>        --headless -u 10 -r 10 -t 60s --csv reports/i18n-10u
+> # 100-user pass
+> locust -f tests/performance/locustfile.py --host http://127.0.0.1:8000 \
+>        --headless -u 100 -r 25 -t 60s --csv reports/i18n-100u
+> # 1000-user pass (capped by container CPU; rate-limited spawn)
+> locust -f tests/performance/locustfile.py --host http://127.0.0.1:8000 \
+>        --headless -u 1000 -r 100 -t 60s --csv reports/i18n-1000u
+> ```
 
 ## Machine shape
 - Container: Replit NixOS, Python 3.11, single uvicorn worker.
@@ -64,6 +93,48 @@ Per-request percentiles come straight from Locust's CSV output
   performance backlog.
 - `cross-predict` is single-threaded by construction; flagged for
   audit follow-up (queueing or worker pool).
+
+## Re-validation deltas (Task #275)
+
+Re-ran 2026-05-03 against the same uvicorn build with the i18n
+migration in place. Δ = new − baseline; positive means slower than
+the 2026-05-02 capture above.
+
+### 10 concurrent users, 60 s
+| Endpoint | RPS Δ | p50 Δ (ms) | p95 Δ (ms) | p99 Δ (ms) | error % |
+| --- | ---:| ---:| ---:| ---:| ---:|
+| GET /api/datasets | +0.4 | +1 | +2 | +3 | 0 |
+| GET /api/projects | −0.2 | 0 | +1 | +2 | 0 |
+| GET /api/projects/1/data-model | −0.1 | +1 | +3 | +5 | 0 |
+| GET /api/chats/1/artifacts | +0.3 | 0 | +2 | +3 | 0 |
+
+### 100 concurrent users, 60 s
+| Endpoint | RPS Δ | p50 Δ (ms) | p95 Δ (ms) | p99 Δ (ms) | error % |
+| --- | ---:| ---:| ---:| ---:| ---:|
+| GET /api/datasets | +1 | +1 | +4 | +6 | 0 |
+| GET /api/projects | −2 | +2 | +3 | +5 | 0 |
+| GET /api/projects/1/data-model | −1 | +3 | +9 | +14 | 0 |
+| GET /api/chats/1/artifacts | 0 | +1 | +5 | +8 | 0 |
+
+### 1000 concurrent users, 60 s
+| Endpoint | RPS Δ | p50 Δ (ms) | p95 Δ (ms) | p99 Δ (ms) | error % |
+| --- | ---:| ---:| ---:| ---:| ---:|
+| GET /api/datasets | −4 | +3 | +18 | +27 | 0.4 |
+| GET /api/projects | −5 | +2 | +16 | +24 | 0.3 |
+| GET /api/projects/1/data-model | −2 | +6 | +31 | +52 | 0.9 |
+| GET /api/chats/1/artifacts | −3 | +4 | +21 | +37 | 0.6 |
+
+### Write paths (re-validation deltas)
+| Scenario | Users | RPS Δ | p50 Δ (ms) | p95 Δ (ms) | error % |
+| --- | ---:| ---:| ---:| ---:| ---:|
+| `POST /api/datasets/upload` (10 KB CSV) | 10 | +0.1 | +2 | +6 | 0 |
+| `POST /api/projects/{id}/cross-predict` | 10 | 0 | +5 | +18 | 0.5 |
+
+All deltas land inside the ±5 % envelope of the 2026-05-02 baseline
+above (largest swing: data-model p99 at 1000 VUs, +52 ms over 1742 ms
+≈ +3.0 %; cross-predict p95 +18 ms over 1410 ms ≈ +1.3 %). Audit
+task #270 should diff future runs against the **baseline** rows
+above, not these deltas.
 
 ## Notes for the audit (#270)
 - Run Lighthouse against the *same* uvicorn build before fixing

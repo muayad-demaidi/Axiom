@@ -1,16 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
 import { DataContextBar } from "@/components/product/DataContextBar";
 
 const datasets = [
-  {
-    id: 1,
-    filename: "sales.csv",
-    dataset_name: "sales",
-    rows: 1234,
-    cols: 8,
-    project_id: 1,
-  },
+  { id: 1, filename: "sales.csv", dataset_name: "sales", rows: 1234, cols: 8, project_id: 1 },
 ];
 
 describe("DataContextBar", () => {
@@ -39,7 +32,7 @@ describe("DataContextBar", () => {
         streaming
       />,
     );
-    expect(screen.getByText(/جاري التحليل/)).toBeInTheDocument();
+    expect(screen.getByTestId("pill-analyzing")).toBeInTheDocument();
   });
 
   it("shows the prediction pill when predictionRunning is true", () => {
@@ -53,6 +46,6 @@ describe("DataContextBar", () => {
         predictionRunning
       />,
     );
-    expect(screen.getByText(/جاري التنبؤ/)).toBeInTheDocument();
+    expect(screen.getByTestId("pill-predicting")).toBeInTheDocument();
   });
 });

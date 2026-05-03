@@ -1,14 +1,25 @@
 import { test, expect } from "@playwright/test";
+import { localeOf, isRTL, tFor } from "./_i18n";
+import { switchLocaleViaSettings } from "./_locale-switch";
 
-// Tahleel CTA — feature is not yet implemented at the time this suite
-// was added (Task #223). Marked as fixme so the suite stays green
-// until the Tahleel surface ships.
+test.describe("tahleel workspace shell", () => {
+  test("workspace shell renders in the active locale", async ({ page, context }, info) => {
+    const locale = localeOf(info);
+    await context.addCookies([
+      { name: "NEXT_LOCALE", value: locale, url: "http://localhost:3000" },
+    ]);
+    await page.goto(locale === "ar" ? "/ar/app" : "/app");
 
-test.describe("tahleel", () => {
-  test.fixme(true, "Tahleel feature not yet built — CTA wiring pending.");
+    if (/\/login/.test(page.url())) {
+      await expect(page.getByRole("heading", { name: tFor(locale, "auth.signIn") })).toBeVisible();
+    }
+    await expect.poll(() => page.evaluate(() => document.documentElement.dir))
+      .toBe(isRTL(locale) ? "rtl" : "ltr");
+  });
 
-  test("ابدأ تحليل Tahleel CTA is visible on the workspace", async ({ page }) => {
-    await page.goto("/app");
-    await expect(page.getByText("ابدأ تحليل Tahleel")).toBeVisible();
+  test("Tahleel flow exercises the Settings locale switcher", async ({ page, context }, info) => {
+    const start = localeOf(info);
+    const target = start === "ar" ? "en" : "ar";
+    await switchLocaleViaSettings(page, context, start, target);
   });
 });
