@@ -97,6 +97,8 @@ function ArtifactDrawerBase({
   activeDatasetName,
   onArtifactCreated,
   highlightRelIds,
+  autoStartGuidedPredict,
+  onGuidedPredictStarted,
 }: {
   open: boolean;
   onClose: () => void;
@@ -112,6 +114,10 @@ function ArtifactDrawerBase({
   // data-model tab. Passed through to every DataModelBody so the
   // user's deep-link target stands out without further interaction.
   highlightRelIds?: number[];
+  // Task #291 — when true the wizard auto-opens so the chat-area
+  // "Predict" CTA card can jump the user straight into the wizard.
+  autoStartGuidedPredict?: boolean;
+  onGuidedPredictStarted?: () => void;
 }) {
   const visibleTabs = useMemo(
     () => (showDataModelTab ? TABS : TABS.filter((t) => t.key !== "model")),
@@ -126,6 +132,15 @@ function ArtifactDrawerBase({
   useEffect(() => {
     if (initialTab) setTab(initialTab);
   }, [initialTab]);
+
+  // Auto-start the guided wizard when the chat-area CTA is clicked.
+  useEffect(() => {
+    if (!autoStartGuidedPredict) return;
+    setTab("predictions");
+    setGuidedActive(true);
+    onGuidedPredictStarted?.();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStartGuidedPredict]);
 
   useEffect(() => {
     if (!sessionId) return;

@@ -168,6 +168,10 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
     router.replace(`/app/project/${projectId}?${qs.toString()}`);
   }, [activeSessionId, requestedSessionId, router, projectId]);
 
+  // Task #291 — after upload, surface a predict CTA in the chat area.
+  const [postUploadDatasetId, setPostUploadDatasetId] = useState<number | null>(null);
+  const [autoStartGuidedPredict, setAutoStartGuidedPredict] = useState(false);
+
   // The chat composer's attach button uploads to /api/datasets/upload
   // and then fires `axiom:dataset:uploaded`. Refetch this project's
   // dataset list, focus the new file, and prefill a profile prompt.
@@ -183,6 +187,7 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
           if (!fresh) return;
           setActiveDatasetId(fresh.id);
           setActiveDatasetState(fresh.id);
+          setPostUploadDatasetId(fresh.id);
           // Persist this attachment under the active chat so the
           // dataset stays bound after a reload / nav-away.
           setChatSessionDatasetId(activeSessionId, fresh.id);
@@ -462,6 +467,22 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
     [sessions, activeSessionId]
   );
 
+  const handlePredictCTAClick = useCallback(() => {
+    setPostUploadDatasetId(null);
+    setAutoStartGuidedPredict(true);
+    setDrawerTab("predictions");
+    setDrawerOpen(true);
+    try {
+      window.sessionStorage.setItem(DRAWER_PREF_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const handlePredictCTADismiss = useCallback(() => {
+    setPostUploadDatasetId(null);
+  }, []);
+
   // Memoize the chat header so ChatPanel (now React.memo'd) sees a
   // stable `headerSlot` reference across unrelated parent re-renders
   // (drawer toggling, mode pill flip, etc.) and can short-circuit.
@@ -473,6 +494,12 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
           onAskQuestion={onSuggestedQuestion}
           refreshKey={artifactRefresh}
         />
+        {postUploadDatasetId != null && (
+          <PostUploadPredictCTA
+            onStart={handlePredictCTAClick}
+            onDismiss={handlePredictCTADismiss}
+          />
+        )}
         {activeDatasetState != null && datasets.length > 0 ? (
           <DatasetPreviewCard
             key={activeDatasetState}
@@ -490,6 +517,9 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
       activeDatasetState,
       datasets.length,
       onAskAboutCell,
+      postUploadDatasetId,
+      handlePredictCTAClick,
+      handlePredictCTADismiss,
     ]
   );
 
@@ -663,7 +693,55 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
         }
         onArtifactCreated={onArtifactCreated}
         highlightRelIds={highlightRelIds}
+        autoStartGuidedPredict={autoStartGuidedPredict}
+        onGuidedPredictStarted={() => setAutoStartGuidedPredict(false)}
       />
+    </div>
+  );
+}
+
+/**
+ * Task #291 — Post-upload prediction invite card.
+ * Appears in the chat area right after a dataset is uploaded,
+ * inviting the user to start a guided prediction.
+ */
+function PostUploadPredictCTA({
+  onStart,
+  onDismiss,
+}: {
+  onStart: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="border border-dashed border-[var(--accent)]/50 rounded-xl p-4 bg-[var(--accent)]/5 flex items-start gap-3">
+      <div className="shrink-0 mt-0.5 h-8 w-8 rounded-full bg-[var(--accent)]/15 flex items-center justify-center text-[var(--accent)] text-sm font-bold">
+        &#x2197;
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--accent)] mb-0.5">
+          توقع موجّه
+        </div>
+        <div className="text-sm font-semibold text-[var(--text)]">
+          هل تريد التنبؤ بما سيحدث؟
+        </div>
+        <p className="text-[11px] text-[var(--text-muted)] mt-1 leading-relaxed">
+          انقر للحصول على توقع خطوة بخطوة — نفحص بياناتك ونطرح أسئلة بسيطة ونعطيك نتيجة واضحة مع درجة ثقة.
+        </p>
+        <div className="mt-2.5 flex items-center gap-2">
+          <button
+            onClick={onStart}
+            className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[var(--accent)] text-white hover:opacity-90 transition-opacity"
+          >
+            ابدأ التوقع ←
+          </button>
+          <button
+            onClick={onDismiss}
+            className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+          >
+            ليس الآن
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

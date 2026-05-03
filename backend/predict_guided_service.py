@@ -631,14 +631,20 @@ def _gpt4o_analyze(
         "'regression' for continuous numeric targets, 'classification' for categorical.\n"
         "4. Generate 3–5 clarifying questions TAILORED to the actual domain "
         "(HR data → turnover/attendance questions, sales data → promotions/seasonality, "
-        "manufacturing → production rates/downtime, etc.).\n\n"
+        "manufacturing → production rates/downtime, etc.).\n"
+        "5. For each question add a short 'hint' field: one Arabic sentence explaining "
+        "what this question controls and how the answer affects the forecast "
+        "(e.g. 'يحدد هذا مدى التوقع — كلما قصرت المدة كان التوقع أدق').\n"
+        "6. For dropdown and yesno questions add an 'option_hints' object mapping "
+        "each option value to a one-line Arabic plain-language description "
+        "(e.g. {\"7\": \"أسبوع واحد — دقيق جداً لكن قصير المدى\"}).\n\n"
         "Output ONLY valid JSON — no markdown, no commentary:\n"
         '{"domain":"...","target_reason":"...","problem_type":"timeseries|regression|classification",'
         '"questions":[{"id":"...","text":"...","kind":"slider|yesno|dropdown",'
+        '"hint":"...","option_hints":{"option_value":"description"},'
         '"min":0,"max":100,"default":50,"unit":"%","options":["..."]}]}\n\n'
         "Rules:\n"
-        "- domain and target_reason must be in Modern Standard Arabic.\n"
-        "- All question text must be in Modern Standard Arabic.\n"
+        "- domain, target_reason, all question text, hints and option_hints must be in Modern Standard Arabic.\n"
         "- Do NOT ask about raw numeric column values; ask about business context.\n"
         "- Always include a 'horizon_periods' dropdown question "
         "({\"id\":\"horizon_periods\",\"kind\":\"dropdown\",\"options\":[\"7\",\"14\",\"30\",\"60\",\"90\"],\"default\":\"30\"}) "
@@ -733,6 +739,24 @@ def _parse_questions(raw: str) -> list[dict[str, Any]]:
         }
         if not entry["text"]:
             continue
+        # Hint and option_hints — use LLM value when present, otherwise inject a
+        # deterministic Arabic fallback so the frontend always has something to show.
+        _HINT_FALLBACKS: dict[str, str] = {
+            "slider": "اضبط القيمة بناءً على معرفتك بالبيانات — يمكنك دائماً تعديل الإجابة لاحقاً.",
+            "yesno": "اختر الإجابة الأنسب بناءً على سياق بياناتك.",
+            "dropdown": "اختر الخيار الذي يصف بياناتك بشكل أدق.",
+        }
+        hint = str(q.get("hint") or "").strip()
+        entry["hint"] = hint or _HINT_FALLBACKS.get(kind, _HINT_FALLBACKS["slider"])
+        raw_oh = q.get("option_hints")
+        if isinstance(raw_oh, dict) and raw_oh:
+            entry["option_hints"] = {str(k): str(v) for k, v in raw_oh.items()}
+        elif kind == "yesno":
+            # Ensure yes/no options always have a description
+            entry["option_hints"] = {
+                "yes": "نعم — ينطبق هذا على بياناتي.",
+                "no": "لا — لا ينطبق هذا على بياناتي.",
+            }
         if kind == "slider":
             entry["min"] = float(q.get("min", -50))
             entry["max"] = float(q.get("max", 50))
@@ -778,6 +802,14 @@ def _default_questions_timeseries(
             "kind": "dropdown",
             "options": ["7", "14", "30", "60", "90"],
             "default": "30",
+            "hint": "يحدد هذا مدى التوقع الزمني — كلما قصرت المدة كان التوقع أدق وأكثر موثوقية.",
+            "option_hints": {
+                "7": "أسبوع — دقيق جداً ومناسب للتخطيط قصير الأمد",
+                "14": "أسبوعان — توازن جيد بين الدقة وطول الأفق",
+                "30": "شهر — خيار متوازن وشائع للتوقعات الشهرية",
+                "60": "شهران — نظرة أبعد مع قدر من الغموض",
+                "90": "ثلاثة أشهر — تخطيط ربع سنوي، الدقة أقل نسبياً",
+            },
         },
         {
             "id": "season_effect",
@@ -785,18 +817,34 @@ def _default_questions_timeseries(
             "kind": "dropdown",
             "options": ["منخفض", "متوسط", "مرتفع"],
             "default": "متوسط",
+            "hint": "يساعدنا هذا على ضبط قوة النمط الموسمي في النموذج — إذا كانت بياناتك تتأثر بالمواسم كثيراً اختر 'مرتفع'.",
+            "option_hints": {
+                "منخفض": "البيانات مستقرة نسبياً ولا تتأثر كثيراً بالمواسم",
+                "متوسط": "يوجد تأثير موسمي ملحوظ لكنه ليس مهيمناً",
+                "مرتفع": "البيانات تتأثر بشكل واضح بالمواسم أو الأحداث الدورية",
+            },
         },
         {
             "id": "trend_change",
             "text": f"هل تتوقع تغيراً في اتجاه {target} خلال الفترة القادمة؟",
             "kind": "yesno",
             "default": "no",
+            "hint": "إذا كنت تعلم بوجود تغيير مخطط (كحملة تسويقية أو تغيير في السياسة)، حدد 'نعم' ليأخذ النموذج ذلك بالاعتبار.",
+            "option_hints": {
+                "yes": "نعم — أتوقع تغيراً ملحوظاً في الاتجاه",
+                "no": "لا — سيستمر الوضع على ما هو عليه",
+            },
         },
         {
             "id": "external_shock",
             "text": "هل ثمة أحداث خارجية متوقعة (حملات، إجازات، أزمات) قد تؤثر على التوقع؟",
             "kind": "yesno",
             "default": "no",
+            "hint": "الأحداث الخارجية كالإجازات والحملات التسويقية تؤثر على الأرقام؛ تحديدها يجعل التوقع أكثر دقة.",
+            "option_hints": {
+                "yes": "نعم — هناك أحداث أو عوامل خارجية متوقعة",
+                "no": "لا — لا توجد أحداث استثنائية متوقعة",
+            },
         },
     ]
 
@@ -812,12 +860,18 @@ def _default_questions_regression(target: str) -> list[dict[str, Any]]:
             "max": 50.0,
             "default": 0.0,
             "unit": "%",
+            "hint": "تساعدنا هذه الإجابة على ضبط نقطة البداية للتوقع — صفر يعني أنك لا تتوقع تغييراً كبيراً.",
         },
         {
             "id": "key_driver_change",
             "text": "هل ستطرأ تغييرات على العوامل الرئيسية المؤثرة في النتيجة؟",
             "kind": "yesno",
             "default": "no",
+            "hint": "إذا كان هناك تغيير متوقع في المتغيرات المؤثرة (كالأسعار أو الكميات)، فإن التوقع سيأخذ ذلك بعين الاعتبار.",
+            "option_hints": {
+                "yes": "نعم — أتوقع تغييراً في العوامل المؤثرة الرئيسية",
+                "no": "لا — ستبقى العوامل المؤثرة مستقرة كما هي",
+            },
         },
         {
             "id": "confidence_level",
@@ -825,6 +879,12 @@ def _default_questions_regression(target: str) -> list[dict[str, Any]]:
             "kind": "dropdown",
             "options": ["تقديري (سريع)", "متوازن", "عالي الدقة"],
             "default": "متوازن",
+            "hint": "يتحكم هذا في عمق التحليل الإحصائي — الدقة العالية تستغرق وقتاً أطول لكنها أكثر موثوقية.",
+            "option_hints": {
+                "تقديري (سريع)": "سريع — تقدير أولي خلال ثوانٍ، مناسب للاستكشاف السريع",
+                "متوازن": "متوازن — يجمع بين السرعة والدقة، الخيار الأمثل لمعظم الحالات",
+                "عالي الدقة": "دقيق — تحليل معمّق يستغرق وقتاً أطول لكنه أكثر موثوقية",
+            },
         },
     ]
 
@@ -838,6 +898,12 @@ def _default_questions_classification(target: str) -> list[dict[str, Any]]:
             "kind": "dropdown",
             "options": ["متوازن", "غير متوازن", "لا أعرف"],
             "default": "لا أعرف",
+            "hint": "توزيع الفئات يؤثر على طريقة تدريب النموذج — إذا كانت إحدى الفئات نادرة جداً فالنموذج يحتاج معالجة خاصة.",
+            "option_hints": {
+                "متوازن": "الفئات موزعة بشكل متساوٍ تقريباً في البيانات",
+                "غير متوازن": "إحدى الفئات أكثر بكثير من الأخرى (كالاحتيال أو الأعطال)",
+                "لا أعرف": "غير متأكد — النموذج سيكتشف ذلك تلقائياً",
+            },
         },
         {
             "id": "threshold_priority",
@@ -845,12 +911,23 @@ def _default_questions_classification(target: str) -> list[dict[str, Any]]:
             "kind": "dropdown",
             "options": ["تجنب الإيجابيات الخاطئة", "تجنب السلبيات الخاطئة", "متوازن"],
             "default": "متوازن",
+            "hint": "يحدد هذا أولوية النموذج: هل تفضّل الحذر (عدم الإنذار الكاذب) أم الشمولية (عدم تفويت أي حالة)؟",
+            "option_hints": {
+                "تجنب الإيجابيات الخاطئة": "الأهم ألا ينبّه النموذج كاذباً — مناسب عندما تكلفة الإجراء عالية",
+                "تجنب السلبيات الخاطئة": "الأهم ألا يفوّت النموذج أي حالة — مناسب عند خطورة عدم الاكتشاف",
+                "متوازن": "توازن بين النوعين، مناسب لمعظم الحالات",
+            },
         },
         {
             "id": "key_factor",
             "text": "هل هناك عامل تعتقد أنه الأكثر تأثيراً في تحديد الفئة؟",
             "kind": "yesno",
             "default": "no",
+            "hint": "إذا كانت لديك معرفة مسبقة بالعامل الحاسم، يمكن للنموذج إعطاؤه وزناً أكبر.",
+            "option_hints": {
+                "yes": "نعم — أعتقد أن هناك عاملاً محدداً يؤثر بشكل رئيسي",
+                "no": "لا — دع النموذج يكتشف العوامل المؤثرة بنفسه",
+            },
         },
     ]
 
@@ -1072,6 +1149,15 @@ def analyze_dataset(df: pd.DataFrame) -> dict[str, Any]:
     partial_confidence = compute_confidence(partial_sub_scores)
     partial_confidence["preliminary"] = True
 
+    # Extract date range from time column for the summary card
+    date_start: str | None = None
+    date_end: str | None = None
+    if time_column and time_column in df.columns:
+        parsed_times = pd.to_datetime(df[time_column], errors="coerce").dropna()
+        if not parsed_times.empty:
+            date_start = parsed_times.min().strftime("%Y-%m-%d")
+            date_end = parsed_times.max().strftime("%Y-%m-%d")
+
     return {
         "ok": True,
         "row_count": n_rows,
@@ -1084,6 +1170,8 @@ def analyze_dataset(df: pd.DataFrame) -> dict[str, Any]:
         "target_reason": target_reason,
         "problem_type": problem_type,
         "numeric_columns": numeric_columns,
+        "date_start": date_start,
+        "date_end": date_end,
         "flow": GUIDED_FLOW_TAG,
     }
 
