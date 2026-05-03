@@ -10796,6 +10796,155 @@ def show_dashboard():
   font-size: 0.95rem; color: #e2e8f0; line-height: 1.45;
   margin-bottom: 0.15rem;
 }
+/* ── What-If Predictor ──────────────────────────────── */
+.dn-predictor-scope {
+  font-family: "DM Sans", sans-serif; font-size: 0.88rem;
+  color: #94a3b8; margin: 0.4rem 0 1rem 0;
+}
+.dn-predictor-scope .scope-label { color: #64748b; }
+.dn-predictor-scope .scope-val { color: #e2e8f0; font-weight: 600; }
+.dn-predictor-scope .scope-coming {
+  font-family: "JetBrains Mono", monospace; font-size: 0.62rem;
+  letter-spacing: 0.12em; color: #f59e0b;
+  background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 4px; padding: 0.1rem 0.35rem; margin-left: 0.35rem;
+}
+.dn-leakage-warn {
+  background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3);
+  border-radius: 10px; padding: 0.65rem 1rem; margin: 0.4rem 0 0.3rem 0;
+  font-family: "DM Sans", sans-serif; font-size: 0.88rem; color: #fbbf24;
+  line-height: 1.45;
+}
+.dn-leakage-warn b { color: #fde68a; }
+.dn-prediction-result {
+  border-radius: 16px; padding: 1.4rem 1.6rem; margin: 0.8rem 0 1rem 0;
+  border: 1px solid rgba(148,163,184,0.18);
+  background: linear-gradient(180deg, rgba(17,31,53,0.6), rgba(12,24,41,0.45));
+}
+.dn-prediction-high {
+  border-color: rgba(16,185,129,0.35);
+  background: linear-gradient(180deg, rgba(16,185,129,0.08), rgba(12,24,41,0.45));
+}
+.dn-prediction-medium {
+  border-color: rgba(245,158,11,0.35);
+  background: linear-gradient(180deg, rgba(245,158,11,0.08), rgba(12,24,41,0.45));
+}
+.dn-prediction-low {
+  border-color: rgba(239,68,68,0.35);
+  background: linear-gradient(180deg, rgba(239,68,68,0.08), rgba(12,24,41,0.45));
+}
+.dn-pred-label {
+  font-family: "JetBrains Mono", monospace; font-size: 0.66rem;
+  letter-spacing: 0.22em; text-transform: uppercase; color: #64748b;
+  margin-bottom: 0.4rem;
+}
+.dn-pred-value {
+  font-family: "Syne", sans-serif; font-weight: 800;
+  font-size: 2.8rem; line-height: 1; color: #f1f5f9; margin-bottom: 0.35rem;
+}
+.dn-prediction-high .dn-pred-value { color: #10b981; }
+.dn-prediction-medium .dn-pred-value { color: #f59e0b; }
+.dn-prediction-low .dn-pred-value { color: #ef4444; }
+.dn-pred-ci {
+  font-family: "JetBrains Mono", monospace; font-size: 0.72rem;
+  color: #64748b; letter-spacing: 0.08em;
+}
+.dn-change-hint {
+  font-family: "DM Sans", sans-serif; font-size: 0.88rem;
+  color: #60a5fa; margin-top: 0.55rem; font-style: italic;
+}
+.dn-model-metrics {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 0; margin: 0.6rem 0 0.9rem 0;
+  background: linear-gradient(180deg, rgba(17,31,53,0.5), rgba(12,24,41,0.4));
+  border: 1px solid rgba(96,165,250,0.14);
+  border-radius: 14px; overflow: hidden;
+}
+.dn-mm-cell {
+  padding: 0.85rem 1rem; border-right: 1px solid rgba(148,163,184,0.07);
+  display: flex; flex-direction: column; gap: 0.35rem;
+}
+.dn-mm-cell:last-child { border-right: none; }
+.dn-mm-cell .k {
+  font-family: "JetBrains Mono", monospace; font-size: 0.58rem;
+  letter-spacing: 0.2em; text-transform: uppercase; color: #64748b;
+}
+.dn-mm-cell .v {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1.15rem; color: #e2e8f0;
+}
+.dn-out-of-range {
+  background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.22);
+  border-radius: 8px; padding: 0.45rem 0.75rem;
+  font-family: "DM Sans", sans-serif; font-size: 0.82rem; color: #fbbf24;
+  margin: 0.2rem 0 0.5rem 0;
+}
+.dn-empty-state {
+  background: linear-gradient(180deg, rgba(17,31,53,0.45), rgba(12,24,41,0.3));
+  border: 1px dashed rgba(148,163,184,0.22);
+  border-radius: 14px; padding: 1.5rem 1.6rem;
+  text-align: center; margin: 1rem 0;
+}
+.dn-empty-state .ico {
+  font-family: "JetBrains Mono", monospace; font-size: 0.7rem;
+  letter-spacing: 0.2em; color: #f59e0b; margin-bottom: 0.6rem;
+}
+.dn-empty-state .title {
+  font-family: "Syne", sans-serif; font-weight: 700;
+  font-size: 1.05rem; color: #e2e8f0; margin-bottom: 0.4rem;
+}
+.dn-empty-state .body {
+  font-family: "DM Sans", sans-serif; font-size: 0.88rem;
+  color: #94a3b8; max-width: 52ch; margin: 0 auto; line-height: 1.5;
+}
+.dn-group-table-wrap {
+  overflow-x: auto; margin: 0.5rem 0 0.75rem 0;
+  border: 1px solid rgba(96,165,250,0.12);
+  border-radius: 12px; background: rgba(15,23,42,0.4);
+}
+.dn-group-table {
+  width: 100%; border-collapse: collapse;
+  font-family: "DM Sans", sans-serif; font-size: 0.88rem;
+}
+.dn-group-table thead tr { border-bottom: 1px solid rgba(96,165,250,0.15); }
+.dn-group-table th {
+  font-family: "JetBrains Mono", monospace; font-size: 0.6rem;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: #64748b; padding: 0.65rem 1rem; text-align: left;
+}
+.dn-group-table td {
+  padding: 0.6rem 1rem; color: #cbd5e1;
+  border-bottom: 1px solid rgba(148,163,184,0.05);
+}
+.dn-group-table tr:last-child td { border-bottom: none; }
+.dn-group-table td b { color: #e2e8f0; font-weight: 700; }
+.dn-feat-importance { margin: 0.5rem 0 0.3rem 0; }
+.dn-feat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.dn-feat-name {
+  font-family: "DM Sans", sans-serif; font-size: 0.88rem; color: #e2e8f0;
+  min-width: 120px; flex-shrink: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dn-feat-bar-wrap {
+  flex: 1; height: 6px;
+  background: rgba(148,163,184,0.12); border-radius: 3px; overflow: hidden;
+}
+.dn-feat-bar {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, #60a5fa, #3b82f6); transition: width 0.4s;
+}
+.dn-feat-pct {
+  font-family: "JetBrains Mono", monospace; font-size: 0.7rem;
+  color: #64748b; min-width: 32px; text-align: right;
+}
+.dn-feat-footnote {
+  font-family: "DM Sans", sans-serif; font-size: 0.78rem;
+  color: #475569; font-style: italic; margin-top: 0.4rem;
+}
+@media (max-width: 900px) {
+  .dn-model-metrics { grid-template-columns: repeat(2, 1fr); }
+  .dn-mm-cell { border-bottom: 1px solid rgba(148,163,184,0.07); }
+}
 </style>''', unsafe_allow_html=True)
 
             _ai_open = st.session_state.get('ai_panel_open', False)
@@ -12686,7 +12835,746 @@ def show_dashboard():
                                         f'</div>',
                                         unsafe_allow_html=True,
                                     )
-            
+
+                        # ─────────────────────────────────────────────────────
+                        # WHAT-IF PREDICTOR BLOCK
+                        # ─────────────────────────────────────────────────────
+                        _block_head("WHAT-IF PREDICTOR", "Train a model · explore predictions live · compare groups")
+
+                        _whif_scope = st.radio(
+                            "Data scope",
+                            ["Current dataset only", "This project", "My account"],
+                            key="whif_scope",
+                            horizontal=True,
+                            label_visibility="collapsed",
+                        )
+                        _scope_coming = _whif_scope != "Current dataset only"
+                        _scope_val_html = (
+                            '<span class="scope-val active">Current dataset only</span>'
+                            if not _scope_coming
+                            else (
+                                f'<span class="scope-val">{html.escape(_whif_scope)}</span>'
+                                '<span class="scope-coming">coming soon</span>'
+                            )
+                        )
+                        st.markdown(
+                            f'<div class="dn-predictor-scope">'
+                            f'<span class="scope-label">Data scope: </span>{_scope_val_html}'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+                        if _scope_coming:
+                            st.info(
+                                f'Scope \"{_whif_scope}\" is not yet available. '
+                                "Switch back to **Current dataset only** to enable training."
+                            )
+
+                        _df_wi = _active_df()
+                        _wi_numeric = _df_wi.select_dtypes(include=[np.number]).columns.tolist()
+                        _wi_all_cols = _df_wi.columns.tolist()
+                        _wi_cat = _df_wi.select_dtypes(include=['object', 'category']).columns.tolist()
+
+                        if not _wi_numeric:
+                            st.markdown(
+                                '<div class="dn-empty-state">'
+                                '<div class="ico">NO NUMERIC COLUMNS</div>'
+                                '<div class="title">Need at least one numeric target column</div>'
+                                '<div class="body">Convert a column to a number in Cleaning, then return here.</div>'
+                                '</div>',
+                                unsafe_allow_html=True,
+                            )
+                        elif _df_wi.shape[0] < 10 or _df_wi[_wi_numeric].dropna(how='all').shape[0] < 10:
+                            st.markdown(
+                                '<div class="dn-empty-state">'
+                                '<div class="ico">NOT ENOUGH DATA</div>'
+                                '<div class="title">Need at least 10 rows to build a model</div>'
+                                '<div class="body">Add more data or reduce null values in Cleaning, then return here.</div>'
+                                '</div>',
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            _wi_c1, _wi_c2 = st.columns([1, 1])
+                            with _wi_c1:
+                                _wi_target = st.selectbox(
+                                    "Target column (numeric)",
+                                    _wi_numeric,
+                                    key="whif_target",
+                                    help="The numeric column you want to predict.",
+                                )
+                            with _wi_c2:
+                                _wi_grp_raw = st.selectbox(
+                                    "Group column (optional)",
+                                    ["— none —"] + _wi_cat,
+                                    key="whif_group_col",
+                                    help="Categorical column to compare groups (e.g. Subject, Region).",
+                                )
+                                _wi_group_col = None if _wi_grp_raw == "— none —" else _wi_grp_raw
+
+                            _wi_feat_cands = [c for c in _wi_all_cols if c != _wi_target and c != _wi_group_col and c in _wi_numeric + _wi_cat]
+
+                            # ── Leakage guard — pre-sync before multiselect renders ─
+                            _wi_overrides = st.session_state.get('whif_overrides', {})
+                            # Clear stale leakage/override state when target changes to avoid residual warnings
+                            _wi_prev_leakage_target = st.session_state.get('whif_leakage_target')
+                            if _wi_prev_leakage_target != _wi_target:
+                                st.session_state['whif_leakage_removed'] = {}
+                                st.session_state['whif_overrides'] = {}
+                                st.session_state['whif_leakage_target'] = _wi_target
+                            _wi_leakage_removed = dict(st.session_state.get('whif_leakage_removed', {}))
+                            # Also purge any removed entries no longer in feat_cands
+                            for _wf in list(_wi_leakage_removed.keys()):
+                                if _wf not in _wi_feat_cands:
+                                    _wi_leakage_removed.pop(_wf)
+                            _wi_prev_sel = list(st.session_state.get('whif_feats', []))
+
+                            # Compute correlations for currently-selected features
+                            _wi_corr_map = {}
+                            for _wf in _wi_prev_sel:
+                                if _wf in _wi_numeric:
+                                    _tmp_df = _df_wi[[_wf, _wi_target]].dropna()
+                                    _wi_corr_map[_wf] = abs(_tmp_df[_wf].corr(_tmp_df[_wi_target])) if len(_tmp_df) > 1 else 0.0
+                                else:
+                                    _wi_corr_map[_wf] = 0.0
+
+                            # Remove high-corr non-overridden features from multiselect state
+                            # Keep ALL high-corr features in whif_leakage_removed so override controls
+                            # remain visible even after force-include (so user can toggle back off)
+                            _wi_needs_sync = False
+                            _wi_synced = []
+                            for _wf in _wi_prev_sel:
+                                _wr = _wi_corr_map.get(_wf, 0.0)
+                                if _wr > 0.85:
+                                    _wi_leakage_removed[_wf] = round(_wr, 2)
+                                    if _wi_overrides.get(_wf, False):
+                                        _wi_synced.append(_wf)
+                                    else:
+                                        _wi_needs_sync = True
+                                else:
+                                    _wi_synced.append(_wf)
+                                    _wi_leakage_removed.pop(_wf, None)
+                            # Drop from removed list if feature is no longer selectable
+                            for _wf in list(_wi_leakage_removed.keys()):
+                                if _wf not in _wi_feat_cands:
+                                    _wi_leakage_removed.pop(_wf)
+                            if _wi_needs_sync:
+                                st.session_state['whif_feats'] = _wi_synced
+                                st.session_state['whif_leakage_removed'] = _wi_leakage_removed
+                                st.rerun()
+
+                            _wi_feats_raw = st.multiselect(
+                                "Feature columns (max 5)",
+                                _wi_feat_cands,
+                                max_selections=5,
+                                key="whif_feats",
+                                help="Choose up to 5 columns. Numeric features with |Pearson r| > 0.85 vs the target are auto-removed to prevent data leakage; use Override to force-include them. Leakage detection applies to numeric columns only.",
+                            )
+
+                            # ── Leakage warnings + override controls ──────────────
+                            _wi_leakage_removed = dict(st.session_state.get('whif_leakage_removed', {}))
+                            _wi_feats_ok = list(_wi_feats_raw)
+                            _wi_overrides_added = []  # track which overrides were re-included
+                            for _lf, _lr in list(_wi_leakage_removed.items()):
+                                _is_overridden = _wi_overrides.get(_lf, False)
+                                if _is_overridden:
+                                    st.markdown(
+                                        f'<div class="dn-leakage-warn" style="border-color:#3a7bd5;background:rgba(58,123,213,.08)">'
+                                        f'ℹ️ <b>{html.escape(_lf)}</b> included via expert override '
+                                        f'(r = {_lr} — high correlation).'
+                                        f'</div>',
+                                        unsafe_allow_html=True,
+                                    )
+                                    if _lf not in _wi_feats_ok and len(_wi_feats_ok) < 5:
+                                        _wi_feats_ok.append(_lf)
+                                        _wi_overrides_added.append(_lf)
+                                else:
+                                    st.markdown(
+                                        f'<div class="dn-leakage-warn">'
+                                        f'⚠️ <b>{html.escape(_lf)}</b> auto-removed — too strongly correlated with target '
+                                        f'(r = {_lr}), which would inflate accuracy unfairly.'
+                                        f'</div>',
+                                        unsafe_allow_html=True,
+                                    )
+                                _ov_key = f"whif_override_{_lf}"
+                                _ov_label = (
+                                    f"Override active — uncheck to exclude {_lf}"
+                                    if _is_overridden
+                                    else f"Override (expert mode) — force-include {_lf}"
+                                )
+                                _ov_checked = st.checkbox(
+                                    _ov_label,
+                                    key=_ov_key,
+                                    value=_is_overridden,
+                                )
+                                if _ov_checked != _is_overridden:
+                                    _wi_overrides[_lf] = _ov_checked
+                                    st.session_state['whif_overrides'] = _wi_overrides
+                                    if not _ov_checked:
+                                        # Override turned off — feature stays in leakage_removed, keep excluded
+                                        pass
+                                    st.rerun()
+
+                            # Sync override-included features into multiselect state so widget reflects them
+                            if _wi_overrides_added:
+                                _synced = list(st.session_state.get('whif_feats', []))
+                                for _oa in _wi_overrides_added:
+                                    if _oa not in _synced and len(_synced) < 5:
+                                        _synced.append(_oa)
+                                st.session_state['whif_feats'] = _synced
+
+                            # ── >20 groups confirmation gate ─────────────────────
+                            _wi_many_grps = False
+                            _wi_grp_count = 0
+                            if _wi_group_col:
+                                _wi_grp_count = int(_df_wi[_wi_group_col].nunique())
+                                _wi_many_grps = _wi_grp_count > 20
+                            # Reset confirmation gate when group column or dataset changes
+                            _wi_prev_group_col = st.session_state.get('whif_prev_group_col')
+                            if _wi_prev_group_col != _wi_group_col:
+                                st.session_state['whif_confirm_many_groups'] = False
+                                st.session_state['whif_prev_group_col'] = _wi_group_col
+                            _wi_grp_confirmed = st.session_state.get('whif_confirm_many_groups', False)
+                            if _wi_many_grps and not _wi_grp_confirmed:
+                                st.markdown(
+                                    f'<div class="dn-leakage-warn">⚡ Training separate models for '
+                                    f'<b>{_wi_grp_count} groups</b> may take a moment. '
+                                    f'Confirm below to proceed.</div>',
+                                    unsafe_allow_html=True,
+                                )
+                                _wi_confirm_chk = st.checkbox(
+                                    f"I understand — train {_wi_grp_count} per-group models",
+                                    key="whif_confirm_many_groups",
+                                    value=False,
+                                )
+                                if _wi_confirm_chk:
+                                    st.session_state['whif_confirm_many_groups'] = True
+                                    st.rerun()
+
+                            # ── Train button ──────────────────────────────────────
+                            _wi_ds_sig = f"{calculate_data_hash(_df_wi)}_{_df_wi.shape[0]}"
+                            _wm = st.session_state.get('whif_model', {})
+                            _wm_stale = (
+                                _wm.get('target') != _wi_target
+                                or set(_wm.get('features', [])) != set(_wi_feats_ok)
+                                or _wm.get('group_col') != _wi_group_col
+                                or _wm.get('dataset_sig') != _wi_ds_sig
+                            )
+                            _wi_train_blocked = _scope_coming or not _wi_feats_ok or (_wi_many_grps and not _wi_grp_confirmed)
+                            _wi_train_btn = st.button(
+                                "Train model",
+                                key="whif_train_btn",
+                                type="primary",
+                                disabled=_wi_train_blocked,
+                            )
+                            if _wm_stale and _wm:
+                                st.caption("⚠️ Column selection changed — retrain the model to update results.")
+
+                            if _wi_train_btn and not _wi_train_blocked:
+                                try:
+                                    from sklearn.linear_model import Ridge
+                                    from sklearn.pipeline import Pipeline as _SKPipeline
+                                    from sklearn.compose import ColumnTransformer as _SKCT
+                                    from sklearn.preprocessing import StandardScaler as _SKSS, OneHotEncoder as _SKOHE
+                                    from sklearn.model_selection import cross_val_score as _SKCV, TimeSeriesSplit as _SKTSS
+                                    from sklearn.metrics import mean_absolute_error as _SKMAE
+
+                                    # Detect datetime from the FULL dataset (not just selected features)
+                                    # Also probe object/string columns for date-like content
+                                    _dt_cols_wi = _df_wi.select_dtypes(
+                                        include=['datetime64', 'datetime', 'datetimetz']
+                                    ).columns.tolist()
+                                    if not _dt_cols_wi:
+                                        for _dcol in _df_wi.select_dtypes(include=['object']).columns:
+                                            try:
+                                                _dc_probe = pd.to_datetime(
+                                                    _df_wi[_dcol].dropna().head(30),
+                                                    infer_datetime_format=True,
+                                                    errors='raise',
+                                                )
+                                                if len(_dc_probe) >= 5:
+                                                    _dt_cols_wi = [_dcol]
+                                                    break
+                                            except Exception:
+                                                pass
+                                    _wi_use_ts = bool(_dt_cols_wi)
+                                    _wi_dt_col = _dt_cols_wi[0] if _dt_cols_wi else None
+
+                                    # Build training columns: features + target + group col + datetime col
+                                    _tr_col_set = list(_wi_feats_ok) + [_wi_target]
+                                    if _wi_group_col and _wi_group_col not in _tr_col_set:
+                                        _tr_col_set.append(_wi_group_col)
+                                    if _wi_dt_col and _wi_dt_col not in _tr_col_set:
+                                        _tr_col_set.append(_wi_dt_col)
+                                    _tr_col_set = list(dict.fromkeys(_tr_col_set))
+
+                                    _df_tr = _df_wi[_tr_col_set].dropna().copy()
+                                    if len(_df_tr) < 10:
+                                        st.markdown(
+                                            '<div class="dn-empty-state">'
+                                            '<div class="ico">NOT ENOUGH DATA</div>'
+                                            '<div class="title">Need at least 10 complete rows to train</div>'
+                                            '<div class="body">After dropping nulls across selected columns, fewer than 10 rows remain. '
+                                            'Select fewer columns, or reduce null values in Cleaning, then retrain.</div>'
+                                            '</div>',
+                                            unsafe_allow_html=True,
+                                        )
+                                    else:
+                                        _wnum_f = [f for f in _wi_feats_ok if f in _wi_numeric]
+                                        _wcat_f = [f for f in _wi_feats_ok if f not in _wi_numeric]
+
+                                        _wi_split_dt = None
+                                        _wi_train_start = None
+                                        _wi_train_end = None
+
+                                        if _wi_use_ts and _wi_dt_col in _df_tr.columns:
+                                            _df_tr[_wi_dt_col] = pd.to_datetime(_df_tr[_wi_dt_col], errors='coerce')
+                                            _df_tr = _df_tr.dropna(subset=[_wi_dt_col]).sort_values(_wi_dt_col)
+                                            _split_i = int(len(_df_tr) * 0.8)
+                                            _df_wtr = _df_tr.iloc[:_split_i]
+                                            _df_wte = _df_tr.iloc[_split_i:]
+                                            _wi_split_dt = str(_df_tr.iloc[_split_i][_wi_dt_col])[:10]
+                                            _wi_train_start = str(_df_tr.iloc[0][_wi_dt_col])[:10]
+                                            _wi_train_end = str(_df_tr.iloc[-1][_wi_dt_col])[:10]
+                                            _wi_cv = _SKTSS(n_splits=5)
+                                        else:
+                                            _wi_use_ts = False
+                                            # Use a random 80/20 holdout for honest non-TS MAE
+                                            _df_wtr = _df_tr.sample(frac=0.8, random_state=42)
+                                            _df_wte = _df_tr.drop(_df_wtr.index)
+                                            if len(_df_wte) < 2:
+                                                _df_wtr = _df_tr
+                                                _df_wte = _df_tr
+                                            from sklearn.model_selection import KFold as _SKKFold
+                                            _wi_cv = _SKKFold(n_splits=5, shuffle=True, random_state=42)
+
+                                        # ── Build global pipeline (user-selected features only) ──
+                                        _X_all_wi = _df_tr[_wi_feats_ok]
+                                        _y_all_wi = _df_tr[_wi_target]
+                                        _X_tr_wi = _df_wtr[_wi_feats_ok]
+                                        _y_tr_wi = _df_wtr[_wi_target]
+
+                                        _wi_steps = []
+                                        if _wnum_f:
+                                            _wi_steps.append(('num', _SKSS(), _wnum_f))
+                                        if _wcat_f:
+                                            _wi_steps.append(('cat', _SKOHE(handle_unknown='ignore', sparse_output=False), _wcat_f))
+                                        _wi_prep = _SKCT(_wi_steps, remainder='drop')
+                                        _wi_pipe = _SKPipeline([('prep', _wi_prep), ('reg', Ridge(alpha=1.0))])
+
+                                        # ── Build group-aware pipeline (adds group col to OHE for fallback) ──
+                                        # This lets us inject a group value for small-group fallback predictions
+                                        _wi_glob_pipe = None
+                                        _wi_glob_feats = list(_wi_feats_ok)
+                                        _wi_grp_mode = None
+                                        if _wi_group_col and _wi_group_col in _df_tr.columns:
+                                            _wi_glob_feats = list(_wi_feats_ok) + [_wi_group_col]
+                                            _wi_grp_mode_s = _df_tr[_wi_group_col].mode()
+                                            _wi_grp_mode = str(_wi_grp_mode_s.iloc[0]) if len(_wi_grp_mode_s) > 0 else None
+                                            _wi_glob_num = [f for f in _wi_glob_feats if f in _wi_numeric]
+                                            _wi_glob_cat = [f for f in _wi_glob_feats if f not in _wi_numeric]
+                                            _wi_glob_steps = []
+                                            if _wi_glob_num:
+                                                _wi_glob_steps.append(('num', _SKSS(), _wi_glob_num))
+                                            if _wi_glob_cat:
+                                                _wi_glob_steps.append(('cat', _SKOHE(handle_unknown='ignore', sparse_output=False), _wi_glob_cat))
+                                            _wi_glob_prep = _SKCT(_wi_glob_steps, remainder='drop')
+                                            _wi_glob_pipe = _SKPipeline([('prep', _wi_glob_prep), ('reg', Ridge(alpha=1.0))])
+
+                                        with st.spinner("Training…"):
+                                            _wi_cv_scores = _SKCV(_wi_pipe, _X_all_wi, _y_all_wi, cv=_wi_cv, scoring='r2')
+                                            _wi_r2cv = float(np.mean(_wi_cv_scores))
+                                            _wi_pipe.fit(_X_tr_wi, _y_tr_wi)
+                                            if _wi_glob_pipe is not None:
+                                                _wi_glob_pipe.fit(_df_wtr[_wi_glob_feats], _y_tr_wi)
+
+                                        if len(_df_wte) >= 2 and not _df_wte.index.equals(_df_tr.index):
+                                            _wi_mae = float(_SKMAE(_df_wte[_wi_target], _wi_pipe.predict(_df_wte[_wi_feats_ok])))
+                                        else:
+                                            _wi_mae = float(_SKMAE(_y_all_wi, _wi_pipe.predict(_X_all_wi)))
+
+                                        # Feature ranges
+                                        _wi_fr = {}
+                                        for _f in _wnum_f:
+                                            _wi_fr[_f] = {
+                                                'min': float(_df_tr[_f].min()),
+                                                'max': float(_df_tr[_f].max()),
+                                                'mean': float(_df_tr[_f].mean()),
+                                            }
+                                        for _f in _wcat_f:
+                                            _cats = sorted(_df_tr[_f].dropna().unique().tolist(), key=str)
+                                            _wi_fr[_f] = {
+                                                'categories': _cats,
+                                                'mode': str(_df_tr[_f].mode().iloc[0]) if len(_df_tr[_f].dropna()) > 0 else (_cats[0] if _cats else ''),
+                                            }
+
+                                        # Ridge coefficients in raw-space: coef_raw = coef_scaled / scaler.scale_
+                                        _wi_coef_map = {}
+                                        try:
+                                            _wi_prep_fitted = _wi_pipe.named_steps['prep']
+                                            _wi_feat_names_out = _wi_prep_fitted.get_feature_names_out()
+                                            _wi_coefs = _wi_pipe.named_steps['reg'].coef_
+                                            # Retrieve scaler scale_ for numeric transformer
+                                            _wi_scaler_scale = {}
+                                            for _ptname, _pttransf, _ptcols in _wi_prep_fitted.transformers_:
+                                                if _ptname == 'num' and hasattr(_pttransf, 'scale_'):
+                                                    for _si, _sc in enumerate(_ptcols):
+                                                        _wi_scaler_scale[_sc] = float(_pttransf.scale_[_si]) if _pttransf.scale_[_si] != 0 else 1.0
+                                            for _idx, _fn in enumerate(_wi_feat_names_out):
+                                                if _fn.startswith('num__'):
+                                                    _raw_name = _fn[5:]
+                                                    _sc_div = _wi_scaler_scale.get(_raw_name, 1.0)
+                                                    # raw-space coefficient = scaled coef / scaler.scale_
+                                                    _wi_coef_map[_raw_name] = float(_wi_coefs[_idx]) / _sc_div
+                                        except Exception:
+                                            pass
+
+                                        # Feature importance via |Pearson r|
+                                        _wi_fimp = {}
+                                        for _f in _wi_feats_ok:
+                                            if _f in _wnum_f:
+                                                _tmp = _df_tr[[_f, _wi_target]].dropna()
+                                                _wi_fimp[_f] = abs(_tmp[_f].corr(_tmp[_wi_target])) if len(_tmp) > 1 else 0.0
+                                            else:
+                                                _wi_fimp[_f] = 0.0
+
+                                        # Target range
+                                        _wi_tgt_rng = {
+                                            'min': float(_df_tr[_wi_target].min()),
+                                            'max': float(_df_tr[_wi_target].max()),
+                                        }
+
+                                        # Per-group models — group col IS now in _df_tr
+                                        _wi_gmodels = {}
+                                        _wi_gfallback = set()
+                                        if _wi_group_col and _wi_group_col in _df_tr.columns:
+                                            _wi_gvals = sorted(
+                                                _df_tr[_wi_group_col].dropna().unique().tolist(), key=str
+                                            )
+                                            for _gv in _wi_gvals:
+                                                _gdf = _df_tr[_df_tr[_wi_group_col] == _gv]
+                                                if len(_gdf) >= 10:
+                                                    try:
+                                                        _gp = _SKPipeline([
+                                                            ('prep', _SKCT(_wi_steps, remainder='drop')),
+                                                            ('reg', Ridge(alpha=1.0)),
+                                                        ])
+                                                        _gp.fit(_gdf[_wi_feats_ok], _gdf[_wi_target])
+                                                        _wi_gmodels[str(_gv)] = _gp
+                                                    except Exception:
+                                                        _wi_gfallback.add(str(_gv))
+                                                else:
+                                                    _wi_gfallback.add(str(_gv))
+
+                                        # Cache OHE categories_
+                                        _wi_ohe_cats = {}
+                                        try:
+                                            _prep_steps = _wi_pipe.named_steps['prep'].transformers_
+                                            for _pname, _ptransf, _ in _prep_steps:
+                                                if _pname == 'cat' and hasattr(_ptransf, 'categories_'):
+                                                    _wi_ohe_cats = {
+                                                        _wcat_f[_ci]: list(_ptransf.categories_[_ci])
+                                                        for _ci in range(len(_wcat_f))
+                                                    }
+                                        except Exception:
+                                            pass
+
+                                        st.session_state['whif_model'] = {
+                                            'pipeline': _wi_pipe,
+                                            'glob_pipeline': _wi_glob_pipe,
+                                            'glob_features': _wi_glob_feats,
+                                            'target': _wi_target,
+                                            'features': _wi_feats_ok,
+                                            'num_feats': _wnum_f,
+                                            'cat_feats': _wcat_f,
+                                            'r2_cv': _wi_r2cv,
+                                            'mae': _wi_mae,
+                                            'n_train': len(_df_wtr),
+                                            'feat_ranges': _wi_fr,
+                                            'coef_map': _wi_coef_map,
+                                            'feat_importance': _wi_fimp,
+                                            'target_range': _wi_tgt_rng,
+                                            'group_col': _wi_group_col,
+                                            'group_mode': _wi_grp_mode,
+                                            'group_models': _wi_gmodels,
+                                            'group_fallback': list(_wi_gfallback),
+                                            'ohe_categories': _wi_ohe_cats,
+                                            'use_ts': _wi_use_ts,
+                                            'split_date': _wi_split_dt,
+                                            'train_start': _wi_train_start,
+                                            'train_end': _wi_train_end,
+                                            'dataset_sig': _wi_ds_sig,
+                                        }
+                                        st.session_state['whif_prev_vals'] = {}
+                                        st.session_state['whif_change_hint'] = None
+                                        st.session_state['whif_confirm_many_groups'] = False
+                                        st.rerun()
+                                except Exception as _wi_e:
+                                    st.error(f"Training failed: {_wi_e}")
+
+                            # ── Show model results if cached and current ──────────
+                            _wm = st.session_state.get('whif_model', {})
+                            _wm_current = (
+                                bool(_wm)
+                                and _wm.get('target') == _wi_target
+                                and set(_wm.get('features', [])) == set(_wi_feats_ok)
+                                and _wm.get('group_col') == _wi_group_col
+                                and _wm.get('dataset_sig') == _wi_ds_sig
+                            )
+                            if _wm_current and not _scope_coming:
+                                _wm_r2 = _wm['r2_cv']
+                                _wm_mae = _wm['mae']
+                                _wm_n = _wm['n_train']
+
+                                if _wm_r2 >= 0.65:
+                                    _wm_qlabel, _wm_qdot = "Good", "🟢"
+                                elif _wm_r2 >= 0.35:
+                                    _wm_qlabel, _wm_qdot = "Fair", "🟡"
+                                else:
+                                    _wm_qlabel, _wm_qdot = "Weak", "🔴"
+
+                                st.markdown(
+                                    f'<div class="dn-model-metrics">'
+                                    f'<div class="dn-mm-cell"><span class="k">R² (CV mean)</span><span class="v">{_wm_r2:.3f}</span></div>'
+                                    f'<div class="dn-mm-cell"><span class="k">MAE</span><span class="v">{_wm_mae:.3f}</span></div>'
+                                    f'<div class="dn-mm-cell"><span class="k">Training rows</span><span class="v">{_wm_n:,}</span></div>'
+                                    f'<div class="dn-mm-cell"><span class="k">Quality</span><span class="v">{_wm_qdot} {_wm_qlabel}</span></div>'
+                                    f'</div>',
+                                    unsafe_allow_html=True,
+                                )
+                                if _wm.get('use_ts') and _wm.get('split_date'):
+                                    st.caption(
+                                        f"Trained on {_wm['train_start']} → {_wm['split_date']}, "
+                                        f"tested on {_wm['split_date']} → {_wm['train_end']}"
+                                    )
+
+                                # ── Slider panel ─────────────────────────────────
+                                _block_head("SLIDERS", "Adjust inputs · get an instant prediction")
+                                _wfr = _wm['feat_ranges']
+                                _wnum_l = _wm['num_feats']
+                                _wcat_l = _wm['cat_feats']
+                                _wcoef = _wm.get('coef_map', {})
+                                _wi_tgt_rng2 = _wm['target_range']
+
+                                _sl_col1, _sl_col2 = st.columns([1, 1])
+                                with _sl_col1:
+                                    if st.button("↺ Reset to averages", key="whif_reset"):
+                                        for _rf in _wnum_l:
+                                            st.session_state[f'whif_sl_{_rf}'] = _wfr[_rf]['mean']
+                                        for _cf in _wcat_l:
+                                            st.session_state[f'whif_cat_{_cf}'] = _wfr[_cf].get('mode', '')
+                                        st.session_state['whif_prev_vals'] = {}
+                                        st.session_state['whif_change_hint'] = None
+                                        st.rerun()
+                                with _sl_col2:
+                                    _wi_extrap_toggle = st.checkbox(
+                                        "Explore beyond training range",
+                                        key="whif_extrapolate",
+                                        value=st.session_state.get('whif_extrapolate', False),
+                                        help="Extends sliders ±50% outside the training min/max so you can explore extrapolation. Out-of-range warnings appear when active.",
+                                    )
+
+                                _cur_wi_inputs = {}
+                                _prev_wi_vals = st.session_state.get('whif_prev_vals', {})
+
+                                for _sf in _wnum_l:
+                                    _sfr = _wfr[_sf]
+                                    _sfmin = _sfr['min']
+                                    _sfmax = _sfr['max']
+                                    _sfmean = _sfr['mean']
+                                    _wi_extrap = st.session_state.get('whif_extrapolate', False)
+                                    _sf_range = max(_sfmax - _sfmin, 1e-9)
+                                    if _wi_extrap:
+                                        _sfmin_s = float(_sfmin - _sf_range * 0.5)
+                                        _sfmax_s = float(_sfmax + _sf_range * 0.5)
+                                    else:
+                                        _sfmin_s = float(_sfmin) if _sfmin < _sfmax else float(_sfmin - 1e-9)
+                                        _sfmax_s = float(_sfmax) if _sfmax > _sfmin else float(_sfmax + 1e-9)
+                                    _sfstep = (_sfmax_s - _sfmin_s) / 100 if (_sfmax_s - _sfmin_s) > 0 else 0.01
+                                    _sf_init = st.session_state.get(f'whif_sl_{_sf}', _sfmean)
+                                    _sf_init = float(max(_sfmin_s, min(_sfmax_s, float(_sf_init))))
+                                    _sl_v = st.slider(
+                                        _sf,
+                                        min_value=_sfmin_s,
+                                        max_value=_sfmax_s,
+                                        value=_sf_init,
+                                        step=float(_sfstep),
+                                        key=f'whif_sl_{_sf}',
+                                    )
+                                    st.caption(f"Dataset avg: {_sfmean:.3g}")
+                                    if _sl_v < _sfmin or _sl_v > _sfmax:
+                                        st.markdown(
+                                            f'<div class="dn-out-of-range">⚠️ Value {_sl_v:.3g} is outside training range '
+                                            f'[{_sfmin:.3g}, {_sfmax:.3g}]. Prediction may be less accurate.</div>',
+                                            unsafe_allow_html=True,
+                                        )
+                                    _cur_wi_inputs[_sf] = _sl_v
+                                    if _sf in _prev_wi_vals and _prev_wi_vals[_sf] != _sl_v:
+                                        _delta_hint = _wcoef.get(_sf, 0) * (_sl_v - _prev_wi_vals[_sf])
+                                        _harrow = "▲" if _delta_hint >= 0 else "▼"
+                                        _hdirection = "increasing" if _sl_v > _prev_wi_vals[_sf] else "decreasing"
+                                        st.session_state['whif_change_hint'] = (
+                                            f"{_harrow} {_delta_hint:+.2f} expected from {_hdirection} {_sf} to {_sl_v:.3g}"
+                                        )
+
+                                for _cf in _wcat_l:
+                                    _cfc = _wfr[_cf].get('categories', [])
+                                    _cfmode = _wfr[_cf].get('mode', _cfc[0] if _cfc else '')
+                                    if not _cfc:
+                                        continue
+                                    _cf_default = st.session_state.get(f'whif_cat_{_cf}', _cfmode)
+                                    if _cf_default not in _cfc:
+                                        _cf_default = _cfc[0]
+                                    _cat_v = st.radio(
+                                        _cf,
+                                        _cfc,
+                                        index=_cfc.index(_cf_default),
+                                        key=f'whif_cat_{_cf}',
+                                        horizontal=True,
+                                    )
+                                    _cur_wi_inputs[_cf] = _cat_v
+
+                                st.session_state['whif_prev_vals'] = dict(_cur_wi_inputs)
+
+                                # ── Prediction result box ─────────────────────────
+                                _wi_pred_val = None
+                                try:
+                                    # Use glob_pipeline (group-aware) if available, injecting mode group
+                                    _wi_glob_p = _wm.get('glob_pipeline')
+                                    _wi_glob_f = _wm.get('glob_features', _wm['features'])
+                                    _wi_grp_c = _wm.get('group_col')
+                                    _wi_grp_m = _wm.get('group_mode')
+                                    if _wi_glob_p is not None and _wi_grp_c and _wi_grp_m is not None:
+                                        _wi_inp_base = {**_cur_wi_inputs, _wi_grp_c: _wi_grp_m}
+                                        _wi_inp_df = pd.DataFrame([{k: v for k, v in _wi_inp_base.items() if k in _wi_glob_f}])
+                                        _wi_pred_val = float(_wi_glob_p.predict(_wi_inp_df)[0])
+                                    else:
+                                        _wi_inp_df = pd.DataFrame([{k: v for k, v in _cur_wi_inputs.items() if k in _wm['features']}])
+                                        _wi_pred_val = float(_wm['pipeline'].predict(_wi_inp_df)[0])
+                                    _wi_ci_lo = _wi_pred_val - 1.96 * _wm_mae
+                                    _wi_ci_hi = _wi_pred_val + 1.96 * _wm_mae
+                                    _wi_tmax = _wi_tgt_rng2.get('max', 0) or 0
+                                    _wi_pct_max = (_wi_pred_val / _wi_tmax) if _wi_tmax else 0
+                                    if _wi_pct_max >= 0.80:
+                                        _wi_res_cls = "dn-prediction-high"
+                                    elif _wi_pct_max >= 0.65:
+                                        _wi_res_cls = "dn-prediction-medium"
+                                    else:
+                                        _wi_res_cls = "dn-prediction-low"
+                                    _wi_hint_txt = st.session_state.get('whif_change_hint', '')
+                                    _wi_hint_html = (
+                                        f'<div class="dn-change-hint">{html.escape(_wi_hint_txt)}</div>'
+                                        if _wi_hint_txt else ''
+                                    )
+                                    st.markdown(
+                                        f'<div class="dn-prediction-result {_wi_res_cls}">'
+                                        f'<div class="dn-pred-label">Predicted {html.escape(_wi_target)}</div>'
+                                        f'<div class="dn-pred-value">{_wi_pred_val:,.2f}</div>'
+                                        f'<div class="dn-pred-ci">95% CI: [{_wi_ci_lo:,.2f}, {_wi_ci_hi:,.2f}]</div>'
+                                        f'{_wi_hint_html}'
+                                        f'</div>',
+                                        unsafe_allow_html=True,
+                                    )
+                                except Exception as _pe:
+                                    st.warning(f"Could not compute prediction: {_pe}")
+
+                                # ── Group comparison table ────────────────────────
+                                _wi_gc = _wm.get('group_col')
+                                if _wi_gc:
+                                    _block_head("GROUP COMPARISON", "Same inputs, different groups")
+                                    _wi_all_grps = sorted(_df_wi[_wi_gc].dropna().unique().tolist(), key=str)
+                                    _wi_gm = _wm.get('group_models', {})
+                                    _wi_glob_p2 = _wm.get('glob_pipeline') or _wm['pipeline']
+                                    _wi_glob_f2 = _wm.get('glob_features', _wm['features'])
+                                    _wi_base_grp = _wi_all_grps[0] if _wi_all_grps else None
+                                    _wi_base_pred = None
+                                    _wi_g_rows = []
+                                    for _gv2 in _wi_all_grps:
+                                        try:
+                                            if str(_gv2) in _wi_gm:
+                                                # Per-group model: trained on this group's rows, features only
+                                                _g_df_inp = pd.DataFrame([{k: v for k, v in _cur_wi_inputs.items() if k in _wm['features']}])
+                                                _gp_v = float(_wi_gm[str(_gv2)].predict(_g_df_inp)[0])
+                                            else:
+                                                # Fallback: group-aware global model — inject group value so OHE encodes it
+                                                _g_inp_full = {**_cur_wi_inputs, _wi_gc: _gv2}
+                                                _g_df_inp = pd.DataFrame([{k: v for k, v in _g_inp_full.items() if k in _wi_glob_f2}])
+                                                _gp_v = float(_wi_glob_p2.predict(_g_df_inp)[0])
+                                        except Exception:
+                                            try:
+                                                _g_df_inp2 = pd.DataFrame([{k: v for k, v in _cur_wi_inputs.items() if k in _wm['features']}])
+                                                _gp_v = float(_wm['pipeline'].predict(_g_df_inp2)[0])
+                                            except Exception:
+                                                _gp_v = float('nan')
+                                        if str(_gv2) == str(_wi_base_grp):
+                                            _wi_base_pred = _gp_v
+                                        _wi_g_rows.append({'group': _gv2, 'pred': _gp_v})
+
+                                    _wi_tbl_html = ""
+                                    _wi_csv_rows = [['Group', 'Prediction', 'CI Lower', 'CI Upper', 'vs Baseline']]
+                                    for _gr in _wi_g_rows:
+                                        _gname = _gr['group']
+                                        _gpred = _gr['pred']
+                                        _g_cilo = _gpred - 1.96 * _wm_mae
+                                        _g_cihi = _gpred + 1.96 * _wm_mae
+                                        if _wi_base_pred is not None and not (isinstance(_gpred, float) and _gpred != _gpred):
+                                            _gdelt = _gpred - _wi_base_pred
+                                            if abs(_gdelt) < 0.005:
+                                                _gind = "●"
+                                            elif _gdelt > 0:
+                                                _gind = f"▲ +{_gdelt:.2f}"
+                                            else:
+                                                _gind = f"▼ {_gdelt:.2f}"
+                                        else:
+                                            _gind = "—"
+                                        _wi_tbl_html += (
+                                            f'<tr>'
+                                            f'<td>{html.escape(str(_gname))}</td>'
+                                            f'<td><b>{_gpred:,.2f}</b></td>'
+                                            f'<td>[{_g_cilo:,.2f}, {_g_cihi:,.2f}]</td>'
+                                            f'<td>{_gind}</td>'
+                                            f'</tr>'
+                                        )
+                                        _wi_csv_rows.append([str(_gname), f"{_gpred:.2f}", f"{_g_cilo:.2f}", f"{_g_cihi:.2f}", _gind])
+
+                                    st.markdown(
+                                        f'<div class="dn-group-table-wrap">'
+                                        f'<table class="dn-group-table">'
+                                        f'<thead><tr><th>Group</th><th>Prediction</th><th>95% CI</th><th>vs Baseline</th></tr></thead>'
+                                        f'<tbody>{_wi_tbl_html}</tbody>'
+                                        f'</table></div>',
+                                        unsafe_allow_html=True,
+                                    )
+                                    _wi_csv_buf = io.StringIO()
+                                    _csv_wr2 = _csv.writer(_wi_csv_buf)
+                                    _csv_wr2.writerows(_wi_csv_rows)
+                                    st.download_button(
+                                        "Export comparison as CSV",
+                                        data=_wi_csv_buf.getvalue().encode(),
+                                        file_name="group_comparison.csv",
+                                        mime="text/csv",
+                                        key="whif_grp_export",
+                                    )
+
+                                # ── Feature importance bars ───────────────────────
+                                _block_head("FEATURE IMPORTANCE", "Ranked by |Pearson r| with target")
+                                _wi_fimp2 = _wm.get('feat_importance', {})
+                                _wi_fimp_sorted = sorted(_wi_fimp2.items(), key=lambda x: x[1], reverse=True)
+                                _wi_fimp_max = max((v for _, v in _wi_fimp_sorted), default=1.0) or 1.0
+                                _wi_fimp_html = ""
+                                for _fn2, _fv2 in _wi_fimp_sorted:
+                                    _bw2 = max(2, int((_fv2 / _wi_fimp_max) * 100))
+                                    _wi_fimp_html += (
+                                        f'<div class="dn-feat-row">'
+                                        f'<span class="dn-feat-name">{html.escape(_fn2)}</span>'
+                                        f'<div class="dn-feat-bar-wrap"><div class="dn-feat-bar" style="width:{_bw2}%"></div></div>'
+                                        f'<span class="dn-feat-pct">{int(_fv2 * 100)}%</span>'
+                                        f'</div>'
+                                    )
+                                st.markdown(
+                                    f'<div class="dn-feat-importance">{_wi_fimp_html}</div>'
+                                    f'<div class="dn-feat-footnote">Importance is |Pearson r| between each feature and the target, computed on training data after leakage removal.</div>',
+                                    unsafe_allow_html=True,
+                                )
+
                 elif active_tab == _TAB_LABELS[6]:
                     _section_head(
                         "ML & Clustering",
