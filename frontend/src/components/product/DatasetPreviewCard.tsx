@@ -142,17 +142,17 @@ export function DatasetPreviewCard({
       <div className="flex flex-row-reverse items-baseline justify-between gap-3">
         <div>
           <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)]">
-            مجموعة البيانات المرتبطة بهذه المحادثة
+            Dataset linked to this chat
           </div>
           <div className="font-semibold text-sm mt-0.5">
             {preview?.dataset_name || preview?.filename || (
-              <Spinner size="sm" label="جاري التحميل…" />
+              <Spinner size="sm" label="Loading…" />
             )}
           </div>
         </div>
         {preview && (
           <div className="text-[12px] text-[var(--text-muted)] font-mono">
-            {preview.rows.toLocaleString()} صف × {preview.cols} عمود
+            {preview.rows.toLocaleString()} rows × {preview.cols} cols
           </div>
         )}
       </div>
@@ -162,22 +162,22 @@ export function DatasetPreviewCard({
           role="alert"
           className="text-xs rounded border border-red-500/40 bg-red-500/10 text-red-700 p-2"
         >
-          <div className="font-semibold mb-0.5">تعذّر تحميل البيانات</div>
+          <div className="font-semibold mb-0.5">Failed to load data</div>
           <div className="text-[12px] leading-snug">
-            {error} — حاول التحديث بعد قليل.
+            {error} — try refreshing in a moment.
           </div>
         </div>
       )}
 
       {!error && !preview && (
-        <Spinner size="sm" label="جاري تحضير المعاينة…" />
+        <Spinner size="sm" label="Preparing preview…" />
       )}
 
       {/* Professional profile paragraph */}
       {data?.profile && narrative && (
         <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--surface-alt)]">
           <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-1.5">
-            ملف البيانات
+            Profile
           </div>
           <p className="text-[14px] leading-relaxed text-[var(--text)]">
             {narrative}
@@ -189,7 +189,7 @@ export function DatasetPreviewCard({
       {insights && insights.length > 0 && (
         <div>
           <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-1.5">
-            ملاحظات مفاجئة
+            Surprising findings
           </div>
           <div className="flex flex-wrap gap-2">
             {insights.map((it, i) => (
@@ -209,7 +209,7 @@ export function DatasetPreviewCard({
       {preview && preview.preview.length > 0 && (
         <div>
           <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-1.5">
-            أول {preview.preview.length} صفوف
+            First {preview.preview.length} rows
           </div>
           <InteractiveTable
             columns={preview.columns}
@@ -222,8 +222,8 @@ export function DatasetPreviewCard({
       {preview && preview.preview.length === 0 && (
         <EmptyState
           icon={<Database className="h-5 w-5" aria-hidden="true" />}
-          title="مجموعة البيانات فارغة"
-          description="لا توجد صفوف لعرضها بعد."
+          title="Dataset is empty"
+          description="No rows to show yet."
         />
       )}
 
@@ -231,7 +231,7 @@ export function DatasetPreviewCard({
       {suggestions && suggestions.length > 0 && (
         <div>
           <div className="font-mono text-[12px] tracking-widest uppercase text-[var(--text-muted)] mb-1.5">
-            جرّب أحد هذه الأسئلة
+            Try one of these questions
           </div>
           <div className="flex flex-wrap gap-2">
             {suggestions.map((q, i) => (

@@ -61,7 +61,7 @@ function DataContextBarBase({
       <div className="px-4 sm:px-5 py-1.5 flex items-center gap-2 min-w-0">
         <div className="flex items-center gap-1.5 min-w-0 shrink-0">
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)] hidden sm:inline">
-            مشروع
+            project
           </span>
           <span className="text-xs font-semibold text-[var(--text)] truncate max-w-[160px]">
             {projectName}
@@ -75,12 +75,12 @@ function DataContextBarBase({
             <div className="text-[12px] text-[var(--text-muted)] inline-flex items-center gap-1.5 whitespace-nowrap" dir="rtl">
               <Database className="h-3 w-3" aria-hidden="true" />
               <span>
-                لا توجد مجموعة بيانات مرتبطة —{" "}
+                No dataset linked —{" "}
                 <Link
                   href={`/app/upload?back=/app/project/${projectId}`}
                   className="text-[var(--accent)] hover:underline"
                 >
-                  ارفع ملفًا الآن
+                  upload one now
                 </Link>
               </span>
             </div>
@@ -89,7 +89,7 @@ function DataContextBarBase({
               {noneSelected && (
                 <span className="text-[12px] text-[var(--text-muted)] inline-flex items-center gap-1 whitespace-nowrap shrink-0" dir="rtl">
                   <Database className="h-3 w-3" aria-hidden="true" />
-                  اختر مجموعة بيانات:
+                  Pick a dataset:
                 </span>
               )}
               {visible.map((d) => (
@@ -111,9 +111,9 @@ function DataContextBarBase({
                   type="button"
                   onClick={() => setShowAll(true)}
                   className="text-[12px] px-2 py-0.5 rounded-full border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] whitespace-nowrap shrink-0"
-                  aria-label={`عرض ${extra} مجموعة أخرى`}
+                  aria-label={`Show ${extra} more datasets`}
                 >
-                  + {extra} أخرى
+                  + {extra} Other
                 </button>
               )}
               {showAll && ordered.length > 1 && (
@@ -122,7 +122,7 @@ function DataContextBarBase({
                   onClick={() => setShowAll(false)}
                   className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--text)] whitespace-nowrap shrink-0"
                 >
-                  طيّ
+                  Collapse
                 </button>
               )}
             </>
@@ -189,9 +189,9 @@ function DatasetChip({
             ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10"
             : "border-[var(--border)] text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
         }`}
-        title={`${dataset.dataset_name || dataset.filename} — اضغط لمعاينة أول صفوف`}
+        title={`${dataset.dataset_name || dataset.filename} — Click to preview first rows`}
         aria-expanded={open}
-        aria-label={`${dataset.dataset_name || dataset.filename} — معاينة`}
+        aria-label={`${dataset.dataset_name || dataset.filename} — Preview`}
       >
         <Table2 className="h-2.5 w-2.5" aria-hidden="true" />
         <span className="max-w-[160px] truncate">
@@ -271,22 +271,22 @@ function QuickPreview({ dataset }: { dataset: AxiomDataset }) {
           {dataset.dataset_name || dataset.filename}
         </div>
         <div className="font-mono text-[10px] text-[var(--text-muted)] shrink-0">
-          معاينة · أول {PREVIEW_ROWS} صفوف
+          Preview · first {PREVIEW_ROWS} rows
         </div>
       </div>
       {error ? (
         <div className="px-3 py-4 text-[var(--text-muted)]" role="alert">
-          تعذّر تحميل المعاينة الآن.{" "}
+          Failed to load preview right now.{" "}
           <span className="text-[10px] block mt-1 font-mono">{error}</span>
         </div>
       ) : loading || !data ? (
         <div className="px-3 py-4 text-[var(--text-muted)] inline-flex items-center gap-2" role="status" aria-live="polite">
           <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-          جاري تحضير المعاينة…
+          Preparing preview…
         </div>
       ) : data.preview.length === 0 ? (
         <div className="px-3 py-4 text-[var(--text-muted)]">
-          مجموعة البيانات فارغة.
+          The dataset is empty.
         </div>
       ) : (
         <div className="max-h-[260px] overflow-auto">
@@ -351,7 +351,7 @@ function formatCell(v: unknown): string {
  * "IDLE" resting state was being misread as "the chat was
  * disconnected" on every fresh chat, so we now hide the pill
  * entirely at rest and reserve the slot for real, transient
- * activity. The "Analyzing…" and "جاري التنبؤ…" states keep
+ * activity. The "Analyzing…" and "Predicting…" states keep
  * working exactly as before.
  */
 function StatusPill({
@@ -377,7 +377,7 @@ function StatusPill({
           className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--accent)]/12 text-[var(--accent)] border border-[var(--accent)]/30 whitespace-nowrap"
         >
           <Sparkles className="h-2.5 w-2.5" />
-          <span data-testid="pill-predicting">جاري التنبؤ…</span>
+          <span data-testid="pill-predicting">Predicting…</span>
         </motion.span>
       ) : streaming ? (
         <motion.span
@@ -392,7 +392,7 @@ function StatusPill({
           aria-live="polite"
         >
           <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
-          <span data-testid="pill-analyzing">جاري التحليل…</span>
+          <span data-testid="pill-analyzing">Analyzing…</span>
         </motion.span>
       ) : null}
     </AnimatePresence>

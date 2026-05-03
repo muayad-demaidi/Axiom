@@ -42,7 +42,7 @@ export default async function CompareEntryPage({
   if (!entry) notFound();
   const t = await getTranslations({ locale, namespace: "compare" });
   const tNav = await getTranslations({ locale, namespace: "nav" });
-  const isAr = asLocale(locale) === "ar";
+  const isAr = false;
 
   const title = t.has(`items.${entry.slug}.title` as never) ? t(`items.${entry.slug}.title` as never) : entry.data.title;
   const crumbs = [

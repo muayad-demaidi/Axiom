@@ -12,7 +12,7 @@ export type EmptyStateProps = {
 
 export function EmptyState({
   icon,
-  title = "لا توجد بيانات بعد",
+  title = "No data yet",
   description,
   action,
   className = "",

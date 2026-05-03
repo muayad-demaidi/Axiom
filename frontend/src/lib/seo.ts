@@ -59,7 +59,7 @@ export function pageMetadata(opts: {
       siteName: SITE.name,
       images: [image],
       type: "website",
-      locale: locale === "ar" ? "ar_AR" : "en_US",
+      locale: "en_US",
     },
     twitter: {
       card: "summary_large_image",

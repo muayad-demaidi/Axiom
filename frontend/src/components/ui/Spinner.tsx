@@ -28,7 +28,7 @@ export function Spinner({ size = "sm", label, className = "" }: SpinnerProps) {
       {label ? (
         <span className="text-xs">{label}</span>
       ) : (
-        <span className="sr-only">جاري التحميل…</span>
+        <span className="sr-only">Loading…</span>
       )}
     </span>
   );

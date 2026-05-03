@@ -30,11 +30,11 @@ type SectionKey =
   | "include_ai_insights";
 
 const SECTIONS: { key: SectionKey; label: string; hint: string }[] = [
-  { key: "include_cover", label: "صفحة الغلاف", hint: "العنوان واسم البيانات وعدد الصفوف/الأعمدة والملاحظات." },
-  { key: "include_columns", label: "جدول الأعمدة", hint: "نوع كل عمود وعدد القيم الموجودة والمفقودة." },
-  { key: "include_numeric_summary", label: "ملخّص رقمي", hint: "جدول الإحصاءات الوصفية للأعمدة الرقمية." },
-  { key: "include_chart", label: "مخطّط التوزيع", hint: "مدرّج تكراري لعمود رقمي واحد." },
-  { key: "include_ai_insights", label: "ملاحظات الذكاء الاصطناعي", hint: "ملخّص سردي مولَّد آليًا." },
+  { key: "include_cover", label: "Cover page", hint: "Title, dataset name, row/column count and notes." },
+  { key: "include_columns", label: "Columns table", hint: "Each column's type and count of present/missing values." },
+  { key: "include_numeric_summary", label: "Numeric summary", hint: "Descriptive statistics for numeric columns." },
+  { key: "include_chart", label: "Distribution chart", hint: "Histogram for a single numeric column." },
+  { key: "include_ai_insights", label: "AI insights", hint: "Auto-generated narrative summary." },
 ];
 
 const NUMERIC_DTYPE_RE = /^(u?int\d*|float\d*|number|decimal|long|short)$/i;
@@ -109,11 +109,11 @@ export default function ReportPage() {
       const res = await fetch(`/api/reports/recent${qs}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`تعذّر تحميل التقارير الأخيرة (${res.status})`);
+      if (!res.ok) throw new Error(`Failed to load recent reports (${res.status})`);
       const j = (await res.json()) as { reports?: RecentReport[] };
       setRecent(Array.isArray(j.reports) ? j.reports : []);
     } catch (e: unknown) {
-      setRecentError(e instanceof Error ? e.message : "تعذّر تحميل التقارير الأخيرة");
+      setRecentError(e instanceof Error ? e.message : "Failed to load recent reports");
     } finally {
       setRecentLoading(false);
     }
@@ -175,7 +175,7 @@ export default function ReportPage() {
         const j = JSON.parse(text) as { detail?: string };
         if (j?.detail) detail = j.detail;
       } catch { /* keep raw text */ }
-      throw new Error(detail || `تعذّر إنشاء التقرير (${res.status})`);
+      throw new Error(detail || `Failed to generate report (${res.status})`);
     }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -196,14 +196,14 @@ export default function ReportPage() {
 
   async function generate() {
     if (!datasetId) {
-      setError("لا توجد بيانات نشِطة — يرجى رفع ملف أولًا.");
+      setError("No active dataset — please upload a file first.");
       return;
     }
     if (!anySelected) {
-      setError("اختر قسمًا واحدًا على الأقل ليُضاف إلى التقرير.");
+      setError("Pick at least one section to include in the report.");
       return;
     }
-    setBusy(true); setError(null); setStatus("جاري إعداد التقرير…");
+    setBusy(true); setError(null); setStatus("Preparing report…");
     try {
       await downloadPdf({
         datasetId,
@@ -213,7 +213,7 @@ export default function ReportPage() {
         sections,
         chartColumn,
       });
-      setStatus("تم الحفظ بنجاح ✓");
+      setStatus("Saved ✓");
       fetchRecent(activeProjectId);
     } catch (e: unknown) {
       setError(errMessage(e));
@@ -225,7 +225,7 @@ export default function ReportPage() {
 
   async function regenerate(r: RecentReport) {
     if (!r.dataset_id) {
-      setRecentError("لم تعد بيانات هذا التقرير متاحة.");
+      setRecentError("This report's data is no longer available.");
       return;
     }
     setRegeneratingId(r.id);
@@ -238,7 +238,7 @@ export default function ReportPage() {
         filenameId: r.dataset_id,
       });
     } catch (e: unknown) {
-      setRecentError(e instanceof Error ? e.message : "تعذّر إعادة التنزيل");
+      setRecentError(e instanceof Error ? e.message : "Failed to re-download");
     } finally {
       setRegeneratingId(null);
     }
@@ -246,7 +246,7 @@ export default function ReportPage() {
 
   const sectionPicker = (
     <div dir="rtl">
-      <div className="text-[12px] font-medium mb-2">الأقسام التي ستُضمَّن</div>
+      <div className="text-[12px] font-medium mb-2">Sections to include</div>
       <div className="space-y-2">
         {SECTIONS.map((s) => (
           <label key={s.key} className="flex items-start gap-2 text-sm" style={{ minHeight: 32 }}>
@@ -282,20 +282,20 @@ export default function ReportPage() {
         <MissingDatasetNotice
           projectId={projectId}
           toolName="reports"
-          guidedHint="ارفع ملف CSV أو Excel وسنُعدّ لك ملخّصًا في صفحة واحدة."
+          guidedHint="Upload a CSV or Excel file and we'll produce a one-page summary."
         />
       ) : (
         <div dir="rtl">
           <div className="card mt-6 space-y-3">
             <div>
               <label className="block text-[12px] font-medium mb-1">
-                {mode === "guided" ? "أعطِ تقريرك عنوانًا (اختياري)" : "عنوان التقرير (اختياري)"}
+                {mode === "guided" ? "Give your report a title (optional)" : "Report title (optional)"}
               </label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="تقرير بيانات AXIOM"
+                placeholder="AXIOM data report"
                 className="w-full border border-[var(--border)] rounded px-3 py-2 text-sm bg-transparent"
                 style={{ minHeight: 44 }}
                 disabled={busy}
@@ -303,14 +303,14 @@ export default function ReportPage() {
             </div>
             <div>
               <label className="block text-[12px] font-medium mb-1">
-                {mode === "guided" ? "هل ثمّة ما تريد ذكره في المقدّمة؟ (اختياري)" : "ملاحظات (اختياري)"}
+                {mode === "guided" ? "Anything to mention in the intro? (optional)" : "Notes (optional)"}
               </label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder={mode === "guided"
-                  ? "مثال: تغطّي هذه البيانات مبيعات الربع الثالث في منطقة EMEA…"
-                  : "سياق للقارئ…"}
+                  ? "Example: this data covers Q3 sales in the EMEA region…"
+                  : "Context for the reader…"}
                 rows={3}
                 className="w-full border border-[var(--border)] rounded px-3 py-2 text-sm bg-transparent"
                 disabled={busy}
@@ -320,19 +320,19 @@ export default function ReportPage() {
             {mode === "guided" ? (
               <>
                 <div className="rounded-md border border-dashed border-[var(--border)] bg-[var(--surface-alt)]/40 p-3 text-[12px] text-[var(--text-muted)] space-y-1">
-                  <div className="font-medium text-[var(--text)]">ما الذي ستحصل عليه</div>
+                  <div className="font-medium text-[var(--text)]">What you'll get</div>
                   <ul className="list-disc list-inside space-y-0.5">
-                    <li>صفحة غلاف باسم البيانات وملاحظاتك.</li>
-                    <li>ملخّص سردي لأهم النتائج.</li>
-                    <li>مخطّط بارز لأهم عمود رقمي.</li>
+                    <li>Cover page with the dataset name and your notes.</li>
+                    <li>Narrative summary of the key findings.</li>
+                    <li>Highlighted chart for the top numeric column.</li>
                   </ul>
                   <div className="text-[12px] mt-1">
-                    افتح العرض المتقدّم إن أردت أيضًا جدول الأعمدة الخام والملخّص الرقمي.
+                    Open the advanced view if you also want the raw columns table and numeric summary.
                   </div>
                 </div>
                 <AdvancedExpander
                   projectId={projectId}
-                  hint="اختر بدقّة الأقسام التي ستُضمَّن"
+                  hint="Pick precisely which sections to include"
                 >
                   {sectionPicker}
                 </AdvancedExpander>
@@ -343,7 +343,7 @@ export default function ReportPage() {
 
             {sections.include_chart && (
               <div>
-                <label className="block text-[12px] font-medium mb-1">عمود المخطّط (رقمي)</label>
+                <label className="block text-[12px] font-medium mb-1">Chart column (numeric)</label>
                 <select
                   value={chartColumn}
                   onChange={(e) => setChartColumn(e.target.value)}
@@ -352,7 +352,7 @@ export default function ReportPage() {
                   style={{ minHeight: 44 }}
                 >
                   <option value="">
-                    {numericColumns.length === 0 ? "لا توجد أعمدة رقمية" : "أول عمود رقمي (افتراضي)"}
+                    {numericColumns.length === 0 ? "No numeric columns" : "First numeric column (default)"}
                   </option>
                   {numericColumns.map((c) => (
                     <option key={c} value={c}>{c}</option>
@@ -370,8 +370,8 @@ export default function ReportPage() {
                 style={{ minHeight: 44 }}
               >
                 {busy
-                  ? "جاري التوليد…"
-                  : mode === "guided" ? "اكتب تقريري" : "أنشئ التقرير"}
+                  ? "Generating…"
+                  : mode === "guided" ? "Write my report" : "Generate report"}
               </button>
               {status && (
                 <span className="text-[12px] text-[var(--text-muted)]" role="status" aria-live="polite">{status}</span>
@@ -387,7 +387,7 @@ export default function ReportPage() {
 
       <div className="mt-8" dir="rtl">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">التقارير الأخيرة</h2>
+          <h2 className="text-lg font-semibold">Recent reports</h2>
           <button
             type="button"
             onClick={() => fetchRecent(activeProjectId)}
@@ -395,13 +395,13 @@ export default function ReportPage() {
             style={{ minHeight: 32, paddingInline: 8 }}
             disabled={recentLoading}
           >
-            {recentLoading ? "جاري التحديث…" : "تحديث"}
+            {recentLoading ? "Refreshing…" : "Refresh"}
           </button>
         </div>
         <p className="text-[12px] text-[var(--text-muted)] mb-3">
           {activeProjectId
-            ? "التقارير التي أنشأتها للمشروع النشط."
-            : "التقارير التي أنشأتها مؤخرًا."}
+            ? "Reports you created for the active project."
+            : "Reports you've created recently."}
         </p>
 
         {recentError && (
@@ -411,7 +411,7 @@ export default function ReportPage() {
         {!recentError && recent.length === 0 && !recentLoading && (
           <div className="card text-sm text-[var(--text-muted)] text-center py-6">
             <div className="text-2xl mb-2" aria-hidden="true">📄</div>
-            لا توجد تقارير بعد. أنشئ واحدًا أعلاه وسيظهر هنا.
+            No reports yet. Create one above and it will show here.
           </div>
         )}
 
@@ -421,7 +421,7 @@ export default function ReportPage() {
               const created = r.created_at
                 ? new Date(r.created_at).toLocaleString()
                 : "—";
-              const label = r.title?.trim() || "تقرير بيانات AXIOM";
+              const label = r.title?.trim() || "AXIOM data report";
               return (
                 <div
                   key={r.id}
@@ -430,7 +430,7 @@ export default function ReportPage() {
                   <div className="min-w-0">
                     <div className="text-sm font-medium truncate">{label}</div>
                     <div className="text-[12px] text-[var(--text-muted)] truncate">
-                      {r.dataset_label || `بيانات #${r.dataset_id ?? "؟"}`}
+                      {r.dataset_label || `Dataset #${r.dataset_id ?? "?"}`}
                       {" · "}
                       {created}
                     </div>
@@ -443,11 +443,11 @@ export default function ReportPage() {
                     style={{ minHeight: 44 }}
                     title={
                       r.dataset_id
-                        ? "إعادة إنشاء وتنزيل التقرير"
-                        : "لم تعد بيانات هذا التقرير متاحة"
+                        ? "Regenerate and download report"
+                        : "This report's data is no longer available"
                     }
                   >
-                    {regeneratingId === r.id ? "جاري التحضير…" : "تنزيل"}
+                    {regeneratingId === r.id ? "Preparing…" : "Download"}
                   </button>
                 </div>
               );

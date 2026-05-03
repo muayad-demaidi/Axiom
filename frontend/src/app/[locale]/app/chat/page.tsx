@@ -20,7 +20,7 @@ export default function ChatRedirectPage() {
         className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]"
         aria-hidden="true"
       />
-      جاري فتح محادثة المشروع…
+      Opening project chat…
     </div>
   );
 }

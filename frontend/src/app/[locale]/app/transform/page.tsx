@@ -81,7 +81,7 @@ export default function TransformPage() {
       <div className="card mt-6 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <label className="text-sm">
-            العملية
+            Operation
             <select
               value={draft.op}
               onChange={(e) => setDraft((s) => ({ ...s, op: e.target.value as TransformOp }))}
@@ -92,7 +92,7 @@ export default function TransformPage() {
             </select>
           </label>
           <label className="text-sm">
-            العمود
+            Column
             <select value={draft.column ?? ""} onChange={(e) => setDraft((s) => ({ ...s, column: e.target.value }))}
               className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
               style={{ minHeight: 44 }}>
@@ -101,7 +101,7 @@ export default function TransformPage() {
           </label>
           {draft.op === "rename" && (
             <label className="text-sm col-span-2">
-              الاسم الجديد
+              New name
               <input value={draft.target ?? ""} onChange={(e) => setDraft((s) => ({ ...s, target: e.target.value }))}
                 className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
                 style={{ minHeight: 44 }} />
@@ -109,14 +109,14 @@ export default function TransformPage() {
           )}
           {(draft.op === "fillna" || draft.op === "filter") && (
             <label className="text-sm col-span-2">
-              القيمة
+              Value
               <input value={draft.value ?? ""} onChange={(e) => setDraft((s) => ({ ...s, value: e.target.value }))}
                 className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
                 style={{ minHeight: 44 }} />
             </label>
           )}
         </div>
-        <button className="btn btn-ghost" style={{ minHeight: 44 }} onClick={addStep}>أضف خطوة</button>
+        <button className="btn btn-ghost" style={{ minHeight: 44 }} onClick={addStep}>Add step</button>
       </div>
 
       {steps.length > 0 && (
@@ -127,10 +127,10 @@ export default function TransformPage() {
               <button
                 className="text-[12px] text-red-600"
                 style={{ minHeight: 32, paddingInline: 8 }}
-                aria-label={`حذف الخطوة ${i + 1}`}
+                aria-label={`Delete step ${i + 1}`}
                 onClick={() => setSteps((arr) => arr.filter((_, j) => j !== i))}
               >
-                حذف
+                Delete
               </button>
             </li>
           ))}
@@ -139,7 +139,7 @@ export default function TransformPage() {
 
       <div className="mt-4 flex gap-2">
         <button className="btn btn-primary" style={{ minHeight: 44 }} onClick={apply} disabled={busy || steps.length === 0}>
-          {busy ? "جاري التطبيق…" : "طبّق الخطوات"}
+          {busy ? "Applying…" : "Apply steps"}
         </button>
       </div>
     </div>
@@ -160,13 +160,13 @@ export default function TransformPage() {
         <MissingDatasetNotice
           projectId={projectId}
           toolName="transforms"
-          guidedHint="ارفع ملف CSV أو Excel وسنعرض أعمدته لتحويلها."
+          guidedHint="Upload a CSV or Excel file and we'll show its columns to transform."
         />
       ) : mode === "guided" ? (
         <>
           <div className="card mt-6" dir="rtl">
             <label className="text-sm block">
-              العمود
+              Column
               <select
                 value={guidedColumn}
                 onChange={(e) => setGuidedColumn(e.target.value)}
@@ -179,33 +179,33 @@ export default function TransformPage() {
           </div>
           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3" dir="rtl">
             <GuidedActionCard
-              title="تحويل القيم إلى حروف صغيرة"
-              description="اجعل كل قيم العمود بحروف صغيرة لمطابقة المسمّيات بثبات."
-              cta="طبّق"
+              title="Lowercase values"
+              description="Lowercase every value in this column for consistent label matching."
+              cta="Apply"
               busy={busy}
               disabled={!guidedColumn}
               onAction={() => runSteps([{ op: "lowercase", column: guidedColumn }])}
             />
             <GuidedActionCard
-              title="تحويل القيم إلى حروف كبيرة"
-              description="اجعل كل قيم العمود بحروف كبيرة — مناسب لرموز المنتجات وأسماء الدول."
-              cta="طبّق"
+              title="Uppercase values"
+              description="Uppercase every value in this column — useful for product codes and country names."
+              cta="Apply"
               busy={busy}
               disabled={!guidedColumn}
               onAction={() => runSteps([{ op: "uppercase", column: guidedColumn }])}
             />
             <GuidedActionCard
-              title="حذف هذا العمود"
-              description="إزالة العمود نهائيًا. مناسب لمعرّفات الصفوف والحقول المزعجة."
-              cta="احذف العمود"
+              title="Delete this column"
+              description="Remove the column permanently. Useful for row IDs and noisy fields."
+              cta="Delete column"
               busy={busy}
               disabled={!guidedColumn}
               onAction={() => runSteps([{ op: "drop", column: guidedColumn }])}
             />
             <GuidedActionCard
-              title="ملء الخلايا الفارغة بـ 0"
-              description="استبدال القيم الناقصة بصفر حتى لا تنقطع الحسابات."
-              cta="املأ الفراغات"
+              title="Fill empty cells with 0"
+              description="Replace missing values with zero so calculations don't break."
+              cta="Fill blanks"
               busy={busy}
               disabled={!guidedColumn}
               onAction={() => runSteps([{ op: "fillna", column: guidedColumn, value: "0" }])}
@@ -213,7 +213,7 @@ export default function TransformPage() {
           </div>
           <AdvancedExpander
             projectId={projectId}
-            hint="اربط خطوات rename / drop / fillna / filter / uppercase / lowercase"
+            hint="Chain rename / drop / fillna / filter / uppercase / lowercase steps"
           >
             {expertEditor}
           </AdvancedExpander>
@@ -235,7 +235,7 @@ export default function TransformPage() {
         <div className="card mt-4" dir="rtl">
           {mode === "guided" ? (
             <>
-              <div className="font-semibold text-sm">تم تحويل العمود بنجاح ✓</div>
+              <div className="font-semibold text-sm">Column transformed ✓</div>
               <TechnicalDetails projectId={projectId}>
                 <pre className="text-[11px] overflow-auto max-h-[50vh] whitespace-pre-wrap">{JSON.stringify(result, null, 2)}</pre>
               </TechnicalDetails>

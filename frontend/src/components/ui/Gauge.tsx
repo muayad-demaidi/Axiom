@@ -25,9 +25,9 @@ const BAND_COLOR: Record<GaugeBand, string> = {
 };
 
 const DEFAULT_BAND_LABELS: Record<GaugeBand, string> = {
-  high: "ثقة مرتفعة",
-  medium: "ثقة متوسطة",
-  low: "ثقة منخفضة",
+  high: "High confidence",
+  medium: "Medium confidence",
+  low: "Low confidence",
 };
 
 export function Gauge({
@@ -51,7 +51,7 @@ export function Gauge({
       className="flex flex-col items-center gap-1 shrink-0"
       style={{ width: size }}
       role="img"
-      aria-label={`${label ?? "نسبة الثقة"}: ${Math.round(clamped)} من 100, ${bandLabel}`}
+      aria-label={`${label ?? "Confidence"}: ${Math.round(clamped)} of 100, ${bandLabel}`}
     >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <circle

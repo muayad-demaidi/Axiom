@@ -8,7 +8,7 @@
  *   • Inline forecast sparkline (time-series flow only)
  *   • Top driver bars (driver flow)
  *   • Arabic narrative: context paragraph, conditional sentence
- *     ("إذا … ← نتوقع …") and 2–3 recommendations
+ *     ("if … ← we predict …") and 2–3 recommendations
  *
  * Numbers are NEVER re-formatted from raw values here — we always
  * use the strings returned in `formatted_numbers` so what the model
@@ -44,10 +44,10 @@ export type GuidedPredictionResult = {
 };
 
 const SUB_SCORE_LABELS_AR: Record<string, string> = {
-  data_volume: "حجم البيانات",
-  data_quality: "جودة البيانات",
-  signal_strength: "قوة الإشارة",
-  time_coverage: "تغطية الزمن",
+  data_volume: "Data volume",
+  data_quality: "Data quality",
+  signal_strength: "Signal strength",
+  time_coverage: "Time coverage",
 };
 
 export function GuidedPredictionCard({
@@ -67,7 +67,7 @@ export function GuidedPredictionCard({
         />
         <div className="flex-1 min-w-0">
           <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
-            تنبؤ موجّه · {result.is_timeseries ? "سلاسل زمنية" : "نموذج عوامل"}
+            Guided forecast · {result.is_timeseries ? "time series" : "factor model"}
           </div>
           <div className="text-base font-semibold truncate" title={result.target}>
             {result.target}
@@ -109,7 +109,7 @@ export function GuidedPredictionCard({
             onClick={onRestart}
             className="text-[11px] text-[var(--text-muted)] hover:text-[var(--accent)] underline"
           >
-            تشغيل تنبؤ جديد
+            Run new forecast
           </button>
         </div>
       )}
@@ -118,14 +118,14 @@ export function GuidedPredictionCard({
 }
 
 const KEY_LABELS_AR: Record<string, string> = {
-  next_period_forecast: "التوقع التالي",
-  forecast_average: "متوسط التوقعات",
-  lower_band: "الحد الأدنى",
-  upper_band: "الحد الأعلى",
-  horizon_periods: "الأفق (فترات)",
-  baseline: "التوقع الأساسي",
-  r2: "جودة التوافق R²",
-  mae: "متوسط الخطأ المطلق",
+  next_period_forecast: "Next forecast",
+  forecast_average: "Average forecast",
+  lower_band: "Lower bound",
+  upper_band: "Upper bound",
+  horizon_periods: "Horizon (periods)",
+  baseline: "Baseline forecast",
+  r2: "R² goodness of fit",
+  mae: "Mean absolute error",
 };
 
 export function ConfidenceGauge({
@@ -146,7 +146,7 @@ export function ConfidenceGauge({
       : band === "medium" ? "#f59e0b"
       : "#ef4444";
   const bandLabel =
-    band === "high" ? "مرتفعة" : band === "medium" ? "متوسطة" : "منخفضة";
+    band === "high" ? "high" : band === "medium" ? "medium" : "low";
   return (
     <div
       className="relative shrink-0 flex flex-col items-center"
@@ -198,7 +198,7 @@ export function ConfidenceGauge({
         className="text-[10px] mt-1 font-mono"
         style={{ color }}
       >
-        ثقة {bandLabel}
+        Confidence {bandLabel}
       </div>
     </div>
   );
@@ -280,7 +280,7 @@ function ForecastSparkline({
   return (
     <div className="border border-[var(--border)]/60 rounded-md p-2 bg-[var(--surface)]">
       <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] mb-1">
-        التاريخ والتوقع
+        History & forecast
       </div>
       <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Forecast sparkline">
         <polygon points={bandPoly} fill="var(--accent)" fillOpacity={0.12} />
@@ -300,7 +300,7 @@ function DriverImportance({
   return (
     <div className="border border-[var(--border)]/60 rounded-md p-2 bg-[var(--surface)] space-y-1.5">
       <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
-        أهمية العوامل
+        Driver importance
       </div>
       {features.slice(0, 5).map((f) => (
         <div key={f.feature}>

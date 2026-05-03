@@ -59,19 +59,19 @@ export type Artifact = {
 type Tab = "profile" | "visualize" | "predictions" | "clusters" | "model";
 
 const TABS: { key: Tab; label: string; kind: string }[] = [
-  { key: "profile", label: "ملف البيانات", kind: "profile" },
-  { key: "visualize", label: "الرسوم البيانية", kind: "chart" },
-  { key: "predictions", label: "التنبؤات", kind: "prediction" },
-  { key: "clusters", label: "التجميع", kind: "cluster" },
-  { key: "model", label: "نموذج البيانات", kind: "data_model" },
+  { key: "profile", label: "Profile", kind: "profile" },
+  { key: "visualize", label: "Charts", kind: "chart" },
+  { key: "predictions", label: "Predictions", kind: "prediction" },
+  { key: "clusters", label: "Clusters", kind: "cluster" },
+  { key: "model", label: "Data model", kind: "data_model" },
 ];
 
 const TAB_EMPTY_HINT: Record<Tab, string> = {
-  profile: "اطلب من المساعد عمل ملف للبيانات وستظهر النتيجة هنا.",
-  visualize: "اطلب من المساعد رسم مخطط وستظهر نتيجته هنا.",
-  predictions: "اطلب من المساعد تنبؤًا وستظهر نتائجه هنا.",
-  clusters: "اطلب من المساعد تجميع الصفوف وستظهر نتائجه هنا.",
-  model: "سيظهر نموذج البيانات هنا حال تجهيزه.",
+  profile: "Ask the assistant to profile the dataset — results will show here.",
+  visualize: "Ask the assistant to draw a chart — results will show here.",
+  predictions: "Ask the assistant for a prediction — results will show here.",
+  clusters: "Ask the assistant to cluster rows — results will show here.",
+  model: "The data model will appear here once it's ready.",
 };
 
 const KIND_TO_TAB: Record<string, Tab> = {
@@ -185,31 +185,31 @@ function ArtifactDrawerBase({
       const next = !a.pinned;
       setItems((cur) => cur.map((x) => (x.id === a.id ? { ...x, pinned: next } : x)));
       await api(`/api/artifacts/${a.id}/pin`, { method: "PATCH", json: { pinned: next } });
-      toast.success(next ? "تم التثبيت بالتقرير ✓" : "تم إلغاء التثبيت ✓");
+      toast.success(next ? "Pinned to report ✓" : "Unpinned ✓");
     } catch (e) {
       const msg = errMessage(e);
       setError(msg);
-      toast.error("تعذّر تحديث التثبيت — حاول مرة أخرى.");
+      toast.error("Failed to update pin — try again.");
     }
   }
 
   async function removeArtifact(a: Artifact) {
     const ok = await confirm({
-      title: "حذف هذا العنصر؟",
-      description: `سيتم حذف «${a.title}» نهائيًا.`,
-      confirmLabel: "نعم، احذف",
-      cancelLabel: "إلغاء",
+      title: "Delete this item?",
+      description: `“${a.title}” will be deleted permanently.`,
+      confirmLabel: "Yes, delete",
+      cancelLabel: "Cancel",
       kind: "danger",
     });
     if (!ok) return;
     try {
       await api(`/api/artifacts/${a.id}`, { method: "DELETE" });
       setItems((cur) => cur.filter((x) => x.id !== a.id));
-      toast.success("تم الحذف بنجاح ✓");
+      toast.success("Deleted ✓");
     } catch (e) {
       const msg = errMessage(e);
       setError(msg);
-      toast.error("تعذّر الحذف — حاول مرة أخرى.");
+      toast.error("Failed to delete — try again.");
     }
   }
 
@@ -219,20 +219,20 @@ function ArtifactDrawerBase({
     <aside
       dir="rtl"
       className="fixed top-14 right-0 bottom-0 w-[440px] max-w-[92vw] border-l border-[var(--border)] bg-[var(--surface)] shadow-2xl z-30 flex flex-col"
-      aria-label="لوحة المخرجات"
+      aria-label="Outputs"
     >
       <div className="flex flex-row-reverse items-center justify-between px-4 py-3 border-b border-[var(--border)]">
         <div className="text-right">
           <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)]">
-            لوحة المخرجات
+            Outputs
           </div>
-          <div className="text-sm font-semibold">مخرجات الأدوات</div>
+          <div className="text-sm font-semibold">Tool outputs</div>
         </div>
         <button
           onClick={onClose}
           className="inline-flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] rounded hover:bg-[var(--surface-alt)]"
           style={{ minWidth: 44, minHeight: 44 }}
-          aria-label="إغلاق اللوحة"
+          aria-label="Close panel"
         >
           <XIcon className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -266,14 +266,14 @@ function ArtifactDrawerBase({
             role="alert"
             className="text-xs rounded border border-red-500/40 bg-red-500/10 text-red-700 p-2"
           >
-            <div className="font-semibold mb-0.5">حدث خطأ غير متوقع</div>
+            <div className="font-semibold mb-0.5">Something went wrong</div>
             <div className="text-[11px] leading-snug">
-              {error} — حاول التحديث أو إعادة المحاولة بعد قليل.
+              {error} — try refreshing or retrying in a moment.
             </div>
           </div>
         )}
         {loading && items.length === 0 && (
-          <Spinner size="sm" label="جاري التحميل…" />
+          <Spinner size="sm" label="Loading…" />
         )}
         {pendingByTab[tab].map((p) => (
           <Skeleton key={p.id} tool={p.tool} />
@@ -288,7 +288,7 @@ function ArtifactDrawerBase({
               // Refresh the drawer's artifact list so the saved
               // prediction also shows up below — but keep the wizard
               // mounted so the user can read the Result phase. They
-              // dismiss it explicitly via "تشغيل تنبؤ جديد" or ✕.
+              // dismiss it explicitly via "Run new forecast" or ✕.
               onArtifactCreated?.();
             }}
             onClose={() => setGuidedActive(false)}
@@ -311,7 +311,7 @@ function ArtifactDrawerBase({
           && !(tab === "predictions" && (guidedActive || activeDatasetId != null)) && (
           <EmptyState
             icon={<Inbox className="h-5 w-5" aria-hidden="true" />}
-            title="لا توجد بيانات بعد"
+            title="No data yet"
             description={TAB_EMPTY_HINT[tab]}
           />
         )}
@@ -322,14 +322,14 @@ function ArtifactDrawerBase({
 
 function Skeleton({ tool }: { tool: string }) {
   const label =
-    tool === "profile_dataset" ? "جاري تجهيز ملف البيانات…"
-    : tool === "make_chart" ? "جاري إعداد الرسم البياني…"
-    : tool === "predict_column" ? "جاري تدريب نموذج التنبؤ…"
-    : tool === "cluster_dataset" ? "جاري تجميع الصفوف…"
-    : tool === "list_model" ? "جاري تحميل نموذج البيانات…"
-    : tool === "query_model" ? "جاري تنفيذ الاستعلام…"
-    : tool === "explain_model" ? "جاري شرح نموذج البيانات…"
-    : `جاري تشغيل ${tool}…`;
+    tool === "profile_dataset" ? "Profiling dataset…"
+    : tool === "make_chart" ? "Building chart…"
+    : tool === "predict_column" ? "Training prediction model…"
+    : tool === "cluster_dataset" ? "Clustering rows…"
+    : tool === "list_model" ? "Loading data model…"
+    : tool === "query_model" ? "Running query…"
+    : tool === "explain_model" ? "Explaining data model…"
+    : `Running ${tool}…`;
   return (
     <div
       className="border border-[var(--border)] rounded-xl p-4 bg-[var(--surface-alt)]/50 animate-pulse"
@@ -378,17 +378,17 @@ function ArtifactCard({
             }`}
             style={{ minHeight: 32 }}
             aria-pressed={artifact.pinned}
-            title={artifact.pinned ? "مثبَّت بالتقرير" : "تثبيت بالتقرير"}
+            title={artifact.pinned ? "Pinned to report" : "Pin to report"}
           >
             <Pin className="h-3 w-3" aria-hidden="true" />
-            <span>{artifact.pinned ? "مثبَّت" : "تثبيت"}</span>
+            <span>{artifact.pinned ? "Pinned" : "Pin"}</span>
           </button>
           <button
             onClick={onDelete}
             className="inline-flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 rounded"
             style={{ minWidth: 32, minHeight: 32 }}
-            aria-label={`حذف ${artifact.title}`}
-            title="حذف"
+            aria-label={`Delete ${artifact.title}`}
+            title="Delete"
           >
             <XIcon className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
@@ -900,7 +900,7 @@ export function DataModelBody({
                       className="text-[12px] px-2 py-1 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
                       style={{ minHeight: 32 }}
                     >
-                      تأكيد
+                      Confirm
                     </button>
                     <button
                       onClick={() => patchRel(r, { status: "rejected" })}
@@ -908,16 +908,16 @@ export function DataModelBody({
                       className="text-[12px] px-2 py-1 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
                       style={{ minHeight: 32 }}
                     >
-                      رفض
+                      Reject
                     </button>
                     <button
                       onClick={() => patchRel(r, { status: "proposed", user_locked: false })}
                       disabled={busy || r.status === "proposed"}
                       className="text-[12px] px-2 py-1 rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-alt)] disabled:opacity-40"
                       style={{ minHeight: 32 }}
-                      title="إعادة الضبط إلى مقترح"
+                      title="Reset to suggestion"
                     >
-                      إعادة ضبط
+                      Reset
                     </button>
                     <select
                       value={r.cardinality}
@@ -1349,7 +1349,7 @@ function InsightBody({ result }: { result: { items: InsightItem[] } }) {
   if (items.length === 0) {
     return (
       <div className="text-[12px] text-[var(--text-muted)]" dir="rtl">
-        لا توجد ملاحظات بعد.
+        No notes yet.
       </div>
     );
   }

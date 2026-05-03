@@ -32,35 +32,35 @@ function GuidedSummary({ report }: { report: StatsReport }) {
     <div className="space-y-3" dir="rtl">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {rows != null && (
-          <Tile label="عدد الصفوف" value={rows.toLocaleString()} />
+          <Tile label="Row count" value={rows.toLocaleString()} />
         )}
         {cols != null && (
-          <Tile label="عدد الأعمدة" value={String(cols)} />
+          <Tile label="Column count" value={String(cols)} />
         )}
         {numericCols.length > 0 && (
-          <Tile label="أعمدة رقمية" value={String(numericCols.length)} />
+          <Tile label="Numeric columns" value={String(numericCols.length)} />
         )}
       </div>
       {missingPairs.length > 0 ? (
         <div>
           <div className="font-mono text-[12px] uppercase tracking-widest text-[var(--text-muted)] mb-1.5">
-            أعمدة بها قيم ناقصة
+            Columns with missing values
           </div>
           <ul className="text-sm space-y-1">
             {missingPairs.map(([col, n]) => (
               <li key={col} className="flex flex-row-reverse items-baseline justify-between border-b border-dashed border-[var(--border)] pb-1">
                 <span className="font-medium truncate pl-2">{col}</span>
-                <span className="text-[12px] text-[var(--text-muted)] font-mono">{(n as number).toLocaleString()} قيمة ناقصة</span>
+                <span className="text-[12px] text-[var(--text-muted)] font-mono">{(n as number).toLocaleString()} missing</span>
               </li>
             ))}
           </ul>
         </div>
       ) : (
-        <div className="text-sm text-[var(--text-muted)]">لا توجد قيم ناقصة.</div>
+        <div className="text-sm text-[var(--text-muted)]">No missing values.</div>
       )}
       {numericCols.length > 0 && (
         <div className="text-sm text-[var(--text-muted)]">
-          أعمدة رقمية جاهزة للتحليل: {numericCols.join("، ")}.
+          Numeric columns ready for analysis: {numericCols.join(", ")}.
         </div>
       )}
     </div>
@@ -113,7 +113,7 @@ export default function StatisticsPage() {
         <MissingDatasetNotice
           projectId={projectId}
           toolName="statistics"
-          guidedHint="ارفع ملف CSV أو Excel وسنلخّص محتواه."
+          guidedHint="Upload a CSV or Excel file and we'll summarize it."
         />
       )}
       {busy && (
@@ -127,7 +127,7 @@ export default function StatisticsPage() {
             className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]"
             aria-hidden="true"
           />
-          جاري الحساب…
+          Calculating…
         </div>
       )}
       {error && (

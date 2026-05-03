@@ -63,7 +63,7 @@ export default function ReportPage() {
       return;
     }
     if (!Number.isFinite(sessionId)) {
-      setError("No chat session selected. / لم تُحدَّد جلسة محادثة.");
+      setError("No chat session selected.");
       return;
     }
     let cancelled = false;
@@ -174,17 +174,17 @@ export default function ReportPage() {
     <div className="-m-6 min-h-[calc(100vh-3.5rem)] bg-[var(--surface)]">
       <div className="border-b border-[var(--border)] px-6 py-4 flex items-center justify-between gap-4 sticky top-14 bg-[var(--surface)]/95 backdrop-blur z-10">
         <div>
-          <span className="eyebrow">Final report · التقرير النهائي</span>
+          <span className="eyebrow">Final report</span>
           <h1 className="text-xl font-semibold mt-0.5">
             {report?.session.title || "Loading…"}
           </h1>
           {report && (
             <div className="mt-1 flex items-center gap-2 text-[11px] font-mono">
               <span className="px-2 py-0.5 rounded-full border border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--accent)]">
-                📌 {pinnedCount} pinned · مثبَّت
+                📌 {pinnedCount} pinned
               </span>
               <span className="text-[var(--text-muted)]">
-                of {totalArtifacts} total · من {totalArtifacts} الكلّي
+                of {totalArtifacts} total
               </span>
             </div>
           )}
@@ -197,20 +197,20 @@ export default function ReportPage() {
               onChange={(e) => setPinnedOnly(e.target.checked)}
               className="accent-[var(--accent)]"
             />
-            Pinned only · المثبَّت فقط
+            Pinned only
           </label>
           <Link
             href={`/app/project/${projectId}?session=${sessionId}`}
             className="btn btn-ghost text-xs"
           >
-            Back to chat · رجوع للمحادثة
+            Back to chat
           </Link>
           <button
             className="btn btn-primary text-sm"
             onClick={downloadPdf}
             disabled={downloading || !report}
           >
-            {downloading ? "Building… · جاري التحضير" : "Download PDF · تنزيل التقرير"}
+            {downloading ? "Building…" : "Download PDF"}
           </button>
         </div>
       </div>
@@ -220,17 +220,17 @@ export default function ReportPage() {
           {error && <div className="text-sm text-red-500">{error}</div>}
           {!report && !error && (
             <div className="text-sm text-[var(--text-muted)]">
-              Loading report… · جاري تحميل التقرير…
+              Loading report…
             </div>
           )}
           {report && (
             <>
               <section className="card">
                 <div className="text-xs font-mono uppercase tracking-widest text-[var(--text-muted)] mb-2">
-                  Cover · الغلاف
+                  Cover
                 </div>
                 <div className="text-sm">
-                  Generated · أنشئ بتاريخ {report.generated_at?.slice(0, 19)} UTC.
+                  Generated on {report.generated_at?.slice(0, 19)} UTC.
                 </div>
                 <div className="text-sm mt-1">
                   {report.datasets.length} dataset{report.datasets.length === 1 ? "" : "s"} ·{" "}
@@ -250,7 +250,7 @@ export default function ReportPage() {
 
               {report.synthesis && (report.synthesis.executive_summary ||
                 (report.synthesis.key_findings || []).length > 0) && (
-                <Section title="Insights synthesis · خلاصة الجلسة">
+                <Section title="Insights synthesis">
                   <div className="border border-[var(--border)] rounded-xl p-4 bg-[var(--surface)] space-y-3">
                     {report.synthesis.executive_summary && (
                       <p className="text-sm leading-relaxed">
@@ -260,7 +260,7 @@ export default function ReportPage() {
                     {(report.synthesis.key_findings || []).length > 0 && (
                       <div>
                         <div className="text-xs uppercase tracking-widest font-mono text-[var(--text-muted)] mb-1">
-                          Key findings · أبرز النتائج
+                          Key findings
                         </div>
                         <ul className="text-sm space-y-1 list-disc list-inside">
                           {(report.synthesis.key_findings || []).map((k, i) => (
@@ -272,7 +272,7 @@ export default function ReportPage() {
                     {(report.synthesis.recommendations || []).length > 0 && (
                       <div>
                         <div className="text-xs uppercase tracking-widest font-mono text-[var(--text-muted)] mb-1">
-                          Recommendations · التوصيات
+                          Recommendations
                         </div>
                         <ul className="text-sm space-y-1 list-disc list-inside">
                           {(report.synthesis.recommendations || []).map((r, i) => (
@@ -286,7 +286,7 @@ export default function ReportPage() {
               )}
 
               {(report.artifacts.insight ?? []).length > 0 && (
-                <Section title="Surprise insights · رؤى مفاجئة">
+                <Section title="Surprise insights">
                   {(report.artifacts.insight ?? []).map((art) => (
                     <ul key={art.id} className="text-sm space-y-1.5">
                       {((art.result as { items?: { headline: string; severity: string; subtitle?: string }[] }).items || []).map((it, i) => (
@@ -306,7 +306,7 @@ export default function ReportPage() {
               )}
 
               {(report.artifacts.profile ?? []).length > 0 && (
-                <Section title="Data profile · تعريف البيانات">
+                <Section title="Data profile">
                   {(report.artifacts.profile ?? []).map((art) => (
                     <ProfileBlock key={art.id} art={art} />
                   ))}
@@ -314,7 +314,7 @@ export default function ReportPage() {
               )}
 
               {(report.artifacts.chart ?? []).length > 0 && (
-                <Section title="Charts · المخططات">
+                <Section title="Charts">
                   {(report.artifacts.chart ?? []).map((art) => (
                     <div key={art.id} className="border border-[var(--border)] rounded-xl p-4 bg-[var(--surface)]">
                       <div className="text-sm font-semibold mb-2">{art.title}</div>
@@ -325,7 +325,7 @@ export default function ReportPage() {
               )}
 
               {(report.artifacts.prediction ?? []).length > 0 && (
-                <Section title="Predictions · التنبؤات">
+                <Section title="Predictions">
                   {(report.artifacts.prediction ?? []).map((art) => (
                     <div key={art.id} className="border border-[var(--border)] rounded-xl p-4 bg-[var(--surface)]">
                       <PredictionCard
@@ -338,7 +338,7 @@ export default function ReportPage() {
               )}
 
               {(report.what_if ?? []).length > 0 && (
-                <Section title="What-if recommendations · توصيات افتراضية">
+                <Section title="What-if recommendations">
                   {(report.what_if ?? []).map((w, i) => (
                     <WhatIfBlock key={i} w={w} />
                   ))}
@@ -346,7 +346,7 @@ export default function ReportPage() {
               )}
 
               {(report.artifacts.cluster ?? []).length > 0 && (
-                <Section title="Clusters · المجموعات">
+                <Section title="Clusters">
                   {(report.artifacts.cluster ?? []).map((art) => (
                     <ClusterBlock key={art.id} art={art} />
                   ))}
@@ -354,11 +354,11 @@ export default function ReportPage() {
               )}
 
               {report.qa.length > 0 && (
-                <Section title="Conversation · نص المحادثة">
+                <Section title="Conversation">
                   <div className="space-y-2 text-sm">
                     {report.qa.map((t) => (
                       <div key={t.id} className="border border-[var(--border)] rounded p-3 bg-[var(--surface-alt)]/50">
-                        <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] font-mono mb-1">You · أنت</div>
+                        <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] font-mono mb-1">You</div>
                         <div className="whitespace-pre-wrap">{t.user}</div>
                         {t.ai && (
                           <>
@@ -374,7 +374,7 @@ export default function ReportPage() {
 
               {totalArtifacts === 0 && report.qa.length === 0 && (
                 <div className="text-sm text-[var(--text-muted)] border border-dashed border-[var(--border)] rounded p-6 text-center">
-                  Nothing pinned to this report yet · لا يوجد شي مثبَّت بهالتقرير لساتو.
+                  Nothing pinned to this report yet.
                   Run some analysis in the chat or untick &ldquo;Pinned only&rdquo; to include
                   everything.
                 </div>
@@ -385,8 +385,8 @@ export default function ReportPage() {
 
         <aside className="lg:sticky lg:top-32 self-start space-y-2 min-w-0">
           <div className="flex items-center justify-between text-xs uppercase tracking-widest font-mono text-[var(--text-muted)]">
-            <span>PDF preview · معاينة PDF</span>
-            {previewLoading && <span>building… · يحضّر…</span>}
+            <span>PDF preview</span>
+            {previewLoading && <span>building…</span>}
           </div>
           <div className="border border-[var(--border)] rounded-xl bg-[var(--surface-alt)]/30 overflow-hidden">
             {previewUrl ? (
@@ -494,7 +494,7 @@ function WhatIfBlock({ w }: { w: WhatIf }) {
       <div className="flex items-baseline justify-between">
         <div className="text-sm font-semibold">{w.title}</div>
         <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
-          target · الهدف: {w.target || "—"}
+          target: {w.target || "—"}
         </div>
       </div>
       {w.rows.map((feat) => (

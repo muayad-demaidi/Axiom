@@ -83,30 +83,30 @@ export default function ModelPage() {
   const expertControls = (
     <div className="card mt-6 space-y-3" dir="rtl">
       <label className="block text-sm">
-        الطريقة
+        Method
         <select value={method} onChange={(e) => setMethod(e.target.value as Method)}
           className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm" style={{ minHeight: 44 }}>
-          <option value="kmeans">تجميع K-Means</option>
-          <option value="randomforest">غابة عشوائية (Random Forest)</option>
+          <option value="kmeans">K-Means clustering</option>
+          <option value="randomforest">Random Forest</option>
         </select>
       </label>
       {method === "kmeans" ? (
         <label className="block text-sm">
-          k (عدد التجمعات)
+          k (number of clusters)
           <input type="number" min={2} max={10} value={k}
             onChange={(e) => setK(Number(e.target.value))}
             className="block mt-1 w-32 px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm" style={{ minHeight: 44 }} />
         </label>
       ) : (
         <label className="block text-sm">
-          العمود الهدف
+          Target column
           <select value={target} onChange={(e) => setTarget(e.target.value)}
             className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm" style={{ minHeight: 44 }}>
             {columns.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </label>
       )}
-      <button className="btn btn-primary" onClick={run} disabled={busy} style={{ minHeight: 44 }}>{busy ? "جاري التشغيل…" : "تشغيل النموذج"}</button>
+      <button className="btn btn-primary" onClick={run} disabled={busy} style={{ minHeight: 44 }}>{busy ? "Running…" : "Run model"}</button>
     </div>
   );
 
@@ -124,18 +124,18 @@ export default function ModelPage() {
       {safeguards && (safeguards.fanout.length > 0 || !safeguards.grain.is_unique) && (
         <div className="mt-4 card border-amber-500/60" role="alert" dir="rtl">
           <div className="text-[12px] font-semibold text-amber-600 mb-1">
-            تنبيهات حول جودة النمذجة
+            Model quality alerts
           </div>
           <ul className="text-[12px] space-y-0.5 list-disc list-inside text-amber-700">
             {!safeguards.grain.is_unique && (
               <li>
-                مفتاح الصف غير فريد — {safeguards.grain.duplicate_count.toLocaleString()} صف مكرّر.
-                قد تتأثر دقّة تقسيم التدريب/الاختبار وحجم التجمعات.
+                Row key is not unique — {safeguards.grain.duplicate_count.toLocaleString()} duplicate rows.
+                Train/test split accuracy and cluster sizing may be affected.
               </li>
             )}
             {safeguards.grain.is_unique && safeguards.grain.keys.length > 0 && (
               <li className="text-[var(--text-muted)]">
-                مفتاح الصف: <span className="font-mono">{safeguards.grain.keys.join(" + ")}</span>
+                Row key: <span className="font-mono">{safeguards.grain.keys.join(" + ")}</span>
               </li>
             )}
             {safeguards.fanout.map((f, i) => <li key={i}>{f.warning}</li>)}
@@ -147,29 +147,29 @@ export default function ModelPage() {
         <MissingDatasetNotice
           projectId={projectId}
           toolName="modeling"
-          guidedHint="ارفع ملف CSV أو Excel وسنبحث عن المجموعات والأنماط داخله."
+          guidedHint="Upload a CSV or Excel file and we'll look for groups and patterns inside."
         />
       ) : mode === "guided" ? (
         <>
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3" dir="rtl">
             <GuidedActionCard
-              title="جمّع الصفوف المتشابهة"
-              description="اكتشف تلقائيًا 3 شرائح طبيعية في البيانات — مفيد لتجزئة العملاء أو المنتجات."
-              cta="جد 3 مجموعات"
+              title="Cluster similar rows"
+              description="Automatically discover 3 natural segments in the data — great for customer or product segmentation."
+              cta="Find 3 groups"
               busy={busy}
               onAction={() => runWith({ method: "kmeans", k: 3 })}
             />
             <GuidedActionCard
-              title="تقسيم أدق"
-              description="الفكرة نفسها مع تقسيم إلى 5 شرائح لإبراز الفئات الأصغر."
-              cta="جد 5 مجموعات"
+              title="Finer split"
+              description="Same idea, split into 5 segments to surface smaller categories."
+              cta="Find 5 groups"
               busy={busy}
               onAction={() => runWith({ method: "kmeans", k: 5 })}
             />
             <GuidedActionCard
-              title="تنبّأ بقيمة عمود"
-              description="درّب نموذج Random Forest للتنبؤ بالعمود المختار من بقية البيانات."
-              cta="درّب النموذج"
+              title="Predict a column"
+              description="Train a Random Forest model to predict the chosen column from the rest of the data."
+              cta="Train model"
               busy={busy}
               disabled={!target}
               onAction={() => runWith({ method: "randomforest", target })}
@@ -177,10 +177,10 @@ export default function ModelPage() {
           </div>
           {target && (
             <div className="text-[12px] text-[var(--text-muted)] mt-2" dir="rtl">
-              سيتنبّأ النموذج بـ <strong>{target}</strong>. اختر هدفًا آخر من العرض المتقدّم.
+              The model will predict <strong>{target}</strong>. Choose another target from the advanced panel.
             </div>
           )}
-          <AdvancedExpander projectId={projectId} hint="اختر الطريقة وعدد التجمعات والهدف يدويًا">
+          <AdvancedExpander projectId={projectId} hint="Choose the method, number of clusters and target manually">
             {expertControls}
           </AdvancedExpander>
         </>
@@ -201,9 +201,9 @@ export default function ModelPage() {
         <div className="card mt-4" dir="rtl">
           {mode === "guided" ? (
             <>
-              <div className="font-semibold text-sm">تم تدريب النموذج بنجاح ✓</div>
+              <div className="font-semibold text-sm">Model trained ✓</div>
               <p className="text-[12px] text-[var(--text-muted)] mt-1">
-                افتح العرض الفنّي لمشاهدة مراكز التجمعات وأهمية المتغيّرات والمقاييس.
+                Open the technical view to inspect cluster centers, feature importance and metrics.
               </p>
               <TechnicalDetails projectId={projectId}>
                 <pre className="text-[11px] overflow-auto max-h-[50vh] whitespace-pre-wrap">{JSON.stringify(result, null, 2)}</pre>

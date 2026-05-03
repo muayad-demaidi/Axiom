@@ -43,7 +43,7 @@ export function ModeAwareSection({
  */
 export function AdvancedExpander({
   projectId,
-  title = "متقدّم",
+  title = "Advanced",
   hint,
   children,
 }: {
@@ -82,7 +82,7 @@ export function AdvancedExpander({
             className="mt-2 inline-flex items-center gap-1.5 text-[12px] text-[var(--accent)] hover:underline"
             style={{ minHeight: 32 }}
           >
-            <span aria-hidden>↗</span> حوّل هذا المشروع إلى وضع الخبير
+            <span aria-hidden>↗</span> Switch this project to Expert mode
           </button>
         </div>
       )}
@@ -98,8 +98,8 @@ export function AdvancedExpander({
  */
 export function TechnicalDetails({
   projectId,
-  label = "اعرض التفاصيل التقنية",
-  expertHandoffLabel = "افتح في وضع الخبير",
+  label = "Show technical details",
+  expertHandoffLabel = "Open in Expert mode",
   showHandoff = true,
   /** Where to take the user after flipping to Expert. Defaults to the
    *  current route so the same screen re-renders in Expert form, but
@@ -134,7 +134,7 @@ export function TechnicalDetails({
     return (
       <div className="mt-3 text-[12px]" dir="rtl">
         <div className="font-mono uppercase tracking-widest text-[12px] text-[var(--text-muted)] mb-1">
-          تقني
+          Technical
         </div>
         <div>{children}</div>
       </div>
@@ -203,10 +203,10 @@ export function MissingDatasetNotice({
         >
           ↑
         </div>
-        <div className="font-semibold text-base">لا توجد بيانات بعد</div>
+        <div className="font-semibold text-base">No data yet</div>
         <p className="text-sm text-[var(--text-muted)] mt-1 max-w-md mx-auto">
           {guidedHint ??
-            `ارفع ملف CSV أو Excel للبدء${toolName ? ` بـ ${toolName}` : ""}.`}
+            `Upload a CSV or Excel file to get started${toolName ? ` with ${toolName}` : ""}.`}
         </p>
         <button
           type="button"
@@ -214,14 +214,14 @@ export function MissingDatasetNotice({
           className="btn btn-primary text-sm mt-4"
           style={{ minHeight: 44 }}
         >
-          ارفع مجموعة بيانات
+          Upload a dataset
         </button>
       </div>
     );
   }
   return (
     <div className="card mt-6 text-sm text-red-600" role="alert" dir="rtl">
-      لا توجد بيانات نشِطة — يرجى رفع ملف أولًا.
+      No active dataset — please upload a file first.
     </div>
   );
 }
@@ -273,7 +273,7 @@ export function GuidedActionCard({
         className="mt-3 btn btn-primary text-[12px] disabled:opacity-50 disabled:cursor-not-allowed"
         style={{ minHeight: 44 }}
       >
-        {busy ? "جاري التنفيذ…" : cta}
+        {busy ? "Running…" : cta}
       </button>
     </div>
   );

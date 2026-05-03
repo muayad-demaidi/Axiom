@@ -49,14 +49,14 @@ function ShapTopFeatures({ expert }: { expert: ExpertPayload }) {
     return (
       <div className="space-y-2" dir="rtl">
         <div className="flex flex-row-reverse items-baseline justify-between">
-          <h3 className="text-sm font-medium">أهم تفسيرات المتغيّرات (SHAP)</h3>
+          <h3 className="text-sm font-medium">Top feature explanations (SHAP)</h3>
           <span className="text-[12px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
             mean |SHAP|
           </span>
         </div>
         <p className="text-[12px] text-[var(--text-muted)]">
-          إسهامات المتغيّرات في توقّعات النموذج {expert.model_used ?? "المختار"}.
-          كلما زاد الشريط زاد تأثير المتغيّر على التوقّعات في المتوسّط.
+          Feature contributions to predictions of the {expert.model_used ?? "chosen"} model.
+          The longer the bar, the more this feature affects predictions on average.
         </p>
         <ul className="space-y-1.5">
           {entries.map(([name, value]) => {
@@ -86,7 +86,7 @@ function ShapTopFeatures({ expert }: { expert: ExpertPayload }) {
     return (
       <div className="text-[12px] text-[var(--text-muted)]" dir="rtl">
         <h3 className="text-sm font-medium text-[var(--text)] mb-1">
-          أهم تفسيرات المتغيّرات (SHAP)
+          Top feature explanations (SHAP)
         </h3>
         <p>{fi.note}</p>
       </div>
@@ -106,18 +106,18 @@ function GuidedForecast({ data }: { data: ForecastResponse }) {
   return (
     <div className="space-y-3" dir="rtl">
       <div className="text-sm">
-        خلال الـ <strong>{flat.length}</strong> فترة القادمة يبلغ متوسّط التوقّع لـ
+        Across the next <strong>{flat.length}</strong> periods, the average forecast for
         <strong> {data.column} </strong>
         <strong>{avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong>
         {flat.length > 1 && (
-          <> مع ذروة في الفترة {peakIdx + 1} ({flat[peakIdx].toLocaleString(undefined, { maximumFractionDigits: 2 })}).</>
+          <> with a peak at period {peakIdx + 1} ({flat[peakIdx].toLocaleString(undefined, { maximumFractionDigits: 2 })}).</>
         )}
       </div>
       <table className="w-full text-sm">
         <thead>
           <tr className="text-right text-[12px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
-            <th className="py-1">الفترة</th>
-            <th className="py-1">التوقّع</th>
+            <th className="py-1">Period</th>
+            <th className="py-1">Forecast</th>
           </tr>
         </thead>
         <tbody>
@@ -176,20 +176,20 @@ export default function PredictPage() {
   const expertControls = (
     <div className="space-y-3" dir="rtl">
       <label className="block text-sm">
-        العمود
+        Column
         <select value={column} onChange={(e) => setColumn(e.target.value)}
           className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm" style={{ minHeight: 44 }}>
           {columns.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </label>
       <label className="block text-sm">
-        عدد الفترات المتوقَّعة
+        Number of forecast periods
         <input type="number" min={1} max={24} value={periods}
           onChange={(e) => setPeriods(Number(e.target.value))}
           className="block mt-1 w-32 px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm" style={{ minHeight: 44 }} />
       </label>
       <button className="btn btn-primary" style={{ minHeight: 44 }} onClick={() => run()} disabled={busy || !column}>
-        {busy ? "جاري التنبّؤ…" : "ابدأ التنبّؤ"}
+        {busy ? "Forecasting…" : "Start forecasting"}
       </button>
     </div>
   );
@@ -209,13 +209,13 @@ export default function PredictPage() {
         <MissingDatasetNotice
           projectId={projectId}
           toolName="forecasts"
-          guidedHint="ارفع ملف CSV أو Excel يحتوي عمودًا رقميًا وسنتنبّأ به."
+          guidedHint="Upload a CSV or Excel file with a numeric column and we'll forecast it."
         />
       ) : mode === "guided" ? (
         <>
           <div className="card mt-6 space-y-3" dir="rtl">
             <label className="block text-sm">
-              ماذا تريد أن نتنبّأ به؟
+              What do you want to forecast?
               <select value={column} onChange={(e) => setColumn(e.target.value)}
                 className="block mt-1 w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm" style={{ minHeight: 44 }}>
                 {columns.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -223,17 +223,17 @@ export default function PredictPage() {
             </label>
             <div className="flex flex-wrap gap-2 pt-2">
               <button className="btn btn-primary" style={{ minHeight: 44 }} onClick={() => run(3)} disabled={busy || !column}>
-                {busy ? "جاري التنبّؤ…" : "تنبّأ بـ 3 فترات قادمة"}
+                {busy ? "Forecasting…" : "Forecast next 3 periods"}
               </button>
               <button className="btn btn-ghost" style={{ minHeight: 44 }} onClick={() => run(6)} disabled={busy || !column}>
-                6 فترات قادمة
+                Next 6 periods
               </button>
               <button className="btn btn-ghost" style={{ minHeight: 44 }} onClick={() => run(12)} disabled={busy || !column}>
-                12 فترة قادمة
+                Next 12 periods
               </button>
             </div>
           </div>
-          <AdvancedExpander projectId={projectId} hint="اختر الأفق الزمني والعمود بدقّة">
+          <AdvancedExpander projectId={projectId} hint="Choose the time horizon and column precisely">
             {expertControls}
           </AdvancedExpander>
         </>
@@ -255,7 +255,7 @@ export default function PredictPage() {
           {mode === "guided" ? (
             <>
               <GuidedForecast data={forecast} />
-              <TechnicalDetails projectId={projectId} label="عرض مخرجات النموذج">
+              <TechnicalDetails projectId={projectId} label="Show model outputs">
                 {forecast.expert ? <ShapTopFeatures expert={forecast.expert} /> : null}
                 <pre className="mt-3 text-[11px] overflow-auto max-h-[50vh] whitespace-pre-wrap">{JSON.stringify(forecast, null, 2)}</pre>
               </TechnicalDetails>

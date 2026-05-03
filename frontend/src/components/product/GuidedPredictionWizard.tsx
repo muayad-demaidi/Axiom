@@ -15,7 +15,7 @@
  *                   confidence gauge, key numbers and Arabic
  *                   narrative through <GuidedPredictionCard />. The
  *                   wizard STAYS in the result phase until the user
- *                   explicitly chooses "تشغيل تنبؤ جديد" or closes
+ *                   explicitly chooses "Run new forecast" or closes
  *                   it — `onArtifactCreated` only refreshes the
  *                   drawer's artifact list so the just-saved
  *                   prediction also appears in the legacy artifact
@@ -26,7 +26,7 @@
  *
  * The wizard fires `axiom:guided-predict:state` window events
  * ({ phase: "scanning" | "running" | "idle" }) so the Data Context
- * Bar can surface a "جاري التنبؤ…" pill without prop-drilling.
+ * Bar can surface a "Predicting…" pill without prop-drilling.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
@@ -187,7 +187,7 @@ export function GuidedPredictionWizard({
       // Refresh the drawer's artifact list so the saved prediction
       // also appears below — but DO NOT close the wizard. The
       // Result phase is a first-class step the user must read and
-      // can dismiss explicitly via "تشغيل تنبؤ جديد" or the X.
+      // can dismiss explicitly via "Run new forecast" or the X.
       onArtifactCreated?.();
     } catch (e) {
       setError(errMessage(e));
@@ -230,7 +230,7 @@ export function GuidedPredictionWizard({
           message={
             error
               || (analysis && "message_ar" in analysis ? analysis.message_ar : null)
-              || "حدث خطأ أثناء التنبؤ. الرجاء المحاولة مرة أخرى."
+              || "An error occurred during the forecast. Please try again."
           }
           onRetry={startAnalyze}
         />
@@ -242,11 +242,11 @@ export function GuidedPredictionWizard({
 function Header({ phase, onClose }: { phase: Phase; onClose?: () => void }) {
   const label = useMemo(() => {
     switch (phase) {
-      case "scanning": return "المرحلة 1 من 3 · المسح";
-      case "questioning": return "المرحلة 2 من 3 · الأسئلة التوضيحية";
-      case "running": return "المرحلة 3 من 3 · حساب التنبؤ";
-      case "result": return "النتيجة";
-      case "error": return "تنبيه";
+      case "scanning": return "Step 1 of 3 · Scanning";
+      case "questioning": return "Step 2 of 3 · Clarifying questions";
+      case "running": return "Step 3 of 3 · Computing forecast";
+      case "result": return "Result";
+      case "error": return "Alert";
     }
   }, [phase]);
   const step = phase === "scanning" ? 1 : phase === "questioning" ? 2 : 3;
@@ -254,7 +254,7 @@ function Header({ phase, onClose }: { phase: Phase; onClose?: () => void }) {
     <div className="flex items-center justify-between gap-2">
       <div>
         <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
-          AXIOM · التنبؤ الموجّه
+          AXIOM · Guided forecast
         </div>
         <div className="text-sm font-semibold">{label}</div>
       </div>
@@ -264,7 +264,7 @@ function Header({ phase, onClose }: { phase: Phase; onClose?: () => void }) {
           <button
             onClick={onClose}
             className="text-[10px] text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1 rounded"
-            aria-label="إغلاق"
+            aria-label="Close"
           >
             ✕
           </button>
@@ -293,11 +293,11 @@ function ScanningPhase({ datasetName }: { datasetName?: string }) {
   return (
     <div className="space-y-3">
       <div className="text-sm">
-        نقوم الآن بفحص بياناتك
+        We're scanning your data
         {datasetName ? (
           <span className="font-semibold"> «{datasetName}» </span>
         ) : " "}
-        لتحديد أفضل المؤشرات للتنبؤ بها.
+        to identify the best metrics to forecast.
       </div>
       <div className="space-y-2">
         <Bar w="80%" />
@@ -305,7 +305,7 @@ function ScanningPhase({ datasetName }: { datasetName?: string }) {
         <Bar w="65%" />
       </div>
       <div className="text-[11px] text-[var(--text-muted)]">
-        نبحث عن أعمدة الزمن، الهدف الرقمي والعوامل المؤثرة…
+        Looking for time columns, numeric targets and driving factors…
       </div>
     </div>
   );
@@ -323,10 +323,10 @@ function Bar({ w }: { w: string }) {
 }
 
 const SUB_SCORE_LABELS_AR: Record<string, string> = {
-  data_volume: "حجم البيانات",
-  data_quality: "جودة البيانات",
-  signal_strength: "قوة الإشارة",
-  time_coverage: "تغطية الزمن",
+  data_volume: "Data volume",
+  data_quality: "Data quality",
+  signal_strength: "Signal strength",
+  time_coverage: "Time coverage",
 };
 
 function QuestioningPhase({
@@ -354,25 +354,25 @@ function QuestioningPhase({
     <div className="space-y-4">
       <div className="rounded-lg border border-[var(--border)]/60 bg-[var(--surface)] p-3">
         <div className="text-[11px] text-[var(--text-muted)] mb-1">
-          ما اكتشفناه:
+          What we found:
         </div>
         <div className="text-sm">
-          سنتنبأ بـ <span className="font-semibold text-[var(--accent)]">{analysis.target}</span>
+          We'll forecast <span className="font-semibold text-[var(--accent)]">{analysis.target}</span>
           {analysis.time_column ? (
             <>
-              {" "}عبر الزمن باستخدام عمود{" "}
+              {" "}over time using column{" "}
               <span className="font-mono text-[11px]">{analysis.time_column}</span>.
             </>
           ) : analysis.drivers.length ? (
             <>
-              {" "}بناءً على {analysis.drivers.length} عوامل مؤثرة:{" "}
+              {" "}based on {analysis.drivers.length} driving factors:{" "}
               <span className="font-mono text-[11px]">
                 {analysis.drivers.slice(0, 3).map((d) => d.column).join(" · ")}
               </span>
               {analysis.drivers.length > 3 ? "…" : ""}
             </>
           ) : (
-            <> بناءً على البيانات المتاحة.</>
+            <> based on the available data.</>
           )}
         </div>
       </div>
@@ -385,7 +385,7 @@ function QuestioningPhase({
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] font-mono text-[var(--text-muted)]">
-              السؤال {safeIndex + 1} من {total}
+              Question {safeIndex + 1} from {total}
             </span>
             <div className="flex-1 mx-3 h-1 bg-[var(--border)]/40 rounded overflow-hidden">
               <div
@@ -408,24 +408,24 @@ function QuestioningPhase({
           disabled={safeIndex === 0}
           className="text-xs px-3 py-1.5 rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          ← السابق
+          ← Back
         </button>
         <div className="text-[10px] text-[var(--text-muted)]">
-          {analysis.row_count.toLocaleString("ar-EG")} صفًا
+          {analysis.row_count.toLocaleString("ar-EG")} rows
         </div>
         {isLast ? (
           <button
             onClick={onSubmit}
             className="text-xs font-semibold px-4 py-1.5 rounded-full bg-[var(--accent)] text-white hover:opacity-90"
           >
-            تشغيل التنبؤ →
+            Run forecast →
           </button>
         ) : (
           <button
             onClick={() => setIndex(Math.min(total - 1, safeIndex + 1))}
             className="text-xs font-semibold px-4 py-1.5 rounded-full bg-[var(--accent)] text-white hover:opacity-90"
           >
-            التالي →
+            Next →
           </button>
         )}
       </div>
@@ -437,7 +437,7 @@ function PartialConfidencePreview({ pc }: { pc: PartialConfidence }) {
   return (
     <div className="rounded-lg border border-[var(--border)]/60 bg-[var(--surface)] p-3">
       <div className="text-[11px] text-[var(--text-muted)] mb-2">
-        ثقة مبدئية قبل التشغيل (تتحدث بعد التنبؤ):
+        Preliminary confidence before running (updates after the forecast):
       </div>
       <div className="flex items-center gap-3">
         <ConfidenceGauge score={pc.score} band={pc.band} size={64} />
@@ -516,7 +516,7 @@ function QuestionInput({
                   : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)]"
               }`}
             >
-              {opt === "yes" ? "نعم" : "لا"}
+              {opt === "yes" ? "Yes" : "No"}
             </button>
           ))}
         </div>
@@ -545,15 +545,15 @@ function RunningPhase({ target }: { target: string }) {
   return (
     <div className="space-y-3">
       <div className="text-sm">
-        جاري تشغيل النموذج للتنبؤ بـ{" "}
-        <span className="font-semibold text-[var(--accent)]">{target || "البيانات"}</span>…
+        Running the model to forecast{" "}
+        <span className="font-semibold text-[var(--accent)]">{target || "Data"}</span>…
       </div>
       <div className="space-y-2">
         <Bar w="92%" />
         <Bar w="76%" />
       </div>
       <div className="text-[11px] text-[var(--text-muted)]">
-        نقوم بدمج النموذج الإحصائي مع تحليل العوامل وحساب درجة الثقة.
+        We're combining the statistical model with driver analysis and computing the confidence score.
       </div>
     </div>
   );
@@ -574,7 +574,7 @@ function ErrorPhase({
           onClick={onRetry}
           className="text-xs font-semibold px-3 py-1.5 rounded-full border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10"
         >
-          المحاولة مجددًا
+          Try again
         </button>
       </div>
     </div>

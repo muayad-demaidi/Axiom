@@ -26,18 +26,18 @@ import {
 } from "@/components/product/ModeAware";
 
 const ROLE_LABELS: Record<AxiomRole, string> = {
-  dimension: "بُعد",
-  measure: "مقياس",
-  key: "معرّف",
-  date: "تاريخ",
+  dimension: "Dimension",
+  measure: "Measure",
+  key: "Key",
+  date: "Date",
 };
 const FMT_LABELS: Record<AxiomFormatKind, string> = {
-  number: "رقم",
-  integer: "عدد صحيح",
-  currency: "عملة",
-  percent: "نسبة مئوية",
-  date: "تاريخ",
-  text: "نص",
+  number: "Number",
+  integer: "Integer",
+  currency: "Currency",
+  percent: "Percent",
+  date: "Date",
+  text: "Text",
 };
 
 export default function FieldSettingsPage() {
@@ -132,23 +132,23 @@ export default function FieldSettingsPage() {
       ) : (
         <div dir="rtl">
           <div className="mt-6 flex items-center gap-3 flex-wrap">
-            <label className="text-[12px] text-[var(--text-muted)]">تصفية</label>
+            <label className="text-[12px] text-[var(--text-muted)]">Filter</label>
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value as "all" | AxiomRole)}
               className="px-2 py-1 text-[12px] rounded border border-[var(--border)] bg-[var(--surface)]"
               style={{ minHeight: 32 }}
             >
-              <option value="all">كل الأعمدة</option>
-              <option value="measure">المقاييس</option>
-              <option value="dimension">الأبعاد</option>
-              <option value="date">التواريخ</option>
-              <option value="key">المعرّفات</option>
+              <option value="all">All columns</option>
+              <option value="measure">Measures</option>
+              <option value="dimension">Dimensions</option>
+              <option value="date">Dates</option>
+              <option value="key">Keys</option>
             </select>
             {meta && (
               <span className="text-[12px] text-[var(--text-muted)]">
-                {fieldEntries.length} من أصل {Object.keys(meta.fields).length} عمود
-                · {Object.keys(meta.overrides || {}).length} مخصّص
+                {fieldEntries.length} of {Object.keys(meta.fields).length} cols
+                · {Object.keys(meta.overrides || {}).length} custom
               </span>
             )}
           </div>
@@ -171,7 +171,7 @@ export default function FieldSettingsPage() {
                 className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]"
                 aria-hidden="true"
               />
-              جاري التحميل…
+              Loading…
             </div>
           )}
 
@@ -180,16 +180,16 @@ export default function FieldSettingsPage() {
               <table className="w-full text-[12px]">
                 <thead className="text-[var(--text-muted)] text-[12px] uppercase tracking-widest">
                   <tr className="border-b border-[var(--border)]">
-                    <th className="text-right px-3 py-2 font-mono">العمود</th>
-                    <th className="text-right px-3 py-2">الدور</th>
-                    <th className="text-right px-3 py-2">التجميع الافتراضي</th>
-                    <th className="text-right px-3 py-2">التنسيق</th>
-                    <th className="text-right px-3 py-2">المسمّى</th>
-                    <th className="text-right px-3 py-2">الوصف</th>
-                    <th className="text-right px-3 py-2">الفرز حسب</th>
-                    <th className="text-center px-3 py-2">مرئي</th>
-                    <th className="text-right px-3 py-2">ملاحظات</th>
-                    <th className="text-left px-3 py-2">إعادة تعيين</th>
+                    <th className="text-right px-3 py-2 font-mono">Column</th>
+                    <th className="text-right px-3 py-2">Role</th>
+                    <th className="text-right px-3 py-2">Default aggregation</th>
+                    <th className="text-right px-3 py-2">Format</th>
+                    <th className="text-right px-3 py-2">Label</th>
+                    <th className="text-right px-3 py-2">Description</th>
+                    <th className="text-right px-3 py-2">Sort by</th>
+                    <th className="text-center px-3 py-2">Visible</th>
+                    <th className="text-right px-3 py-2">Notes</th>
+                    <th className="text-left px-3 py-2">Reset</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -204,7 +204,7 @@ export default function FieldSettingsPage() {
                         <td className="px-3 py-2 font-mono align-top">
                           <div>{col}</div>
                           <div className="text-[12px] text-[var(--text-muted)]">
-                            {info.dtype} · {info.unique?.toLocaleString()} قيمة فريدة
+                            {info.dtype} · {info.unique?.toLocaleString()} unique values
                           </div>
                         </td>
                         <td className="px-3 py-2 align-top">
@@ -255,7 +255,7 @@ export default function FieldSettingsPage() {
                                 patchOne(col, { precision: Number(e.target.value) })
                               }
                               className="w-12 px-2 py-1 rounded border border-[var(--border)] bg-[var(--surface)] text-[12px]"
-                              aria-label={`عدد المنازل العشرية للعمود ${col}`}
+                              aria-label={`Decimal places for column ${col}`}
                             />
                           </div>
                         </td>
@@ -268,20 +268,20 @@ export default function FieldSettingsPage() {
                               if (v && v !== info.label) patchOne(col, { label: v });
                             }}
                             className="w-44 px-2 py-1 rounded border border-[var(--border)] bg-[var(--surface)] text-[12px]"
-                            aria-label={`مسمّى العمود ${col}`}
+                            aria-label={`Column label ${col}`}
                           />
                         </td>
                         <td className="px-3 py-2 align-top">
                           <input
                             type="text"
                             defaultValue={info.description || ""}
-                            placeholder="ماذا يمثّل هذا العمود؟"
+                            placeholder="What does this column represent?"
                             onBlur={(e) => {
                               const v = e.currentTarget.value;
                               if (v !== (info.description || "")) patchOne(col, { description: v });
                             }}
                             className="w-48 px-2 py-1 rounded border border-[var(--border)] bg-[var(--surface)] text-[12px]"
-                            aria-label={`وصف العمود ${col}`}
+                            aria-label={`Column description ${col}`}
                           />
                         </td>
                         <td className="px-3 py-2 align-top">
@@ -289,9 +289,9 @@ export default function FieldSettingsPage() {
                             value={info.sort_by || ""}
                             onChange={(e) => patchOne(col, { sort_by: e.target.value || null })}
                             className="px-2 py-1 rounded border border-[var(--border)] bg-[var(--surface)] text-[12px]"
-                            aria-label={`الفرز حسب للعمود ${col}`}
+                            aria-label={`Sort-by for column ${col}`}
                           >
-                            <option value="">— الافتراضي —</option>
+                            <option value="">— Default —</option>
                             {meta && Object.keys(meta.fields).filter((c) => c !== col).map((c) => (
                               <option key={c} value={c}>{c}</option>
                             ))}
@@ -303,8 +303,8 @@ export default function FieldSettingsPage() {
                             className="h-4 w-4"
                             checked={info.visible !== false}
                             onChange={(e) => patchOne(col, { visible: e.target.checked })}
-                            title="إخفاء العمود من القوائم دون حذفه"
-                            aria-label={`إظهار العمود ${col}`}
+                            title="Hide column from menus without deleting"
+                            aria-label={`Show column ${col}`}
                           />
                         </td>
                         <td className="px-3 py-2 align-top text-[var(--text-muted)] max-w-xs">
@@ -324,10 +324,10 @@ export default function FieldSettingsPage() {
                               style={{ minHeight: 32, paddingInline: 8 }}
                               disabled={busy}
                             >
-                              إعادة تعيين
+                              Reset
                             </button>
                           ) : (
-                            <span className="text-[12px] text-[var(--text-muted)]">تلقائي</span>
+                            <span className="text-[12px] text-[var(--text-muted)]">auto</span>
                           )}
                         </td>
                       </tr>

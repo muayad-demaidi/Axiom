@@ -62,7 +62,7 @@ export function OpenQuestionsBar({
         id="open-questions-label"
         className="text-[12px] font-mono uppercase tracking-[0.18em] text-[var(--text-muted)] mb-1.5"
       >
-        أسئلة مفتوحة عن بياناتك
+        Open questions about your data
       </div>
       <div
         className="flex flex-wrap gap-1.5"

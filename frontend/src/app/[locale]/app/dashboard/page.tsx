@@ -47,11 +47,11 @@ import { RecommendationsPanel } from "@/components/product/RecommendationsPanel"
 const PALETTE = ["#2563eb", "#60a5fa", "#3b82f6", "#1d4ed8", "#93c5fd", "#0ea5e9", "#1e40af"];
 
 const SECTION_ORDER: Array<{ key: string; label: string }> = [
-  { key: "executive", label: "مؤشّرات الأداء التنفيذية" },
-  { key: "trend", label: "الاتجاهات عبر الزمن" },
-  { key: "segmentation", label: "التقسيم" },
-  { key: "operational", label: "التشغيلي" },
-  { key: "_other", label: "أخرى" },
+  { key: "executive", label: "Executive KPIs" },
+  { key: "trend", label: "Trends over time" },
+  { key: "segmentation", label: "Segmentation" },
+  { key: "operational", label: "Operational" },
+  { key: "_other", label: "Other" },
 ];
 
 function fmtValue(v: unknown, kind: string | undefined, precision = 2): string {
@@ -70,14 +70,14 @@ function fmtValue(v: unknown, kind: string | undefined, precision = 2): string {
 }
 
 function guidedKpiHint(label: string, kind: string | undefined, value: unknown): string {
-  const friendly = label || "هذا المقياس";
+  const friendly = label || "this metric";
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    return `تعذّر حساب ${friendly} للنطاق الحالي.`;
+    return `Unable to compute ${friendly} for the current range.`;
   }
-  if (kind === "currency") return `إجمالي ${friendly} عبر الصفوف ضمن النطاق.`;
-  if (kind === "percent") return `نسبة ${friendly} عبر الصفوف ضمن النطاق.`;
-  if (kind === "integer") return `عدد ${friendly} عبر الصفوف ضمن النطاق.`;
-  return `القيمة المجمَّعة لـ ${friendly} عبر الصفوف ضمن النطاق.`;
+  if (kind === "currency") return `Total ${friendly} across rows in the current range.`;
+  if (kind === "percent") return `Percentage ${friendly} across rows in the current range.`;
+  if (kind === "integer") return `Count ${friendly} across rows in the current range.`;
+  return `Aggregated value of ${friendly} across rows in the current range.`;
 }
 
 export default function DashboardPage() {
@@ -296,11 +296,11 @@ export default function DashboardPage() {
     <div className="max-w-6xl">
       <ModeAwareHeading
         projectId={projectId}
-        eyebrow="لوحة المعلومات"
-        guidedTitle="بياناتك في لمحة"
-        expertTitle="لوحة معلومات البيانات"
-        guidedSubtitle="مؤشّرات واتجاهات وتقسيمات تلقائية. استخدم الفلاتر في الأعلى لتصفية كل البلاطات معًا."
-        expertSubtitle="مواصفات بلاطات محفوظة فوق محرّك التجميع المركزي. تمرّ فلاتر الصفحة عبر نفس SUM/AVG المستخدَم في pivot وvisualize والمحادثة."
+        eyebrow="Dashboard"
+        guidedTitle="Your data at a glance"
+        expertTitle="Data dashboard"
+        guidedSubtitle="Auto KPIs, trends and segments. Use the filters at the top to slice every tile at once."
+        expertSubtitle="Saved tile specs over the central aggregation engine. Page filters flow through the same SUM/AVG used in pivot, visualize and chat."
       />
 
       {hasDataset === false ? (
@@ -309,22 +309,22 @@ export default function DashboardPage() {
         <>
           <div className="mt-6 flex items-center gap-2 flex-wrap" dir="rtl">
             <button onClick={reload} disabled={busy} className="btn btn-secondary text-[12px]" style={{ minHeight: 44 }}>
-              {busy ? "جاري التحديث…" : "تحديث"}
+              {busy ? "Refreshing…" : "Refresh"}
             </button>
             {mode !== "guided" && (
               <button onClick={resetDashboard} className="btn text-[12px]" style={{ minHeight: 44 }}>
-                إعادة الضبط للاقتراحات التلقائية
+                Reset to auto suggestions
               </button>
             )}
           </div>
 
           {mode !== "guided" && dashboard && dashboard.spec.slicers && dashboard.spec.slicers.length > 0 && (
             <div className="mt-3 card flex items-center gap-3 flex-wrap" dir="rtl">
-              <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] ml-1">الفلاتر</div>
+              <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] ml-1">Filters</div>
               {dateSlicer && (
                 <>
                   <label className="text-[12px] flex items-center gap-1">
-                    <span className="text-[var(--text-muted)]">{dateSlicer.column} من</span>
+                    <span className="text-[var(--text-muted)]">{dateSlicer.column} from</span>
                     <input
                       type="date" value={dateFrom}
                       onChange={(e) => setDateFrom(e.target.value)}
@@ -333,7 +333,7 @@ export default function DashboardPage() {
                     />
                   </label>
                   <label className="text-[12px] flex items-center gap-1">
-                    <span className="text-[var(--text-muted)]">إلى</span>
+                    <span className="text-[var(--text-muted)]">to</span>
                     <input
                       type="date" value={dateTo}
                       onChange={(e) => setDateTo(e.target.value)}
@@ -366,7 +366,7 @@ export default function DashboardPage() {
                   style={{ minHeight: 32 }}
                   onClick={() => { setDateFrom(""); setDateTo(""); setSlicerValues([]); }}
                 >
-                  مسح الفلاتر
+                  Clear filters
                 </button>
               )}
             </div>
@@ -377,19 +377,19 @@ export default function DashboardPage() {
           {mode !== "guided" && safeguards && (safeguards.fanout.length > 0 || !safeguards.grain.is_unique) && (
             <div className="mt-3 card border-amber-500/60" dir="rtl">
               <div className="text-[12px] font-semibold text-amber-600 mb-1">
-                تنبيهات النمذجة
+                Modeling alerts
               </div>
               <ul className="text-[12px] space-y-0.5 list-disc list-inside text-amber-700">
                 {!safeguards.grain.is_unique && (
                   <li>
-                    تعذّر إيجاد دقّة فريدة لهذا الجدول — يحتوي على {" "}
-                    {safeguards.grain.duplicate_count.toLocaleString()} صفًا مكرّرًا.
-                    قد تتسبّب التجميعات بعدّ مزدوج بدون مفتاح أساسي نظيف.
+                    Couldn't find a unique grain for this table — it has {" "}
+                    {safeguards.grain.duplicate_count.toLocaleString()} duplicate rows.
+                    Aggregations may double-count without a clean primary key.
                   </li>
                 )}
                 {safeguards.grain.is_unique && safeguards.grain.keys.length > 0 && (
                   <li className="text-[var(--text-muted)]">
-                    الدقّة: <span className="font-mono">{safeguards.grain.keys.join(" + ")}</span>
+                    Grain: <span className="font-mono">{safeguards.grain.keys.join(" + ")}</span>
                   </li>
                 )}
                 {safeguards.fanout.map((f, i) => <li key={i}>{f.warning}</li>)}
@@ -438,11 +438,11 @@ export default function DashboardPage() {
           {dashboard && (dashboard.tiles || []).length === 0 && (
             <div className="mt-6 card text-[12px] text-[var(--text-muted)] text-center" role="status" dir="rtl">
               <div className="text-2xl mb-2" aria-hidden="true">📊</div>
-              لا توجد بلاطات بعد. استخدم صفحة{" "}
-              <a href="/app/pivot" className="text-[var(--accent)] hover:underline">المحور</a>
-              {" "}أو{" "}
-              <a href="/app/visualize" className="text-[var(--accent)] hover:underline">التصوّر</a>
-              {" "}للبناء، أو انقر &quot;إعادة الضبط&quot; لاقتراح بلاطات تلقائيًا.
+              No tiles yet. Use the{" "}
+              <a href="/app/pivot" className="text-[var(--accent)] hover:underline">Pivot</a>
+              {" "}or{" "}
+              <a href="/app/visualize" className="text-[var(--accent)] hover:underline">Visualize</a>
+              {" "}page to build, or click &quot;Reset&quot; to auto-suggest tiles.
             </div>
           )}
 
@@ -477,7 +477,7 @@ function KpiCard({
         <button
           onClick={onRemove}
           className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-red-500 text-xs"
-          aria-label="إزالة البلاطة"
+          aria-label="Remove tile"
         >×</button>
       )}
       <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)]">
@@ -505,10 +505,10 @@ function KpiCard({
             onClick={() => onExplain(m)}
             className="absolute bottom-1 right-2 text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)] underline"
           >
-            تفسير
+            Explain
           </button>
           <details className="mt-2 text-[12px] text-[var(--text-muted)]">
-            <summary className="cursor-pointer hover:text-[var(--accent)]">عرض JSON</summary>
+            <summary className="cursor-pointer hover:text-[var(--accent)]">Show JSON</summary>
             <pre className="mt-1 overflow-auto max-h-48 whitespace-pre-wrap break-all bg-[var(--surface)]/60 rounded p-2 text-[10px]">
               {JSON.stringify({ spec: tile.tile, value: v, measure: m }, null, 2)}
             </pre>
@@ -547,29 +547,29 @@ function ChartTile({
             <button
               onClick={() => onExplain(m)}
               className="text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)]"
-              title="تفسير هذه البلاطة"
+              title="Explain this tile"
             >
-              تفسير
+              Explain
             </button>
           )}
           <button
             onClick={onExport}
             className="text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)]"
-            title="تصدير CSV"
+            title="Export CSV"
           >
             CSV
           </button>
           <button
             onClick={onDrillThrough}
             className="text-[12px] text-[var(--text-muted)] hover:text-[var(--accent)]"
-            title="فتح في المحور"
+            title="Open in Pivot"
           >
-            تفصيل →
+            Drill down →
           </button>
           <button
             onClick={onRemove}
             className="text-[var(--text-muted)] hover:text-red-500 text-xs"
-            aria-label="إزالة البلاطة"
+            aria-label="Remove tile"
           >×</button>
         </div>
       )}
@@ -626,7 +626,7 @@ function ChartTile({
       )}
       {mode !== "guided" && (
         <details className="mt-2 text-[12px] text-[var(--text-muted)]">
-          <summary className="cursor-pointer hover:text-[var(--accent)]">عرض JSON</summary>
+          <summary className="cursor-pointer hover:text-[var(--accent)]">Show JSON</summary>
           <pre className="mt-1 overflow-auto max-h-48 whitespace-pre-wrap break-all bg-[var(--surface)]/60 rounded p-2 text-[10px]">
             {JSON.stringify({ spec: tile.tile, measures: tile.measures, row_dims: tile.row_dims, sample: data.slice(0, 5) }, null, 2)}
           </pre>
@@ -655,15 +655,15 @@ function ExplainModal({
       >
         <div className="flex items-center justify-between mb-3" dir="rtl">
           <div>
-            <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)]">تفسير</div>
-            <div className="text-lg font-semibold">{m.label || "مقياس"}</div>
+            <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)]">Explain</div>
+            <div className="text-lg font-semibold">{m.label || "Measure"}</div>
           </div>
-          <button onClick={onClose} className="text-xl text-[var(--text-muted)] hover:text-[var(--text)] inline-flex items-center justify-center" style={{ minHeight: 44, minWidth: 44 }} aria-label="إغلاق">×</button>
+          <button onClick={onClose} className="text-xl text-[var(--text-muted)] hover:text-[var(--text)] inline-flex items-center justify-center" style={{ minHeight: 44, minWidth: 44 }} aria-label="Close">×</button>
         </div>
         {loading ? (
           <div className="text-[12px] text-[var(--text-muted)] inline-flex items-center gap-2" role="status" aria-live="polite" dir="rtl">
             <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]" aria-hidden="true" />
-            جاري الحساب…
+            Calculating…
           </div>
         ) : (
           <div className="space-y-3 text-[12px]" dir="rtl">
@@ -672,13 +672,13 @@ function ExplainModal({
             </div>
             {payload.formula && (
               <div>
-                <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] mb-1">الصيغة</div>
+                <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] mb-1">Formula</div>
                 <div className="font-mono text-[12px] bg-[var(--surface)] rounded px-2 py-1.5 break-all" dir="ltr">{payload.formula}</div>
               </div>
             )}
             {payload.filter_summary && payload.filter_summary.length > 0 && (
               <div>
-                <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] mb-1">الفلاتر النشِطة</div>
+                <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] mb-1">Active filters</div>
                 <ul className="space-y-0.5">
                   {payload.filter_summary.map((f, i) => (
                     <li key={i} className="font-mono text-[12px]" dir="ltr">{f}</li>
@@ -687,7 +687,7 @@ function ExplainModal({
               </div>
             )}
             <div className="text-[12px] text-[var(--text-muted)]">
-              ساهم {payload.contributing_rows.toLocaleString()} من أصل {payload.total_rows.toLocaleString()} صف.
+              Contributed {payload.contributing_rows.toLocaleString()} of {payload.total_rows.toLocaleString()} rows.
             </div>
             {payload.warnings && payload.warnings.length > 0 && (
               <ul className="text-[12px] text-amber-600 list-disc list-inside space-y-0.5">
@@ -696,7 +696,7 @@ function ExplainModal({
             )}
             {payload.sample_rows && payload.sample_rows.length > 0 && (
               <div>
-                <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] mb-1">عيّنة من الصفوف المساهِمة</div>
+                <div className="text-[12px] uppercase tracking-widest text-[var(--text-muted)] mb-1">Sample of contributing rows</div>
                 <div className="overflow-auto border border-[var(--border)] rounded max-h-64">
                   <table className="w-full text-[11px]">
                     <thead className="bg-[var(--surface)]/60 sticky top-0">

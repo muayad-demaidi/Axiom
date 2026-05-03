@@ -42,7 +42,7 @@ export default async function GlossaryEntryPage({
   if (!entry) notFound();
   const t = await getTranslations({ locale, namespace: "glossary" });
   const tNav = await getTranslations({ locale, namespace: "nav" });
-  const isAr = asLocale(locale) === "ar";
+  const isAr = false;
 
   const term = t.has(`items.${entry.slug}.term` as never) ? t(`items.${entry.slug}.term` as never) : entry.data.term;
   const summary = t.has(`items.${entry.slug}.summary` as never) ? t(`items.${entry.slug}.summary` as never) : entry.data.shortDef;

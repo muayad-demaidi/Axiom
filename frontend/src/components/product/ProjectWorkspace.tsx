@@ -107,7 +107,7 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
     if (!projects) return;
     const proj = projects.find((p) => p.id === projectId) || null;
     setProject(proj);
-    if (!proj) setError("لم يُعثر على المشروع.");
+    if (!proj) setError("Project not found.");
   }, [projects, projectId]);
 
   // Auth + project breadcrumb.
@@ -269,7 +269,7 @@ export function ProjectWorkspace({ projectId }: { projectId: number }) {
   const [chatStreaming, setChatStreaming] = useState(false);
 
   // Guided-prediction wizard surfaces its own running state via a
-  // window event so the Data Context Bar can show "جاري التنبؤ…"
+  // window event so the Data Context Bar can show the "Predicting…" pill
   // without prop-drilling through ChatPanel / drawer internals.
   const [predictionRunning, setPredictionRunning] = useState(false);
   useEffect(() => {

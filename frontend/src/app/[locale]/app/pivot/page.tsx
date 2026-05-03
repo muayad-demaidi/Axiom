@@ -422,7 +422,7 @@ function PivotPageInner() {
             onClick={() => openExplain(m, {})}
             className="absolute top-2 right-2 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] underline"
           >
-            شرح
+            Explain
           </button>
         </div>
       );
@@ -498,13 +498,13 @@ function PivotPageInner() {
       {hasDataset === false ? (
         <MissingDatasetNotice projectId={projectId} toolName="pivot" />
       ) : !meta ? (
-        <div className="text-xs text-[var(--text-muted)] mt-6" role="status">جارٍ تحميل بيانات الحقول…</div>
+        <div className="text-xs text-[var(--text-muted)] mt-6" role="status">Loading field metadata…</div>
       ) : (
         <>
           {mode === "guided" && guidedTemplates.length > 0 && (
             <div className="mt-6">
               <div className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
-                ملخّصات جاهزة
+                Quick summaries
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {guidedTemplates.map((t) => (
@@ -524,7 +524,7 @@ function PivotPageInner() {
           <div className="space-y-4">
             <FieldsPalette dims={dims} measures={allMeasures} />
             <Well
-              label="عوامل التصفية"
+              label="Filters"
               chips={filters.map((f) => `${f.column} ${f.op}`)}
               onClear={() => setFilters([])}
             >
@@ -538,7 +538,7 @@ function PivotPageInner() {
                 </div>
               ))}
             </Well>
-            <Well label="الصفوف" chips={rows} onClear={() => { setRows([]); setDateGrains({}); }}>
+            <Well label="Rows" chips={rows} onClear={() => { setRows([]); setDateGrains({}); }}>
               <ColumnPicker
                 fields={dims}
                 excluded={[...rows, ...cols]}
@@ -568,14 +568,14 @@ function PivotPageInner() {
                 );
               })}
             </Well>
-            <Well label="الأعمدة" chips={cols} onClear={() => setCols([])}>
+            <Well label="Columns" chips={cols} onClear={() => setCols([])}>
               <ColumnPicker fields={dims} excluded={[...rows, ...cols]} onPick={(c) => setCols((cur) => [...cur, c])} />
               {cols.map((c, i) => (
                 <Chip key={c} label={c} onRemove={() => setCols((cur) => cur.filter((_, j) => j !== i))} />
               ))}
             </Well>
             <Well
-              label="القيم"
+              label="Values"
               chips={measures.map((m) => m.label || `${m.aggregation} of ${m.column}`)}
               onClear={() => setMeasures([])}
             >
@@ -609,30 +609,30 @@ function PivotPageInner() {
               ))}
             </Well>
             <div className="card space-y-2">
-              <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">العرض</div>
+              <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">View</div>
               <div className="text-[11px] flex items-center gap-2">
                 <select value={topDir} onChange={(e) => setTopDir(e.target.value as TopDir)} className="px-1 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[10px]">
-                  <option value="top">الأعلى</option>
-                  <option value="bottom">الأدنى</option>
+                  <option value="top">Top</option>
+                  <option value="bottom">Bottom</option>
                 </select>
                 <input
                   type="number" min={0} value={topN}
                   onChange={(e) => setTopN(Math.max(0, Number(e.target.value) || 0))}
                   className="w-16 px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[11px]"
                 />
-                <span className="text-[10px] text-[var(--text-muted)]">N (0 = الكل)</span>
+                <span className="text-[10px] text-[var(--text-muted)]">N (0 = All)</span>
               </div>
               <label className="text-[11px] flex items-center gap-2">
                 <input type="checkbox" checked={showSubtotals} onChange={(e) => setShowSubtotals(e.target.checked)} />
-                المجاميع الفرعية
+                Subtotals
               </label>
               <label className="text-[11px] flex items-center gap-2">
                 <input type="checkbox" checked={showGrandTotal} onChange={(e) => setShowGrandTotal(e.target.checked)} />
-                المجموع الكلي
+                Grand total
               </label>
               <label className="text-[11px] flex items-center gap-2">
                 <input type="checkbox" checked={dropNulls} onChange={(e) => setDropNulls(e.target.checked)} />
-                إسقاط القيم الفارغة من الأبعاد
+                Drop empty values from dimensions
               </label>
             </div>
           </div>
@@ -648,22 +648,22 @@ function PivotPageInner() {
                       onClick={() => setView(v)}
                       className={`px-3 py-1 text-xs ${view === v ? "bg-[var(--accent)] text-white" : "text-[var(--text)] hover:bg-[var(--surface)]"}`}
                     >
-                      {v === "both" ? "الكل" : v === "table" ? "جدول" : "رسم بياني"}
+                      {v === "both" ? "All" : v === "table" ? "Table" : "Chart"}
                     </button>
                   ))}
                 </div>
               )}
               <button onClick={run} disabled={busy} className="btn btn-secondary text-xs">
-                {busy ? "جارٍ التشغيل…" : "تحديث"}
+                {busy ? "Running…" : "Refresh"}
               </button>
               {mode !== "guided" && (
                 <button onClick={exportCsv} disabled={!result} className="btn btn-secondary text-xs">
-                  تصدير CSV
+                  Export CSV
                 </button>
               )}
               {result && mode !== "guided" && (
                 <span className="text-[10px] text-[var(--text-muted)] font-mono ml-auto">
-                  {result.row_count.toLocaleString()} صف مدخل → {result.result_count} خلية
+                  {result.row_count.toLocaleString()} input rows → {result.result_count} cells
                 </span>
               )}
             </div>
@@ -680,7 +680,7 @@ function PivotPageInner() {
               <div className="card">
                 {result && result.rows.length > 0 ? chart : (
                   <div className="text-xs text-[var(--text-muted)] py-8 text-center">
-                    أضف بُعدًا إلى الصفوف ومقياسًا إلى القيم لعرض الرسم البياني.
+                    Add a dimension to Rows and a measure to Values to render the chart.
                   </div>
                 )}
               </div>
@@ -698,7 +698,7 @@ function PivotPageInner() {
                     onExplain={openExplain}
                   />
                 ) : (
-                  <div className="text-xs text-[var(--text-muted)]">لا توجد نتائج بعد.</div>
+                  <div className="text-xs text-[var(--text-muted)]">No results yet.</div>
                 )}
               </div>
             )}
@@ -710,8 +710,8 @@ function PivotPageInner() {
                 {resultColumn}
                 <AdvancedExpander
                   projectId={projectId}
-                  title="فتح أداة الجدول المحوري الكاملة"
-                  hint="الصفوف والأعمدة والقيم وعوامل التصفية والمجاميع"
+                  title="Open full pivot table tool"
+                  hint="Rows, columns, values, filters, totals"
                 >
                   {wellsColumn}
                 </AdvancedExpander>
@@ -752,9 +752,9 @@ function FieldsPalette({
   return (
     <div className="card">
       <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-2">
-        الحقول
+        Fields
       </div>
-      <div className="text-[10px] text-[var(--text-muted)] mt-1 mb-1">الأبعاد</div>
+      <div className="text-[10px] text-[var(--text-muted)] mt-1 mb-1">Dimensions</div>
       <ul className="space-y-0.5">
         {dims.map(([c, m]) => (
           <li key={c} className="text-xs font-mono px-2 py-0.5 rounded bg-[var(--surface)]">
@@ -762,7 +762,7 @@ function FieldsPalette({
           </li>
         ))}
       </ul>
-      <div className="text-[10px] text-[var(--text-muted)] mt-3 mb-1">المقاييس</div>
+      <div className="text-[10px] text-[var(--text-muted)] mt-3 mb-1">Measures</div>
       <ul className="space-y-0.5">
         {measures.map(([c, m]) => (
           <li key={c} className="text-xs font-mono px-2 py-0.5 rounded bg-[var(--surface)]">
@@ -782,7 +782,7 @@ function Well({
       <div className="flex items-center justify-between mb-1">
         <div className="font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">{label}</div>
         {chips.length > 0 && (
-          <button onClick={onClear} className="text-[10px] text-[var(--text-muted)] hover:text-red-500">مسح</button>
+          <button onClick={onClear} className="text-[10px] text-[var(--text-muted)] hover:text-red-500">Clear</button>
         )}
       </div>
       {children}
@@ -794,14 +794,14 @@ function ColumnPicker({
   fields, excluded, onPick,
 }: { fields: Array<[string, AxiomFieldMeta]>; excluded: string[]; onPick: (c: string) => void }) {
   const available = fields.filter(([c]) => !excluded.includes(c));
-  if (!available.length) return <div className="text-[10px] text-[var(--text-muted)]">لا توجد حقول أخرى</div>;
+  if (!available.length) return <div className="text-[10px] text-[var(--text-muted)]">No other fields</div>;
   return (
     <select
       value=""
       onChange={(e) => { if (e.target.value) onPick(e.target.value); e.currentTarget.value = ""; }}
       className="w-full px-2 py-1 rounded border border-[var(--border)] bg-[var(--surface)] text-xs"
     >
-      <option value="">+ إضافة عمود…</option>
+      <option value="">+ Add column…</option>
       {available.map(([c]) => <option key={c} value={c}>{c}</option>)}
     </select>
   );
@@ -830,7 +830,7 @@ function MeasurePicker({
         onChange={(e) => setCol(e.target.value)}
         className="flex-1 px-2 py-1 rounded border border-[var(--border)] bg-[var(--surface)] text-xs"
       >
-        <option value="">+ إضافة مقياس…</option>
+        <option value="">+ Add measure…</option>
         {measureFields.map(([c, m]) => (
           <option key={c} value={c}>{c} ({m.default_agg})</option>
         ))}
@@ -847,7 +847,7 @@ function MeasurePicker({
         }}
         className="px-2 py-1 text-[11px] rounded bg-[var(--accent)] text-white disabled:opacity-50"
       >
-        إضافة
+        Add
       </button>
       <span className="hidden">{vocab.aggregations.length}</span>
     </div>
@@ -878,15 +878,15 @@ function RatioBuilder({
         className="text-[11px] text-[var(--accent)] hover:underline mt-1"
         title="Build a derived ratio metric (e.g. CTR = clicks / impressions). Recomputed at every grain — never summed."
       >
-        + إضافة مقياس نسبة (CTR / هامش% / تحويل …)
+        + Add ratio measure (CTR / margin % / conversion …)
       </button>
     );
   }
   return (
     <div className="mt-1 p-2 rounded border border-[var(--border)] bg-[var(--surface)]/50">
       <div className="text-[11px] text-[var(--text-muted)] mb-1">
-        النسبة = SUM(البسط) ÷ SUM(المقام)، يُعاد حسابها عند كل مستوى.
-        تُعرض دائمًا كنسبة مئوية.
+        Ratio = SUM(numerator) ÷ SUM(denominator), recomputed at every level.
+        Always displayed as a percentage.
       </div>
       <div className="grid grid-cols-2 gap-1">
         <select
@@ -894,7 +894,7 @@ function RatioBuilder({
           onChange={(e) => setNum(e.target.value)}
           className="px-1.5 py-1 rounded border border-[var(--border)] bg-[var(--surface)] text-[11px]"
         >
-          <option value="">البسط…</option>
+          <option value="">Numerator…</option>
           {candidates.map(([c]) => (<option key={c} value={c}>{c}</option>))}
         </select>
         <select
@@ -902,7 +902,7 @@ function RatioBuilder({
           onChange={(e) => setDen(e.target.value)}
           className="px-1.5 py-1 rounded border border-[var(--border)] bg-[var(--surface)] text-[11px]"
         >
-          <option value="">المقام…</option>
+          <option value="">Denominator…</option>
           {candidates.filter(([c]) => c !== num).map(([c]) => (<option key={c} value={c}>{c}</option>))}
         </select>
       </div>
@@ -911,7 +911,7 @@ function RatioBuilder({
           type="button"
           onClick={() => { setOpen(false); setNum(""); setDen(""); }}
           className="text-[11px] text-[var(--text-muted)] px-2 py-0.5"
-        >إلغاء</button>
+        >Cancel</button>
         <button
           type="button"
           disabled={!num || !den}
@@ -928,7 +928,7 @@ function RatioBuilder({
             setOpen(false); setNum(""); setDen("");
           }}
           className="text-[11px] px-2 py-0.5 rounded bg-[var(--accent)] text-white disabled:opacity-50"
-        >إضافة النسبة</button>
+        >Add ratio</button>
       </div>
     </div>
   );
@@ -955,7 +955,7 @@ function FilterBuilder({
   return (
     <div className="space-y-1">
       <select value={col} onChange={(e) => setCol(e.target.value)} className="w-full px-2 py-1 rounded border border-[var(--border)] bg-[var(--surface)] text-xs">
-        <option value="">+ إضافة عامل تصفية…</option>
+        <option value="">+ Add filter…</option>
         {Object.keys(fields).map((c) => <option key={c} value={c}>{c}</option>)}
       </select>
       {col && (
@@ -964,7 +964,7 @@ function FilterBuilder({
             {ops.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
           {(op !== "is_null" && op !== "not_null") && (
-            <input value={val} onChange={(e) => setVal(e.target.value)} className="flex-1 px-2 py-1 rounded border border-[var(--border)] bg-[var(--surface)] text-[11px]" placeholder="قيمة" />
+            <input value={val} onChange={(e) => setVal(e.target.value)} className="flex-1 px-2 py-1 rounded border border-[var(--border)] bg-[var(--surface)] text-[11px]" placeholder="value" />
           )}
           <button
             type="button"
@@ -1086,7 +1086,7 @@ function PivotTable({
                       key={d}
                       className="px-3 py-1.5 font-mono cursor-pointer"
                       onClick={() => onCrossFilter(d, r._dims[d])}
-                      title="اضغط لإضافته كعامل تصفية"
+                      title="Click to add as filter"
                     >
                       {String(r._dims[d] ?? "—")}
                     </td>
@@ -1104,7 +1104,7 @@ function PivotTable({
                         onExplain(result.measures[0], coord);
                       }}
                       className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
-                      title="اشرح هذا الرقم"
+                      title="Explain this number"
                     >
                       ⓘ
                     </button>
@@ -1114,7 +1114,7 @@ function PivotTable({
             })}
             {showGrandTotal && (
               <tr className="border-t-2 border-[var(--border)] font-semibold bg-[var(--surface)]/40">
-                {rowDims.map((d, i) => <td key={d} className="px-3 py-2 font-mono">{i === 0 ? "المجموع" : ""}</td>)}
+                {rowDims.map((d, i) => <td key={d} className="px-3 py-2 font-mono">{i === 0 ? "Total" : ""}</td>)}
                 {result.measures.map((m) => (
                   <td key={m.key} className="px-3 py-2 text-right tabular-nums">
                     {fmtValue(result.grand_total[m.key], m.format_kind, m.precision)}

@@ -75,35 +75,35 @@ const GUIDED_OPTIONS: {
 }[] = [
   {
     key: "inner",
-    label: "الصفوف المتطابقة في الجانبين فقط",
-    hint: "استبعد أي صف لا يجد مطابقة على الجانب الآخر.",
+    label: "Rows that match on both sides only",
+    hint: "Exclude any row that doesn't find a match on the other side.",
     venn: "● ◐ ●",
   },
   {
     key: "left",
-    label: "كل الصفوف من البيانات الأولى",
-    hint: "احتفظ بكل صفوف البيانات اليسرى حتى لو لم توجد مطابقة.",
+    label: "All rows from the first dataset",
+    hint: "Keep every row from the left dataset even when no match exists.",
     venn: "●━─",
   },
   {
     key: "right",
-    label: "كل الصفوف من البيانات الثانية",
-    hint: "احتفظ بكل صفوف البيانات اليمنى حتى لو لم توجد مطابقة.",
+    label: "All rows from the second dataset",
+    hint: "Keep every row from the right dataset even when no match exists.",
     venn: "─━●",
   },
   {
     key: "outer",
-    label: "كل شيء من الجانبين",
-    hint: "احتفظ بكل صف من أي جانب؛ القيم المفقودة تصبح فارغة.",
+    label: "Everything from both sides",
+    hint: "Keep every row from either side; missing values become blank.",
     venn: "●━●",
   },
 ];
 
 const EXPERT_OPTIONS: { key: JoinType; sql: string; hint: string }[] = [
-  { key: "inner", sql: "INNER JOIN", hint: "تقاطع المفاتيح." },
-  { key: "left", sql: "LEFT JOIN", hint: "كل صفوف اليسار؛ يكون اليمين NULL عند الغياب." },
-  { key: "right", sql: "RIGHT JOIN", hint: "كل صفوف اليمين؛ يكون اليسار NULL عند الغياب." },
-  { key: "outer", sql: "FULL OUTER JOIN", hint: "اتحاد كل المفاتيح؛ NULL عند غياب أي جانب." },
+  { key: "inner", sql: "INNER JOIN", hint: "Intersection of keys." },
+  { key: "left", sql: "LEFT JOIN", hint: "All left rows; right side is NULL when absent." },
+  { key: "right", sql: "RIGHT JOIN", hint: "All right rows; left side is NULL when absent." },
+  { key: "outer", sql: "FULL OUTER JOIN", hint: "Union of all keys; NULL when either side is absent." },
 ];
 
 function extractColumns(d: AxiomDataset): string[] {
@@ -308,11 +308,11 @@ export default function JoinPage() {
 
   async function runJoin(persist: boolean) {
     if (leftId == null || rightId == null) {
-      setError("اختر مجموعتي بيانات أولًا.");
+      setError("Pick two datasets first.");
       return;
     }
     if (!joinKey && (!leftKeyOverride || !rightKeyOverride)) {
-      setError("اختر العمود المشترك للدمج.");
+      setError("Pick the common column for the join.");
       return;
     }
     setBusy(true);
@@ -434,7 +434,7 @@ export default function JoinPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
         <div className="card">
           <div className="text-xs font-mono text-[var(--text-muted)] mb-1">
-            الخطوة 1 · البيانات اليسرى
+            Step 1 · Left dataset
           </div>
           <select
             value={leftId ?? ""}
@@ -448,19 +448,19 @@ export default function JoinPage() {
           >
             {datasets.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.dataset_name} · {d.rows} صف
+                {d.dataset_name} · {d.rows} rows
               </option>
             ))}
           </select>
           {leftDs && (
             <div className="text-xs text-[var(--text-muted)] mt-2">
-              {leftCols.length} عمود
+              {leftCols.length} columns
             </div>
           )}
         </div>
         <div className="card">
           <div className="text-xs font-mono text-[var(--text-muted)] mb-1">
-            الخطوة 2 · البيانات اليمنى
+            Step 2 · Right dataset
           </div>
           <select
             value={rightId ?? ""}
@@ -474,13 +474,13 @@ export default function JoinPage() {
           >
             {datasets.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.dataset_name} · {d.rows} صف
+                {d.dataset_name} · {d.rows} rows
               </option>
             ))}
           </select>
           {rightDs && (
             <div className="text-xs text-[var(--text-muted)] mt-2">
-              {rightCols.length} عمود
+              {rightCols.length} columns
             </div>
           )}
         </div>
@@ -489,13 +489,13 @@ export default function JoinPage() {
       {/* Step 3: pick the shared key ---------------------------------- */}
       <div className="card mt-4">
         <div className="text-xs font-mono text-[var(--text-muted)] mb-1">
-          الخطوة 3 · العمود المشترك
+          Step 3 · Common column
         </div>
 
         {/* Suggestion banner — backed by suggest_relationships ----------*/}
         {suggestLoading && (
           <div className="text-xs text-[var(--text-muted)] mb-2" role="status">
-            جارٍ تقييم الأعمدة المشتركة وفق القيم الفعلية…
+            Evaluating common columns against actual values…
           </div>
         )}
         {!suggestLoading && topSuggestion && (
@@ -509,7 +509,7 @@ export default function JoinPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="font-mono text-[11px] text-[var(--text-muted)]">
-                  دمج مقترح
+                  Suggested join
                 </div>
                 <div className="text-sm font-semibold mt-0.5">
                   {topSuggestionSameName ? (
@@ -523,13 +523,13 @@ export default function JoinPage() {
                   )}
                 </div>
                 <div className="mt-1 text-[11px]">
-                  {Math.round(topSuggestion.overlap_score * 100)}% تطابق ·{" "}
+                  {Math.round(topSuggestion.overlap_score * 100)}% match ·{" "}
                   {topSuggestion.cardinality}
                   {!topSuggestionUsable && (
                     <>
                       {" "}
-                      · <strong>لا توجد قيم متطابقة</strong> — اختر عمودًا
-                      آخر أو تأكد من أن هذا مقصود.
+                      · <strong>No matching values</strong> — pick another
+                      column or confirm that this is intentional.
                     </>
                   )}
                 </div>
@@ -550,7 +550,7 @@ export default function JoinPage() {
                 }}
                 className="btn btn-ghost text-xs whitespace-nowrap"
               >
-                استخدم هذا
+                Use this
               </button>
             </div>
           </div>
@@ -558,18 +558,18 @@ export default function JoinPage() {
         {!suggestLoading && !topSuggestion && suggestions.length === 0 &&
           leftId != null && rightId != null && !suggestError && (
             <div className="mb-2 text-xs text-amber-700" role="status">
-              لم يتم العثور على مرشح قوي للدمج بالقيم. اختر عمودًا يدويًا أدناه.
+              No strong join candidate found by values. Pick a column manually below.
             </div>
           )}
         {suggestError && (
           <div className="mb-2 text-xs text-red-600" role="alert">
-            تعذّر تقييم مرشّحي الدمج: {suggestError}
+            Failed to evaluate join candidates: {suggestError}
           </div>
         )}
 
         {ranked.length === 0 ? (
           <div className="text-sm text-amber-600">
-            لا يوجد تطابق دقيق في أسماء الأعمدة. اختر عمودًا من كل جانب أدناه.
+            No exact match in column names. Pick a column from each side below.
           </div>
         ) : (
           <select
@@ -592,13 +592,13 @@ export default function JoinPage() {
         {mode === "expert" && (
           <div className="grid grid-cols-2 gap-2 mt-3">
             <label className="text-xs">
-              مفتاح اليسار (تخصيص)
+              Left key (custom)
               <select
                 value={leftKeyOverride}
                 onChange={(e) => setLeftKeyOverride(e.target.value)}
                 className="block mt-1 w-full px-2 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-xs"
               >
-                <option value="">(استخدم المشترك)</option>
+                <option value="">(use common)</option>
                 {leftCols.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -607,13 +607,13 @@ export default function JoinPage() {
               </select>
             </label>
             <label className="text-xs">
-              مفتاح اليمين (تخصيص)
+              Right key (custom)
               <select
                 value={rightKeyOverride}
                 onChange={(e) => setRightKeyOverride(e.target.value)}
                 className="block mt-1 w-full px-2 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-xs"
               >
-                <option value="">(استخدم المشترك)</option>
+                <option value="">(use common)</option>
                 {rightCols.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -628,7 +628,7 @@ export default function JoinPage() {
       {/* Step 4: pick join type --------------------------------------- */}
       <div className="card mt-4">
         <div className="text-xs font-mono text-[var(--text-muted)] mb-2">
-          الخطوة 4 · ما الذي تريد الاحتفاظ به؟
+          Step 4 · What do you want to keep?
         </div>
         {mode === "guided" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -684,7 +684,7 @@ export default function JoinPage() {
       <div className="card mt-4 flex items-center justify-between">
         <div>
           <div className="text-xs font-mono text-[var(--text-muted)]">
-            الخطوة 5 · معاينة
+            Step 5 · Preview
           </div>
           <div className="text-xs text-[var(--text-muted)] mt-1">
             {mode === "guided"
@@ -697,7 +697,7 @@ export default function JoinPage() {
           onClick={() => runJoin(false)}
           disabled={busy}
         >
-          {busy && !saved ? "جارٍ الحساب…" : "معاينة الدمج"}
+          {busy && !saved ? "Calculating…" : "Preview join"}
         </button>
       </div>
 
@@ -706,13 +706,13 @@ export default function JoinPage() {
           <div className="text-sm">
             {mode === "guided" ? (
               <>
-                النتيجة: <strong>{preview.summary.result_rows}</strong> صف ·{" "}
-                <strong>{preview.summary.result_cols}</strong> عمود.
+                Result: <strong>{preview.summary.result_rows}</strong> rows ·{" "}
+                <strong>{preview.summary.result_cols}</strong> cols.
               </>
             ) : (
               <>
                 {preview.summary.left_rows} ⋈ {preview.summary.right_rows} →{" "}
-                {preview.summary.result_rows} صف × {preview.summary.result_cols} عمود
+                {preview.summary.result_rows} rows × {preview.summary.result_cols} cols
               </>
             )}
             {preview.summary.cardinality && (
@@ -725,8 +725,8 @@ export default function JoinPage() {
             <div className="mt-3 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-900">
               <div className="font-semibold">
                 {mode === "guided"
-                  ? "هذه التركيبة كبيرة بشكل غير معتاد."
-                  : `تحذير تضخّم (${preview.summary.cardinality ?? "N:N"} join)`}
+                  ? "This combination is unusually large."
+                  : `Cardinality warning (${preview.summary.cardinality ?? "N:N"} join)`}
               </div>
               <div className="mt-1">
                 {mode === "guided"
@@ -739,7 +739,7 @@ export default function JoinPage() {
                   checked={confirmLargeJoin}
                   onChange={(e) => setConfirmLargeJoin(e.target.checked)}
                 />
-                <span>نعم، احفظ هذا الدمج الكبير على أي حال.</span>
+                <span>Yes, save this large join anyway.</span>
               </label>
             </div>
           )}
@@ -753,7 +753,7 @@ export default function JoinPage() {
           {mode === "expert" && preview.summary.null_counts && (
             <details className="mt-2">
               <summary className="text-xs cursor-pointer text-[var(--text-muted)]">
-                عدد القيم الفارغة لكل عمود
+                Null count per column
               </summary>
               <pre className="text-[11px] overflow-auto max-h-40 mt-1">
                 {JSON.stringify(preview.summary.null_counts, null, 2)}
@@ -797,7 +797,7 @@ export default function JoinPage() {
       {/* Step 6: name & save ----------------------------------------- */}
       <div className="card mt-4">
         <div className="text-xs font-mono text-[var(--text-muted)] mb-2">
-          الخطوة 6 · التسمية والحفظ
+          Step 6 · Name and save
         </div>
         <input
           value={resultName}
@@ -820,33 +820,33 @@ export default function JoinPage() {
             (preview?.summary.large_join === true && !confirmLargeJoin)
           }
         >
-          {busy && !preview ? "جارٍ الحفظ…" : "احفظ كمجموعة جديدة"}
+          {busy && !preview ? "Saving…" : "Save as new dataset"}
         </button>
         {preview?.summary.large_join && !confirmLargeJoin && (
           <div className="mt-2 text-xs text-amber-700" role="alert">
-            ضع علامة التأكيد أعلاه لحفظ هذا الدمج الكبير.
+            Tick the confirmation above to save this large join.
           </div>
         )}
         {saved && (
           <div className="mt-3 text-sm text-green-700 flex flex-wrap items-center gap-x-3 gap-y-2" role="status">
             <span>
-              تم الحفظ بنجاح ✓ باسم “{saved.dataset_name}” ({saved.rows} صف ·{" "}
-              {saved.cols} عمود).
+              Saved ✓ as “{saved.dataset_name}” ({saved.rows} rows ·{" "}
+              {saved.cols} cols).
             </span>
             <button
               className="underline"
               onClick={() => router.push("/app/upload")}
             >
-              فتح في الملفات
+              Open in Files
             </button>
             <button
               type="button"
               className="underline text-red-600 disabled:opacity-50"
               onClick={() => undoJoin(saved.dataset_id)}
               disabled={busy}
-              title="حذف البيانات المدموجة وإلغاء اختيارها."
+              title="Delete the joined dataset and deselect it."
             >
-              تراجع عن الدمج
+              Undo join
             </button>
           </div>
         )}
@@ -865,7 +865,7 @@ export default function JoinPage() {
         return (
           <div className="card mt-4">
             <div className="text-xs font-mono text-[var(--text-muted)] mb-2">
-              البيانات المدموجة في هذا المشروع
+              Joined datasets in this project
             </div>
             <ul className="space-y-2">
               {joined.map((d) => {
@@ -884,8 +884,8 @@ export default function JoinPage() {
                     <div className="text-sm">
                       <div className="font-semibold">{d.dataset_name}</div>
                       <div className="text-xs text-[var(--text-muted)]">
-                        دمج من <strong>{left}</strong> ⋈{" "}
-                        <strong>{right}</strong> على{" "}
+                        Join from <strong>{left}</strong> ⋈{" "}
+                        <strong>{right}</strong> on{" "}
                         <code className="font-mono">{keyLabel}</code> ·{" "}
                         {p.join_type}
                       </div>
@@ -896,7 +896,7 @@ export default function JoinPage() {
                       onClick={() => undoJoin(d.id)}
                       disabled={busy}
                     >
-                      تراجع عن الدمج
+                      Undo join
                     </button>
                   </li>
                 );

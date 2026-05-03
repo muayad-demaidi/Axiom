@@ -42,7 +42,7 @@ export default async function GuideEntryPage({
   if (!entry) notFound();
   const t = await getTranslations({ locale, namespace: "guides" });
   const tNav = await getTranslations({ locale, namespace: "nav" });
-  const isAr = asLocale(locale) === "ar";
+  const isAr = false;
 
   const title = t.has(`items.${entry.slug}.title` as never) ? t(`items.${entry.slug}.title` as never) : entry.data.title;
   const estTime = t.has(`items.${entry.slug}.estTime` as never) ? t(`items.${entry.slug}.estTime` as never) : entry.data.estTime;

@@ -57,10 +57,10 @@ describe("DataModelBody", () => {
   it("renders Confirm/Reject and a disabled Reset for proposed relationships", async () => {
     render(<DataModelBody artifact={makeArtifact()} />);
     const confirmBtn = await screen.findByRole("button", {
-      name: t("ar", "common.confirm"),
+      name: t("en", "common.confirm"),
     });
     const rejectBtn = screen.getByRole("button", {
-      name: t("ar", "common.dismiss"),
+      name: t("en", "common.dismiss"),
     });
     expect(confirmBtn).toBeEnabled();
     expect(rejectBtn).toBeEnabled();
@@ -86,7 +86,7 @@ describe("DataModelBody", () => {
     );
     render(<DataModelBody artifact={makeArtifact()} />);
     const confirmBtn = await screen.findByRole("button", {
-      name: t("ar", "common.confirm"),
+      name: t("en", "common.confirm"),
     });
     await user.click(confirmBtn);
     await waitFor(() => expect(seen).toContainEqual({ status: "confirmed" }));

@@ -234,7 +234,7 @@ function ChatPanelInner({
             {
               role: "assistant",
               content:
-                "تعذّر تحميل سجل المحادثة — حاول التحديث أو إعادة المحاولة بعد قليل.",
+                "Failed to load chat history — try refreshing or retrying in a moment.",
             },
           ]);
         }
@@ -439,7 +439,7 @@ function ChatPanelInner({
         patchLast({
           content:
             textAcc ||
-            `(حدث خطأ أثناء المحادثة: ${errMessage(e, "تعذّر تنفيذ الطلب")} — حاول مرة أخرى.)`,
+            `(Chat error: ${errMessage(e, "Request failed")} — try again.)`,
         });
       }
     } finally {
@@ -567,7 +567,7 @@ function ChatPanelInner({
     const file = files[0];
     if (!isAcceptedFile(file)) {
       setUploadErr(
-        `نوع الملف غير مدعوم. اسحب ملف CSV أو TSV أو Excel أو JSON.`
+        `Unsupported file type. Drop a CSV, TSV, Excel or JSON file.`
       );
       return;
     }
@@ -624,10 +624,10 @@ function ChatPanelInner({
                 <UploadCloud className="h-5 w-5" />
               </span>
               <div className="text-sm font-semibold text-[var(--text)]">
-                أفلت الملف للرفع
+                Drop the file to upload
               </div>
               <div className="text-[12px] text-[var(--text-muted)]">
-                CSV أو TSV أو Excel أو JSON
+                CSV, TSV, Excel or JSON
               </div>
             </div>
           </motion.div>
@@ -635,7 +635,7 @@ function ChatPanelInner({
       </AnimatePresence>
       {!authed && (
         <div className="text-xs text-[var(--text-muted)] shrink-0" dir="rtl">
-          سجّل الدخول لتفعيل المحادثة مع بياناتك.
+          Sign in to chat with your data.
         </div>
       )}
       {/* Message viewport wrapper. The wrapper itself is `relative` and
@@ -660,7 +660,7 @@ function ChatPanelInner({
                 className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--accent)]/30 border-t-[var(--accent)]"
                 aria-hidden="true"
               />
-              جاري تحميل المحادثة…
+              Loading chat…
             </div>
           ) : (
             <>
@@ -971,7 +971,7 @@ function SmallSampleNotice({
   return (
     <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--surface-alt)]/40 text-xs space-y-2">
       <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
-        Note · ملاحظة
+        Note
       </div>
       {notice.message_en && (
         <p className="leading-snug text-[var(--text)]">{notice.message_en}</p>
@@ -1033,7 +1033,7 @@ function InlineArtifact({ artifact }: { artifact: Artifact }) {
             type="button"
             onClick={togglePin}
             disabled={busy}
-            title={pinned ? "Pinned to report · مثبَّت بالتقرير" : "Pin to report · ثبِّت بالتقرير"}
+            title={pinned ? "Pinned to report" : "Pin to report"}
             className={`text-[11px] px-2 py-0.5 rounded border ${
               pinned
                 ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/5"
