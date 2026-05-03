@@ -1,9 +1,11 @@
 "use client";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 type Status = { kind: "idle" } | { kind: "sending" } | { kind: "ok" } | { kind: "error"; message: string };
 
 export function ContactForm() {
+  const t = useTranslations("contact");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -16,7 +18,7 @@ export function ContactForm() {
     const trimmedEmail = email.trim();
     const trimmedMessage = message.trim();
     if (!trimmedName || !trimmedEmail || trimmedMessage.length < 5) {
-      setStatus({ kind: "error", message: "Please fill in your name, email, and a short message." });
+      setStatus({ kind: "error", message: t("validationError") });
       return;
     }
     setStatus({ kind: "sending" });
@@ -27,7 +29,7 @@ export function ContactForm() {
         body: JSON.stringify({ name: trimmedName, email: trimmedEmail, message: trimmedMessage }),
       });
       if (!res.ok) {
-        let detail = `Request failed (${res.status})`;
+        let detail = t("requestFailed", { status: res.status });
         try {
           const j = (await res.json()) as { detail?: string };
           if (j?.detail) detail = j.detail;
@@ -41,7 +43,7 @@ export function ContactForm() {
     } catch (err) {
       setStatus({
         kind: "error",
-        message: err instanceof Error ? err.message : "Could not send — please try again.",
+        message: err instanceof Error ? err.message : t("fallbackError"),
       });
     }
   }
@@ -52,7 +54,7 @@ export function ContactForm() {
     <form className="card mt-8 space-y-3" onSubmit={onSubmit} noValidate>
       <div>
         <label htmlFor="contact-name" className="block text-xs font-medium mb-1">
-          Name
+          {t("nameLabel")}
         </label>
         <input
           id="contact-name"
@@ -68,7 +70,7 @@ export function ContactForm() {
       </div>
       <div>
         <label htmlFor="contact-email" className="block text-xs font-medium mb-1">
-          Email
+          {t("emailLabel")}
         </label>
         <input
           id="contact-email"
@@ -84,7 +86,7 @@ export function ContactForm() {
       </div>
       <div>
         <label htmlFor="contact-message" className="block text-xs font-medium mb-1">
-          Message
+          {t("messageLabel")}
         </label>
         <textarea
           id="contact-message"
@@ -95,15 +97,15 @@ export function ContactForm() {
           maxLength={5000}
           disabled={busy}
           className="w-full border border-[var(--border)] rounded px-3 py-2 text-sm bg-transparent"
-          placeholder="How can we help?"
+          placeholder={t("messagePlaceholder")}
         />
       </div>
       <div className="flex items-center gap-3 pt-1">
         <button type="submit" disabled={busy} className="btn btn-primary text-sm">
-          {busy ? "Sending…" : "Send message"}
+          {busy ? t("sending") : t("submit")}
         </button>
         {status.kind === "ok" && (
-          <span className="text-xs text-[var(--accent)]">Thanks — we&rsquo;ll get back to you shortly.</span>
+          <span className="text-xs text-[var(--accent)]">{t("successInline")}</span>
         )}
         {status.kind === "error" && (
           <span className="text-xs text-red-600">{status.message}</span>

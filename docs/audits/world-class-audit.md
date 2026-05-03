@@ -279,3 +279,24 @@ Routes considered in scope:
 Artifacts kinds in chat: `profile`, `chart`, `prediction`, `cluster`, `insight`, `qa`, `data_model`, `data_model_query` — all rendered through the lazy-loaded artifact renderers in `ArtifactDrawer.tsx`.
 
 User-visible flows: signup → upload → profile → chat → cross-predict → pin to report → export PDF; settings → switch locale → reload → confirm persistence; password reset.
+
+---
+
+## 2026-05-03 follow-up — AR marketing copy (partial) — Task #280
+
+**Scope shipped:** translated the two highest-conversion marketing pages on the Arabic locale (`/ar/pricing` and `/ar/contact`). Header + footer translation landed earlier in the session; this pass closes the **page-body** gap on those two routes.
+
+**What changed:**
+- New `pricing` and `contact` namespaces in `frontend/messages/{en,ar}.json` covering: page heading + lead, every tier name/price/summary/feature bullet, trial CTA, every FAQ Q+A, contact heading + lead, "prefer email?" line, every form label + placeholder + button + status message + validation error.
+- `frontend/src/app/[locale]/pricing/page.tsx` and `frontend/src/app/[locale]/contact/page.tsx` rebuilt as async server components reading translations via `getTranslations({ locale, namespace })`. Breadcrumb labels read from the existing `nav` namespace.
+- `frontend/src/components/ContactForm.tsx` switched to `useTranslations("contact")`.
+- Linguistic rules honoured: عربي فصيح (not literal), tech tokens stay EN (`Tier 1 — Starter`, `Tier 2 — Pro`, `Tier 3 — Pro+`, `K-Means`, `RandomForest`, `PostgreSQL`, `GPT`, `PDF`, `CSV`, `MB`, `AXIOM`), prices stay `$` with Western digits (`$19/شهريًا`, `$49/شهريًا`, `مجانًا`), no Arabic-Indic numerals.
+- FAQPage + BreadcrumbList JSON-LD still emit (now in the resolved locale's strings).
+
+**Evidence:**
+- `docs/audits/evidence/ar-marketing/ar-pricing.jpg`
+- `docs/audits/evidence/ar-marketing/ar-contact.jpg`
+- Vitest: **34 / 34 green** (8 files, 15 s).
+- Dual-locale Playwright (`playwright.5000.config.ts`): **28 passed / 1 flaky / 3 skipped** (3 min). Flaky test is `data_model.spec.ts:6` — confirmed non-regression: passes on isolated retry in 2.4 s, same flake observed pre-translation.
+
+**Deferred:** `/ar/features`, `/ar/about`, `/ar/glossary` (+ `[slug]`), `/ar/guides` (+ `[slug]`), `/ar/compare` (+ `[slug]`) still ship English body copy under Arabic chrome. Tracked as **Task #281 (Translate AR marketing copy — features, about, glossary, guides, compare)** for post-deploy backlog. Decision rationale: Pricing + Contact carry conversion weight; the remaining five are content/SEO surfaces and acceptable to ship in EN-body for one cycle while AR translations land.
