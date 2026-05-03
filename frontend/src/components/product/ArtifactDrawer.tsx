@@ -218,7 +218,7 @@ function ArtifactDrawerBase({
   return (
     <aside
       dir="rtl"
-      className="fixed top-14 left-0 bottom-0 w-[440px] max-w-[92vw] border-r border-[var(--border)] bg-[var(--surface)] shadow-2xl z-30 flex flex-col"
+      className="fixed top-14 right-0 bottom-0 w-[440px] max-w-[92vw] border-l border-[var(--border)] bg-[var(--surface)] shadow-2xl z-30 flex flex-col"
       aria-label="لوحة المخرجات"
     >
       <div className="flex flex-row-reverse items-center justify-between px-4 py-3 border-b border-[var(--border)]">
