@@ -30,3 +30,9 @@ id = "yhgB5ISSs510o5X9YSwH0"
 uri = "file://axiom_project_slim.zip"
 type = "unspecified"
 title = "AXIOM Project — Slim Backup (13 MB, fast download)"
+
+[[outputs]]
+id = "SOnwiEZYKWbFmaPWJJoan"
+uri = "file://docs/presentation_script_ar.md"
+type = "text"
+title = "سكريبت التقديم — 5 دقائق (عربي)"
