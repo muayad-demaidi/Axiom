@@ -629,5 +629,219 @@
     "modeExpert": "Expert",
     "modeGuidedTitle": "Plain-language answers and fewer options",
     "modeExpertTitle": "Full control with technical answers, JSON and metrics"
+  },
+  "features": {
+    "metaTitle": "Features — every analysis tool, one workspace",
+    "metaDescription": "Auto cleaning pipeline, descriptive stats, visualizations, ML & K-Means clustering, predictions, and an AI assistant — all in one no-code workspace.",
+    "eyebrow": "Features",
+    "title": "Every analysis tool, one workspace.",
+    "lead": "AXIOM bundles cleaning, transformation, statistics, visualizations, predictions, ML, and an AI chat assistant — all on the same project context, all reachable in two clicks.",
+    "ctaLaunch": "Launch the app →",
+    "item1H": "Auto-cleaning pipeline",
+    "item1P": "Trim, dedupe, infer types, impute missing, and flag outliers as ordered, toggleable substeps with per-step impact metrics. Save as a reusable recipe.",
+    "item2H": "Transform Toolkit",
+    "item2P": "Power Query–style: add column from examples, merge, split, replace, conditional column, group by — all reorderable in the Applied Steps editor.",
+    "item3H": "Descriptive statistics",
+    "item3P": "Mean, median, mode, std, variance, skew, kurtosis, missing %, with currency codes and your number/date format applied automatically.",
+    "item4H": "Correlations & distributions",
+    "item4P": "Find strong correlations and distribution shape across every numeric column in seconds.",
+    "item5H": "Visualizations",
+    "item5P": "Bar, scatter, box, pie, line, heatmap — built with restrained, on-brand palettes. No 3D pie charts.",
+    "item6H": "Time-period saving & comparison",
+    "item6P": "Save snapshots of your dataset and diff Q1 vs Q2 (or any range) on every column.",
+    "item7H": "Predictions",
+    "item7P": "Linear models, trend analysis, growth metrics, CAGR — explained in plain English alongside the numbers.",
+    "item8H": "ML & clustering",
+    "item8P": "K-Means risk clustering, RandomForest predictions, enhanced outlier detection, categorical insights.",
+    "item9H": "AI chat assistant",
+    "item9P": "GPT-powered chat that knows your dataset. Ask questions, drive cleaning, generate reports — in any language.",
+    "item10H": "Reports & PDF export",
+    "item10P": "Auto-generated executive summary with key findings, recommendations, and methodological caveats. PDF download.",
+    "item11H": "Projects as folders",
+    "item11P": "Group datasets, chats, and saved analyses by project. Each project keeps its own context — no spillover.",
+    "item12H": "Two product modes",
+    "item12P": "Guided Mode for non-specialists (chat-first). Expert Mode for the full dashboard with chat side-panel. Mode preference is per project."
+  },
+  "about": {
+    "metaTitle": "About — building the analyst's missing copilot",
+    "metaDescription": "AXIOM is an analyst-built workspace that automates the boring 80% of data work and frees the human for the part that actually moves the business.",
+    "eyebrow": "About AXIOM",
+    "title": "Built by analysts who got tired of the cleanup tax.",
+    "p1": "AXIOM started as one person's frustration with the gap between \"here is a CSV\" and \"here is what to do about it.\" That gap is usually filled with hours of cleaning, formatting, googling, and Excel formulas — and once it's done, the actual analytical thinking takes ten minutes.",
+    "p2": "So we built the workspace we wanted: one place that ingests any CSV or Excel, runs a transparent cleaning pipeline you can audit step by step, computes the statistics that matter, draws restrained charts that don't look like a 2003 BI dashboard, runs ML when you need it, and lets you ask the data questions in plain English.",
+    "whoTitle": "Who we serve",
+    "who1Strong": "Analysts & ops people",
+    "who1Body": "clean, transform, profile, and ship findings without leaving the browser.",
+    "who2Strong": "Founders & PMs",
+    "who2Body": "get answers from your data without booking a meeting with the data team.",
+    "who3Strong": "Students & researchers",
+    "who3Body": "focus on the question, not the cleanup.",
+    "principlesTitle": "Our principles",
+    "principle1Strong": "Transparency over magic.",
+    "principle1Body": "Every cleaning step, every transform, every ML decision is visible and toggleable.",
+    "principle2Strong": "Plain English by default.",
+    "principle2Body": "If a number can be explained in a sentence, it should be.",
+    "principle3Strong": "Performance is a feature.",
+    "principle3Body": "If a click takes more than a second, we treat it as a bug.",
+    "ctaTrial": "Try AXIOM free for 60 days →"
+  },
+  "glossary": {
+    "metaTitle": "Glossary — data analytics terms explained",
+    "metaDescription": "Plain-English definitions for the terms data analysts actually use, with stats, FAQs, and how-to context.",
+    "eyebrow": "Glossary",
+    "indexTitle": "Data analytics, defined.",
+    "indexLead": "Plain-English explanations of the concepts that show up in every analyst's job — with current stats, links to deeper guides, and how AXIOM handles them.",
+    "byTheNumbers": "By the numbers",
+    "faqHeading": "FAQ",
+    "relatedHeading": "Related",
+    "lastUpdated": "Last updated {date}",
+    "sourcePrefix": "Source: {label}",
+    "relatedGlossaryLink": "→ Glossary: {slug}",
+    "relatedGuideLink": "→ Guide: {slug}",
+    "relatedCompareLink": "→ Compare: {slug}",
+    "translationInProgress": "Arabic translation in progress — the detailed body is shown in English for now.",
+    "items": {
+      "ab-testing": {
+        "term": "A/B Testing",
+        "summary": "A controlled experiment that randomly splits users between two versions and measures which produces a better outcome on a chosen metric."
+      },
+      "anomaly-detection": {
+        "term": "Anomaly Detection",
+        "summary": "Identifying observations or patterns that do not conform to expected behaviour, typically signalling fraud, faults, or genuinely new events."
+      },
+      "data-cleaning": {
+        "term": "Data Cleaning",
+        "summary": "The process of detecting and correcting errors, inconsistencies, missing values, and duplicates in a dataset before analysis."
+      },
+      "data-drift": {
+        "term": "Data Drift",
+        "summary": "A change over time in the statistical properties of input data that degrades a model's accuracy."
+      },
+      "descriptive-statistics": {
+        "term": "Descriptive Statistics",
+        "summary": "Summary measures (mean, median, std, percentiles) that describe the central tendency and spread of a dataset."
+      },
+      "etl-vs-elt": {
+        "term": "ETL vs ELT",
+        "summary": "Two patterns for moving data into a warehouse — ETL transforms before loading, ELT loads first and transforms inside the warehouse."
+      },
+      "k-means-clustering": {
+        "term": "K-Means Clustering",
+        "summary": "An unsupervised algorithm that groups observations into K clusters by minimising within-cluster variance."
+      },
+      "missing-value-imputation": {
+        "term": "Missing Value Imputation",
+        "summary": "Filling in missing data with estimated values so downstream analysis and models can run without dropping rows."
+      },
+      "normalization": {
+        "term": "Normalization",
+        "summary": "Rescaling numeric features onto a common scale (typically 0–1 or mean 0 / std 1) so they contribute comparably to a model."
+      },
+      "outlier-detection": {
+        "term": "Outlier Detection",
+        "summary": "Statistical techniques for finding observations that lie an abnormal distance from the rest of a dataset."
+      },
+      "predictive-analytics": {
+        "term": "Predictive Analytics",
+        "summary": "Using historical data and statistical or ML models to forecast future outcomes or behaviours."
+      },
+      "time-series": {
+        "term": "Time Series Analysis",
+        "summary": "Statistical methods for analysing data points indexed in time order to find trend, seasonality, and forecast future values."
+      }
+    }
+  },
+  "guides": {
+    "metaTitle": "Guides — practical data analysis walkthroughs",
+    "metaDescription": "Step-by-step walkthroughs for cleaning, analysing, and acting on data with AXIOM.",
+    "indexEyebrow": "Guides",
+    "indexTitle": "Step-by-step playbooks.",
+    "indexLead": "Practical walkthroughs that take you from a messy spreadsheet to an actionable answer — using AXIOM's built-in cleaning, statistics, and AI assistant.",
+    "guideEyebrow": "Guide",
+    "prerequisitesLabel": "Prerequisites:",
+    "pitfallsHeading": "Common pitfalls",
+    "faqHeading": "FAQ",
+    "relatedHeading": "Related",
+    "lastUpdated": "Last updated {date}",
+    "relatedGlossaryLink": "→ Glossary: {slug}",
+    "relatedCompareLink": "→ Compare: {slug}",
+    "translationInProgress": "Arabic translation in progress — the detailed walkthrough is shown in English for now.",
+    "items": {
+      "how-to-ab-test-a-pricing-change": {
+        "title": "How to A/B test a pricing change",
+        "summary": "Step-by-step: design, size, and analyse an A/B test on a pricing change without statistical bait-and-switch. Includes power analysis, sample size, and how to read the result honestly.",
+        "estTime": "15 minutes setup + 1–4 weeks runtime",
+        "difficulty": "Intermediate"
+      },
+      "how-to-build-a-3-month-sales-forecast": {
+        "title": "How to build a 3-month sales forecast (no code)",
+        "summary": "Step-by-step: turn 24 months of sales history into a defensible 3-month forecast using AXIOM's predictions tab — with honest accuracy bounds.",
+        "estTime": "10 minutes",
+        "difficulty": "Intermediate"
+      },
+      "how-to-clean-a-messy-csv-in-60-seconds": {
+        "title": "How to clean a messy CSV in 60 seconds",
+        "summary": "A 60-second walkthrough for turning a messy CSV — duplicates, missing values, mixed types, stray whitespace — into a clean, analysis-ready dataset using AXIOM.",
+        "estTime": "60 seconds",
+        "difficulty": "Beginner"
+      },
+      "how-to-compare-this-quarter-vs-last-quarter": {
+        "title": "How to compare this quarter vs last quarter (without lying with averages)",
+        "summary": "A practical guide to a defensible quarter-over-quarter comparison — same-day windows, mix-shift checks, and confidence intervals — using AXIOM's time-period view.",
+        "estTime": "10 minutes",
+        "difficulty": "Intermediate"
+      },
+      "how-to-detect-outliers-in-sales-data": {
+        "title": "How to detect outliers in sales data",
+        "summary": "A practical guide to spotting outliers in sales data using IQR, z-score, and K-Means clustering — without writing code.",
+        "estTime": "5 minutes",
+        "difficulty": "Intermediate"
+      }
+    }
+  },
+  "compare": {
+    "metaTitle": "Compare AXIOM with other tools",
+    "metaDescription": "Honest, side-by-side comparisons of AXIOM with Power BI, Tableau, Excel, Google Sheets, and Looker Studio.",
+    "indexEyebrow": "Compare",
+    "indexTitle": "How AXIOM stacks up.",
+    "indexLead": "Honest, side-by-side comparisons. We'll tell you when the other tool is the better choice.",
+    "indexCardTitle": "AXIOM vs {competitor}",
+    "entryEyebrow": "Compare",
+    "vsLabel": "vs {competitor}",
+    "bestForUs": "Best for: AXIOM",
+    "bestForThem": "Best for: {competitor}",
+    "featureByFeature": "Feature-by-feature",
+    "featureCol": "Feature",
+    "axiomCol": "AXIOM",
+    "chooseAxiomWhen": "Choose AXIOM when…",
+    "chooseThemWhen": "Choose {competitor} when…",
+    "faqHeading": "FAQ",
+    "relatedHeading": "Related",
+    "lastUpdated": "Last updated {date}",
+    "relatedGlossaryLink": "→ Glossary: {slug}",
+    "relatedGuideLink": "→ Guide: {slug}",
+    "translationInProgress": "Arabic translation in progress — the detailed comparison is shown in English for now.",
+    "items": {
+      "datavision-pro-vs-excel": {
+        "title": "AXIOM vs Excel",
+        "summary": "AXIOM vs Excel — when to leave the spreadsheet behind for AI cleaning, ML, and reproducible analysis on larger files."
+      },
+      "datavision-pro-vs-looker-studio": {
+        "title": "AXIOM vs Looker Studio",
+        "summary": "AXIOM vs Google Looker Studio — compare AI features, file-based analysis, dashboard governance, and pricing. Honest trade-offs, no fabricated metrics."
+      },
+      "datavision-pro-vs-metabase": {
+        "title": "AXIOM vs Metabase",
+        "summary": "AXIOM vs Metabase — compare AI features, file-based analysis, self-service BI, and hosting. An honest side-by-side, no fabricated lift numbers."
+      },
+      "datavision-pro-vs-power-bi": {
+        "title": "AXIOM vs Power BI",
+        "summary": "AXIOM vs Microsoft Power BI — compare AI features, ease of use, file-based analysis, and ideal team size. No fabricated metrics."
+      },
+      "datavision-pro-vs-tableau": {
+        "title": "AXIOM vs Tableau",
+        "summary": "AXIOM vs Tableau — an honest, side-by-side comparison of pricing, AI features, learning curve, and ideal users. No fluff, no fake testimonials."
+      }
+    }
   }
 }

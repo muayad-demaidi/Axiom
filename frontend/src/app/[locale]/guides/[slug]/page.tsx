@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { MarketingShell } from "@/components/MarketingShell";
 import { Breadcrumbs, breadcrumbsJsonLd } from "@/components/Breadcrumbs";
 import { getGuideEntry, listGuideSlugs } from "@/lib/content";
@@ -15,10 +16,15 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({ slug }));
 }
 
-export async function generateMetadata({ params }: { params: { slug: string; locale?: string } }) {
-  const entry = await getGuideEntry(params.slug);
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string; locale?: string }>;
+}) {
+  const { slug, locale } = await params;
+  const entry = await getGuideEntry(slug);
   if (!entry) return {};
-  const alternates = localizedAlternates(`/guides/${entry.slug}`, asLocale(params.locale));
+  const alternates = localizedAlternates(`/guides/${entry.slug}`, asLocale(locale));
   return {
     title: entry.data.title,
     description: entry.data.description,
@@ -26,13 +32,25 @@ export async function generateMetadata({ params }: { params: { slug: string; loc
   };
 }
 
-export default async function GuideEntryPage({ params }: { params: { slug: string } }) {
-  const entry = await getGuideEntry(params.slug);
+export default async function GuideEntryPage({
+  params,
+}: {
+  params: Promise<{ slug: string; locale: string }>;
+}) {
+  const { slug, locale } = await params;
+  const entry = await getGuideEntry(slug);
   if (!entry) notFound();
+  const t = await getTranslations({ locale, namespace: "guides" });
+  const tNav = await getTranslations({ locale, namespace: "nav" });
+  const isAr = asLocale(locale) === "ar";
+
+  const title = t.has(`items.${entry.slug}.title` as never) ? t(`items.${entry.slug}.title` as never) : entry.data.title;
+  const estTime = t.has(`items.${entry.slug}.estTime` as never) ? t(`items.${entry.slug}.estTime` as never) : entry.data.estTime;
+  const difficulty = t.has(`items.${entry.slug}.difficulty` as never) ? t(`items.${entry.slug}.difficulty` as never) : entry.data.difficulty;
   const crumbs = [
-    { href: "/", label: "Home" },
-    { href: "/guides", label: "Guides" },
-    { label: entry.data.title },
+    { href: "/", label: tNav("home") },
+    { href: "/guides", label: tNav("guides") },
+    { label: title },
   ];
   const articleLd = {
     "@context": "https://schema.org",
@@ -60,35 +78,40 @@ export default async function GuideEntryPage({ params }: { params: { slug: strin
     <MarketingShell current="/guides" jsonLd={ld}>
       <article className="container-x pt-10 pb-16 max-w-3xl">
         <Breadcrumbs items={crumbs} />
-        <span className="eyebrow">Guide</span>
-        <h1 className="text-3xl md:text-5xl font-bold mt-3">{entry.data.title}</h1>
+        <span className="eyebrow">{t("guideEyebrow")}</span>
+        <h1 className="text-3xl md:text-5xl font-bold mt-3">{title}</h1>
         <div className="flex gap-3 mt-3 text-xs font-mono text-[var(--text-muted)]">
-          <span>{entry.data.estTime}</span>
+          <span>{estTime}</span>
           <span>·</span>
-          <span>{entry.data.difficulty}</span>
+          <span>{difficulty}</span>
         </div>
-        <p className="mt-4 text-lg text-[var(--text-muted)]">{entry.data.intro}</p>
+        <p className="mt-4 text-lg text-[var(--text-muted)]" lang="en" dir="ltr">{entry.data.intro}</p>
+        {isAr && (
+          <div className="card mt-6 text-sm" role="note" lang="ar" dir="rtl">
+            {t("translationInProgress")}
+          </div>
+        )}
         {entry.data.prerequisites.length > 0 && (
           <div className="card mt-6">
-            <strong>Prerequisites:</strong>
-            <ul className="list-disc pl-6 mt-2 text-sm text-[var(--text-muted)]">
+            <strong>{t("prerequisitesLabel")}</strong>
+            <ul className="list-disc pl-6 mt-2 text-sm text-[var(--text-muted)]" lang="en" dir="ltr">
               {entry.data.prerequisites.map((p) => <li key={p}>{p}</li>)}
             </ul>
           </div>
         )}
-        <div className="prose-mark mt-8" dangerouslySetInnerHTML={{ __html: entry.html }} />
+        <div className="prose-mark mt-8" lang="en" dir="ltr" dangerouslySetInnerHTML={{ __html: entry.html }} />
         {entry.data.pitfalls.length > 0 && (
           <section className="mt-10">
-            <h2 className="text-2xl font-bold mb-4">Common pitfalls</h2>
-            <ul className="space-y-2 list-disc pl-6 text-[var(--text-muted)]">
+            <h2 className="text-2xl font-bold mb-4">{t("pitfallsHeading")}</h2>
+            <ul className="space-y-2 list-disc pl-6 text-[var(--text-muted)]" lang="en" dir="ltr">
               {entry.data.pitfalls.map((p) => <li key={p}>{p}</li>)}
             </ul>
           </section>
         )}
         {entry.data.faq.length > 0 && (
           <section className="mt-12">
-            <h2 className="text-2xl font-bold mb-4">FAQ</h2>
-            <div className="space-y-3">
+            <h2 className="text-2xl font-bold mb-4">{t("faqHeading")}</h2>
+            <div className="space-y-3" lang="en" dir="ltr">
               {entry.data.faq.map((f) => (
                 <details key={f.q} className="card">
                   <summary className="cursor-pointer font-semibold">{f.q}</summary>
@@ -100,18 +123,18 @@ export default async function GuideEntryPage({ params }: { params: { slug: strin
         )}
         {(entry.data.relatedGlossary.length > 0 || entry.data.relatedCompare.length > 0) && (
           <section className="mt-12">
-            <h2 className="text-2xl font-bold mb-4">Related</h2>
+            <h2 className="text-2xl font-bold mb-4">{t("relatedHeading")}</h2>
             <ul className="space-y-2 text-[var(--accent)]">
               {entry.data.relatedGlossary.map((r) => (
-                <li key={r}><Link href={`/glossary/${r}`}>→ Glossary: {r}</Link></li>
+                <li key={r}><Link href={`/glossary/${r}`}>{t("relatedGlossaryLink", { slug: r })}</Link></li>
               ))}
               {entry.data.relatedCompare.map((r) => (
-                <li key={r}><Link href={`/compare/${r}`}>→ Compare: {r}</Link></li>
+                <li key={r}><Link href={`/compare/${r}`}>{t("relatedCompareLink", { slug: r })}</Link></li>
               ))}
             </ul>
           </section>
         )}
-        <p className="mt-12 text-xs text-[var(--text-muted)]">Last updated {entry.data.updated}</p>
+        <p className="mt-12 text-xs text-[var(--text-muted)]">{t("lastUpdated", { date: entry.data.updated })}</p>
       </article>
     </MarketingShell>
   );

@@ -300,3 +300,32 @@ User-visible flows: signup → upload → profile → chat → cross-predict →
 - Dual-locale Playwright (`playwright.5000.config.ts`): **28 passed / 1 flaky / 3 skipped** (3 min). Flaky test is `data_model.spec.ts:6` — confirmed non-regression: passes on isolated retry in 2.4 s, same flake observed pre-translation.
 
 **Deferred:** `/ar/features`, `/ar/about`, `/ar/glossary` (+ `[slug]`), `/ar/guides` (+ `[slug]`), `/ar/compare` (+ `[slug]`) still ship English body copy under Arabic chrome. Tracked as **Task #281 (Translate AR marketing copy — features, about, glossary, guides, compare)** for post-deploy backlog. Decision rationale: Pricing + Contact carry conversion weight; the remaining five are content/SEO surfaces and acceptable to ship in EN-body for one cycle while AR translations land.
+
+---
+
+## 2026-05-03 follow-up — AR marketing copy (closure) — Task #281
+
+**Scope shipped:** translated the remaining five marketing surfaces on the Arabic locale — `/ar/features`, `/ar/about`, `/ar/glossary` (+ all 12 `[slug]` entries), `/ar/guides` (+ all 5 `[slug]` entries), `/ar/compare` (+ all 5 `[slug]` entries). With the Task #280 work this closes the AR marketing-body gap on every public route.
+
+**What changed:**
+- New `features`, `about`, `glossary`, `guides`, `compare` namespaces in `frontend/messages/{en,ar}.json` covering: every features-grid card title + description (12), about page paragraphs + the three audience bullets + three principle bullets, index page eyebrow/title/lead/meta for each of the three slug-driven sections, plus all per-slug chrome (byTheNumbers, FAQ heading, Related heading, lastUpdated, prerequisites label, pitfalls heading, vs label, "best for us" / "best for them", feature-by-feature heading, "choose AXIOM when" / "choose competitor when", related-link prefixes), and a `translationInProgress` banner string.
+- `frontend/src/app/[locale]/{features,about,glossary,guides,compare}/page.tsx` and the three `[slug]/page.tsx` files rebuilt as async server components reading `getTranslations({ locale, namespace })`. Slug-page params migrated to `Promise<{slug; locale}>` to match the rest of the app.
+- **Slug strategy = Option (b):** slug bodies remain the original English `entry.html` (markdown-rendered prose stays EN under explicit `lang="en" dir="ltr"`) with a translated AR chrome around it: localised eyebrow, breadcrumbs, h1 (translated term/title), summary, byTheNumbers/FAQ/Related/lastUpdated headings, plus a one-line "ترجمة عربية قيد العمل — يُعرض المحتوى التفصيلي بالإنجليزية حاليًا." banner shown only when `locale==='ar'`. The Python SEO/GEO emitter is left untouched (Option (a) deferred — the banner shipped on-time).
+- **Index-card item-level localisation:** added per-slug `items.<slug>` sub-namespaces under `glossary`, `guides`, and `compare` in both `messages/{en,ar}.json` covering every glossary term + summary (12), every guide title + summary + estTime + difficulty (5), and every compare title + summary (5). The three index pages render the AR string when present and fall back to the EN frontmatter otherwise — so adding new content keeps building, while every shipped slug shows fully Arabic card chrome on `/ar/*`. Slug pages also use the translated term/title for the H1 and breadcrumb leaf.
+- Linguistic rules honoured: عربي فصيح, tech tokens stay EN (`AXIOM`, `K-Means`, `RandomForest`, `PostgreSQL`, `GPT`, `PDF`, `CSV`, `Excel`, `Power Query`, `Tier`, `Pro+`, `BI`), Western digits everywhere (`60 ثانية`, `2003`, `$12.9M`, `80%`), no Arabic-Indic numerals, RTL banner explicitly set with `dir="rtl"` while EN body uses `dir="ltr"`.
+- BreadcrumbList + DefinedTerm + Article + FAQPage JSON-LD continue to emit (now in the resolved locale's strings).
+
+**Evidence:**
+- `docs/audits/evidence/ar-marketing/ar-features.jpg`
+- `docs/audits/evidence/ar-marketing/ar-about.jpg`
+- `docs/audits/evidence/ar-marketing/ar-glossary.jpg`
+- `docs/audits/evidence/ar-marketing/ar-guides.jpg`
+- `docs/audits/evidence/ar-marketing/ar-compare.jpg`
+- `docs/audits/evidence/ar-marketing/ar-glossary-slug.jpg` (banner visible above EN body)
+- `docs/audits/evidence/ar-marketing/ar-guide-slug.jpg` (banner visible above EN body)
+- `docs/audits/evidence/ar-marketing/ar-compare-slug.jpg` (banner visible above EN body)
+- TypeScript: clean (`tsc --noEmit`).
+- Vitest: **34 / 34 green** (8 files, 12 s).
+- Dual-locale Playwright (`playwright.5000.config.ts`): **30 passed / 3 skipped** with two pre-existing chromium-en flakes (`data_model.spec.ts:6`, `upload_and_analyze.spec.ts:6`) that pass on isolated retry — same flakes recorded against Task #280, not introduced by this change.
+
+**Gap status:** AR marketing-body coverage now spans every `/ar/*` public route. Index pages (`/ar/features`, `/ar/about`, `/ar/glossary`, `/ar/guides`, `/ar/compare`) are fully translated; slug pages have translated chrome + visible "translation in progress" banner with EN body. The "AR marketing copy" gap from the original audit is closed.
