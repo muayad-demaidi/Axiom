@@ -30,6 +30,7 @@ except Exception as _e:
     print(f"[axiom] init_db skipped: {_e}")
 
 from .auth_routes import router as auth_router  # noqa: E402
+from .users import router as users_router  # noqa: E402
 from .projects import router as projects_router  # noqa: E402
 from .datasets import router as datasets_router  # noqa: E402
 from .analysis import router as analysis_router  # noqa: E402
@@ -131,6 +132,7 @@ async def health() -> dict:
 
 
 app.include_router(auth_router)
+app.include_router(users_router)
 app.include_router(projects_router)
 app.include_router(datasets_router)
 app.include_router(analysis_router)
