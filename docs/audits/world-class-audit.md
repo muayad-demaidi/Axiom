@@ -290,7 +290,7 @@ User-visible flows: signup → upload → profile → chat → cross-predict →
 - New `pricing` and `contact` namespaces in `frontend/messages/{en,ar}.json` covering: page heading + lead, every tier name/price/summary/feature bullet, trial CTA, every FAQ Q+A, contact heading + lead, "prefer email?" line, every form label + placeholder + button + status message + validation error.
 - `frontend/src/app/[locale]/pricing/page.tsx` and `frontend/src/app/[locale]/contact/page.tsx` rebuilt as async server components reading translations via `getTranslations({ locale, namespace })`. Breadcrumb labels read from the existing `nav` namespace.
 - `frontend/src/components/ContactForm.tsx` switched to `useTranslations("contact")`.
-- Linguistic rules honoured: عربي فصيح (not literal), tech tokens stay EN (`Tier 1 — Starter`, `Tier 2 — Pro`, `Tier 3 — Pro+`, `K-Means`, `RandomForest`, `PostgreSQL`, `GPT`, `PDF`, `CSV`, `MB`, `AXIOM`), prices stay `$` with Western digits (`$19/شهريًا`, `$49/شهريًا`, `مجانًا`), no Arabic-Indic numerals.
+- Linguistic rules honoured: عربي فصيح (not literal — second pass replaced colloquial `كيف نقدر نساعدك؟` → `كيف يمكننا مساعدتك؟` on the contact placeholder, and `رح نتواصل معك قريبًا` → `سنعاود التواصل معك قريبًا` on the success line), tech tokens stay EN (`Tier 1 — Starter`, `Tier 2 — Pro`, `Tier 3 — Pro+`, `K-Means`, `RandomForest`, `PostgreSQL`, `GPT`, `PDF`, `CSV`, `MB`, `AXIOM`), prices stay `$` with Western digits (`$19/شهريًا`, `$49/شهريًا`, `مجانًا`), no Arabic-Indic numerals.
 - FAQPage + BreadcrumbList JSON-LD still emit (now in the resolved locale's strings).
 
 **Evidence:**
