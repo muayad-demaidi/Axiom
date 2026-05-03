@@ -234,6 +234,7 @@ export function GuidedPredictionWizard({
           setIndex={setQuestionIndex}
           onSubmit={submit}
           selectedTarget={selectedTarget}
+          onBackToSummary={() => setPhase("summary")}
         />
       )}
       {phase === "running" && (
@@ -366,7 +367,6 @@ function SummaryPhase({
 }) {
   const effectiveTarget = selectedTarget || analysis.target;
   const numericCols = analysis.numeric_columns ?? [];
-  const [showTargetPicker, setShowTargetPicker] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -385,37 +385,30 @@ function SummaryPhase({
         )}
 
         <div className="flex items-start gap-2">
-          <span className="text-[var(--text-muted)] text-[11px] w-20 shrink-0 pt-0.5">هدف التوقع</span>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-sm font-semibold text-[var(--accent)]">{effectiveTarget}</span>
-            {numericCols.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setShowTargetPicker((p) => !p)}
-                className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+          <span className="text-[var(--text-muted)] text-[11px] w-20 shrink-0 pt-1.5">هدف التوقع</span>
+          <div className="flex-1">
+            {numericCols.length > 1 ? (
+              <select
+                value={effectiveTarget}
+                onChange={(e) => {
+                  onTargetChange(e.target.value === analysis.target ? null : e.target.value);
+                }}
+                className="w-full text-xs font-semibold px-2 py-1.5 rounded-md border border-[var(--accent)]/60 bg-[var(--surface)] text-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] cursor-pointer"
               >
-                تغيير
-              </button>
+                {numericCols.map((col) => (
+                  <option key={col} value={col}>{col}</option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-sm font-semibold text-[var(--accent)]">{effectiveTarget}</span>
+            )}
+            {numericCols.length > 1 && (
+              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                اختر العمود الذي تريد التنبؤ بقيمه المستقبلية
+              </div>
             )}
           </div>
         </div>
-
-        {showTargetPicker && numericCols.length > 1 && (
-          <div className="pr-[5.5rem]">
-            <select
-              value={effectiveTarget}
-              onChange={(e) => {
-                onTargetChange(e.target.value === analysis.target ? null : e.target.value);
-                setShowTargetPicker(false);
-              }}
-              className="w-full text-xs px-2 py-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
-            >
-              {numericCols.map((col) => (
-                <option key={col} value={col}>{col}</option>
-              ))}
-            </select>
-          </div>
-        )}
 
         {analysis.target_reason && (
           <div className="flex items-start gap-2">
@@ -465,7 +458,7 @@ function SummaryPhase({
           onClick={onContinue}
           className="text-sm font-semibold px-5 py-2 rounded-full bg-[var(--accent)] text-white hover:opacity-90"
         >
-          يبدو صحيحاً، نكمل ←
+          تأكيد وإكمال ←
         </button>
       </div>
     </div>
@@ -487,6 +480,7 @@ function QuestioningPhase({
   setIndex,
   onSubmit,
   selectedTarget,
+  onBackToSummary,
 }: {
   analysis: Extract<AnalyzePayload, { ok: true }>;
   answers: Record<string, string | number>;
@@ -495,6 +489,7 @@ function QuestioningPhase({
   setIndex: (n: number) => void;
   onSubmit: () => void;
   selectedTarget: string | null;
+  onBackToSummary: () => void;
 }) {
   const total = analysis.questions.length;
   const safeIndex = Math.max(0, Math.min(index, total - 1));
@@ -534,9 +529,16 @@ function QuestioningPhase({
         >
           ← السابق
         </button>
-        <div className="text-[10px] text-[var(--text-muted)]">
-          هدف: <span className="font-semibold text-[var(--accent)]">{effectiveTarget}</span>
-        </div>
+        <button
+          type="button"
+          onClick={onBackToSummary}
+          className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors flex items-center gap-1"
+          title="تغيير هدف التوقع"
+        >
+          <span>هدف:</span>
+          <span className="font-semibold text-[var(--accent)]">{effectiveTarget}</span>
+          <span className="opacity-60">✎</span>
+        </button>
         {isLast ? (
           <button
             onClick={onSubmit}
