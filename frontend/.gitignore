@@ -11,3 +11,7 @@
 # TypeScript incremental build cache
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+
+# Playwright report / runtime artifacts — never commit
+/playwright-report/
+/test-results/
