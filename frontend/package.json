@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@swc/core": "^1.7.26",
-    "@swc/core-win32-x64-msvc": "^1.15.33",
     "framer-motion": "^12.38.0",
     "gray-matter": "4.0.3",
     "lucide-react": "^0.469.0",

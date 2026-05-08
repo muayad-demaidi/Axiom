@@ -1,17 +1,15 @@
 {
-  "name": "workspace",
+  "name": "axiom-monorepo",
   "version": "1.0.0",
-  "main": "index.js",
-  "directories": {
-    "test": "tests"
-  },
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "marketing-site"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm test --workspaces",
+    "vercel-build": "npm run build --workspace=frontend"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
     "@playwright/test": "^1.59.1",
     "@testing-library/jest-dom": "^6.9.1",
