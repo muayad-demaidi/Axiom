@@ -1,5 +1,5 @@
 """GEO visibility check: query an LLM with a fixed prompt set and record
-whether DataVision Pro shows up (with or without a citation/URL)."""
+whether AXIOM shows up (with or without a citation/URL)."""
 
 from __future__ import annotations
 import os
@@ -15,7 +15,7 @@ _client = OpenAI(
 
 BRAND_PATTERNS = [
     re.compile(r"\bdatavision\s*pro\b", re.I),
-    re.compile(r"\bdatavisionpro\b", re.I),
+    re.compile(r"\bAXIOM\b", re.I),
 ]
 URL_PATTERN = re.compile(r"https?://[^\s)]+", re.I)
 

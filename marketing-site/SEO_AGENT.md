@@ -32,7 +32,7 @@ Every week (Mondays 08:00 UTC by default) the agent:
    API or a Google Search Console CSV export — and writes one row per
    slug per pull into the `seo_agent_page_metrics` table.
 8. **Runs a GEO visibility check** against ~15 fixed prompts and records
-   whether DataVision Pro is mentioned (with or without a citation).
+   whether AXIOM is mentioned (with or without a citation).
 9. **Emails a weekly summary** to the admin via the existing Resend
    integration and writes a full row to `seo_agent_runs` for cost / output
    audit.
@@ -62,7 +62,7 @@ Edit these in the admin panel → SEO/GEO Agent → Config:
 | Knob | Values | Notes |
 | --- | --- | --- |
 | `analytics_source` | `none` / `plausible` / `gsc_csv` | `none` skips the pull |
-| `analytics_site_url` | hostname or full URL | Plausible `site_id` (e.g. `datavisionpro.app`) or canonical site URL for GSC |
+| `analytics_site_url` | hostname or full URL | Plausible `site_id` (e.g. `AXIOM.app`) or canonical site URL for GSC |
 | `analytics_lookback_days` | int | Window per pull (default `7`) |
 
 **Plausible** — set `PLAUSIBLE_API_KEY` as a Replit secret. The agent

@@ -18,7 +18,7 @@ from pydantic import BaseModel
 import models  # type: ignore
 from data_cleaner import clean_data  # type: ignore
 from data_analyzer import generate_summary_report  # type: ignore
-from predictions import simple_forecast  # type: ignore
+from .utils import simple_forecast  # type: ignore
 
 from context.type_inference import to_numeric_canonical as _canonical_num  # type: ignore
 

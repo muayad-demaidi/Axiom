@@ -4,6 +4,13 @@ import resend
 
 
 def get_resend_credentials():
+    # First, check for standard environment variables for production
+    env_api_key = os.environ.get("RESEND_API_KEY")
+    env_from_email = os.environ.get("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+    if env_api_key:
+        return env_api_key, env_from_email
+
+    # Fallback to Replit-specific logic for development/replit deployments
     hostname = os.environ.get("REPLIT_CONNECTORS_HOSTNAME")
     
     x_replit_token = None

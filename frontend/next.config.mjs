@@ -7,6 +7,7 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: "standalone",
   // Allow Next/Image to run its optimizer on locally hosted assets
   // (logo, OG images, marketing thumbnails). The frontend runs behind
   // the same Next server on :5000 in dev and via `next start` in

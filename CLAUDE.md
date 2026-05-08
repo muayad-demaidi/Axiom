@@ -1,12 +1,16 @@
-# CLAUDE.md — DataVision Pro
+# CLAUDE.md — AXIOM
 > هاد الملف هو دليلك الكامل للمشروع. اقرأه قبل أي تعديل.
 
 ---
 
 ## 🧠 ما هو المشروع؟
 
-**DataVision Pro** — منصة تحليل بيانات ذكية مبنية على Streamlit.
-الهدف: يرفع المستخدم ملف بيانات → المنصة تحلله تلقائياً وتعطيه insights وتوقعات.
+**AXIOM** — Intelligent data analytics platform, no code required.
+
+## 🏗️ Architecture
+*   **Backend:** FastAPI + SQLAlchemy (SQLite for local dev).
+*   **Frontend:** Next.js 14 + TailwindCSS (Glassmorphism theme).
+*   **AI Engine:** Mode-aware GPT-4o integration with guided flows.
 
 ---
 

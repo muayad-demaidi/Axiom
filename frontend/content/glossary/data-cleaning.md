@@ -35,10 +35,10 @@ updated: "2026-04-15"
 relatedGuides:
 - how-to-clean-a-messy-csv-in-60-seconds
 relatedCompare:
-- datavision-pro-vs-excel
+- axiom.ai-vs-excel
 ---
 
-<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-clean-a-messy-csv-in-60-seconds">how to clean a messy CSV in 60 seconds</a> · <a href="/compare/datavision-pro-vs-excel">AXIOM vs Excel</a>.</p>
+<p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/guides/how-to-clean-a-messy-csv-in-60-seconds">how to clean a messy CSV in 60 seconds</a> · <a href="/compare/axiom.ai-vs-excel">AXIOM vs Excel</a>.</p>
 
 ## How data cleaning works
 

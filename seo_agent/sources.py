@@ -19,7 +19,7 @@ from urllib.parse import urlparse
 
 import requests
 
-USER_AGENT = "DataVisionProSEOBot/1.0 (+https://datavisionpro.app)"
+USER_AGENT = "AXIOMSEOBot/1.0 (+https://AXIOM.app)"
 HEADERS = {"User-Agent": USER_AGENT, "Accept": "application/json"}
 TIMEOUT = 15
 
@@ -201,7 +201,7 @@ def fetch_plausible(site_id: str, lookback_days: int = 7) -> Tuple[List[Dict], L
     """Pull the per-page visitor breakdown from Plausible.
 
     Requires ``PLAUSIBLE_API_KEY`` in the environment. ``site_id`` is the
-    bare hostname registered with Plausible (e.g. ``datavisionpro.app``).
+    bare hostname registered with Plausible (e.g. ``AXIOM.app``).
     """
     out: List[Dict] = []
     errors: List[str] = []
@@ -254,8 +254,8 @@ def fetch_gsc_csv(csv_path: str | None = None,
     ``data/gsc_pages.csv``). Expected columns (case-insensitive):
     ``Top pages``/``Page``, ``Clicks``, ``Impressions``, ``CTR``, ``Position``.
 
-    If ``site_url`` is provided (e.g. ``datavisionpro.app`` or
-    ``https://datavisionpro.app``), only rows whose page URL matches that
+    If ``site_url`` is provided (e.g. ``AXIOM.app`` or
+    ``https://AXIOM.app``), only rows whose page URL matches that
     host are kept. This lets the same fetcher coexist with multi-property
     GSC exports.
     """

@@ -1,10 +1,10 @@
-# AXIOM (DataVision Pro) — Complete Setup & Restore Guide
+# AXIOM (AXIOM) — Complete Setup & Restore Guide
 
 This archive contains everything required to rebuild the AXIOM project from
 scratch on any machine (local, server, or a fresh Replit). Follow the steps
 below in order.
 
-> **Project name**: Currently branded as "DataVision Pro" in code. Rebrand to
+> **Project name**: Currently branded as "AXIOM" in code. Rebrand to
 > "AXIOM" is in progress. Either name refers to the same project.
 
 ---

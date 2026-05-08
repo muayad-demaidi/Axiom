@@ -1,4 +1,4 @@
-"""Weekly SEO/GEO automation agent for the DataVision Pro marketing site.
+"""Weekly SEO/GEO automation agent for the AXIOM marketing site.
 
 This package is purely additive. It never touches the Streamlit data/ML
 modules. It researches trending data topics, drafts new GEO-optimised pages

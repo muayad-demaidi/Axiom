@@ -3,7 +3,7 @@ export const SITE = {
   tagline: "AI-powered data analysis, no code required",
   description:
     "AXIOM turns raw CSVs and Excel files into clean, analyzed, AI-explained insights in seconds. Auto cleaning, statistics, ML, predictions, and a built-in chat assistant.",
-  url: process.env.NEXT_PUBLIC_SITE_URL || "https://datavisionpro.app",
+  url: process.env.NEXT_PUBLIC_SITE_URL || "https://AXIOM.app",
   appUrl: process.env.NEXT_PUBLIC_APP_URL || "/app",
   supportEmail: "muayad.demaidi.work@gmail.com",
   organization: {
@@ -13,7 +13,7 @@ export const SITE = {
     sameAs: [] as string[],
   },
   socialImage: "/og-default.png",
-  twitter: "@datavisionpro",
+  twitter: "@AXIOM",
   defaultUpdated: "2026-04-01",
 };
 

@@ -10,9 +10,23 @@ from sqlalchemy.orm import sessionmaker, relationship
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL environment variable is not set. Please configure a PostgreSQL database.")
+    # Local development fallback: use SQLite so the project can run
+    # without a PostgreSQL server. The file lives next to models.py.
+    _db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "axiom_dev.db")
+    DATABASE_URL = f"sqlite:///{_db_path}"
+    _IS_SQLITE = True
+    print(f"[axiom] No DATABASE_URL set — using local SQLite at {_db_path}")
+else:
+    _IS_SQLITE = DATABASE_URL.startswith("sqlite")
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
+_engine_kwargs: dict = {}
+if not _IS_SQLITE:
+    _engine_kwargs.update(pool_pre_ping=True, pool_recycle=300)
+else:
+    # SQLite needs check_same_thread=False for multi-threaded access (FastAPI)
+    _engine_kwargs.update(connect_args={"check_same_thread": False})
+
+engine = create_engine(DATABASE_URL, **_engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -538,10 +552,20 @@ def init_db():
     existing ones. To keep older deployments compatible when we add columns
     (e.g. the persisted step-history fields), we run idempotent
     `ADD COLUMN IF NOT EXISTS` statements right after table creation.
+
+    When running on SQLite (local dev), we skip the PostgreSQL-specific
+    ALTER TABLE migrations because create_all already builds the full
+    schema from the ORM models.
     """
     from sqlalchemy import text
 
     Base.metadata.create_all(bind=engine)
+
+    # On SQLite, create_all already made every column from the ORM
+    # definitions. The ALTER TABLE / partial-index migrations below use
+    # PostgreSQL-only syntax, so skip them entirely.
+    if _IS_SQLITE:
+        return
 
     _migrations = [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_dataset_id INTEGER",

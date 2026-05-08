@@ -27,7 +27,7 @@ _client = OpenAI(
 
 GEO_RULES = """\
 You write factual, GEO-optimised reference pages for an analytics product called
-DataVision Pro. You follow these non-negotiable rules:
+AXIOM. You follow these non-negotiable rules:
 
 1. DIRECT-ANSWER BLOCK first, exactly 40-60 words, plainly answering the
    user's question. No fluff, no marketing.
@@ -39,7 +39,7 @@ DataVision Pro. You follow these non-negotiable rules:
    the form [INSERT: <description>] — do not invent.
 4. Headings phrased as questions where natural. FAQ block at the end.
 5. Total length 1,200-2,000 words.
-6. Mention DataVision Pro at most twice and only where genuinely relevant.
+6. Mention AXIOM at most twice and only where genuinely relevant.
 7. The page MUST contain at least one fact, statistic, framework, or angle
    absent from the SERP brief you are given. If you cannot, output the single
    string DROP_NO_INFORMATION_GAIN and nothing else.
@@ -73,7 +73,7 @@ fence):
   "related": ["existing-slug-1", "existing-slug-2"],
   "updated": "<YYYY-MM-DD>",
   "jsonLd": [
-    {"@context":"https://schema.org","@type":"DefinedTerm","name":"<term>","description":"<shortDef>","inDefinedTermSet":"https://datavision.pro/glossary"},
+    {"@context":"https://schema.org","@type":"DefinedTerm","name":"<term>","description":"<shortDef>","inDefinedTermSet":"https://axiom.ai/glossary"},
     {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
       {"@type":"Question","name":"<faq[0].q>","acceptedAnswer":{"@type":"Answer","text":"<faq[0].a>"}}
     ]}

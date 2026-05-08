@@ -68,7 +68,7 @@ def run_onboarding_wizard(user_id: int | str) -> Optional[dict]:
     with st.form("biz_onboarding_form", clear_on_submit=False):
         st.markdown("#### Business profile")
         st.caption(
-            "Tell DataVision Pro about your business so insights, "
+            "Tell AXIOM about your business so insights, "
             "comparisons and alerts use the right context."
         )
 

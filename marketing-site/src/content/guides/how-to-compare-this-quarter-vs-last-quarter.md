@@ -27,8 +27,8 @@ relatedGlossary:
 - data-drift
 - ab-testing
 relatedCompare:
-- datavision-pro-vs-tableau
-- datavision-pro-vs-power-bi
+- axiom.ai-vs-tableau
+- axiom.ai-vs-power-bi
 ---
 
 <p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/glossary/descriptive-statistics">descriptive statistics</a> · <a href="/glossary/data-drift">data drift</a> · <a href="/glossary/ab-testing">A/B testing</a>.</p>

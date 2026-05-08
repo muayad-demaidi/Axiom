@@ -8,9 +8,11 @@ from openai import OpenAI
 AI_INTEGRATIONS_OPENAI_API_KEY = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
 AI_INTEGRATIONS_OPENAI_BASE_URL = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
 
+# Allow module import even without an API key (local dev).
+# AI-dependent functions will degrade gracefully at call time.
 client = OpenAI(
-    api_key=AI_INTEGRATIONS_OPENAI_API_KEY,
-    base_url=AI_INTEGRATIONS_OPENAI_BASE_URL
+    api_key=AI_INTEGRATIONS_OPENAI_API_KEY or "sk-placeholder-for-dev",
+    base_url=AI_INTEGRATIONS_OPENAI_BASE_URL or None
 )
 
 
@@ -765,3 +767,54 @@ Write the summary in a simple, easy-to-understand style, and cover:
         return response.choices[0].message.content
     except Exception as e:
         return _localized_error("cleaning", user_language, str(e))
+
+
+def generate_smart_narrative(forecast_result: Dict[str, Any], project_context: Any = None, 
+                             df_stats: Dict[str, Any] = None, user_language: Optional[str] = None,
+                             assistant_mode: Optional[str] = None) -> str:
+    """Generate a smart narrative based on the prediction result and project context."""
+    
+    # Extract past predictions from the project context if available
+    past_predictions = []
+    if project_context and hasattr(project_context, 'get'):
+        notes = project_context.get('notes', [])
+        for n in notes:
+            if getattr(n, 'kind', '') == 'prediction_snapshot':
+                try:
+                    past_predictions.append(json.loads(getattr(n, 'content', '{}')))
+                except Exception:
+                    pass
+    
+    prompt = f"""You are an expert data analyst. Based on the following forecast results and context, write a 3-sentence narrative:
+
+Forecast Result:
+{json.dumps(forecast_result, ensure_ascii=False, indent=2, default=str)}
+
+Past Predictions for comparison:
+{json.dumps(past_predictions[-2:], ensure_ascii=False, indent=2, default=str) if past_predictions else 'No past predictions available.'}
+
+Project Context:
+{_project_context_to_text(project_context)}
+
+Your 3-sentence narrative MUST cover:
+1. What is currently happening (current trend based on the data).
+2. What the model predicts (with numbers/percentages).
+3. One key warning or opportunity to watch out for.
+
+{_language_instruction(user_language)}"""
+
+    system_prompt = _apply_mode_directive(
+        _augment_system(SYSTEM_PROMPT, project_context), assistant_mode)
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=800
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return _localized_error("prediction", user_language, str(e))

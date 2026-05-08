@@ -27,7 +27,7 @@ relatedGlossary:
 - outlier-detection
 - etl-vs-elt
 relatedCompare:
-- datavision-pro-vs-excel
+- axiom.ai-vs-excel
 ---
 
 <p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/glossary/data-cleaning">data cleaning</a> · <a href="/glossary/missing-value-imputation">missing-value imputation</a> · <a href="/glossary/outlier-detection">outlier detection</a> · <a href="/glossary/etl-vs-elt">ETL vs ELT</a>.</p>

@@ -25,8 +25,8 @@ relatedGlossary:
 - anomaly-detection
 - normalization
 relatedCompare:
-- datavision-pro-vs-excel
-- datavision-pro-vs-tableau
+- axiom.ai-vs-excel
+- axiom.ai-vs-tableau
 ---
 
 <p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/glossary/outlier-detection">outlier detection</a> · <a href="/glossary/k-means-clustering">k-means clustering</a> · <a href="/glossary/anomaly-detection">anomaly detection</a> · <a href="/glossary/normalization">normalization</a>.</p>

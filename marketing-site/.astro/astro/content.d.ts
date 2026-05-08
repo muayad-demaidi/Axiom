@@ -141,37 +141,37 @@ declare module 'astro:content' {
 
 	type ContentEntryMap = {
 		"compare": {
-"datavision-pro-vs-excel.md": {
-	id: "datavision-pro-vs-excel.md";
-  slug: "datavision-pro-vs-excel";
+"axiom.ai-vs-excel.md": {
+	id: "axiom.ai-vs-excel.md";
+  slug: "axiom.ai-vs-excel";
   body: string;
   collection: "compare";
   data: InferEntrySchema<"compare">
 } & { render(): Render[".md"] };
-"datavision-pro-vs-looker-studio.md": {
-	id: "datavision-pro-vs-looker-studio.md";
-  slug: "datavision-pro-vs-looker-studio";
+"axiom.ai-vs-looker-studio.md": {
+	id: "axiom.ai-vs-looker-studio.md";
+  slug: "axiom.ai-vs-looker-studio";
   body: string;
   collection: "compare";
   data: InferEntrySchema<"compare">
 } & { render(): Render[".md"] };
-"datavision-pro-vs-metabase.md": {
-	id: "datavision-pro-vs-metabase.md";
-  slug: "datavision-pro-vs-metabase";
+"axiom.ai-vs-metabase.md": {
+	id: "axiom.ai-vs-metabase.md";
+  slug: "axiom.ai-vs-metabase";
   body: string;
   collection: "compare";
   data: InferEntrySchema<"compare">
 } & { render(): Render[".md"] };
-"datavision-pro-vs-power-bi.md": {
-	id: "datavision-pro-vs-power-bi.md";
-  slug: "datavision-pro-vs-power-bi";
+"axiom.ai-vs-power-bi.md": {
+	id: "axiom.ai-vs-power-bi.md";
+  slug: "axiom.ai-vs-power-bi";
   body: string;
   collection: "compare";
   data: InferEntrySchema<"compare">
 } & { render(): Render[".md"] };
-"datavision-pro-vs-tableau.md": {
-	id: "datavision-pro-vs-tableau.md";
-  slug: "datavision-pro-vs-tableau";
+"axiom.ai-vs-tableau.md": {
+	id: "axiom.ai-vs-tableau.md";
+  slug: "axiom.ai-vs-tableau";
   body: string;
   collection: "compare";
   data: InferEntrySchema<"compare">

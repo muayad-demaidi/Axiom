@@ -59,45 +59,43 @@ def _normalize_whitespace(text: str) -> str:
     return "\n".join(out).strip()
 
 
-def extract_text_upload(uploaded_file) -> Tuple[str, str]:
-    """Read a Streamlit-style file uploader for a .txt / .md file."""
-    raw = uploaded_file.read() if hasattr(uploaded_file, "read") else bytes(uploaded_file or b"")
-    if len(raw) > MAX_TEXT_BYTES:
+def extract_text(raw_bytes: bytes, filename: str = "text-upload") -> Tuple[str, str]:
+    """Read a raw byte stream for a .txt / .md file."""
+    if len(raw_bytes) > MAX_TEXT_BYTES:
         raise KnowledgeBaseError(
-            f"Text file is too large ({len(raw) // 1024} KB). "
+            f"Text file is too large ({len(raw_bytes) // 1024} KB). "
             f"Limit is {MAX_TEXT_BYTES // (1024 * 1024)} MB.")
-    if not raw:
-        raise KnowledgeBaseError("The uploaded text file is empty.")
+    if not raw_bytes:
+        raise KnowledgeBaseError("The provided text content is empty.")
     for enc in ("utf-8", "utf-8-sig", "latin-1"):
         try:
-            text = raw.decode(enc)
+            text = raw_bytes.decode(enc)
             break
         except UnicodeDecodeError:
             continue
     else:
-        raise KnowledgeBaseError("Could not decode the text file as UTF-8 or Latin-1.")
+        raise KnowledgeBaseError("Could not decode the text content as UTF-8 or Latin-1.")
     text = _normalize_whitespace(text)
     if not text:
-        raise KnowledgeBaseError("The text file contains no readable content.")
-    return text, getattr(uploaded_file, "name", "text-upload")
+        raise KnowledgeBaseError("The text content contains no readable text.")
+    return text, filename
 
 
-def extract_pdf_upload(uploaded_file) -> Tuple[str, str]:
-    """Pull plain text out of an uploaded PDF using pypdf.
+def extract_pdf(raw_bytes: bytes, filename: str = "pdf-upload") -> Tuple[str, str]:
+    """Pull plain text out of a raw PDF byte stream using pypdf.
 
     Image-only PDFs (scans without an embedded text layer) yield no text
     and raise ``KnowledgeBaseError`` — OCR is explicitly out of scope for
-    this task.
+    AXIOM's current engine.
     """
-    raw = uploaded_file.read() if hasattr(uploaded_file, "read") else bytes(uploaded_file or b"")
-    if len(raw) > MAX_PDF_BYTES:
+    if len(raw_bytes) > MAX_PDF_BYTES:
         raise KnowledgeBaseError(
-            f"PDF is too large ({len(raw) // (1024 * 1024)} MB). "
+            f"PDF is too large ({len(raw_bytes) // (1024 * 1024)} MB). "
             f"Limit is {MAX_PDF_BYTES // (1024 * 1024)} MB.")
-    if not raw:
-        raise KnowledgeBaseError("The uploaded PDF is empty.")
+    if not raw_bytes:
+        raise KnowledgeBaseError("The provided PDF content is empty.")
     try:
-        reader = PdfReader(io.BytesIO(raw))
+        reader = PdfReader(io.BytesIO(raw_bytes))
     except Exception as e:
         raise KnowledgeBaseError(f"Could not read PDF: {e}") from e
     parts: list[str] = []
@@ -113,7 +111,7 @@ def extract_pdf_upload(uploaded_file) -> Tuple[str, str]:
         raise KnowledgeBaseError(
             "No readable text found in this PDF. "
             "Image-only or scanned PDFs aren't supported (no OCR).")
-    return text, getattr(uploaded_file, "name", "pdf-upload")
+    return text, filename
 
 
 def extract_url(url: str) -> Tuple[str, str]:
@@ -128,8 +126,8 @@ def extract_url(url: str) -> Tuple[str, str]:
         raise KnowledgeBaseError("That doesn't look like a valid URL.")
     headers = {
         "User-Agent": (
-            "Mozilla/5.0 (compatible; DataVisionPro-KnowledgeBase/1.0; "
-            "+https://datavision.pro)"),
+            "Mozilla/5.0 (compatible; AXIOM-KnowledgeBase/1.0; "
+            "+https://axiom.ai)"),
         "Accept": "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5",
     }
     try:

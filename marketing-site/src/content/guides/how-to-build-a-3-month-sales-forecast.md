@@ -24,8 +24,8 @@ relatedGlossary:
 - time-series
 - data-drift
 relatedCompare:
-- datavision-pro-vs-power-bi
-- datavision-pro-vs-looker-studio
+- axiom.ai-vs-power-bi
+- axiom.ai-vs-looker-studio
 ---
 
 <p class="see-also" style="margin:.5rem 0 1.25rem; font-size:.95rem; color:var(--muted,#6b7280);"><strong>See also:</strong> <a href="/glossary/predictive-analytics">predictive analytics</a> · <a href="/glossary/time-series">time series</a> · <a href="/glossary/data-drift">data drift</a>.</p>

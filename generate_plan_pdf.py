@@ -1,4 +1,4 @@
-"""Generate the comprehensive Arabic PDF plan for DataVision Pro."""
+"""Generate the comprehensive Arabic PDF plan for AXIOM."""
 import os
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -106,16 +106,16 @@ def table_data(rows, col_widths=None, header_color=TEAL):
 
 
 def build():
-    out = "DataVision_Pro_Execution_Plan.pdf"
+    out = "axiom.ai_Execution_Plan.pdf"
     doc = SimpleDocTemplate(out, pagesize=A4,
                             rightMargin=2*cm, leftMargin=2*cm,
                             topMargin=2*cm, bottomMargin=2*cm,
-                            title="DataVision Pro - Execution Plan")
+                            title="AXIOM - Execution Plan")
     story = []
 
     # ===== COVER =====
     story.append(Spacer(1, 4*cm))
-    story.append(P("DataVision Pro", "title"))
+    story.append(P("AXIOM", "title"))
     story.append(P("خطة التطوير التنفيذية الشاملة", "title"))
     story.append(Spacer(1, 0.5*cm))
     story.append(P("ثلاثة محاور . ثلاثة أيام . رؤية متكاملة", "subtitle"))
@@ -159,7 +159,7 @@ def build():
     # ===== PART 1: EXECUTIVE SUMMARY =====
     story.append(P("الجزء الأول: ملخص تنفيذي", "h1"))
     story.append(P(
-        "هذه الوثيقة تجمع خلاصة 3 محاور رئيسية لتطوير منصة DataVision Pro وتحويلها "
+        "هذه الوثيقة تجمع خلاصة 3 محاور رئيسية لتطوير منصة AXIOM وتحويلها "
         "من أداة تحليل بيانات إلى منتج SaaS متكامل قادر على المنافسة في السوق. "
         "تم تنظيم العمل على شكل خطة تنفيذية مدتها 3 أيام مكثفة، يليها خارطة طريق طويلة المدى.",
         "body"))
@@ -257,9 +257,9 @@ def build():
 
     story.append(P("الطبقة 1: فصل الموقع التسويقي عن التطبيق", "h2"))
     for item in [
-        "datavisionpro.com — موقع تسويقي بـ Astro/Next.js (SEO ممتاز)",
-        "app.datavisionpro.com — تطبيق Streamlit الفعلي (لا يحتاج SEO)",
-        "blog.datavisionpro.com — مدونة لمحتوى مستمر",
+        "AXIOM.com — موقع تسويقي بـ Astro/Next.js (SEO ممتاز)",
+        "app.AXIOM.com — تطبيق Streamlit الفعلي (لا يحتاج SEO)",
+        "blog.AXIOM.com — مدونة لمحتوى مستمر",
     ]:
         story.append(P("•  " + item, "bullet"))
 
@@ -268,7 +268,7 @@ def build():
     seo_table = [
         ["نوع القالب", "العدد المستهدف", "مثال"],
         ["كيف أحلل بيانات [نوع]", "100+", "كيف أحلل بيانات المبيعات"],
-        ["مقارنات", "20+", "Excel vs DataVision Pro"],
+        ["مقارنات", "20+", "Excel vs AXIOM"],
         ["قوالب صناعية", "50+", "تحليل بيانات المطاعم"],
         ["حلول مشاكل", "100+", "كيف تكتشف الـ Outliers"],
         ["دروس تعليمية", "30+", "شرح K-Means بالعربي"],
@@ -322,7 +322,7 @@ def build():
 
     story.append(P("التشخيص", "h2"))
     story.append(P(
-        "DataVision Pro حالياً = أداة EDA ذكية في سوق مزدحم (Tableau, Power BI, Julius AI, Akkio). "
+        "AXIOM حالياً = أداة EDA ذكية في سوق مزدحم (Tableau, Power BI, Julius AI, Akkio). "
         "السؤال الجوهري: لماذا يستخدم العميل DataVision بدلاً من المنافسين؟ "
         "الحل: التخصص في niche محدد بدلاً من المنافسة العامة.",
         "body"))
@@ -677,7 +677,7 @@ def build():
 
     story.append(P("الخلاصة النهائية", "h2"))
     story.append(P(
-        "DataVision Pro لديه أساس قوي وميزات وظيفية متكاملة. المرحلة القادمة هي الانتقال من "
+        "AXIOM لديه أساس قوي وميزات وظيفية متكاملة. المرحلة القادمة هي الانتقال من "
         "\"أداة عاملة\" إلى \"منتج تنافسي في السوق\". الخطة المقترحة على 3 أيام تضع الأساس "
         "في 3 محاور متكاملة: بنية هندسية قوية، قنوات نمو ذكية، ومنتج بميزة قاتلة فريدة.",
         "body"))

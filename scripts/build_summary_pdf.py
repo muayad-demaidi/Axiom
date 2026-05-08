@@ -145,7 +145,7 @@ def header_footer(canvas, doc):
     canvas.rect(0, A4[1] - 18, A4[0], 18, fill=1, stroke=0)
     canvas.setFillColor(TEAL)
     canvas.setFont("DejaVu-Bold", 9)
-    canvas.drawString(36, A4[1] - 13, "DataVision Pro")
+    canvas.drawString(36, A4[1] - 13, "AXIOM")
     canvas.setFillColor(WHITE)
     canvas.setFont("DejaVu", 8)
     canvas.drawRightString(A4[0] - 36, A4[1] - 13, ar("ملخص التحديثات - أبريل 2026"))
@@ -156,12 +156,12 @@ def header_footer(canvas, doc):
 
 
 def build():
-    out = "ملخص_تحديثات_DataVisionPro.pdf"
+    out = "ملخص_تحديثات_AXIOM.pdf"
     doc = SimpleDocTemplate(out, pagesize=A4, topMargin=48, bottomMargin=36,
                             leftMargin=42, rightMargin=42)
     story = []
     story.append(Spacer(1, 60))
-    story.append(Paragraph(ar("ملخص تحديثات DataVision Pro"), title_style))
+    story.append(Paragraph(ar("ملخص تحديثات AXIOM"), title_style))
     story.append(Spacer(1, 8))
     story.append(Paragraph(ar("أبريل 2026 — التسويق، تحليل البيانات، البنية التحتية"),
                            subtitle_style))

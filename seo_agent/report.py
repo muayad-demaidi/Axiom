@@ -130,11 +130,11 @@ def render_html(summary: Dict) -> str:
         </p>
       </div>
         """
-        admin_hint = ("Or review them in the DataVision Pro admin panel "
+        admin_hint = ("Or review them in the AXIOM admin panel "
                       "(Admin → SEO/GEO Agent → Review queue).")
     else:
         review_block = ""
-        admin_hint = ("Review and approve drafts in the DataVision Pro admin panel "
+        admin_hint = ("Review and approve drafts in the AXIOM admin panel "
                       "(Admin → SEO/GEO Agent → Review queue). Set an "
                       "<code>admin_review_token</code> in that tab to enable "
                       "the mobile review link.")
@@ -142,7 +142,7 @@ def render_html(summary: Dict) -> str:
     return f"""
     <div style="font-family:'Inter',Arial,sans-serif;max-width:680px;margin:0 auto;
                 background:#0f172a;color:#e2e8f0;padding:2rem;border-radius:12px;">
-      <h1 style="color:#14b8a6;margin:0 0 0.25rem 0;">DataVision Pro — Weekly SEO/GEO Report</h1>
+      <h1 style="color:#14b8a6;margin:0 0 0.25rem 0;">AXIOM — Weekly SEO/GEO Report</h1>
       <p style="color:#94a3b8;margin:0 0 1.5rem 0;">Run finished {summary.get('finished_at','')}</p>
 
       <table style="width:100%;border-collapse:collapse;background:rgba(20,184,166,0.06);
@@ -254,7 +254,7 @@ def send_weekly_report(to_email: str, summary: Dict) -> bool:
         resend.Emails.send({
             "from": from_email,
             "to": [to_email],
-            "subject": f"DataVision Pro — Weekly SEO/GEO Report "
+            "subject": f"AXIOM — Weekly SEO/GEO Report "
                        f"({summary.get('drafts_created',0)} drafts, "
                        f"${summary.get('estimated_cost_usd',0):.2f})",
             "html": render_html(summary),
