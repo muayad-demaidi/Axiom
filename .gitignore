@@ -1,2 +1,25 @@
-tests/_evidence/last_run_pytest_output.txt
-tests/_evidence/last_run_summary.txt
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# Database
+*.db
+*.sqlite3
+
+# Node.js
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Docker
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
