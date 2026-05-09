@@ -11,9 +11,20 @@ const intlMiddleware = createMiddleware({
 
 /**
  * Top-level middleware:
- *  - Requests fall through to the next-intl middleware.
+ *  - Any legacy `/ar/*` URL (from bookmarks, search results, or
+ *    cookies set before we removed Arabic) is redirected to the
+ *    English equivalent so users never land on a 404.
+ *  - All other requests fall through to the next-intl middleware.
  */
 export default function middleware(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+  if (pathname === "/ar" || pathname.startsWith("/ar/")) {
+    const stripped = pathname === "/ar" ? "/" : pathname.slice(3);
+    const url = request.nextUrl.clone();
+    url.pathname = stripped || "/";
+    url.search = search;
+    return NextResponse.redirect(url);
+  }
   return intlMiddleware(request);
 }
 
