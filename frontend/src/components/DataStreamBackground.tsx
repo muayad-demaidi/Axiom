@@ -19,13 +19,15 @@ export function DataStreamBackground({ className = "" }: { className?: string })
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // Task #276: High-DPI sharpening. Increasing max DPR to 3 and
+    // ensuring integer coordinates for crisp glyph rendering.
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
     const fontSize = 14;
     // Mix of digits, latin, brackets, currency, math, and a few cyrillic-ish
     // glyphs so the texture reads as "data" rather than only numbers.
     const glyphs =
       "01010110ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz" +
-      "{}[]()<>/\\|=+-*&^%$#@!?:;.,~`БДЖЛПФЦЧШЯабвгдежзилнпфцч";
+      "{}[]()<>/\\|=+-*&^%$#@!?:;.,~`БДЖЛПФЦЧШЯ";
 
     type Drop = { y: number; speed: number; trail: number };
     let drops: Drop[] = [];
@@ -43,11 +45,13 @@ export function DataStreamBackground({ className = "" }: { className?: string })
       const rect = canvas.getBoundingClientRect();
       width = Math.floor(rect.width);
       height = Math.floor(rect.height);
-      canvas.width = Math.floor(width * dpr);
-      canvas.height = Math.floor(height * dpr);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.font = `${fontSize}px "JetBrains Mono", ui-monospace, monospace`;
+      // Use 600 weight for better legibility on dark backgrounds
+      ctx.font = `600 ${fontSize}px "JetBrains Mono", ui-monospace, monospace`;
       ctx.textBaseline = "top";
+      ctx.imageSmoothingEnabled = false;
       columnCount = Math.ceil(width / fontSize);
       // Spread drops across the full section height so the very first
       // paint is already dense — no "warming up" gap visible to users.
@@ -84,16 +88,16 @@ export function DataStreamBackground({ className = "" }: { className?: string })
 
       for (let i = 0; i < columnCount; i++) {
         const d = drops[i];
-        const x = i * fontSize;
+        const x = Math.round(i * fontSize);
 
         // Long trail of soft glyphs above the head
         for (let t = 1; t <= d.trail; t++) {
-          const ty = d.y - t * fontSize;
+          const ty = Math.round(d.y - t * fontSize);
           if (ty < -fontSize || ty > height) continue;
           const ch = glyphs[(Math.random() * glyphs.length) | 0];
           // Fade further-up glyphs more aggressively
           const alpha = Math.max(0, 1 - t / d.trail);
-          ctx.globalAlpha = alpha * 0.55;
+          ctx.globalAlpha = alpha * 0.45; // Slightly dimmer trail for contrast
           ctx.fillStyle = soft;
           ctx.fillText(ch, x, ty);
         }
@@ -102,7 +106,7 @@ export function DataStreamBackground({ className = "" }: { className?: string })
         ctx.globalAlpha = 1;
         ctx.fillStyle = strong;
         const head = glyphs[(Math.random() * glyphs.length) | 0];
-        ctx.fillText(head, x, d.y);
+        ctx.fillText(head, x, Math.round(d.y));
 
         // Advance
         d.y += fontSize * d.speed;

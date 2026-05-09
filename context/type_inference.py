@@ -47,6 +47,12 @@ _RE_CURRENCY_TOKEN = re.compile(
     rf"(?P<sym>[{re.escape(_CURRENCY_SYMBOLS)}])|(?P<code>\b[A-Z]{{3}}\b)"
 )
 
+# Pre-compiled for _strip_currency performance
+_SYM_TRANS_TABLE = str.maketrans("", "", _CURRENCY_SYMBOLS)
+_RE_COMBINED_CURRENCY_CODES = re.compile(
+    rf"(?<![A-Za-z0-9])({'|'.join(re.escape(c) for c in _CURRENCY_CODES)})(?![A-Za-z0-9])"
+)
+
 _RE_INT = re.compile(r"^[+-]?\d{1,3}(?:[,\s]?\d{3})*$|^[+-]?\d+$")
 _RE_DEC = re.compile(r"^[+-]?\d{1,3}(?:[,\s]?\d{3})*(?:\.\d+)?$|^[+-]?\d+\.\d+$|^[+-]?\.\d+$")
 _RE_PCT = re.compile(r"^[+-]?\d+(?:\.\d+)?\s*%$")
@@ -338,14 +344,16 @@ _RE_NON_NUMERIC = re.compile(r"[^0-9,.\-+eE]")
 
 
 def _strip_currency(token: str) -> str:
-    out = token
-    for sym in _CURRENCY_SYMBOLS:
-        out = out.replace(sym, "")
-    # Strip ISO codes only when bracketed by spaces / start / end so we
-    # don't eat the ``E`` of ``1e3``.
-    for code in _CURRENCY_CODES:
-        out = re.sub(rf"(?<![A-Za-z0-9]){code}(?![A-Za-z0-9])", "", out)
-    return out
+    """Optimized removal of currency markers.
+
+    Uses a translation table for symbols and a single pre-compiled
+    regex for ISO codes to avoid the N*M overhead of iterative
+    replacement/regex-compilation in the parsing loop.
+    """
+    # 1. Strip symbols (fast)
+    out = token.translate(_SYM_TRANS_TABLE)
+    # 2. Strip ISO codes (one pass)
+    return _RE_COMBINED_CURRENCY_CODES.sub("", out)
 
 
 def parse_numeric_value(value: Any, mode: str = "auto") -> tuple[Optional[float], str]:

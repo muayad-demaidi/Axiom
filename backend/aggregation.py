@@ -643,6 +643,26 @@ def aggregate(
     # Apply filters first.
     work = apply_filters(df, filters)
 
+    # Performance optimization: pre-parse all additive measure columns once
+    # into numeric format before the grouping loop.  This avoids the
+    # parsing overhead in every sub-group (which was the primary bottleneck
+    # for large datasets with many groups).
+    cols_to_pre_parse = set()
+    for spec in parsed:
+        if spec.aggregation == "ratio":
+            if spec.numerator:
+                cols_to_pre_parse.add(spec.numerator)
+            if spec.denominator:
+                cols_to_pre_parse.add(spec.denominator)
+        elif spec.column and _agg_key(spec.aggregation) not in ("count", "count_distinct", "none"):
+            cols_to_pre_parse.add(spec.column)
+
+    for col in cols_to_pre_parse:
+        if col in work.columns and not pd.api.types.is_numeric_dtype(work[col]):
+            mode = (field_meta.get(col) or {}).get("parse_mode") or "auto"
+            parsed_vals, _ = parse_numeric_series(work[col], mode=mode)
+            work = work.assign(**{col: parsed_vals})
+
     # Apply date grains by replacing the dim column with its bucketed
     # version.
     for col, grain in date_grains.items():
