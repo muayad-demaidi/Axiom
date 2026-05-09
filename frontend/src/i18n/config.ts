@@ -6,13 +6,13 @@
  * runtimes (middleware), the React tree, and unit tests alike.
  */
 
-export const LOCALES = ["en"] as const;
+export const LOCALES = ["en", "ar"] as const;
 export type Locale = (typeof LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = "en";
 
 /** Locales whose script flows right-to-left. */
-export const RTL_LOCALES: ReadonlyArray<Locale> = [];
+export const RTL_LOCALES: ReadonlyArray<Locale> = ["ar"];
 
 /** `<html dir>` value for the active locale. */
 export function localeDir(locale: string): "ltr" | "rtl" {
