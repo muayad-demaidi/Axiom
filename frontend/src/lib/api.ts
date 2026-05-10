@@ -45,11 +45,17 @@ export async function api<T = unknown>(
   let data: unknown = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
   if (!res.ok) {
-    const detail =
-      typeof data === "object" && data !== null
-        ? ((data as Record<string, unknown>).detail ?? (data as Record<string, unknown>).message)
-        : null;
-    throw new ApiError(res.status, typeof detail === "string" ? detail : res.statusText, data);
+    let msg = res.statusText;
+    if (typeof data === "object" && data !== null) {
+      const d = (data as Record<string, unknown>).detail ?? (data as Record<string, unknown>).message;
+      if (typeof d === "string") {
+        msg = d;
+      } else if (Array.isArray(d)) {
+        // FastAPI validation errors: [{loc: [...], msg: "...", type: "..."}]
+        msg = d.map((err) => (typeof err === "object" && err !== null ? err.msg : String(err))).join(", ");
+      }
+    }
+    throw new ApiError(res.status, msg, data);
   }
   return data as T;
 }

@@ -206,7 +206,11 @@ export type AxiomModelingSafeguards = {
 };
 
 export function errMessage(e: unknown, fallback = "Request failed"): string {
-  if (e instanceof Error) return e.message || fallback;
-  if (typeof e === "string") return e;
+  if (e instanceof Error) {
+    const msg = e.message;
+    if (!msg || msg === "Error" || msg === "undefined") return fallback;
+    return msg;
+  }
+  if (typeof e === "string" && e) return e;
   return fallback;
 }
