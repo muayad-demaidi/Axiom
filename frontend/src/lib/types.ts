@@ -217,6 +217,9 @@ export type AxiomModelingSafeguards = {
 
 export function errMessage(e: unknown, fallback = "Request failed"): string {
   if (e instanceof ApiError) {
+    if (e.status === 404) {
+      return `${fallback} (404: Not Found). This usually means the API service is misconfigured or the BACKEND_URL is incorrect.`;
+    }
     if (e.message && e.message !== "Error" && e.message !== "undefined" && e.message !== "Internal Server Error") {
       return e.message;
     }

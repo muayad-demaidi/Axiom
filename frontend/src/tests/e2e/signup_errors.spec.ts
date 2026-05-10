@@ -102,6 +102,27 @@ test.describe("signup error reporting", () => {
     await expect(page.getByText(`${fallbackBase} (500)`)).toBeVisible();
   });
 
+  test("404 Not Found shows descriptive configuration error", async ({ page }, info) => {
+    const locale = localeOf(info);
+    await page.goto(signupPath(locale));
+
+    await page.route("**/api/auth/register", async (route) => {
+      await route.fulfill({
+        status: 404,
+        contentType: "text/plain",
+        body: "Not Found",
+      });
+    });
+
+    await page.getByPlaceholder(tFor(locale, "auth.email")).first().fill("404@example.com");
+    await page.getByPlaceholder(tFor(locale, "auth.username")).fill("404user");
+    await page.getByPlaceholder(tFor(locale, "auth.passwordPlaceholder")).fill("password123");
+    await page.getByRole("button", { name: tFor(locale, "auth.createAccountCta") }).click();
+
+    await expect(page.getByText(/404: Not Found/)).toBeVisible();
+    await expect(page.getByText(/BACKEND_URL is incorrect/)).toBeVisible();
+  });
+
   test("Successful signup redirects to /app", async ({ page }, info) => {
     const locale = localeOf(info);
     await page.goto(signupPath(locale));
