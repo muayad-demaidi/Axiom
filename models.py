@@ -9,7 +9,20 @@ from sqlalchemy.orm import sessionmaker, relationship
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+def _is_prod():
+    env = (os.environ.get("AXIOM_ENV") or os.environ.get("REPLIT_DEPLOYMENT") or "").lower()
+    is_vercel = os.environ.get("VERCEL") == "1"
+    return is_vercel or env in {"prod", "production", "1", "true"}
+
 if not DATABASE_URL:
+    if _is_prod():
+        # In production, missing DATABASE_URL is a fatal configuration error.
+        # We must not fall back to a local SQLite file that will be wiped
+        # on every deployment or cause "Read-only file system" errors.
+        raise RuntimeError(
+            "DATABASE_URL must be set in production environments. "
+            "Persistent storage is required for user accounts and data."
+        )
     # Local development fallback: use SQLite so the project can run
     # without a PostgreSQL server. The file lives next to models.py.
     _db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "axiom_dev.db")

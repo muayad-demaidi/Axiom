@@ -109,11 +109,15 @@ async def register(req: RegisterRequest, db=Depends(get_db_session)):
     ).first()
     if existing:
         raise HTTPException(409, "User with this email or username already exists")
-    user = models.create_user(
-        db, email=req.email, username=req.username, password=req.password, full_name=req.full_name
-    )
+    try:
+        user = models.create_user(
+            db, email=req.email, username=req.username, password=req.password, full_name=req.full_name
+        )
+    except Exception as exc:
+        log.error("Signup failed during create_user: %s", exc, exc_info=True)
+        raise HTTPException(500, f"Registration failed: {exc}")
     if not user:
-        raise HTTPException(500, "Could not create user")
+        raise HTTPException(500, "Could not create user (email or username might be taken or invalid)")
     return {"token": issue_token(user.id, user.email), "user": _user_view(user)}
 
 

@@ -61,6 +61,16 @@ export type AxiomDataset = {
 
 export type AuthResponse = { token: string; user: AxiomUser };
 
+export class ApiError extends Error {
+  status: number;
+  body: unknown;
+  constructor(status: number, message: string, body?: unknown) {
+    super(message);
+    this.status = status;
+    this.body = body;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // BI types — field metadata, pivot, dashboard. Mirror the shapes the
 // FastAPI backend returns from /api/bi/* so the pivot, dashboard and
@@ -206,6 +216,13 @@ export type AxiomModelingSafeguards = {
 };
 
 export function errMessage(e: unknown, fallback = "Request failed"): string {
+  if (e instanceof ApiError) {
+    if (e.message && e.message !== "Error" && e.message !== "undefined" && e.message !== "Internal Server Error") {
+      return e.message;
+    }
+    // If it's a generic error but we have a status code, include it.
+    return `${fallback} (${e.status})`;
+  }
   if (e instanceof Error) {
     const msg = e.message;
     if (!msg || msg === "Error" || msg === "undefined") return fallback;

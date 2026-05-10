@@ -13,17 +13,10 @@ export function setToken(t: string | null) {
   else window.localStorage.removeItem(TOKEN_KEY);
 }
 
-export type ApiBody = Record<string, unknown> | unknown[] | null;
+import { ApiError } from "./types";
+export { ApiError };
 
-export class ApiError extends Error {
-  status: number;
-  body: unknown;
-  constructor(status: number, message: string, body?: unknown) {
-    super(message);
-    this.status = status;
-    this.body = body;
-  }
-}
+export type ApiBody = Record<string, unknown> | unknown[] | null;
 
 export async function api<T = unknown>(
   path: string,
@@ -45,7 +38,7 @@ export async function api<T = unknown>(
   let data: unknown = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
   if (!res.ok) {
-    let msg = res.statusText;
+    let msg = res.statusText || `Error ${res.status}`;
     if (typeof data === "object" && data !== null) {
       const d = (data as Record<string, unknown>).detail ?? (data as Record<string, unknown>).message;
       if (typeof d === "string") {
@@ -54,6 +47,8 @@ export async function api<T = unknown>(
         // FastAPI validation errors: [{loc: [...], msg: "...", type: "..."}]
         msg = d.map((err) => (typeof err === "object" && err !== null ? err.msg : String(err))).join(", ");
       }
+    } else if (typeof data === "string" && data.length > 0 && data.length < 200) {
+      msg = data;
     }
     throw new ApiError(res.status, msg, data);
   }
