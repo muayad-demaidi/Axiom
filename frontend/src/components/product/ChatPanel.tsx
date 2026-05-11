@@ -246,7 +246,7 @@ function ChatPanelInner({
     return () => {
       cancelled = true;
     };
-  }, [sessionId, hasData]);
+  }, [sessionId, hasData, greetingNew, greetingNoData]);
 
   // Recompute "near bottom" on every scroll. ~150px threshold matches
   // the spec — anything closer than that means the reader is effectively

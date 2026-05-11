@@ -115,7 +115,8 @@ async def register(req: RegisterRequest, db=Depends(get_db_session)):
         )
     except Exception as exc:
         log.error("Signup failed during create_user: %s", exc, exc_info=True)
-        raise HTTPException(500, f"Registration failed: {exc}")
+        # Avoid leaking raw exception details in production
+        raise HTTPException(500, "Registration failed due to an internal server error.")
     if not user:
         raise HTTPException(500, "Could not create user (email or username might be taken or invalid)")
     return {"token": issue_token(user.id, user.email), "user": _user_view(user)}

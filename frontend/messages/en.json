@@ -177,6 +177,8 @@
     "emailInvalid": "Please enter a valid email address.",
     "loginFailed": "Login failed",
     "signUpFailed": "Sign-up failed",
+    "signUpError404": "Sign-up failed (404: Not Found). This typically indicates a deployment mismatch. Ensure your BACKEND_URL is correctly set and that the FastAPI backend is running and reachable from the frontend.",
+    "signUpDiagnostic": "Diagnostic: Check if /api/health is reachable on your BACKEND_URL.",
     "signingIn": "Signing in…",
     "creatingAccount": "Creating…",
     "createAccount": "Create your account",

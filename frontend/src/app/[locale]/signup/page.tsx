@@ -82,7 +82,16 @@ export default function SignupPage() {
         <input className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface)] text-sm"
           placeholder={tAuth("passwordPlaceholder")} type="password" value={password}
           onChange={(e) => setPassword(e.target.value)} required minLength={6} />
-        {error && <div className="text-sm text-red-600">{error}</div>}
+        {error && (
+          <div className="text-sm text-red-600 space-y-2">
+            <p>{error}</p>
+            {error.includes("404") && (
+              <div className="p-2 bg-red-50 rounded border border-red-100 text-[11px] text-red-700 font-mono">
+                {tAuth("signUpDiagnostic")}
+              </div>
+            )}
+          </div>
+        )}
         <button type="submit" className="btn btn-primary w-full justify-center" disabled={busy}>
           {busy ? tAuth("creatingAccount") : tAuth("createAccountCta")}
         </button>

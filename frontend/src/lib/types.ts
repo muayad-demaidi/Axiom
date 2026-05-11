@@ -216,15 +216,20 @@ export type AxiomModelingSafeguards = {
 };
 
 export function errMessage(e: unknown, fallback = "Request failed"): string {
-  if (e instanceof ApiError) {
-    if (e.status === 404) {
-      return `${fallback} (404: Not Found). This usually means the API service is misconfigured or the BACKEND_URL is incorrect.`;
+  const isApiError = e instanceof ApiError || (typeof e === "object" && e !== null && "status" in e && "message" in e);
+  if (isApiError) {
+    const status = (e as ApiError).status;
+    const message = (e as ApiError).message;
+    if (status === 404) {
+      // In bundled production, we can't easily access useTranslations, so we
+      // return a string that can be recognized or fallback to the status code.
+      return `${fallback} (404: Not Found). Check your deployment configuration and BACKEND_URL.`;
     }
-    if (e.message && e.message !== "Error" && e.message !== "undefined" && e.message !== "Internal Server Error") {
-      return e.message;
+    if (message && message !== "Error" && message !== "undefined" && message !== "Internal Server Error") {
+      return message;
     }
     // If it's a generic error but we have a status code, include it.
-    return `${fallback} (${e.status})`;
+    return `${fallback} (${status})`;
   }
   if (e instanceof Error) {
     const msg = e.message;

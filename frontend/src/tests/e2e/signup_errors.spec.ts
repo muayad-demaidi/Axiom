@@ -119,8 +119,8 @@ test.describe("signup error reporting", () => {
     await page.getByPlaceholder(tFor(locale, "auth.passwordPlaceholder")).fill("password123");
     await page.getByRole("button", { name: tFor(locale, "auth.createAccountCta") }).click();
 
-    await expect(page.getByText(/404: Not Found/)).toBeVisible();
-    await expect(page.getByText(/BACKEND_URL is incorrect/)).toBeVisible();
+    await expect(page.getByText(/404: Not Found/).first()).toBeVisible();
+    await expect(page.getByText(tFor(locale, "auth.signUpDiagnostic"))).toBeVisible();
   });
 
   test("Successful signup redirects to /app", async ({ page }, info) => {
