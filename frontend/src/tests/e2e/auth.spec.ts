@@ -50,7 +50,7 @@ test.describe("auth", () => {
     const locale = localeOf(info);
     await context.clearCookies();
     await page.addInitScript(() => {
-      try { window.localStorage.removeItem("axiom_token"); } catch {}
+      try { window.localStorage.removeItem("authToken"); } catch {}
     });
 
     await page.goto(locale === "ar" ? "/ar/app" : "/app");

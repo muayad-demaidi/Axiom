@@ -1,6 +1,6 @@
 "use client";
 
-const TOKEN_KEY = "axiom_token";
+const TOKEN_KEY = "authToken";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
