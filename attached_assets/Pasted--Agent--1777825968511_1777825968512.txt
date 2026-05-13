@@ -1,0 +1,688 @@
+    تمام! هاي **خارطة الطريق الكاملة** مع الكود والبرومبت للـ Agent:
+
+---
+
+## خارطة الطريق: بناء خاصية Predictions في Axiom
+
+### المرحلة ١: Backend (Python/FastAPI)
+
+#### ١.١ تثبيت المكتبات
+
+```txt
+# backend/requirements.txt
+autogluon==1.1.1
+shap==0.45.0
+xgboost==2.0.3
+lightgbm==4.3.0
+pandas==2.2.0
+numpy==1.26.0
+scikit-learn==1.4.0
+```
+
+#### ١.٢ محرك التنبؤات (Predictions Engine)
+
+```python
+# backend/predictions_engine.py
+import pandas as pd
+import numpy as np
+from autogluon.tabular import TabularPredictor
+import shap
+from typing import Dict, List, Any, Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+class PredictionEngine:
+    def __init__(self, time_limit: int = 300):
+        self.time_limit = time_limit  # 5 دقائق max
+        self.predictor = None
+        self.explainer = None
+        
+    def clean_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """تنظيف البيانات وملء القيم الناقصة"""
+        df_clean = df.copy()
+        
+        # ملء الأرقام الناقصة بالمتوسط
+        numeric_cols = df_clean.select_dtypes(include=[np.number]).columns
+        for col in numeric_cols:
+            df_clean[col].fillna(df_clean[col].median(), inplace=True)
+            
+        # ملء النصوص الناقصة بالقيمة الأكثر تكراراً
+        categorical_cols = df_clean.select_dtypes(include=['object']).columns
+        for col in categorical_cols:
+            df_clean[col].fillna(df_clean[col].mode()[0] if not df_clean[col].mode().empty else 'Unknown', inplace=True)
+            
+        return df_clean
+    
+    def engineer_features(self, df: pd.DataFrame, date_col: Optional[str] = None) -> pd.DataFrame:
+        """هندسة الميزات"""
+        df_features = df.copy()
+        
+        # ميزات زمنية
+        if date_col and date_col in df_features.columns:
+            df_features[date_col] = pd.to_datetime(df_features[date_col])
+            df_features['year'] = df_features[date_col].dt.year
+            df_features['month'] = df_features[date_col].dt.month
+            df_features['day'] = df_features[date_col].dt.day
+            df_features['day_of_week'] = df_features[date_col].dt.dayofweek
+            df_features['quarter'] = df_features[date_col].dt.quarter
+            df_features['is_weekend'] = df_features['day_of_week'].isin([5, 6]).astype(int)
+            
+        # ميزات إحصائية
+        numeric_cols = df_features.select_dtypes(include=[np.number]).columns
+        for col in numeric_cols:
+            df_features[f'{col}_rolling_mean_7'] = df_features[col].rolling(window=7, min_periods=1).mean()
+            df_features[f'{col}_rolling_std_7'] = df_features[col].rolling(window=7, min_periods=1).std()
+            df_features[f'{col}_lag_1'] = df_features[col].shift(1).fillna(df_features[col].median())
+            
+        return df_features
+    
+    def get_confidence_band(self, accuracy: float) -> Dict[str, Any]:
+        """تحديد نطاق الثقة"""
+        if accuracy >= 70:
+            return {
+                "band": "high",
+                "color": "green",
+                "label_ar": "دقة عالية",
+                "label_en": "High Confidence",
+                "message_ar": "النموذج واثق جداً من هذا التنبؤ",
+                "message_en": "The model is very confident in this prediction"
+            }
+        elif accuracy >= 40:
+            return {
+                "band": "medium",
+                "color": "yellow",
+                "label_ar": "دقة متوسطة",
+                "label_en": "Medium Confidence",
+                "message_ar": "النموذج متوسط الثقة — راجع البيانات",
+                "message_en": "Moderate confidence — review the data"
+            }
+        else:
+            return {
+                "band": "low",
+                "color": "red",
+                "label_ar": "دقة منخفضة",
+                "label_en": "Low Confidence",
+                "message_ar": "النموذج غير واثق — تحتاج بيانات أكثر",
+                "message_en": "Low confidence — more data needed"
+            }
+    
+    def run_prediction(
+        self,
+        df: pd.DataFrame,
+        target_col: str,
+        date_col: Optional[str] = None,
+        mode: str = "guided",
+        horizon: int = 30
+    ) -> Dict[str, Any]:
+        """
+        تشغيل التنبؤ بالكامل
+        """
+        try:
+            logger.info(f"Starting prediction for {target_col}")
+            
+            # ١. تنظيف
+            df_clean = self.clean_data(df)
+            
+            # ٢. هندسة الميزات
+            df_features = self.engineer_features(df_clean, date_col)
+            
+            # ٣. فصل الميزات والهدف
+            if target_col not in df_features.columns:
+                raise ValueError(f"Target column '{target_col}' not found")
+                
+            X = df_features.drop(columns=[target_col])
+            y = df_features[target_col]
+            
+            # ٤. AutoML — يجرب أفضل نماذج
+            self.predictor = TabularPredictor(
+                label=target_col,
+                eval_metric="root_mean_squared_error",
+                problem_type="regression" if y.dtype in ['float64', 'int64'] else "classification"
+            ).fit(
+                train_data=df_features,
+                presets="best_quality",
+                time_limit=self.time_limit,
+                verbosity=0
+            )
+            
+            # ٥. التنبؤ
+            predictions = self.predictor.predict(X.tail(horizon))
+            
+            # ٦. الدقة
+            leaderboard = self.predictor.leaderboard(silent=True)
+            best_model = leaderboard.iloc[0]
+            
+            # تحويل RMSE لنسبة دقة تقريبية
+            rmse = abs(best_model['score_val'])
+            y_range = y.max() - y.min()
+            accuracy = max(0, min(100, 100 - (rmse / y_range * 100))) if y_range > 0 else 50
+            
+            # ٧. SHAP (Expert mode)
+            shap_top = []
+            if mode == "expert":
+                try:
+                    model = self.predictor.get_model_best()
+                    explainer = shap.TreeExplainer(model)
+                    shap_values = explainer.shap_values(X.head(100))
+                    
+                    feature_importance = pd.DataFrame({
+                        'feature': X.columns,
+                        'importance': np.abs(shap_values).mean(axis=0) if len(np.array(shap_values).shape) > 1 else np.abs(shap_values).mean()
+                    }).sort_values('importance', ascending=False).head(10)
+                    
+                    shap_top = feature_importance.to_dict('records')
+                except Exception as e:
+                    logger.warning(f"SHAP failed: {e}")
+            
+            # ٨. النتيجة النهائية
+            result = {
+                "predictions": predictions.tolist(),
+                "accuracy": round(accuracy, 1),
+                "confidence": self.get_confidence_band(accuracy),
+                "model_used": best_model['model'],
+                "leaderboard": leaderboard.head(5).to_dict('records'),
+                "shap_top": shap_top,
+                "mode": mode,
+                "horizon": horizon,
+                "rows_processed": len(df),
+                "features_used": len(X.columns)
+            }
+            
+            logger.info(f"Prediction complete: {accuracy}% accuracy")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Prediction failed: {e}")
+            raise
+
+# Singleton instance
+prediction_engine = PredictionEngine()
+```
+
+#### ١.٣ API Endpoint
+
+```python
+# backend/main.py (أضف للـ router)
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from predictions_engine import prediction_engine
+import pandas as pd
+from io import StringIO
+
+router = APIRouter()
+
+@router.post("/api/predict")
+async def predict(
+    file: UploadFile = File(...),
+    target_column: str = Form(...),
+    date_column: Optional[str] = Form(None),
+    mode: str = Form("guided"),
+    horizon: int = Form(30)
+):
+    """
+    API endpoint للتنبؤ
+    """
+    try:
+        # قراءة CSV
+        contents = await file.read()
+        df = pd.read_csv(StringIO(contents.decode('utf-8')))
+        
+        # تشغيل التنبؤ
+        result = prediction_engine.run_prediction(
+            df=df,
+            target_col=target_column,
+            date_col=date_column,
+            mode=mode,
+            horizon=horizon
+        )
+        
+        return {
+            "success": True,
+            "data": result,
+            "message": "Prediction completed successfully"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+```
+
+---
+
+### المرحلة ٢: Frontend (Next.js/React)
+
+#### ٢.١ صفحة التنبؤ
+
+```tsx
+// frontend/src/app/app/predict/page.tsx
+"use client";
+
+import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
+import { Gauge } from "@/components/ui/Gauge";
+import { Spinner } from "@/components/ui/Spinner";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PredictionChart } from "@/components/product/PredictionChart";
+import { SHAPChart } from "@/components/product/SHAPChart";
+
+export default function PredictPage() {
+  const t = useTranslations("predict");
+  const [file, setFile] = useState<File | null>(null);
+  const [targetCol, setTargetCol] = useState("");
+  const [columns, setColumns] = useState<string[]>([]);
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const uploadedFile = e.target.files?.[0];
+    if (!uploadedFile) return;
+    
+    setFile(uploadedFile);
+    
+    // قراءة الأعمدة من CSV
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const firstLine = text.split('\n')[0];
+      const cols = firstLine.split(',').map(c => c.trim());
+      setColumns(cols);
+      if (cols.length > 0) setTargetCol(cols[cols.length - 1]); // افتراضي: آخر عمود
+    };
+    reader.readAsText(uploadedFile);
+  }, []);
+
+  const handlePredict = async () => {
+    if (!file || !targetCol) {
+      setError(t("errors.missing_data"));
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("target_column", targetCol);
+      formData.append("mode", "expert"); // Expert mode لإظهار SHAP
+
+      const res = await fetch("/api/predict", {
+        method: "POST",
+        body: formData
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+      
+      const data = await res.json();
+      setResult(data.data);
+    } catch (err: any) {
+      setError(err.message || t("errors.prediction_failed"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="container mx-auto p-6 max-w-6xl" dir="auto">
+      <h1 className="text-3xl font-bold mb-8">{t("title")}</h1>
+
+      {/* رفع الملف */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">{t("upload.title")}</h2>
+        
+        <input
+          type="file"
+          accept=".csv,.xlsx,.xls"
+          onChange={handleFileUpload}
+          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+        />
+        
+        {file && (
+          <p className="mt-2 text-sm text-green-600">
+            ✓ {file.name} ({(file.size / 1024).toFixed(1)} KB)
+          </p>
+        )}
+      </div>
+
+      {/* اختيار العمود المستهدف */}
+      {columns.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">{t("target.title")}</h2>
+          
+          <select
+            value={targetCol}
+            onChange={(e) => setTargetCol(e.target.value)}
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+          >
+            {columns.map(col => (
+              <option key={col} value={col}>{col}</option>
+            ))}
+          </select>
+          
+          <p className="mt-2 text-sm text-gray-500">
+            {t("target.hint")}
+          </p>
+        </div>
+      )}
+
+      {/* زر التنبؤ */}
+      {file && targetCol && (
+        <button
+          onClick={handlePredict}
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <Spinner size="sm" />
+              {t("button.loading")}
+            </span>
+          ) : (
+            t("button.predict")
+          )}
+        </button>
+      )}
+
+      {/* الخطأ */}
+      {error && (
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          {error}
+        </div>
+      )}
+
+      {/* النتائج */}
+      {result && (
+        <div className="mt-8 space-y-6">
+          {/* الـ Gauge */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">{t("results.accuracy")}</h2>
+            <Gauge 
+              value={result.accuracy} 
+              label={result.confidence.label_ar}
+              color={result.confidence.color}
+            />
+            <p className="mt-4 text-gray-600">{result.confidence.message_ar}</p>
+          </div>
+
+          {/* SHAP (Expert Mode) */}
+          {result.shap_top?.length > 0 && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">{t("results.shap_title")}</h2>
+              <SHAPChart features={result.shap_top} />
+            </div>
+          )}
+
+          {/* الرسم البياني */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">{t("results.chart_title")}</h2>
+            <PredictionChart predictions={result.predictions} />
+          </div>
+
+          {/* تفاصيل إضافية */}
+          <div className="bg-gray-50 rounded-lg p-6 text-sm text-gray-600">
+            <p>{t("results.model")}: {result.model_used}</p>
+            <p>{t("results.rows")}: {result.rows_processed}</p>
+            <p>{t("results.features")}: {result.features_used}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!file && !result && (
+        <EmptyState
+          icon="📊"
+          title={t("empty.title")}
+          subtitle={t("empty.subtitle")}
+        />
+      )}
+    </div>
+  );
+}
+```
+
+#### ٢.٢ مكون الـ Gauge
+
+```tsx
+// frontend/src/components/ui/Gauge.tsx
+"use client";
+
+interface GaugeProps {
+  value: number; // 0-100
+  label?: string;
+  color?: "green" | "yellow" | "red";
+}
+
+export function Gauge({ value, label, color }: GaugeProps) {
+  const getColor = () => {
+    if (color) return color;
+    if (value >= 70) return "green";
+    if (value >= 40) return "yellow";
+    return "red";
+  };
+
+  const colors = {
+    green: "text-green-600 stroke-green-500",
+    yellow: "text-yellow-600 stroke-yellow-500",
+    red: "text-red-600 stroke-red-500"
+  };
+
+  const circumference = 2 * Math.PI * 45;
+  const strokeDashoffset = circumference - (value / 100) * circumference;
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative w-48 h-48">
+        <svg className="transform -rotate-90 w-full h-full">
+          {/* الخلفية */}
+          <circle
+            cx="96"
+            cy="96"
+            r="45"
+            fill="none"
+            stroke="#e5e7eb"
+            strokeWidth="12"
+          />
+          {/* القيمة */}
+          <circle
+            cx="96"
+            cy="96"
+            r="45"
+            fill="none"
+            className={colors[getColor()]}
+            strokeWidth="12"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className={`text-4xl font-bold ${colors[getColor()].split(' ')[0]}`}>
+            {value}%
+          </span>
+          {label && <span className="text-sm mt-1 text-gray-500">{label}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+### المرحلة ٣: ملفات الترجمة (i18n)
+
+```json
+// frontend/messages/ar.json
+{
+  "predict": {
+    "title": "التنبؤ بالبيانات",
+    "upload": {
+      "title": "رفع الملف",
+      "hint": "ارفع ملف CSV أو Excel"
+    },
+    "target": {
+      "title": "العمود المستهدف",
+      "hint": "اختر العمود اللي بدك تتنبأ فيه"
+    },
+    "button": {
+      "predict": "ابدأ التنبؤ",
+      "loading": "جاري التحليل..."
+    },
+    "results": {
+      "accuracy": "دقة التنبؤ",
+      "shap_title": "العوامل المؤثرة (SHAP)",
+      "chart_title": "التنبؤات",
+      "model": "النموذج المستخدم",
+      "rows": "عدد الصفوف",
+      "features": "عدد الميزات"
+    },
+    "empty": {
+      "title": "لا توجد بيانات بعد",
+      "subtitle": "ارفع ملف CSV لبدء التنبؤ"
+    },
+    "errors": {
+      "missing_data": "يرجى رفع الملف واختيار العمود المستهدف",
+      "prediction_failed": "فشل التنبؤ — يرجى التحقق من البيانات"
+    }
+  }
+}
+```
+
+```json
+// frontend/messages/en.json
+{
+  "predict": {
+    "title": "Data Prediction",
+    "upload": {
+      "title": "Upload File",
+      "hint": "Upload a CSV or Excel file"
+    },
+    "target": {
+      "title": "Target Column",
+      "hint": "Select the column you want to predict"
+    },
+    "button": {
+      "predict": "Start Prediction",
+      "loading": "Analyzing..."
+    },
+    "results": {
+      "accuracy": "Prediction Accuracy",
+      "shap_title": "Key Factors (SHAP)",
+      "chart_title": "Predictions",
+      "model": "Model Used",
+      "rows": "Rows Processed",
+      "features": "Features Used"
+    },
+    "empty": {
+      "title": "No Data Yet",
+      "subtitle": "Upload a CSV file to start predicting"
+    },
+    "errors": {
+      "missing_data": "Please upload a file and select target column",
+      "prediction_failed": "Prediction failed — please check your data"
+    }
+  }
+}
+```
+
+---
+
+## البرومبت للـ Agent:
+
+```markdown
+# Task: Build Prediction Feature for Axiom Demo
+
+## Goal
+Build a world-class prediction feature that:
+1. Accepts CSV upload with missing data
+2. Auto-cleans and fills missing values
+3. Runs AutoML (AutoGluon) to find best model
+4. Returns predictions with >50% accuracy (target: 70%+)
+5. Shows SHAP explanations in Expert mode
+6. Displays results with Gauge, Chart, and Feature Importance
+
+## Steps
+
+### 1. Backend
+- Install: autogluon, shap, xgboost, lightgbm
+- Create backend/predictions_engine.py with PredictionEngine class
+- Implement: clean_data, engineer_features, run_prediction, get_confidence_band
+- Add POST /api/predict endpoint in backend/main.py
+- Support: guided mode (basic) + expert mode (with SHAP)
+
+### 2. Frontend
+- Create frontend/src/app/app/predict/page.tsx
+- Implement: file upload, column selection, predict button
+- Show: Gauge (color-coded), SHAP chart, Prediction chart
+- Use: next-intl for i18n (ar/en)
+- Support: RTL for Arabic, LTR for English
+
+### 3. UI Components
+- Gauge: 0-100, colors (green ≥70, yellow 40-69, red <40)
+- Spinner: loading state with Arabic/English text
+- EmptyState: before upload
+- PredictionChart: line chart actual vs predicted
+- SHAPChart: horizontal bar chart feature importance
+
+### 4. Demo Dataset
+- Create sample CSV: sales.csv with missing values
+- Target: sales column
+- Expected accuracy: 70-85%
+
+### 5. Testing
+- Test with sample CSV
+- Verify accuracy >50%
+- Check SHAP explanations appear
+- Test both Arabic and English modes
+
+## Critical Requirements
+- Accuracy MUST be >50% (target 70%+)
+- Missing data MUST be auto-filled
+- SHAP MUST work in Expert mode
+- Gauge MUST show correct color bands
+- MUST support both Arabic and English
+- MUST be RTL-ready
+
+## Files to Create/Modify
+- backend/requirements.txt
+- backend/predictions_engine.py
+- backend/main.py
+- frontend/src/app/app/predict/page.tsx
+- frontend/src/components/ui/Gauge.tsx
+- frontend/messages/ar.json
+- frontend/messages/en.json
+
+## Verification
+1. Upload sales.csv (with missing values)
+2. Select "sales" as target
+3. Click "Predict"
+4. Verify: Gauge shows 70%+ (green)
+5. Verify: SHAP chart shows top features
+6. Verify: Prediction chart renders
+7. Switch language: Arabic/English both work
+```
+
+---
+
+## ملخص التسلسل:
+
+```
+1. Backend (Python)
+   ↓
+2. Frontend (Next.js)
+   ↓
+3. UI Components
+   ↓
+4. i18n (ar/en)
+   ↓
+5. Demo Dataset
+   ↓
+6. Test & Verify (>50% accuracy)
+```
+
+---
+
+**بدي أكتب لك أي ملف بالتفصيل؟** مثلاً:
+- `backend/predictions_engine.py` كامل؟
+- `frontend/src/app/app/predict/page.tsx` كامل؟
+- Sample `sales.csv` للـ Demo؟

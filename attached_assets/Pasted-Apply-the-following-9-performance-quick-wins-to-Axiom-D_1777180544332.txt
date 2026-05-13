@@ -1,0 +1,163 @@
+Apply the following 9 performance quick wins to Axiom. Do not touch anything 
+outside the listed files. Do not refactor business logic. Investigation is 
+already done — just implement.
+
+## Fix 1 — GZip compression (backend/main.py)
+Add GZipMiddleware immediately after the existing CORSMiddleware:
+
+  from fastapi.middleware.gzip import GZipMiddleware
+  app.add_middleware(GZipMiddleware, minimum_size=500)
+
+## Fix 2 — Drop summary from datasets list (backend/datasets.py)
+In the list endpoint (lines 100-122), remove the `summary` / `summary_stats` 
+field from the list response. It must still appear in GET /api/datasets/{id}.
+The list response should return only:
+  id, filename, dataset_name, row_count, column_count, 
+  created_at, project_id, user_id
+
+## Fix 3 — Parallelize ModeProvider startup (frontend/src/lib/modeContext.tsx)
+Lines 97-124: replace the serial await chain with Promise.all:
+
+  BEFORE:
+    const me = await api("/api/auth/me")
+    const projects = await api("/api/projects")
+
+  AFTER:
+    const [me, projects] = await Promise.all([
+      api("/api/auth/me"),
+      api("/api/projects"),
+    ])
+
+## Fix 4 — De-dupe /api/auth/me (frontend/src/lib/modeContext.tsx + 
+           frontend/src/components/product/ProductSidebar.tsx)
+Add a shared cache key in workspaceCache.ts:
+  user: () => "user:me"
+
+In ModeProvider: write the /api/auth/me result into the cache after fetching:
+  setCached(cacheKeys.user(), meResult)
+
+In ProductSidebar: replace its own fetch("/api/auth/me") with:
+  const user = useCachedItem(cacheKeys.user())
+  
+So the second call reads from cache instead of hitting the network.
+
+## Fix 5 — ModeProvider writes projects into shared cache 
+           (frontend/src/lib/modeContext.tsx)
+After fetching /api/projects in ModeProvider, write the result into the 
+shared cache so sidebar and workspace consume it from cache:
+  setCached(cacheKeys.projects(), projectsResult)
+
+## Fix 6 — Stabilize ProductSidebar callbacks (frontend/src/components/product/ProductSidebar.tsx)
+Line 153: replace inline arrow with useCallback:
+
+  BEFORE:
+    onToggle={() => toggleProject(p.id)}
+
+  AFTER:
+    const handleToggle = useCallback((id: number) => toggleProject(id), [toggleProject])
+    ...
+    onToggle={handleToggle}
+
+Wrap toggleProject itself in useCallback if it isn't already.
+This makes React.memo on ProjectNode actually work.
+
+## Fix 7 — Wrap ChatPanel in React.memo + stabilize its props
+           (frontend/src/components/product/ChatPanel.tsx + 
+            frontend/src/components/product/ProjectWorkspace.tsx)
+
+In ChatPanel.tsx: wrap the default export:
+  export default React.memo(ChatPanel)
+
+In ProjectWorkspace.tsx:
+- Wrap onArtifactCreated in useCallback
+- Wrap headerSlot in useMemo so it's not a new object every render:
+  const headerSlot = useMemo(() => (
+    <>
+      <OpenQuestionsBar ... />
+      {activeDatasetState != null ? <DatasetPreviewCard ... /> : null}
+    </>
+  ), [projectId, activeDatasetState, artifactRefresh, ...deps])
+
+## Fix 8 — Add stale window to useCachedList 
+           (frontend/src/lib/workspaceCache.ts)
+Lines 131-134: add a staleMs option (default 5000ms).
+If a cache hit exists AND it was fetched less than staleMs ago, 
+skip the background revalidate entirely:
+
+  const CACHE_TIMESTAMPS = new Map<string, number>()
+  
+  // on cache write: CACHE_TIMESTAMPS.set(key, Date.now())
+  // on useCachedList mount: 
+  //   if (cache hit && Date.now() - CACHE_TIMESTAMPS.get(key) < staleMs) return
+  //   else: revalidate
+
+Default staleMs: 5000 for all list keys.
+Override per call site if needed.
+
+## Fix 9 — Lazy-load heavy artifact components
+           (frontend/src/components/product/ArtifactDrawer.tsx)
+Replace top-level imports of Charts, PredictionCard, GuidedPredictionCard 
+with next/dynamic:
+
+  BEFORE:
+    import { Charts } from "./Charts"
+    import { PredictionCard } from "./PredictionCard"
+    import { GuidedPredictionCard } from "./GuidedPredictionCard"
+
+  AFTER:
+    const Charts = dynamic(() => import("./Charts").then(m => ({ default: m.Charts })), { ssr: false })
+    const PredictionCard = dynamic(() => import("./PredictionCard").then(m => ({ default: m.PredictionCard })), { ssr: false })
+    const GuidedPredictionCard = dynamic(() => import("./GuidedPredictionCard").then(m => ({ default: m.GuidedPredictionCard })), { ssr: false })
+
+Also lazy-load framer-motion usage in ChatPanel.tsx if it's only used 
+for animations — wrap the animated elements in a dynamic import.
+
+---
+
+## Verification
+
+After all 9 fixes:
+
+1. cd frontend && npx tsc --noEmit
+   → Zero TypeScript errors
+
+2. cd frontend && npx next build 2>&1 | grep -E "Route|chunk|First Load"
+   → Confirm /app initial bundle is smaller than before
+   → Confirm chart chunks appear as separate entries
+
+3. Run the backend test suite:
+   python -m pytest tests/ -q
+   → Still 202/202 passing — no regression
+
+4. Manual smoke check (describe what you did, don't automate):
+   - Open the app
+   - Switch between 3 projects rapidly
+   - Open the Predictions tab
+   - Note whether charts load lazily
+
+---
+
+## Final report
+
+=== PERFORMANCE QUICK WINS — DONE ===
+
+FIXES APPLIED: X/9
+
+APPLIED:
+- Fix N → [file:line] → [what changed]
+
+SKIPPED (explain why):
+- Fix N → [reason]
+
+Bundle before: ~X KB (estimated from imports)
+Bundle after:  ~X KB (from next build output)
+
+TypeScript: PASS / FAIL
+Tests:      202/202 or X failing
+
+REMAINING BOTTLENECKS (needs deeper work later):
+- ChatPanel virtualization
+- Per-project datasets endpoint  
+- Composite DB indexes
+
+Do not ask for confirmation. Apply all 9 fixes now.

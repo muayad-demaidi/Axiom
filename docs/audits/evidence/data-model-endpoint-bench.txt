@@ -1,0 +1,10 @@
+Data-model endpoint perf — Task #276 (cache fix)
+=================================================
+N = 200 sequential GETs against /api/projects/{id}/data-model
+Real Postgres test DB; FastAPI TestClient; project seeded with 2 datasets.
+
+                  p50 (ms)   p95 (ms)   p99 (ms)   mean (ms)
+Cached (warm) :     14.710    16.625    17.239    14.815
+Rebuild (cold):     21.660    30.700    36.515    22.522
+
+Speedup at p95 : 1.85x

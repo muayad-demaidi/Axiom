@@ -1,0 +1,45 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import { SITE } from "../../utils/site";
+
+const entries = (await getCollection("guides")).sort((a, b) =>
+  a.data.title.localeCompare(b.data.title)
+);
+
+const description =
+  "AXIOM guides — practical, step-by-step walkthroughs for cleaning data, detecting outliers, building forecasts, and getting answers from your spreadsheets without writing code.";
+
+const breadcrumbsLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: SITE.url },
+    { "@type": "ListItem", position: 2, name: "Guides", item: SITE.url + "/guides" },
+  ],
+};
+---
+<BaseLayout title="Guides" description={description} jsonLd={breadcrumbsLd}>
+  <section class="hero" style="padding-top:5rem; padding-bottom:1.5rem;">
+    <div class="container">
+      <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Guides" }]} />
+      <span class="eyebrow">Guides</span>
+      <h1>Step-by-step, no fluff.</h1>
+      <p class="lead">{entries.length} hands-on walkthroughs you can run on your own data in under 10 minutes each.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="grid grid-3">
+        {entries.map((g) => (
+          <a class="term-card" href={`/guides/${g.slug}`}>
+            <h3>{g.data.title}</h3>
+            <p>{g.data.estTime} · {g.data.difficulty}</p>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+</BaseLayout>

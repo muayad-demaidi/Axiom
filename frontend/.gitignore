@@ -1,0 +1,17 @@
+# Next.js build / cache artifacts — runtime state, never commit
+/.next/
+/out/
+
+# Dependencies
+/node_modules/
+
+# Local env files
+.env*.local
+
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Playwright report / runtime artifacts — never commit
+/playwright-report/
+/test-results/

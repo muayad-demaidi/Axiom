@@ -1,0 +1,107 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import FAQ from "../../components/FAQ.astro";
+import RelatedReading from "../../components/RelatedReading.astro";
+import { SITE } from "../../utils/site";
+
+export async function getStaticPaths() {
+  const entries = await getCollection("compare");
+  return entries.map((e) => ({ params: { slug: e.slug }, props: { entry: e } }));
+}
+
+const { entry } = Astro.props;
+const c = entry.data;
+const url = SITE.url + "/compare/" + entry.slug;
+
+const articleLd = {
+  "@context": "https://schema.org",
+  "@type": "Article",
+  headline: c.title,
+  description: c.description,
+  datePublished: c.updated,
+  dateModified: c.updated,
+  author: { "@type": "Organization", name: SITE.organization.name, url: SITE.url },
+  publisher: {
+    "@type": "Organization",
+    name: SITE.organization.name,
+    logo: { "@type": "ImageObject", url: SITE.url + "/logo.png" },
+  },
+  mainEntityOfPage: url,
+};
+const faqLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: c.faq.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: { "@type": "Answer", text: f.a },
+  })),
+};
+const breadcrumbsLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: SITE.url },
+    { "@type": "ListItem", position: 2, name: "Compare", item: SITE.url + "/compare" },
+    { "@type": "ListItem", position: 3, name: c.title, item: url },
+  ],
+};
+---
+<BaseLayout title={c.title} description={c.description} type="article" jsonLd={[articleLd, faqLd, breadcrumbsLd]}>
+  <section class="section" style="padding-top:3.5rem;">
+    <div class="container" style="max-width: 920px;">
+      <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Compare", href: "/compare" }, { label: `vs ${c.competitor}` }]} />
+      <span class="eyebrow">Compare</span>
+      <h1>{c.title}</h1>
+      <div class="updated">Updated {c.updated}</div>
+      <p style="font-size:1.1rem; color:var(--text);"><strong set:html={c.intro}></strong></p>
+
+      <div class="grid grid-2" style="margin: 1.5rem 0 2rem;">
+        <div class="card"><h3>Best for AXIOM</h3><p>{c.bestFor.us}</p></div>
+        <div class="card"><h3>Best for {c.competitor}</h3><p>{c.bestFor.them}</p></div>
+      </div>
+
+      <h2>Side-by-side comparison</h2>
+      <table class="compare">
+        <thead>
+          <tr><th>Feature</th><th>AXIOM</th><th>{c.competitor}</th></tr>
+        </thead>
+        <tbody>
+          {c.rows.map((r) => (
+            <tr>
+              <td>{r.feature}</td>
+              <td>{r.us}</td>
+              <td>{r.them}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h2>When to choose AXIOM</h2>
+      <ul>
+        {c.whenToChoose.us.map((x) => <li>{x}</li>)}
+      </ul>
+
+      <h2>When to choose {c.competitor}</h2>
+      <ul>
+        {c.whenToChoose.them.map((x) => <li>{x}</li>)}
+      </ul>
+
+      <FAQ items={c.faq} />
+
+      <RelatedReading glossary={c.relatedGlossary} guides={c.relatedGuides} />
+
+
+
+      <p class="small muted">Notes marked <code>[verify]</code> are pending confirmation against the latest official pricing or feature pages from {c.competitor}. We never publish a number we can't source.</p>
+
+      <div class="cta-strip">
+        <h2>Try AXIOM on your own data</h2>
+        <p>60-day Tier 3 trial. No credit card.</p>
+        <a class="btn btn-primary" href={SITE.appUrl}>Launch the app →</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

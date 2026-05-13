@@ -1,0 +1,39 @@
+Subject: Performance Audit & Optimization for Axiom (Next.js + FastAPI)
+
+Context:
+Axiom is experiencing significant latency during UI transitions, sidebar navigation, and project switching. As we scale, the interaction feels "heavy." We need a full-stack performance overhaul to achieve sub-200ms interaction times.
+
+Phase 1: Frontend Diagnostics & Fixes
+
+Memoization Audit: Check all major components (ChatPanel, ArtifactDrawer, ProjectWorkspace). Use React.memo, useMemo, and useCallback to prevent unnecessary re-renders of heavy UI elements.
+
+Context & State Hygiene: Audit projectContext.ts and workspaceCache.ts. Ensure that updating one project's status doesn't trigger a full re-render of the entire project grid.
+
+Optimistic Updates: Implement optimistic UI for all frequent actions (Rename, Archive, Toggle Mode). The UI should update immediately while the API call happens in the background.
+
+Code Splitting: Ensure heavy components (like Charts or PDF viewers) are lazy-loaded only when the tab is active.
+
+Phase 2: Backend & Database Optimization
+
+SQLAlchemy Profiling: Identify "N+1" problems. Ensure we are using .options(joinedload(...)) for fetching projects with their datasets and chats in a single query.
+
+Indexing: Audit backend/models.py. Ensure project_id, user_id, and session_id have proper B-tree indexes for fast lookups.
+
+Payload Reduction: Don't send the entire dataset content in the project list. Create "Summary" schemas that only return the metadata needed for the dashboard.
+
+Connection Pooling: Verify that SQLAlchemy connection pooling is correctly configured to prevent "Handshake Latency" on every request.
+
+Phase 3: Network & Caching
+
+SWR/React-Query Tuning: Implement aggressive caching for static data (like user profiles and old project metadata).
+
+Compression: Ensure the FastAPI backend is using Gzip/Brotli middleware for JSON responses.
+
+Verification:
+After applying fixes, run a performance trace. Provide a "Before vs. After" summary of:
+
+Time to Interactive (TTI)
+
+API Response Latency (TTFB)
+
+Total Bundle Size

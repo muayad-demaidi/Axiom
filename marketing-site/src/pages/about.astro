@@ -1,0 +1,54 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { SITE } from "../utils/site";
+
+const description =
+  "About AXIOM — what we build, why we build it, and the principles that decide what goes into the product (and what stays out).";
+---
+<BaseLayout title="About" description={description}>
+  <section class="hero" style="padding-top:5rem; padding-bottom:2rem;">
+    <div class="container">
+      <span class="eyebrow">About</span>
+      <h1>We build the analysis layer, so you can focus on the answer.</h1>
+      <p class="lead">AXIOM exists because most analysts spend most of their week on plumbing, not insight. We're closing that gap with an opinionated product that handles cleaning, statistics, ML, and AI explanation out of the box.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="grid grid-2">
+        <div>
+          <h2>What we believe</h2>
+          <p><strong>Defaults matter.</strong> The right default cleaning order, the right default chart, the right default model — saves people hours per week.</p>
+          <p><strong>Information gain or it doesn't ship.</strong> Every page on this site, every feature in the app, has to add something the alternatives don't. We'd rather ship 20 great pages than 200 thin ones.</p>
+          <p><strong>Honest numbers only.</strong> We don't fabricate testimonials, ROI percentages, or competitor metrics. If a stat is here, it has a citation.</p>
+          <p><strong>Reproducibility is a feature, not a checkbox.</strong> Saved cleaning recipes, step history, and time-period snapshots exist so the answer in November holds up under audit in March.</p>
+        </div>
+        <div>
+          <h2>What we won't do</h2>
+          <p><strong>No dark patterns.</strong> No "your trial expires in 60 minutes" countdowns. The 60-day Tier 3 trial is real, free, and resets nothing automatically.</p>
+          <p><strong>No reselling your data.</strong> Your uploaded datasets sit in your account, accessible only to you, and you can delete them at any time.</p>
+          <p><strong>No fake AI.</strong> When the AI doesn't know, it says so. When it summarises a chart, it cites the chart. Hallucinated numbers are a bug, not a feature.</p>
+          <p><strong>No drag-to-200-pages dashboards.</strong> If a chart isn't pulling its weight, we don't add it just to look busy.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <h2>Where we are today</h2>
+      <p>AXIOM is in active public testing in 2026. Every account gets 60 days of full Tier 3 access. There is no payment integration today; pricing will be published with at least 30 days' notice before it changes.</p>
+      <p>Have feedback, a bug, or a feature you'd kill for? Email us at <a href={`mailto:${SITE.supportEmail}`}>{SITE.supportEmail}</a> or use the <a href="/contact">contact form</a>.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="cta-strip">
+        <h2>The fastest way to evaluate us is to try us.</h2>
+        <a class="btn btn-primary" href={SITE.appUrl}>Launch the app →</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

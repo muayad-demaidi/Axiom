@@ -1,0 +1,55 @@
+---
+import { SITE, NAV_LINKS } from "../utils/site";
+const { current = "" } = Astro.props as { current?: string };
+---
+<header class="dv-header">
+  <div class="container dv-header-inner">
+    <a class="dv-brand" href="/">
+      <img src="/logo.png" alt="AXIOM" width="36" height="36" />
+      <span>AXIOM</span>
+    </a>
+    <nav class="dv-nav" aria-label="Primary">
+      {NAV_LINKS.map((l) => (
+        <a href={l.href} class:list={[{ active: current === l.href }]}>{l.label}</a>
+      ))}
+    </nav>
+    <div class="dv-header-actions">
+      <a class="btn btn-ghost dv-signin" href={SITE.appUrl}>Sign In</a>
+      <a class="btn btn-primary" href={SITE.appUrl}>Launch App →</a>
+    </div>
+  </div>
+</header>
+<style>
+  .dv-header {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(7, 16, 31, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+  }
+  .dv-header-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.85rem 1.25rem;
+    gap: 1.5rem;
+  }
+  .dv-brand {
+    display: inline-flex; align-items: center; gap: 0.6rem;
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.1rem;
+    color: var(--text); text-decoration: none; letter-spacing: -0.01em;
+  }
+  .dv-brand img { border-radius: 6px; }
+  .dv-brand em { font-style: normal; color: var(--teal); }
+  .dv-nav { display: flex; gap: 1.25rem; flex: 1; justify-content: center; }
+  .dv-nav a {
+    color: var(--text-secondary); font-size: 0.92rem; font-weight: 500;
+    text-decoration: none; padding: 0.4rem 0.1rem;
+    border-bottom: 2px solid transparent;
+  }
+  .dv-nav a:hover { color: var(--teal); }
+  .dv-nav a.active { color: var(--teal); border-bottom-color: var(--teal); }
+  .dv-header-actions { display: flex; gap: 0.5rem; align-items: center; }
+  @media (max-width: 880px) {
+    .dv-nav { display: none; }
+    .dv-signin { display: none; }
+  }
+</style>

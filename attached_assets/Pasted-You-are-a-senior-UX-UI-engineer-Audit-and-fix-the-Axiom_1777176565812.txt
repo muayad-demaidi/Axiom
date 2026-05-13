@@ -1,0 +1,159 @@
+You are a senior UX/UI engineer. Audit and fix the Axiom frontend for UX, UI, 
+and accessibility issues. Work file by file in order — do not try to read 
+everything at once.
+
+## CRITICAL RULE (read before touching any file)
+Change display labels ONLY.
+NEVER rename: variables, object keys, API fields, TypeScript types, CSS classes.
+ONLY change: string literals shown to the user, aria-labels, placeholders, tooltips.
+
+Example:
+  ✅ <span>جدول المعاملات</span>          ← correct
+  ❌ const factTable = "جدول المعاملات"   ← breaks backend
+
+---
+
+## Work Order (process components in this exact sequence)
+
+### Batch 1 — Core Layout
+  frontend/src/components/product/ArtifactDrawer.tsx
+  frontend/src/components/product/DataContextBar.tsx
+  frontend/src/components/product/ChatPanel.tsx
+  frontend/src/components/product/ProjectWorkspace.tsx
+
+### Batch 2 — Data & Predictions
+  frontend/src/components/product/PredictionCard.tsx
+  frontend/src/components/product/DataModelBody.tsx (if exists, else skip)
+  frontend/src/components/product/OpenQuestionsBar.tsx
+  frontend/src/components/product/DatasetPreviewCard.tsx
+
+### Batch 3 — UI Primitives
+  frontend/src/components/ui/ (all files)
+
+### Batch 4 — App Pages
+  frontend/src/app/app/ (all page.tsx files)
+
+For each file:
+  1. Read it fully
+  2. Apply all fixes from the checklist below
+  3. Save it
+  4. Move to the next file
+  Never go back to a file you already fixed.
+
+---
+
+## Fix Checklist (apply to every file)
+
+### A — Arabic Display Terms
+Replace these exact strings wherever they appear as user-visible text:
+
+  "Fact"         → "معاملات"
+  "Dimension"    → "تصنيفات"
+  "Summary"      → "ملخصات"
+  "Bridge"       → "روابط"
+  "Cardinality"  → "نوع العلاقة"
+  "Proposed"     → "مقترح"
+  "Confirmed"    → "مؤكد"
+  "Rejected"     → "مرفوض"
+  "Profile"      → "نظرة عامة"
+  "Visualize"    → "الرسوم البيانية"
+  "Predictions"  → "التوقعات"
+  "Clusters"     → "التجميعات"
+  "Data model"   → "نموذج البيانات"
+  "Confidence"   → "نسبة الثقة"
+  "Refresh"      → "تحديث"
+  "Edit"         → "تعديل"
+  "Save"         → "حفظ"
+  "Cancel"       → "إلغاء"
+  "Confirm"      → "تأكيد"
+  "Reject"       → "رفض"
+  "Reset"        → "إعادة تعيين"
+  "Dismiss"      → "تجاهل"
+  "high"         → "عالية"
+  "medium"       → "متوسطة"
+  "low"          → "منخفضة"
+
+  Only replace when the string is rendered to the user.
+  Do NOT replace inside: if conditions, API calls, type definitions, 
+  className strings, or variable names.
+
+### B — Empty States
+Every empty state must have:
+  - Icon (SVG)
+  - Arabic title: "لا توجد بيانات بعد"
+  - Arabic subtitle explaining what to do next
+  - CTA button if an action is possible
+
+### C — Error Messages
+Every catch block or error display must show:
+  - Plain Arabic explanation of what went wrong
+  - What the user can do about it
+  Never show raw error strings or stack traces.
+
+### D — Loading States
+Every button that calls an API must:
+  - Be disabled during the call
+  - Show a spinner + short Arabic text ("جاري الحفظ...")
+  - Return to normal on success or failure
+
+### E — RTL Layout
+  - All Arabic text must be dir="rtl" or text-right
+  - Directional icons (arrows, chevrons) must be mirrored for RTL:
+    ChevronRight → ChevronLeft, ArrowRight → ArrowLeft
+  - flex-row containers with Arabic content → flex-row-reverse
+
+### F — Mobile (375px)
+  - No horizontal scroll at 375px width
+  - Minimum touch target: 44×44px for all buttons
+  - Font size minimum: 14px body, 12px secondary
+
+### G — Confidence Score Display
+Wherever a confidence score (0-100) is shown:
+  - Add colored gauge: ≥70 green, 40-69 yellow, <40 red
+  - Add Arabic explanation below the number
+  - Add what factors affected the score if available
+
+### H — Destructive Action Protection
+Before: reject relationship, delete dataset, dismiss question
+  - Show Arabic confirmation: "هل أنت متأكد؟ لا يمكن التراجع عن هذا الإجراء"
+  - Two buttons: "نعم، متأكد" (danger color) and "إلغاء"
+
+### I — Success Feedback
+After: save description, confirm relationship, answer question, upload file
+  - Show Arabic toast: "تم الحفظ بنجاح ✓" for 3 seconds
+
+---
+
+## Verification (run after all batches are done)
+
+cd frontend
+npx tsc --noEmit
+npx eslint src/ --ext .ts,.tsx --max-warnings 0
+
+If tsc or eslint fails:
+  - Fix the error
+  - Re-run
+  - Do not stop until both pass clean
+
+---
+
+## Final Report (print when done)
+
+=== AXIOM UX AUDIT — DONE ===
+
+FILES FIXED: X
+ISSUES FIXED: X
+
+FIXED:
+- [file] → [issue] → [fix applied]
+
+SKIPPED (explain why):
+- [file] → [reason]
+
+MANUAL_REVIEW_REQUIRED:
+- [issue] → [why it needs a human]
+
+TypeScript: PASS / FAIL
+ESLint:     PASS / FAIL
+
+Start with Batch 1 now. Do not ask for confirmation at any point.

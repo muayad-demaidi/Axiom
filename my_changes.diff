@@ -1,0 +1,1268 @@
+diff --git a/attached_assets/Pasted---1777075524066_1777075524067.txt b/attached_assets/Pasted---1777075524066_1777075524067.txt
+deleted file mode 100644
+index 107ced6..0000000
+--- a/attached_assets/Pasted---1777075524066_1777075524067.txt
++++ /dev/null
+@@ -1,35 +0,0 @@
+-المحللون المهنيون يتبعون تدفق عمل تحليل بيانات منهجي يشمل فهم المشكلة، جمع البيانات، التنظيف، الاستكشاف، النمذجة، التقييم، والتواصل، مع التركيز على أفضل الممارسات لضمان الدقة والكفاءة. هذا التدفق يواجه تحديات شائعة مثل جودة البيانات المنخفضة، الحجم الكبير، والتكامل، ويتم التعامل معها عبر أتمتة وأدوات مثل Pandas وTableau. [domo](https://www.domo.com/glossary/data-analysis-workflow)
+-
+-## خطوات تدفق العمل الاحترافي
+-يتبع المحللون خطوات CRISP-DM أو مشابهة لتحقيق أعلى مستوى من الاحترافية. [datacolab.co](https://datacolab.co.uk/data-science-workflow-example/)
+-- **فهم المشكلة**: تحديد الأهداف الأعمالية عبر مقابلات مع أصحاب المصلحة.  
+-- **جمع البيانات**: من مصادر متعددة (SQL، APIs)، مع التحقق من الخصوصية.  
+-- **التنظيف والتحضير**: إزالة outliers، ملء missing values، standardization.  
+-- **الاستكشاف (EDA)**: إحصاءات وتصورات للكشف عن أنماط.  
+-- **النمذجة**: تطبيق regression، clustering، ML حسب البيانات.  
+-- **التقييم**: metrics مثل accuracy، ROC، cross-validation.  
+-- **التواصل**: dashboards، reports بـ Power BI أو Tableau. [sigmacomputing](https://www.sigmacomputing.com/blog/data-analysis-workflow)
+-
+-## التحديات الشائعة والحلول
+-تواجه الخطوات مشاكل متكررة، ويتم حلها بممارسات متقدمة. [geeksforgeeks](https://www.geeksforgeeks.org/data-analysis/data-analysis-challenges-in-the-future/)
+-
+-| التحدي | الوصف | الحل الاحترافي |
+-|--------|--------|-----------------|
+-| جودة البيانات | missing، duplicates، inconsistencies | أتمتة التنظيف (OpenRefine)، audits منتظمة، standardization عند الدخول. [execed.goizueta.emory](https://execed.goizueta.emory.edu/articles/common-challenges-in-data-analytics-and-how-to-overcome-them/) |
+-| حجم البيانات الكبير | بطء المعالجة | cloud solutions (AWS)، sampling، scalable tools مثل Spark. [geeksforgeeks](https://www.geeksforgeeks.org/data-analysis/common-data-analysis-challenges-facing-businesses/) |
+-| التكامل | silos، heterogeneity | ETL tools (Airflow)، data lakes، APIs. [geeksforgeeks](https://www.geeksforgeeks.org/data-analysis/data-analysis-challenges-in-the-future/) |
+-| bias وnon-response | في الاستطلاعات خاصة | weighting، imputation، AI للكشف عن bias. [medicine.nus.edu](https://medicine.nus.edu.sg/taps/issues/beyond-the-response-rate-navigating-challenges-and-crafting-strategies-in-survey-data-collection/) |
+-| مهارات وثقافة | نقص خبرة، مقاومة | تدريب، data-driven culture، feedback loops. [getdbt](https://www.getdbt.com/blog/what-should-a-data-analytics-workflow-look-like) |
+-
+-## منهجيات حسب أنواع البيانات
+-تختلف المنهجيات بناءً على السياق، مع أفضل الممارسات لكل نوع. [xica](https://xica.net/en/xicaron/marketing-data-analysis/)
+-
+-| نوع البيانات | المنهجية الرئيسية | أمثلة ممارسات |
+-|---------------|---------------------|---------------|
+-| مبيعات (زمني/جدولي) | Descriptive/predictive analytics، RFM، cohort analysis | تحليل trends، forecasting بـ ARIMA، KPIs مثل LTV. [indeed](https://www.indeed.com/career-advice/career-development/run-sales-data-analysis) |
+-| استبيانات (نصي/فئوي) | Response analysis، sentiment، cluster | standardize responses، imputation لـ missing، AI لـ open-ended، non-response weighting. [medicine.nus.edu](https://medicine.nus.edu.sg/taps/issues/beyond-the-response-rate-navigating-challenges-and-crafting-strategies-in-survey-data-collection/) |
+-| متاجر رقمية (e-commerce) | RFM، cohort، basket analysis | A/B testing، customer segmentation، funnel analysis. [referralcandy](https://www.referralcandy.com/blog/ecommerce-analytics-the-complete-guide-to-data-driven-growth-for-online-stores) |
+-| سيارات (telemetry/حساسات) | Time-series، anomaly detection | digital filters للضوضاء، real-time monitoring، predictive maintenance بـ ML. [scribd](https://www.scribd.com/document/1002485209/Vehicle-Data-Acquisition-and-Telemetry-251116-192419) |
+-| رياضات (أداء لاعبين) | Regression، clustering، tracking metrics | player value models، performance correlations، financial risk assessment. [scirp](https://www.scirp.org/journal/paperinformation?paperid=145316) |
+-
+-هذه الممارسات تضمن تحليلاً دقيقاً وفعالاً، مع التركيز على الأتمتة والتوثيق للقابلية للتكرار. [earthdatascience](https://earthdatascience.org/courses/use-data-open-source-python/earth-data-science-workflows/design-efficient-automated-data-workflows/efficient-workflow-best-practices/)
+\ No newline at end of file
+diff --git a/attached_assets/Pasted--1-Skeleton-Loading-Visual--1777078355915_1777078355916.txt b/attached_assets/Pasted--1-Skeleton-Loading-Visual--1777078355915_1777078355916.txt
+deleted file mode 100644
+index 1bf4fce..0000000
+--- a/attached_assets/Pasted--1-Skeleton-Loading-Visual--1777078355915_1777078355916.txt
++++ /dev/null
+@@ -1,39 +0,0 @@
+-إليك التعديلات المقترحة لدمجها في الخطة لتجعل التجربة مذهلة:
+-
+-1. الـ Skeleton Loading الذكي (Visual Feedback)
+-بدلاً من الانتظار الصامت أثناء معالجة البيانات، استخدم "الجداول الوهمية" والرسوم البيانية التي تُرسم تدريجياً.
+-
+-التعديل: عند طلب تحليل، يظهر في الدرج الأيمن (Right Drawer) شكل "Skeleton" للرسم البياني مع نص صغير: "Analyzing correlations..." أو "Training Random Forest model...". هذا يعطي شعوراً بالاحترافية والسرعة.
+-
+-2. ميزة "The Insights Ribbon" (الاستباقية)
+-بدلاً من انتظار سؤال المستخدم، دع المحلل الذكي يكتشف "مفاجآت" في البيانات فور رفعها.
+-
+-التعديل: في جزء الـ Auto-profile، أضف قسم "Surprise Insights". مثال: "Did you know? 80% of your revenue comes from only 3 cities." أو "I detected a strong seasonal pattern in December." هذه اللمسة تجعل المستخدم يشعر أن النظام "يفهم" عمله بعمق.
+-
+-3. الـ Data Scrubber (التفاعل المباشر مع النتائج)
+-اجعل الجداول والرسوم البيانية داخل الشات "حية".
+-
+-التعديل: أي جدول يعرضه الـ AI داخل الشات يجب أن يكون Interactive Table. يمكن للمتحكم فيه ترتيب الأعمدة (Sort)، البحث (Search)، أو حتى تظليل خلية معينة لسؤال الـ AI عنها مباشرة: "What happened here?".
+-
+-4. نظام الـ "Artifact Pins" (التحكم في التقرير)
+-اجعل المستخدم هو "المحرر" لتقريره النهائي.
+-
+-التعديل: بجانب كل رسم بياني أو نتيجة في الشات، أضف أيقونة "دبوس" (Pin to Report). هذا يعطي المستخدم شعوراً بالسيطرة؛ فهو يختار فقط النتائج المهمة لتظهر في الـ Final Report والـ PDF، بدلاً من تقرير مزدحم بكل شيء.
+-
+-5. الـ What-if Simulator (تفاعلية التوقعات)
+-هذه هي الميزة التي ستنقل Axiom لمنافسة الأدوات الكبرى.
+-
+-التعديل: في تبويب الـ Predictions، لا تعرض رقماً ثابتاً فقط. أضف Sliders (منزلقات). إذا كان التوقع يقول إن المبيعات ستزيد، اسمح للمستخدم بتحريك منزلق "الميزانية التسويقية" ليرى كيف يتغير منحنى التوقع فوراً أمام عينه.
+-
+-كيف نعدل الـ Steps في الخطة لتشمل هذه الإضافات؟
+-يمكنك إضافة هذه الفقرة لريبليت عند تنفيذ المهمة:
+-
+-"Enhance Task #158 with the 'Executive Experience' layer:
+-
+-Interactive Artifacts: Ensure all charts in the right drawer and chat have hover states, tooltips, and a 'Pin to Report' toggle.
+-
+-Dynamic Profiling: The auto-profile must include an 'Anomalies & Surprises' section using a quick statistical scan (z-score for outliers).
+-
+-The Simulator: For any prediction artifact, implement a client-side 'What-if' slider in the UI that re-calculates the trend line based on the model's coefficients.
+-
+-Live PDF Preview: On the Final Report page, show a live mini-preview of the PDF layout so the user sees exactly what they are downloading."
+\ No newline at end of file
+diff --git a/attached_assets/Pasted--159-Axiom--1777078757434_1777078757435.txt b/attached_assets/Pasted--159-Axiom--1777078757434_1777078757435.txt
+deleted file mode 100644
+index 271d86f..0000000
+--- a/attached_assets/Pasted--159-Axiom--1777078757434_1777078757435.txt
++++ /dev/null
+@@ -1,31 +0,0 @@
+-هذه الخطة (#159) هي **"القطعة الناقصة"** لتكتمل صورة الاحترافية في Axiom. أنت الآن لا تقوم فقط بتحسين الشكل، بل تعالج **الارتباط الذهني** للمستخدم؛ فالمشكلة الحالية هي أن الواجهة "تتفكك" بصرياً عند الدخول للشات، وهذه الخطة تعيد ربطها بإحكام.
+-
+-### لماذا هذه الخطة "ضربة معلم"؟
+-
+-1.  **Shared Composer Component:** هذه أذكى خطوة تقنية. بدلاً من محاولة "تقليد" التصميم، أنت ستجعل الـ Input عبارة عن مكون واحد (Shared Component). هذا يضمن أن أي تحسين مستقبلي في واجهة الإدخال سيظهر في الصفحة الرئيسية وفي الشات في نفس اللحظة.
+-2.  **The Data Context Bar (حل مشكلة التيه):** في الصورة التي أرفقتها، كان الـ AI "تائهاً" ويطلب إعادة الرفع. وجود هذا البار في الأعلى يعطي المستخدم **"راحة نفسية"** فورية، لأنه يرى اسم الملف وعدد الصفوف أمامه دائماً، مما يقلل من احتمالية حدوث أخطاء في التواصل مع الـ AI.
+-3.  **Message Cards vs Bubbles:** التحول من نظام "فقاعات الدردشة" (الذي يوحي بتطبيقات الشات العادية مثل واتساب) إلى نظام "البطاقات التقنية" (Cards) يعطي انطباعاً بأن Axiom أداة عمل احترافية مثل **Perplexity** أو **Claude Workbench**.
+-4.  **Readable Width (800px):** هذه لمسة UX بسيطة لكنها تغير تجربة القراءة بالكامل. تمدد النص على كامل عرض الشاشة في الشاشات الكبيرة يرهق العين؛ حصرها في 800px يجعلها تبدو كأنها "مقالة" أو "تقرير" مريح للقراءة.
+-
+----
+-
+-### إضافة بسيطة لتعزيز تجربة الـ Data Context Bar:
+-لجعل هذا البار أكثر فاعلية، اقترح إضافة ميزة **"Quick Preview"** بداخله:
+-* **التعديل:** عند النقر على اسم الملف في الـ Context Bar، يظهر "Tooltip" أو "Pop-over" صغير يعرض أول 5 أسطر من البيانات دون الحاجة لمغادرة الشات. هذا سيبهر المستخدم وسيوفر عليه وقتاً كبيراً.
+-
+----
+-
+-### كيف تنفذها في ريبليت بأفضل طريقة؟
+-
+-عندما تبدأ مع ريبليت، أعطه هذه التعليمات المركزة:
+-
+-> **"Implement Task #159: Chat UI Face-lift.** > **Focus strictly on the Visual Shell:** > 1. Extract the landing page's floating composer into a reusable React component and use it in the chat.
+-> 2. Build the **Sticky Data Context Bar** at the top, ensuring it tracks the active dataset's metadata (Name, Rows, Columns).
+-> 3. Restyle all Assistant messages into **Cards** with headers (Diagnostics/Insights) and footer suggestion chips.
+-> 4. Ensure the chat thread is centered at **800px max-width**.
+-> 5. Use the existing **Axiom Design Tokens** (Inter font, #111827 background) to ensure 100% visual parity with the landing page."
+-
+-### النتيجة المتوقعة:
+-بمجرد انتهاء ريبليت، ستتحول الواجهة من "مربع دردشة بسيط" إلى **"غرفة عمليات بيانات"** أنيقة ومنظمة. ستشعر أنك داخل تطبيق "Premium" حقيقي.
+-
+-**هل أنت مستعد لرؤية التحول في واجهة Axiom؟ هذه الخطوة ستجعل مشروعك يبدو وكأنه من إنتاج شركة برمجيات كبرى!**
+\ No newline at end of file
+diff --git a/attached_assets/Pasted--Act-as-a-Senior-Full-Stack-Engineer-and-Software-Archi_1777047369911.txt b/attached_assets/Pasted--Act-as-a-Senior-Full-Stack-Engineer-and-Software-Archi_1777047369911.txt
+deleted file mode 100644
+index e79d17c..0000000
+--- a/attached_assets/Pasted--Act-as-a-Senior-Full-Stack-Engineer-and-Software-Archi_1777047369911.txt
++++ /dev/null
+@@ -1,45 +0,0 @@
+-"Act as a Senior Full-Stack Engineer and Software Architect. I want to migrate my current Streamlit data analysis tool into a production-grade SaaS platform called 'Axiom'.
+-
+-Project Goal: Convert the existing Streamlit logic into a modern stack: React (Vite/TS) for the Frontend and FastAPI for the Backend, ensuring all current features are preserved with a significantly upgraded UI/UX.
+-
+-1. Architectural Requirements:
+-
+-Backend (FastAPI): Extract all data processing logic, AI chat functions, and file handling from the Streamlit script and expose them via RESTful API endpoints.
+-
+-Frontend (React + Tailwind CSS): Build a high-end, minimalist dashboard.
+-
+-State Management: Ensure the frontend handles data efficiently using React hooks or context.
+-
+-2. UI/UX Design Specifications (The 'Axiom' Look):
+-
+-Professionalism: Clean, enterprise-level design. No neon, no glows, no flashy colors.
+-
+-Themes: Full support for Light Mode (White/Gray #F9FAFB) and Dark Mode (Deep Matte Gray #111827).
+-
+-Sidebar Structure: Implement a 'Projects' section. Each project must be a dedicated workspace with its own context, chat history, and uploaded datasets. Use a folder-like hierarchy.
+-
+-Main Area: A sophisticated chat interface. AI responses should include formatted tables, collapsible Python code blocks, and clean, flat-style data charts (using Recharts or Chart.js).
+-
+-Typography: Use 'Inter' or 'SF Pro' fonts for a technical, precise feel.
+-
+-3. Functional Requirements:
+-
+-File Handling: Enable CSV/Excel uploads that are stored and processed per project.
+-
+-AI Integration: Preserve the existing AI model logic but implement it as an asynchronous stream in the React UI for a better user experience.
+-
+-Context Switching: When a user switches between 'Projects' in the sidebar, the main chat and data view must update instantly to reflect that specific project's state.
+-
+-4. Technical Execution:
+-
+-Analyze the current streamlit_app.py (or main file).
+-
+-Generate the main.py for FastAPI.
+-
+-Generate the React components in a /frontend folder.
+-
+-Setup the proxy or environment variables so they communicate seamlessly.
+-
+-DO NOT delete the original Streamlit file until the new stack is fully verified.
+-
+-Please execute the full migration now. Start by setting up the folder structure and the Backend API first, then move directly to the React UI. Provide the complete code for both."
+\ No newline at end of file
+diff --git a/attached_assets/Pasted--CLAUDE-md-DataVision-Pro--1777038696115_1777038696115.txt b/attached_assets/Pasted--CLAUDE-md-DataVision-Pro--1777038696115_1777038696115.txt
+deleted file mode 100644
+index 5f42cfd..0000000
+--- a/attached_assets/Pasted--CLAUDE-md-DataVision-Pro--1777038696115_1777038696115.txt
++++ /dev/null
+@@ -1,216 +0,0 @@
+-# CLAUDE.md — DataVision Pro
+-> هاد الملف هو دليلك الكامل للمشروع. اقرأه قبل أي تعديل.
+-
+----
+-
+-## 🧠 ما هو المشروع؟
+-
+-**DataVision Pro** — منصة تحليل بيانات ذكية مبنية على Streamlit.
+-الهدف: يرفع المستخدم ملف بيانات → المنصة تحلله تلقائياً وتعطيه insights وتوقعات.
+-
+----
+-
+-## 🗂️ هيكل الملفات — ما وظيفة كل ملف
+-
+-### الملفات الأساسية (Core App)
+-| الملف | الوظيفة |
+-|-------|---------|
+-| `main.py` | نقطة الدخول — routing بين الصفحات |
+-| `app.py` | الـ Streamlit app الرئيسية — UI والـ session state |
+-| `models.py` | SQLAlchemy models: User, Dataset, Project, Subscription |
+-| `data_analyzer.py` | تحليل البيانات الإحصائي — EDA, statistics |
+-| `data_cleaner.py` | تنظيف البيانات — missing values, duplicates, outliers |
+-| `data_modelling.py` | ML pipeline — RandomForest, LinearRegression, K-Means |
+-| `predictions.py` | التوقعات والـ trend analysis |
+-| `transforms.py` | تحويلات البيانات — encoding, normalization |
+-| `visualizations.py` | كل الرسومات Plotly/Seaborn/Matplotlib |
+-| `ai_assistant.py` | الشات مع GPT-4o — AI Assistant للمستخدم |
+-| `proactive_questions.py` | الأسئلة الاستباقية عند رفع البيانات |
+-| `knowledge_base.py` | قاعدة المعرفة للـ AI |
+-| `email_service.py` | إرسال الإيميلات عبر Resend |
+-
+-### Context Layer
+-| الملف | الوظيفة |
+-|-------|---------|
+-| `context/business_memory.py` | ذاكرة الـ session والـ business context |
+-| `context/date_intelligence.py` | كشف الأعمدة الزمنية وتحليلها |
+-| `context/step_history.py` | تتبع خطوات التحليل |
+-| `context/type_inference.py` | كشف نوع البيانات تلقائياً |
+-
+-### SEO Agent (`seo_agent/`)
+-| الملف | الوظيفة |
+-|-------|---------|
+-| `runner.py` | المشغّل الرئيسي للـ agent |
+-| `generator.py` | توليد المحتوى عبر GPT-4o |
+-| `selector.py` | اختيار المواضيع من Trending Sources |
+-| `sources.py` | Reddit, HN, Google Trends |
+-| `geo_check.py` | Brand mention checks |
+-| `refresh.py` | تحديث المحتوى القديم |
+-| `build_queue.py` | قائمة انتظار نشر المحتوى المعتمد |
+-| `review.py` | واجهة المراجعة في Admin Panel |
+-
+-### Marketing Site (`marketing-site/`)
+-- Astro static site — **لا تعدّل `dist/` يدوياً**
+-- التعديلات تصير في `src/` ثم `npm run build`
+-- المحتوى في `src/content/` (markdown files)
+-
+-### Scripts (`scripts/`)
+-| الملف | الوظيفة |
+-|-------|---------|
+-| `run_seo_agent.py` | تشغيل SEO agent يدوياً |
+-| `build_summary_pdf.py` | توليد تقرير PDF |
+-| `ping-search-engines.mjs` | إشعار محركات البحث بعد البناء |
+-| `post-merge.sh` | يُشغَّل بعد كل merge |
+-
+-### Tests (`tests/`)
+-```
+-test_data_modelling.py       → اختبارات ML models
+-test_proactive_questions.py  → اختبارات الأسئلة الاستباقية
+-test_step_history_persistence.py → اختبارات الـ step history
+-test_transforms.py           → اختبارات التحويلات
+-```
+-**شغّل الاختبارات بعد أي تعديل على الملفات المرتبطة.**
+-
+----
+-
+-## 🤖 الـ AI Stack — من يعمل ماذا؟
+-
+-```
+-المستخدم
+-    ↕
+-GPT-4o (OpenAI)
+-    ├── AI Assistant (ai_assistant.py)     → الشات مع البيانات
+-    ├── Recommendations & Insights         → توصيات ذكية
+-    ├── Proactive Questions                → أسئلة استباقية
+-    └── SEO/GEO Content (seo_agent/)       → توليد محتوى تسويقي
+-
+-scikit-learn (محلي — مش LLM)
+-    ├── RandomForest / LinearRegression    → predictions.py
+-    ├── K-Means Clustering                 → data_modelling.py
+-    └── Outlier Detection                  → data_cleaner.py
+-```
+-
+-> ⚠️ **مهم:** الـ ML models (scikit-learn) تشتغل محلياً بدون API calls.
+-> GPT-4o دوره الشرح والشات والتوصيات فقط — مش التحليل الرقمي.
+-
+----
+-
+-## 👤 نظام المستخدمين — وضعين للتحليل
+-
+-### Expert Mode (محلل البيانات)
+-- المستخدم يقود — الموديل ينفذ ويقترح
+-- لغة تقنية كاملة
+-- كود قابل للتعديل يُعرض
+-- تحكم كامل بكل خطوة
+-
+-### Simple Mode (المستخدم العادي)
+-- الموديل يقود — المستخدم يختار من خيارات
+-- لا مصطلحات تقنية، لا كود
+-- 2-3 خيارات فقط في كل نقطة قرار
+-- ملخص جاهز دائماً
+-
+-**التبديل بين المودين:** في أي وقت بدون إعادة رفع البيانات.
+-
+----
+-
+-## 🗄️ قاعدة البيانات (PostgreSQL)
+-
+-```
+-Users          → بيانات المستخدمين والـ authentication
+-Projects       → المشاريع لكل مستخدم
+-Datasets       → الملفات المرفوعة مع metadata
+-Subscriptions  → نظام الـ tiers (60 يوم trial كامل)
+-SupportMessages → رسائل الدعم
+-```
+-
+-> الـ ORM: SQLAlchemy — **لا تكتب SQL مباشر، استخدم الـ models.**
+-> إذا واجهت `DetachedInstanceError` → استخدم `session.refresh()` أو `expire_on_commit=False`
+-
+----
+-
+-## 🎨 Design System — "Data Noir"
+-
+-```css
+-Colors:
+-  Primary:    Deep Navy (#0A0E1A)
+-  Accent:     Teal (#00D4AA)
+-  Surface:    Glassmorphism cards
+-  Background: Matrix rain animation (subtle)
+-
+-Typography:
+-  Headings:   Syne
+-  Body:       DM Sans
+-  Monospace:  JetBrains Mono
+-
+-Layout:
+-  Max width:  1320px (desktop-first)
+-  Sidebar:    9 sections في 3 clusters
+-              DATA · ANALYSIS · INSIGHT
+-              (مع 2-digit index prefixes)
+-```
+-
+-**لا تغيّر الـ Design System بدون سبب وجيه.**
+-
+----
+-
+-## 📋 قواعد العمل — لا تُكسر
+-
+-### ✅ افعل دائماً
+-- شغّل الاختبارات بعد أي تعديل على `data_modelling.py`, `transforms.py`, `proactive_questions.py`, `context/step_history.py`
+-- استخدم Plotly للرسومات التفاعلية (مش Matplotlib إلا للـ static فقط)
+-- أي تغيير على DB schema → عدّل `models.py` أولاً
+-- اللغة مع المستخدم: عربي (لهجة شامية)
+-- أعمدة البيانات تُعرض بالإنجليزي دائماً
+-
+-### ❌ لا تفعل أبداً
+-- لا تعدّل `marketing-site/dist/` مباشرة — هاي ملفات مولّدة
+-- لا تضيف payment integration — كل الـ tiers مجانية حالياً
+-- لا تغيّر GPT model string بدون إذن صريح
+-- لا تحذف أي ملف من `seo_agent/` بدون فهم كامل للـ build queue
+-- لا تبني assumptions على نوع البيانات — استخدم `context/type_inference.py`
+-- لا تنظف البيانات بصمت — كل تغيير يُعرض على المستخدم
+-
+----
+-
+-## 🔧 كيف تشغّل المشروع
+-
+-```bash
+-# تشغيل التطبيق
+-streamlit run main.py
+-
+-# تشغيل SEO agent يدوياً
+-python scripts/run_seo_agent.py
+-
+-# بناء Marketing site
+-cd marketing-site && npm run build
+-
+-# تشغيل الاختبارات
+-python -m pytest tests/
+-```
+-
+----
+-
+-## ⚡ أخطاء شائعة وحلولها
+-
+-| الخطأ | السبب | الحل |
+-|-------|-------|------|
+-| `DetachedInstanceError` | SQLAlchemy session expired | `session.refresh(obj)` أو `expire_on_commit=False` |
+-| GPT timeout | طلب طويل جداً | قسّم الـ prompt أو استخدم streaming |
+-| Marketing site قديم | `dist/` مش محدّث | `cd marketing-site && npm run build` |
+-| ML model خطأ | بيانات مش منظّفة | شغّل `data_cleaner.py` أولاً |
+-
+----
+-
+-## 📁 ملفات لا تلمسها
+-
+-```
+-uv.lock                    → dependency lock file
+-marketing-site/dist/       → auto-generated
+-marketing-site/package-lock.json
+-project.zip                → backup archive
+-attached_assets/           → reference files فقط
+-```
+-
+----
+-
+-*آخر تحديث: بناءً على هيكل المشروع الفعلي على Replit*
+\ No newline at end of file
+diff --git a/attached_assets/Pasted--Expert-Guide-1777078926936_1777078926936.txt b/attached_assets/Pasted--Expert-Guide-1777078926936_1777078926936.txt
+deleted file mode 100644
+index 8e63ed8..0000000
+--- a/attached_assets/Pasted--Expert-Guide-1777078926936_1777078926936.txt
++++ /dev/null
+@@ -1,47 +0,0 @@
+-أكيد يا مؤيد، إليك "البرومبت" الشامل والنهائي الذي يجمع كل فلسفة التمييز بين الوضعين (Expert & Guided) لتعطيه لريبليت. هذا البرومبت سيجعل الـ AI يتصرف كمحلل بيانات ذكي يعرف متى يبسط الأمور ومتى يعطي كامل الصلاحيات التقنية.
+-
+----
+-
+-### **The Master Prompt: Implementing Dual-Mode Logic in Axiom**
+-
+-> **Objective:** > Implement the logic and UI differentiation between **Guided Mode** and **Expert Mode** within the project workspace, ensuring each mode serves its specific user persona while maintaining full data transparency.
+->
+-> ---
+->
+-> ### **1. Guided Mode Logic (The AI Partner)**
+-> **Persona:** Non-specialist / Business User.
+-> **Operational UI:**
+-> - **Language:** Use natural, outcome-based language (e.g., "Grow," "Predict," "Find Patterns").
+-> - **Tools:** Surface simplified 'Action Chips' in the chat (Auto-clean, Forecast, Segment Customers).
+-> - **Visuals:** Auto-select the best chart type based on the data.
+-> - **Behind the Scenes:** Perform a 'Smart Scan' of the data to hide complexity but provide a "View Technical Details" toggle for transparency.
+->
+-> ### **2. Expert Mode Logic (The Data Scientist)**
+-> **Persona:** Data Analyst / Specialist.
+-> **Operational UI:**
+-> - **Language:** Use technical, tool-based language (e.g., "One-Hot Encoding," "Hyperparameters," "Random Forest").
+-> - **Tools:** Reveal the 'Applied Steps' editor and the full 9-section sidebar (DATA, ANALYSIS, INSIGHTS).
+-> - **Manual Control:** Allow manual selection of algorithms, cleaning methods, and chart axes.
+-> - **Interactivity:** The chat side-panel acts as a 'Command Line' for the dashboard.
+->
+-> ---
+->
+-> ### **3. The "Context Switcher" Intelligence**
+-> **Decision Engine:**
+-> - If the user is in **Guided Mode** and asks a technical question (e.g., "What is the R-squared?"), answer clearly but provide a link: *"Switch to Expert Mode for full statistical breakdown."*
+-> - If the user is in **Expert Mode** and asks a broad question (e.g., "Is my business healthy?"), provide a high-level summary but keep all technical panels visible for deep-diving.
+->
+-> ### **4. Implementation Task:**
+-> 1. Create a `modeContext.tsx` to handle the state between `Guided` and `Expert`.
+-> 2. Update the `ChatPanel` to render different 'Suggested Chips' based on the active mode.
+-> 3. Implement the **"Technical Transparency"** feature: any simplified result in Guided Mode should have an underlying JSON/Code block that is fully editable when switched to Expert Mode.
+-> 4. Ensure the **Data Context Bar** (Task #159) stays visible in both modes but shows different metadata (Simple stats for Guided, Full schema for Expert).
+-
+----
+-
+-### **نصيحة إضافية لك يا مؤيد:**
+-عندما تضع هذا البرومبت في ريبليت، تأكد من أنك قمت بإنشاء ملف `data_analyst_skill.md` الذي تكلمنا عنه سابقاً، لأن ريبليت سيستخدم "المهارة" المخزنة فيه ليقرر كيف يكتب كود التحليل لكل وضع.
+-
+-بهذه الطريقة، أنت لا تبني واجهتين منفصلتين، بل تبني **"نظاماً مرناً"** يتشكل حسب رغبة المستخدم، وهذا هو سر نجاح الأدوات الكبرى مثل **Julius AI**.
+-
+-**هل أنت جاهز لتبدأ برؤية الفرق بين الوضعين في تطبيقك؟**
+\ No newline at end of file
+diff --git a/attached_assets/Pasted--Expert-Mode-Guided-Mode-Axiom--1777078917390_1777078917390.txt b/attached_assets/Pasted--Expert-Mode-Guided-Mode-Axiom--1777078917390_1777078917390.txt
+deleted file mode 100644
+index 9461cfc..0000000
+--- a/attached_assets/Pasted--Expert-Mode-Guided-Mode-Axiom--1777078917390_1777078917390.txt
++++ /dev/null
+@@ -1,51 +0,0 @@
+-التفرقة بين **Expert Mode** و **Guided Mode** هي جوهر فلسفة Axiom، والهدف منها هو ضمان أن المستخدم "المبتدئ" لا يشعر بالضياع، والمستخدم "المحترف" لا يشعر بالتقييد.
+-
+-إليك كيفية تقسيم خيارات التحليل بين الوضعين بأسلوب احترافي وسهل:
+-
+----
+-
+-### 1. الـ Guided Mode (المحلل المرافق)
+-هذا الوضع مصمم لمن يعرف **"ماذا يريد"** ولكن لا يعرف **"كيف يصل إليه"**. الخيارات هنا تكون بوصف "النتائج" وليس "الأدوات".
+-
+-* **طريقة العرض:** عبارة عن "أزرار ذكية" (Chips) أو دردشة تفاعلية.
+-* **خيارات التحليل:**
+-    * **"توقع المستقبل" (Forecast):** بدلاً من قول "Linear Regression"، نقول "Predict next 3 months of sales".
+-    * **"اكتشف الأنماط" (Find Patterns):** بدلاً من "K-Means Clustering"، نقول "Group my customers into segments".
+-    * **"تنظيف آلي" (Auto-Clean):** خيار واحد يقوم بمهام متعددة (حذف الفراغات، تصحيح التواريخ) بضغطة زر.
+-    * **"لخص لي البيانات" (Summarize):** يعطي أهم 5 نقاط (Insights) بلغة طبيعية.
+-
+-
+-
+----
+-
+-### 2. الـ Expert Mode (المختبر المتكامل)
+-هذا الوضع مصمم لمن يعرف **"الأداة"** ويريد التحكم الكامل في كل "بُرغي" داخل عملية التحليل. الخيارات هنا تقنية وصريحة.
+-
+-* **طريقة العرض:** واجهة تشبه (Power BI) أو (Excel Advanced) مع لوحة تحكم جانبية (Sidebar).
+-* **خيارات التحليل:**
+-    * **Data Transformation:** خيارات مثل `Merge`, `Pivot`, `One-Hot Encoding`.
+-    * **Statistical Control:** اختيار نوع الـ Algorithm يدوياً (Random Forest vs XGBoost) وتحديد الـ `Hyperparameters`.
+-    * **Manual Cleaning:** التحكم في كل خطوة (Handling Missing Values: Mean/Median/Drop).
+-    * **Custom Visuals:** التحكم الكامل في ألوان الرسم البياني، الـ Axis، والـ Aggregation (Sum, Avg, Count).
+-
+-
+-
+----
+-
+-### جدول المقارنة (للمبرمج والـ Agent)
+-هذا الجدول سيساعدك برمجياً في تحديد ما يظهر في كل واجهة:
+-
+-| الميزة | في الـ Guided Mode (الأسلوب) | في الـ Expert Mode (الأسلوب) |
+-| :--- | :--- | :--- |
+-| **التنظيف** | "Fix all data issues" | "Applied Steps Editor" (Manual) |
+-| **التوقعات** | "Predict [Target Column]" | "Model Selection & Training" |
+-| **الرسوم** | "Visualize Y by X" (Auto-chart) | "Chart Builder" (Drag & Drop) |
+-| **اللغة** | لغة طبيعية (Natural Language) | مصطلحات تقنية (Technical Specs) |
+-
+----
+-
+-### نصيحة لتطوير الـ UX في Axiom:
+-لجعل الانتقال بينهما "Next Level"، أضف زر **"View Technical Details"** داخل الـ Guided Mode.
+-* إذا قام المستخدم بعمل توقع في الـ Guided، وظهرت له النتيجة، يمكنه الضغط على هذا الزر ليفتح له الـ Expert Mode ويريه الكود أو الخوارزمية التي استُخدمت. هذا يعطي **شفافية وثقة** عالية جداً للنظام.
+-
+-**هل تريدني أن أساعدك في صياغة "البرومبت" الذي يوجه الـ AI ليقرر أي وضع هو الأنسب للمستخدم بناءً على سؤاله؟**
+\ No newline at end of file
+diff --git a/attached_assets/Pasted--Landing--1777078506232_1777078506233.txt b/attached_assets/Pasted--Landing--1777078506232_1777078506233.txt
+deleted file mode 100644
+index 0ac7358..0000000
+--- a/attached_assets/Pasted--Landing--1777078506232_1777078506233.txt
++++ /dev/null
+@@ -1,56 +0,0 @@
+-واضح جداً الفرق بين "جمالية" الصفحة الرئيسية (Landing) وبين "جمود" صفحة الشات الحالية. الصفحة الأولى تعطيك شعور **Perplexity** أو **Claude**، لكن صفحة الشات حالياً تبدو كأنها "صندوق محادثة" تقليدي يفتقر إلى روح تحليل البيانات.
+-
+-إليك خطة **Axiom UX Refactor** لنقل واجهة الشات إلى مستوى احترافية يضاهي **Julius.ai**، مع التركيز على جعل البيانات هي "بطلة المشهد":
+-
+----
+-
+-## 1. هيكلة الشاشة (The 3-Column Layout)
+-بدلاً من وجود الشات في المنتصف مع فراغات كبيرة، سنعتمد تقسيم الشاشة الذكي:
+-* **اليسار (Sidebar):** يبقى كما هو لإدارة المشاريع والدردشات.
+-* **الوسط (The Interactive Stage):** منطقة الشات، لكن بعرض مريح للنظر (Optimized Readable Width)، حيث تظهر الردود والبيانات.
+-* **اليمين (The Analytics Drawer):** (هذا هو التغيير الجذري) درج جانبي يفتح تلقائياً عند وجود بيانات، يحتوي على:
+-    * **Data Health:** ملخص سريع (Profile).
+-    * **Quick Actions:** أزرار ذكية مثل "Clean Data", "Forecast", "Visualize".
+-
+-## 2. تحويل الرسائل إلى "Cards" (Message Design)
+-بدلاً من النص السادة، كل رد من الـ AI يجب أن يكون منظماً:
+-* **Header للرسالة:** يوضح العملية (مثل: 🔍 Initial Diagnostics).
+-* **Body:** استخدام الـ **Markdown** بشكل أجمل (جداول ملونة، قوائم بمسافات مريحة).
+-* **Footer:** أزرار اقتراح (Suggested Chips) مثل: *"Show me the outliers"* أو *"Create a correlation heatmap"*.
+-
+-## 3. الـ Context Awareness (حل مشكلة "I can't see your dataset")
+-من الصورة، الـ AI يقول إنه لا يرى البيانات. الحل هو **Data Header** دائم:
+-* في أعلى الشات، يجب وجود **Sticky Bar** صغير يظهر فيه اسم الملف المرفوع حالياً (مثل: 📄 `loan_data.csv`) مع حجمه. هذا يعطي المستخدم ثقة بأن الـ AI "مدرك" للبيانات التي يتم النقاش حولها.
+-
+-## 4. خطة التطوير (Phase-by-Phase)
+-
+-### المرحلة الأولى: تجميل الشات (The Face-lift)
+-* **الخلفية:** استخدام نفس لون الصفحة الرئيسية (Deep Matte Gray `#111827`).
+-* **صندوق الإدخال (Input Box):** اجعله يشبه الصندوق في الصفحة الرئيسية (Floating Input) مع أيقونة "Attach" واضحة جداً.
+-* **الخطوط:** التأكد من استخدام **Inter** للواجهة و **JetBrains Mono** فقط داخل مربعات الكود.
+-
+-### المرحلة الثانية: الدرج الجانبي (The Magic Drawer)
+-* عند رفع ملف، يفتح درج جهة اليمين يعرض **Data Preview** (أول 5 صفوف).
+-* إضافة ميزة **"Pinned Insights"**: أي رسم بياني يطلبه المستخدم من الشات، يمكنه عمل "Pin" له ليظهر دائماً في الدرج الجانبي بدلاً من البحث عنه في تاريخ الشات.
+-
+-### المرحلة الثالثة: التفاعل البصري (Micro-interactions)
+-* عندما يقوم الـ AI بتحليل بيانات، لا تترك الشاشة فارغة. أضف **Progress Bar** بسيط أو "Skeleton Screen" توحي بأن هناك عمليات حسابية تجري خلف الكواليس.
+-
+----
+-
+-## 5. نصيحة "محلل بيانات" لريبليت (The Implementation Prompt)
+-
+-انسخ هذا الأمر لريبليت ليقوم بالتعديلات فوراً:
+-
+-> **"Refactor the Chat UI to match the Axiom Marketing design language:**
+-> 1. **Visual Consistency:** Use the same dark palette (`#111827`) and typography (Inter) from the landing page.
+-> 2. **Message Styling:** Wrap AI responses in clean containers with subtle borders. Use 'Lucide-react' icons for diagnostics, warnings, and success messages.
+-> 3. **The Data Context Bar:** Add a sticky header inside the chat area that shows the currently active dataset name and status (e.g., 'Analyzing loan_data.csv').
+-> 4. **Modern Input:** Replace the current input box with the floating, centered input design from the `/app` landing page, including the 'Attach Data' and 'Connectors' buttons.
+-> 5. **Layout:** Center the chat thread with a max-width of 800px to prevent the text from stretching too far, making it easier to read."
+-
+----
+-
+-**ملاحظة منّي:** الواجهة الحالية في الصفحة الرئيسية "عالمية"، المشكلة فقط في انتقال المستخدم لداخل الشات وشعوره بأنه عاد لتطبيق قديم. بتطبيق هذه التغييرات، سيشعر المستخدم أن **Axiom** أداة متماسكة وقوية جداً.
+-
+-**هل تريدني أن أركز لك على كود معين لتحسين شكل الجداول داخل الشات؟**
+\ No newline at end of file
+diff --git a/attached_assets/Pasted-Hi-We-hope-Ibtikar-Replit-Build-Week-has-been-an-incred_1777034501398.txt b/attached_assets/Pasted-Hi-We-hope-Ibtikar-Replit-Build-Week-has-been-an-incred_1777034501398.txt
+deleted file mode 100644
+index 8cfaa32..0000000
+--- a/attached_assets/Pasted-Hi-We-hope-Ibtikar-Replit-Build-Week-has-been-an-incred_1777034501398.txt
++++ /dev/null
+@@ -1,56 +0,0 @@
+-Hi,
+-
+-We hope Ibtikar × Replit Build Week has been an incredible experience so far. We've been watching what's being built and we're genuinely impressed.
+-
+-It's nearly time to submit your final demo video. Here's everything you need to know.
+-
+-
+-WHAT TO SUBMIT
+-
+-A demo video of no more than 5 minutes. Your video should cover:
+-
+-• The problem you set out to solve and who it affects
+-• A live walkthrough of what you built — show the product working, not slides
+-• Who would use this and how it could reach them
+-• What you would build next if you had more time
+-
+-Keep it focused and move quickly — judges will be watching many videos and a clear, functional demo will always stand out over a polished presentation.
+-
+-HOW TO SUBMIT
+-
+-Please use this form to submit your final demo video
+-
+-Deadline: midnight on Sunday, April 26. No extensions will be granted. 
+-
+-Only one submission per team
+-
+-HOW YOU WILL BE JUDGED
+-
+-All submissions will be scored on the same four criteria, for a total of 100 points:
+-
+-• Problem Clarity (20 pts) — Is the problem real, specific, and clearly articulated? Do you demonstrate that you understand who faces this problem and why?
+-
+-• Solution Quality (25 pts) — Does what you built actually address the problem? Is it functional? A working MVP with one solid feature is stronger than an ambitious concept with nothing to show.
+-
+-• Viability (25 pts) — Could this realistically reach and serve users — whether as a business, a tool, or a public good? Is there a plausible path to getting this to people?
+-
+-• Execution (30 pts) — How much did you actually build in one week? Did you make smart choices about what to build first? This is the highest-weighted criterion — Build Week is about building.
+-
+-Judges understand this was built in one week under real constraints. They will judge accordingly.
+-
+-
+-WHAT HAPPENS NEXT
+-
+-Sunday, April 26: Video submissions close at midnight
+-Monday, April 27: Our team reviews all submissions
+-Tuesday – Wednesday, April 28–29: Independent judges score all videos
+-Thursday, April 30: Top 20 teams are invited for a live 5–10 minute interview with the Ibtikar team
+-Monday, May 4: Demo Day, top 10 teams pitch live to a panel of judges in an online public event
+-
+-Only teams that submit a video by the deadline will be considered for Demo Day.
+-
+-We can't wait to see what you've built. Good luck.
+-
+-Warm regards,
+-
+-Ibtikar × Replit Build Week Team
+diff --git a/attached_assets/Pasted-You-are-a-senior-Python-engineer-working-on-DataVision-_1776792701472.txt b/attached_assets/Pasted-You-are-a-senior-Python-engineer-working-on-DataVision-_1776792701472.txt
+deleted file mode 100644
+index 241c267..0000000
+--- a/attached_assets/Pasted-You-are-a-senior-Python-engineer-working-on-DataVision-_1776792701472.txt
++++ /dev/null
+@@ -1,247 +0,0 @@
+-You are a senior Python engineer working on DataVision Pro — a live 
+-Streamlit analytics SaaS running on Replit. 
+-
+-## WHAT ALREADY EXISTS — DO NOT REWRITE THESE
+-- app.py (~2100 lines): show_dashboard(), load_file(), run_analysis(), 
+-  all cached wrappers (_c_quality_score, _c_numeric_stats, etc.), 
+-  _section_head(), the 8-section st.radio sidebar
+-- data_cleaner.py: clean_data(df) → (df_cleaned, cleaning_report)
+-- data_analyzer.py: generate_summary_report(df_cleaned) → analysis_results
+-- visualizations.py: all chart functions (create_bar_chart, etc.)
+-- models.py: DatasetRecord, save_dataset_record(), find_similar_datasets()
+-- ai_assistant.py: chat_about_data(prompt, df_info), save_chat_message()
+-- predictions.py: simple_forecast(), create_trend_chart(), analyze_trend()
+-- .streamlit/config.toml: enableXsrfProtection=false, enableCORS=false — 
+-  DO NOT TOUCH THIS FILE
+-
+-## REPLIT CONSTRAINTS — FOLLOW EXACTLY
+-- All secrets via os.environ.get("KEY") — never hardcode
+-- Use replit.db (from replit import db) for persistent storage
+-- No multiprocessing — single process only
+-- No st.tabs — use st.radio for section switching (already in place)
+-- Keep enableXsrfProtection=false and enableCORS=false or the iframe breaks
+-- ?sid=<token> query param auth — no cookies
+-- @st.cache_data must never hash a DataFrame directly — pass as _df, 
+-  key on st.session_state.current_dataset_id
+-
+-## YOUR TASK: Implement these 5 phases in order.
+-After each phase, show me a 5-line shell test I can run to verify it 
+-works. Wait for me to say "confirmed, continue" before moving on.
+-
+----
+-
+-### PHASE 1 — Business context memory + fiscal year detection
+-Create two new files. Do NOT modify app.py yet.
+-
+-**context/business_memory.py**
+-- Function: run_onboarding_wizard() → renders st.form with:
+-    - industry: selectbox ["Retail", "Finance", "Healthcare", 
+-                           "Manufacturing", "Real Estate", "Other"]
+-    - fiscal_year_start: selectbox of month names (Jan–Dec)
+-    - kpi_1, kpi_2, kpi_3: st.text_input (top 3 KPIs)
+-    - currency: selectbox ["USD", "SAR", "AED", "EUR", "GBP", "Other"]
+-- On submit: persist to replit.db under key "biz_ctx_{user_id}"
+-- Function: get_context(user_id) → returns dict or None
+-- Function: context_is_set(user_id) → bool
+-- Show a compact sidebar badge if context is active:
+-    st.sidebar.success("Business profile active")
+-
+-**context/date_intelligence.py**
+-- Function: detect_fiscal_year(df) → dict with keys:
+-    {detected_start_month, confidence, basis_column, sample_dates}
+-- If confidence > 0.95: return silently, log to st.session_state
+-- If 0.60 < confidence <= 0.95: show ONE st.warning with confirm button,
+-    store answer in replit.db, never ask again for this dataset_id
+-- If confidence <= 0.60: default to calendar year, note in UI
+-- Function: build_date_table(df, date_col, fiscal_start_month) → 
+-    returns a date dimension DataFrame with columns:
+-    date, fiscal_year, fiscal_quarter, fiscal_month, 
+-    calendar_year, calendar_month, is_weekend
+-- Function: compare_periods(df, metric_col, date_col, 
+-    mode="YoY"|"MoM"|"QoQ", fiscal_start_month=1) → 
+-    returns comparison DataFrame with columns:
+-    period, current_value, prior_value, change, pct_change
+-
+----
+-
+-### PHASE 2 — Upgrade existing data_cleaner.py
+-Modify data_cleaner.py only. Keep the existing function signature:
+-clean_data(df) → (df_cleaned, cleaning_report)
+-
+-Add to clean_data():
+-1. Arabic/mixed text normalization:
+-   - For string columns: unicodedata.normalize("NFC", value)
+-   - Detect common Arabic name variations and flag them — do not 
+-     auto-merge, add to cleaning_report as suggestions
+-   
+-2. Date format unification:
+-   - Use dateutil.parser.parse() with dayfirst=True as fallback
+-   - Detect Hijri dates by year range (1300–1500) and flag for 
+-     manual review — do not silently convert
+-   - For each date column, pick the most common format and normalize 
+-     all values to ISO 8601 (YYYY-MM-DD)
+-   - Ambiguous dates (could be DD/MM or MM/DD): flag in report, 
+-     default to dayfirst=True, surface to user
+-
+-3. Logical error detection:
+-   - Negative values in columns whose name contains: age, count, 
+-     quantity, qty, units, revenue, salary, price → flag as errors
+-   - Future dates in columns whose name contains: birth, dob, 
+-     start, created → flag as errors
+-   - Values > mean + 4*std in numeric columns → flag as outliers 
+-     (do not remove, just flag)
+-
+-4. Diff output format:
+-   Each entry in cleaning_report must be a dict:
+-   {"column": str, "row_count": int, "action": str, 
+-    "original_sample": any, "corrected_sample": any, "reason": str}
+-
+-5. In app.py Cleaning section (Stage 6, second st.radio item):
+-   Replace the current bullet list display with:
+-   - A st.dataframe showing the cleaning_report dicts as a table
+-   - An "Approve all changes" button that writes approved=True to 
+-     session_state — do not apply changes until approved
+-   - A download button for the cleaning report as CSV
+-
+----
+-
+-### PHASE 3 — Auto-discovery engine
+-Create discovery/auto_discovery.py. 
+-Call it from run_analysis() in app.py AFTER generate_summary_report().
+-Store results in st.session_state.discovery_findings.
+-
+-**auto_discovery.py**
+-- Function: run_discovery(df_cleaned, business_context) → list of Finding
+-- Finding is a dataclass:
+-    @dataclass
+-    class Finding:
+-        type: str  # "correlation"|"seasonality"|"outlier"|"quality"|"kpi"
+-        title: str
+-        description: str  # max 120 chars
+-        columns: list
+-        severity: str  # "info"|"warning"|"critical"
+-        value: float = None  # the numeric signal (e.g. correlation r=0.87)
+-
+-- Correlation scan: Pearson r for all numeric pairs, flag pairs where 
+-    abs(r) > 0.65. Title: "Strong link: {col_a} vs {col_b} (r={r:.2f})"
+-    
+-- Seasonality scan: only if a datetime column exists AND a numeric column 
+-    has > 52 non-null rows. Use pandas resample("ME").mean() and compute 
+-    coefficient of variation across months. If CV > 0.15 flag as seasonal.
+-    Title: "{col} shows monthly seasonal pattern (CV={cv:.0%})"
+-    
+-- KPI match: if business_context is set, check if any column name 
+-    contains one of the KPI strings from the profile. Flag as "kpi" type 
+-    with severity "info". Title: "KPI column detected: {col}"
+-
+-- Quality flags: if any column has > 20% missing values → "critical"
+-    If duplicate rows > 1% → "warning"
+-
+-- Render in app.py Overview section:
+-    Below the existing KPI metrics, add a "Discoveries" expander.
+-    Inside: render each Finding as a styled st.container with:
+-    - Colored left border by severity (teal=info, amber=warning, red=critical)
+-    - Title in bold, description below, affected columns as st.code pills
+-
+----
+-
+-### PHASE 4 — Upgrade AI Chat to RAG + function calling
+-Modify ai_assistant.py and the AI Chat section in app.py.
+-Keep save_chat_message() and the chat history display unchanged.
+-
+-**ai_assistant.py additions**
+-- Function: build_column_index(df) → stores column embeddings in 
+-    st.session_state.col_index using sentence-transformers 
+-    (all-MiniLM-L6-v2). Call once after run_analysis().
+-    
+-- Function: retrieve_relevant_columns(question, df, top_k=3) → 
+-    returns list of column names most relevant to the question.
+-    Use cosine similarity against col_index.
+-    
+-- Replace chat_about_data(prompt, df_info) with:
+-  chat_about_data(prompt, df, business_context, dataset_id) which:
+-  1. Retrieves top_k=3 relevant columns
+-  2. Builds a context string: column stats for those 3 columns only
+-  3. Calls Claude API (claude-sonnet-4-20250514) with:
+-     - System: "You are a business analyst for a {industry} company. 
+-       The fiscal year starts in {fiscal_month}. 
+-       The user's KPIs are: {kpi_1}, {kpi_2}, {kpi_3}.
+-       You have access to these tools: [tool definitions below]
+-       Always explain which tool you chose and why."
+-     - Tools:
+-       generate_chart(chart_type, x_col, y_col, title, filters)
+-       compute_comparison(metric_col, date_col, mode, period_label)
+-       explain_change(metric_col, period, context_note)
+-  4. If the response contains a tool_use block:
+-     - generate_chart → call the matching create_*_chart() from 
+-       visualizations.py and render with st.plotly_chart
+-     - compute_comparison → call compare_periods() from 
+-       date_intelligence.py and render result as st.dataframe
+-     - explain_change → render as a styled narrative card 
+-       (dark teal border, monospace eyebrow "ANALYSIS", DM Sans body)
+-  5. Always append a 2-sentence "Reasoning: ..." note below the output 
+-     explaining what the AI detected and why it chose that tool.
+-
+----
+-
+-### PHASE 5 — Proactive agent + notifications
+-Create output/notifier.py and analysis/agent.py.
+-Add an "Alerts" toggle to the sidebar (below the 8-section radio).
+-
+-**notifier.py**
+-- send_whatsapp(message, phone_number):
+-    Uses Twilio. Credentials from env:
+-    TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM
+-    Phone format: "whatsapp:+{number}"
+-    
+-- send_slack(message, webhook_url=None):
+-    webhook_url defaults to os.environ.get("SLACK_WEBHOOK_URL")
+-    POST {"text": message} to webhook
+-    
+-- Both functions return {"success": bool, "error": str|None}
+-
+-**agent.py**
+-- Function: check_for_anomalies(df_cleaned, previous_df=None, 
+-    business_context=None) → list of AnomalyAlert
+-    
+-- AnomalyAlert dataclass:
+-    @dataclass
+-    class AnomalyAlert:
+-        column: str
+-        alert_type: str  # "spike"|"drop"|"missing_surge"|"new_outlier"
+-        severity: str    # "warning"|"critical"  
+-        message: str     # human-readable, max 160 chars (SMS-safe)
+-        value: float
+-        threshold: float
+-        
+-- Detection logic:
+-    - For each numeric column: if latest value > mean + 2.5*std → "spike"
+-    - For each numeric column: if latest value < mean - 2.5*std → "drop"
+-    - If missing % in any column increased by > 10pp vs previous upload → 
+-      "missing_surge"
+-    - KPI columns (matched from business_context) use tighter threshold: 
+-      1.5*std instead of 2.5*std
+-      
+-- In app.py, after run_analysis() completes:
+-    - Run check_for_anomalies() and store in st.session_state.alerts
+-    - If any critical alerts: show st.error banner at top of dashboard
+-    - In sidebar Alerts toggle: show each alert as colored st.metric
+-    - "Send to WhatsApp" and "Send to Slack" buttons that call notifier.py
+-    - Alert message format:
+-      "DataVision Alert [{severity}]: {column} {alert_type} detected. 
+-       Value: {value:.2f} (threshold: {threshold:.2f}). 
+-       Dataset: {dataset_name}"
+-
+----
+-
+-## FINAL VERIFICATION CHECKLIST
+-After all 5 phases confirm:
+-[ ] Uploading an Excel file with a Hijri date column does not crash
+-[ ] Uploading a file with Arabic names shows normalization in diff view
+-[ ] The fiscal year question appears exactly once per dataset
+-[ ] Asking "why did sales drop?" in AI Chat triggers explain_change tool
+-[ ] A column 4 std deviations above mean triggers a critical alert
+-[ ] WhatsApp send returns success (test with Twilio sandbox)
+-[ ] ?sid= auth still works — no cookie errors in Replit preview iframe
+-[ ] The 8-section radio still renders and only one section loads at a time
+-[ ] enableXsrfProtection and enableCORS are still false in config.toml
+\ No newline at end of file
+diff --git a/attached_assets/Pasted-sqlalchemy-orm-exc-DetachedInstanceError-Instance-Datas_1770673198771.txt b/attached_assets/Pasted-sqlalchemy-orm-exc-DetachedInstanceError-Instance-Datas_1770673198771.txt
+deleted file mode 100644
+index 0b2a52f..0000000
+--- a/attached_assets/Pasted-sqlalchemy-orm-exc-DetachedInstanceError-Instance-Datas_1770673198771.txt
++++ /dev/null
+@@ -1,26 +0,0 @@
+-sqlalchemy.orm.exc.DetachedInstanceError: Instance <DatasetRecord at 0x7f3cf7cb6550> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+-Traceback:
+-File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 129, in exec_func_with_error_handling
+-    result = func()
+-             ^^^^^^
+-File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 672, in code_to_exec
+-    exec(code, module.__dict__)  # noqa: S102
+-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-File "/home/runner/workspace/app.py", line 2176, in <module>
+-    show_dashboard()
+-File "/home/runner/workspace/app.py", line 1680, in show_dashboard
+-    with st.expander(f"📁 {record.dataset_name} ({record.period_month}/{record.period_year})"):
+-                           ^^^^^^^^^^^^^^^^^^^
+-File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/attributes.py", line 569, in __get__
+-    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/attributes.py", line 1096, in get
+-    value = self._fire_loader_callables(state, key, passive)
+-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/attributes.py", line 1126, in _fire_loader_callables
+-    return state._load_expired(state, passive)
+-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/state.py", line 828, in _load_expired
+-    self.manager.expired_attribute_loader(self, toload, passive)
+-File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/loading.py", line 1607, in load_scalar_attributes
+-    raise orm_exc.DetachedInstanceError(
+\ No newline at end of file
+diff --git a/backend/chat.py b/backend/chat.py
+index 45b1ed8..9e7d5b9 100644
+--- a/backend/chat.py
++++ b/backend/chat.py
+@@ -20,6 +20,7 @@ import json
+ import os
+ from typing import Any, Iterator
+ 
++import numpy as np
+ import pandas as pd
+ from fastapi import APIRouter, Depends, HTTPException
+ from fastapi.responses import StreamingResponse
+@@ -521,6 +522,7 @@ def _run_predict(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
+ 
+ def _run_cluster(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
+     from sklearn.cluster import KMeans
++    from sklearn.decomposition import PCA
+     from sklearn.preprocessing import StandardScaler
+ 
+     rec, df = _load_df(db, int(args["dataset_id"]), ctx["user_id"], project_id=ctx.get("project_id"))
+@@ -550,12 +552,38 @@ def _run_cluster(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
+                 },
+             }
+         )
++    # 2D PCA projection so the drawer can render a real cluster
++    # scatter plot instead of just numeric centroid tables. Down-
++    # sample to ~400 points to keep the JSON payload tiny.
++    pca = PCA(n_components=2, random_state=42)
++    coords = pca.fit_transform(X)
++    n_pts = len(coords)
++    if n_pts > 400:
++        rng = np.random.default_rng(42)
++        idx = rng.choice(n_pts, size=400, replace=False)
++    else:
++        idx = np.arange(n_pts)
++    scatter = [
++        {
++            "x": round(float(coords[i, 0]), 4),
++            "y": round(float(coords[i, 1]), 4),
++            "cluster": int(labels[i]),
++        }
++        for i in idx
++    ]
++    explained = pca.explained_variance_ratio_.tolist()
+     payload = {
+         "method": "kmeans",
+         "k": k,
+         "cluster_sizes": sizes,
+         "centroids": centroids,
+         "features_used": list(numeric.columns),
++        "scatter": scatter,
++        "pca": {
++            "explained_variance_ratio": [round(float(v), 4) for v in explained],
++            "sampled": int(len(scatter)),
++            "total": int(n_pts),
++        },
+     }
+     title = f"Cluster (k={k}) — {rec.dataset_name or rec.filename}"
+     a = models.save_chat_artifact(
+diff --git a/frontend/src/app/app/project/[id]/report/page.tsx b/frontend/src/app/app/project/[id]/report/page.tsx
+index aed80ab..4c72b56 100644
+--- a/frontend/src/app/app/project/[id]/report/page.tsx
++++ b/frontend/src/app/app/project/[id]/report/page.tsx
+@@ -162,6 +162,14 @@ export default function ReportPage() {
+     );
+   }, [report]);
+ 
++  const pinnedCount = useMemo(() => {
++    if (!report) return 0;
++    return Object.values(report.artifacts || {}).reduce(
++      (n, arr) => n + (arr || []).filter((a) => a.pinned).length,
++      0
++    );
++  }, [report]);
++
+   return (
+     <div className="-m-6 min-h-[calc(100vh-3.5rem)] bg-[var(--surface)]">
+       <div className="border-b border-[var(--border)] px-6 py-4 flex items-center justify-between gap-4 sticky top-14 bg-[var(--surface)]/95 backdrop-blur z-10">
+@@ -170,6 +178,16 @@ export default function ReportPage() {
+           <h1 className="text-xl font-semibold mt-0.5">
+             {report?.session.title || "Loading…"}
+           </h1>
++          {report && (
++            <div className="mt-1 flex items-center gap-2 text-[11px] font-mono">
++              <span className="px-2 py-0.5 rounded-full border border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--accent)]">
++                📌 {pinnedCount} pinned · مثبَّت
++              </span>
++              <span className="text-[var(--text-muted)]">
++                of {totalArtifacts} total · من {totalArtifacts} الكلّي
++              </span>
++            </div>
++          )}
+         </div>
+         <div className="flex items-center gap-3">
+           <label className="text-xs flex items-center gap-1.5 text-[var(--text-muted)]">
+diff --git a/frontend/src/components/product/ArtifactDrawer.tsx b/frontend/src/components/product/ArtifactDrawer.tsx
+index 8e7c412..c843239 100644
+--- a/frontend/src/components/product/ArtifactDrawer.tsx
++++ b/frontend/src/components/product/ArtifactDrawer.tsx
+@@ -334,15 +334,92 @@ type ClusterResult = {
+   cluster_sizes: Record<string, number>;
+   centroids: Array<{ cluster: number; size: number; values: Record<string, number> }>;
+   features_used: string[];
++  scatter?: Array<{ x: number; y: number; cluster: number }>;
++  pca?: { explained_variance_ratio: number[]; sampled: number; total: number };
+ };
+ 
++const CLUSTER_COLORS = [
++  "#60A5FA", "#F472B6", "#34D399", "#FBBF24", "#A78BFA",
++  "#F87171", "#22D3EE", "#FB923C", "#4ADE80", "#E879F9",
++];
++
++function ClusterScatter({
++  points,
++  width = 320,
++  height = 220,
++}: {
++  points: Array<{ x: number; y: number; cluster: number }>;
++  width?: number;
++  height?: number;
++}) {
++  if (!points || points.length === 0) return null;
++  const xs = points.map((p) => p.x);
++  const ys = points.map((p) => p.y);
++  const xMin = Math.min(...xs), xMax = Math.max(...xs);
++  const yMin = Math.min(...ys), yMax = Math.max(...ys);
++  const pad = 12;
++  const sx = (v: number) =>
++    pad + ((v - xMin) / (xMax - xMin || 1)) * (width - 2 * pad);
++  const sy = (v: number) =>
++    height - pad - ((v - yMin) / (yMax - yMin || 1)) * (height - 2 * pad);
++  return (
++    <svg width={width} height={height} role="img" aria-label="Cluster PCA scatter">
++      <rect x={0} y={0} width={width} height={height} fill="transparent" />
++      <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad}
++            stroke="var(--border)" strokeWidth={1} />
++      <line x1={pad} y1={pad} x2={pad} y2={height - pad}
++            stroke="var(--border)" strokeWidth={1} />
++      {points.map((p, i) => (
++        <circle
++          key={i}
++          cx={sx(p.x)}
++          cy={sy(p.y)}
++          r={2.5}
++          fill={CLUSTER_COLORS[p.cluster % CLUSTER_COLORS.length]}
++          fillOpacity={0.7}
++        />
++      ))}
++    </svg>
++  );
++}
++
+ function ClusterBody({ result }: { result: ClusterResult }) {
+   const total = Object.values(result.cluster_sizes || {}).reduce((a, b) => a + b, 0) || 1;
++  const ev = result.pca?.explained_variance_ratio ?? [];
++  const evLabel = ev.length >= 2
++    ? `PCA · PC1 ${(ev[0] * 100).toFixed(1)}% / PC2 ${(ev[1] * 100).toFixed(1)}%`
++    : "PCA";
+   return (
+     <div className="space-y-3">
+       <div className="text-[11px] text-[var(--text-muted)] font-mono">
+         k = {result.k} · {result.features_used?.length ?? 0} features
+       </div>
++      {result.scatter && result.scatter.length > 0 && (
++        <div className="border border-[var(--border)] rounded p-2">
++          <div className="flex items-baseline justify-between mb-1">
++            <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
++              {evLabel}
++            </div>
++            <div className="flex items-center gap-2 flex-wrap">
++              {Array.from({ length: result.k }).map((_, i) => (
++                <div key={i} className="flex items-center gap-1 text-[10px]">
++                  <span
++                    className="inline-block w-2 h-2 rounded-full"
++                    style={{ backgroundColor: CLUSTER_COLORS[i % CLUSTER_COLORS.length] }}
++                  />
++                  <span className="text-[var(--text-muted)]">#{i}</span>
++                </div>
++              ))}
++            </div>
++          </div>
++          <ClusterScatter points={result.scatter} />
++          {result.pca && (
++            <div className="text-[9px] font-mono text-[var(--text-muted)] mt-1">
++              Showing {result.pca.sampled.toLocaleString()} of {result.pca.total.toLocaleString()} rows
++            </div>
++          )}
++        </div>
++      )}
+       <div className="space-y-2">
+         {(result.centroids || []).map((c) => (
+           <div key={c.cluster} className="border border-[var(--border)] rounded p-2">
+diff --git a/frontend/src/components/product/DatasetPreviewCard.tsx b/frontend/src/components/product/DatasetPreviewCard.tsx
+index faa9a6c..96d88fb 100644
+--- a/frontend/src/components/product/DatasetPreviewCard.tsx
++++ b/frontend/src/components/product/DatasetPreviewCard.tsx
+@@ -9,7 +9,23 @@ import { api } from "@/lib/api";
+ import { errMessage } from "@/lib/types";
+ import { InteractiveTable } from "./InteractiveTable";
+ 
+-type Preview = {
++type ProfileColumn = {
++  name: string;
++  dtype: string;
++  kind?: "numeric" | "datetime" | "categorical";
++  missing_pct?: number;
++  unique?: number;
++};
++
++type Profile = {
++  rows: number;
++  cols: number;
++  duplicate_rows?: number;
++  memory_kb?: number;
++  columns: ProfileColumn[];
++};
++
++type AutoProfile = {
+   id: number;
+   filename: string;
+   dataset_name: string;
+@@ -17,6 +33,9 @@ type Preview = {
+   cols: number;
+   columns: { name: string; dtype: string }[];
+   preview: Record<string, unknown>[];
++  profile: Profile;
++  insights: Insight[];
++  suggestions: string[];
+ };
+ 
+ type Insight = {
+@@ -26,6 +45,45 @@ type Insight = {
+   subtitle?: string;
+ };
+ 
++function profileNarrative(p: Profile | undefined): string {
++  if (!p) return "";
++  const parts: string[] = [];
++  parts.push(
++    `This dataset has ${p.rows.toLocaleString()} rows across ${p.cols} columns`
++  );
++  const numeric = p.columns.filter((c) => c.kind === "numeric").length;
++  const cats = p.columns.filter((c) => c.kind === "categorical").length;
++  const dts = p.columns.filter((c) => c.kind === "datetime").length;
++  const mix: string[] = [];
++  if (numeric) mix.push(`${numeric} numeric`);
++  if (cats) mix.push(`${cats} categorical`);
++  if (dts) mix.push(`${dts} datetime`);
++  if (mix.length) parts.push(` (${mix.join(", ")})`);
++  parts.push(".");
++  if (p.duplicate_rows && p.duplicate_rows > 0) {
++    const pct = ((p.duplicate_rows / Math.max(1, p.rows)) * 100).toFixed(1);
++    parts.push(` Found ${p.duplicate_rows.toLocaleString()} duplicate rows (${pct}%).`);
++  } else {
++    parts.push(" No duplicate rows detected.");
++  }
++  const worstMissing = [...p.columns]
++    .filter((c) => (c.missing_pct ?? 0) > 0)
++    .sort((a, b) => (b.missing_pct ?? 0) - (a.missing_pct ?? 0))
++    .slice(0, 3);
++  if (worstMissing.length === 0) {
++    parts.push(" No missing values across any column.");
++  } else {
++    const summary = worstMissing
++      .map((c) => `${c.name} (${(c.missing_pct ?? 0).toFixed(1)}%)`)
++      .join(", ");
++    parts.push(` Highest missingness: ${summary}.`);
++  }
++  if (p.memory_kb) {
++    parts.push(` In-memory size ≈ ${p.memory_kb.toLocaleString()} KB.`);
++  }
++  return parts.join("");
++}
++
+ const SEV_BG: Record<string, string> = {
+   info: "bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/30",
+   warn: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+@@ -41,27 +99,18 @@ export function DatasetPreviewCard({
+   onAskQuestion: (q: string) => void;
+   onAskAboutCell?: (column: string, value: unknown) => void;
+ }) {
+-  const [preview, setPreview] = useState<Preview | null>(null);
+-  const [insights, setInsights] = useState<Insight[] | null>(null);
+-  const [suggestions, setSuggestions] = useState<string[] | null>(null);
++  const [data, setData] = useState<AutoProfile | null>(null);
+   const [error, setError] = useState<string | null>(null);
+ 
+   useEffect(() => {
+     let cancelled = false;
+     setError(null);
+-    setPreview(null);
+-    setInsights(null);
+-    setSuggestions(null);
+-    Promise.all([
+-      api<Preview>(`/api/datasets/${datasetId}/preview?rows=20`),
+-      api<{ insights: Insight[] }>(`/api/datasets/${datasetId}/insights`),
+-      api<{ suggestions: string[] }>(`/api/datasets/${datasetId}/suggestions`),
+-    ])
+-      .then(([p, i, s]) => {
+-        if (cancelled) return;
+-        setPreview(p);
+-        setInsights(i.insights ?? []);
+-        setSuggestions(s.suggestions ?? []);
++    setData(null);
++    // One-shot endpoint: preview + profile + insights + suggestions in
++    // a single request, with backend caching on the dataset row.
++    api<AutoProfile>(`/api/datasets/${datasetId}/auto-profile?rows=20`, { method: "POST" })
++      .then((d) => {
++        if (!cancelled) setData(d);
+       })
+       .catch((e) => {
+         if (!cancelled) setError(errMessage(e));
+@@ -71,6 +120,11 @@ export function DatasetPreviewCard({
+     };
+   }, [datasetId]);
+ 
++  const preview = data;
++  const insights = data?.insights ?? null;
++  const suggestions = data?.suggestions ?? null;
++  const narrative = profileNarrative(data?.profile);
++
+   return (
+     <div className="border border-[var(--border)] rounded-xl bg-[var(--surface)] p-4 space-y-4">
+       <div className="flex items-baseline justify-between gap-3">
+@@ -95,6 +149,18 @@ export function DatasetPreviewCard({
+         </div>
+       )}
+ 
++      {/* Professional profile paragraph */}
++      {data?.profile && narrative && (
++        <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--surface-alt)]">
++          <div className="font-mono text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-1.5">
++            Profile · ملف الداتا
++          </div>
++          <p className="text-[12px] leading-relaxed text-[var(--text)]">
++            {narrative}
++          </p>
++        </div>
++      )}
++
+       {/* Surprise insights ribbon */}
+       {insights && insights.length > 0 && (
+         <div>

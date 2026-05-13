@@ -1,0 +1,173 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { SITE } from "../utils/site";
+import FAQ from "../components/FAQ.astro";
+
+const description =
+  "AXIOM turns raw CSV and Excel files into clean, analyzed, AI-explained insights in seconds — auto cleaning, statistics, ML, predictions, and a built-in chat assistant. 60-day free trial, no card.";
+
+const softwareLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "AXIOM",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  url: SITE.url,
+  description,
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+    description: "60-day free trial with full Tier 3 access",
+  },
+  featureList: [
+    "Auto data cleaning pipeline",
+    "Descriptive statistics",
+    "Interactive visualizations",
+    "ML & K-Means clustering",
+    "Predictive analytics",
+    "AI chat assistant",
+    "Time-period comparison",
+    "Export reports",
+  ],
+};
+
+const faq = [
+  {
+    q: "Do I need to install anything?",
+    a: "No. AXIOM runs in any modern browser on Mac, Windows, Linux, ChromeOS, or tablet.",
+  },
+  {
+    q: "What file formats are supported?",
+    a: "CSV and Excel (.xlsx). Files up to 200 MB and 1,000,000 rows on Tier 3.",
+  },
+  {
+    q: "Is there a free trial?",
+    a: "Yes — every new account gets 60 days of full Tier 3 access (AI chat, predictions, ML, and exports). No credit card required.",
+  },
+  {
+    q: "Where is my data stored?",
+    a: "Your uploaded datasets are stored in our managed PostgreSQL database, accessible only to your account. You can delete a dataset at any time.",
+  },
+  {
+    q: "Do I need to know SQL or Python?",
+    a: "No. The whole platform is built around clicking, toggling, and asking questions in plain English.",
+  },
+];
+
+const faqLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faq.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: { "@type": "Answer", text: f.a },
+  })),
+};
+---
+<BaseLayout
+  title="AXIOM — Intelligent data analytics, no code required"
+  description={description}
+  jsonLd={[softwareLd, faqLd]}
+>
+  <section class="hero">
+    <div class="container">
+      <span class="eyebrow">AXIOM · v2026.4</span>
+      <h1>From <span class="gradient-text">raw spreadsheet</span> to clean, AI-explained insight in <span class="gradient-text">seconds</span>.</h1>
+      <p class="lead">
+        Upload a CSV or Excel file. AXIOM automatically cleans, profiles,
+        and analyses it — then explains what matters in plain English with built-in
+        AI chat, predictions, and clustering.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href={SITE.appUrl}>Launch the app — 60 days free →</a>
+        <a class="btn btn-ghost" href="/features">See features</a>
+      </div>
+      <p class="small muted" style="margin-top:1rem;">No credit card. Full Tier 3 features during the trial.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <span class="eyebrow">Why AXIOM</span>
+      <h2>Analysts spend up to 80% of their time cleaning data. We built the other 80% back.</h2>
+      <div class="grid grid-4" style="margin-top:2rem;">
+        <div class="card">
+          <h3>Auto-cleaning pipeline</h3>
+          <p>Trim, dedupe, infer types, impute missing values, and flag outliers as an ordered, reorderable list of toggleable substeps. Save it as a recipe and replay on next month's file.</p>
+        </div>
+        <div class="card">
+          <h3>Statistics &amp; profiling</h3>
+          <p>Descriptive stats, correlations, and distributions on every column — with currency codes and your preferred number/date formats applied automatically.</p>
+        </div>
+        <div class="card">
+          <h3>ML &amp; clustering</h3>
+          <p>K-Means risk clustering, RandomForest predictions, enhanced outlier detection — without leaving the analysis page.</p>
+        </div>
+        <div class="card">
+          <h3>AI that knows your data</h3>
+          <p>Built-in GPT chat that answers questions about <em>your</em> dataset, plus auto-generated reports with recommendations.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <span class="eyebrow">How it works</span>
+      <h2>Three clicks, not three sprints.</h2>
+      <div class="grid grid-3" style="margin-top:2rem;">
+        <div class="card">
+          <h3>1. Upload</h3>
+          <p>Drag any CSV or Excel file (up to 200 MB on Tier 3). Encoding and delimiter are detected automatically.</p>
+        </div>
+        <div class="card">
+          <h3>2. Auto-analyse</h3>
+          <p>Cleaning, statistics, charts, ML, and predictions run on demand — toggleable step by step so you stay in control.</p>
+        </div>
+        <div class="card">
+          <h3>3. Ask anything</h3>
+          <p>Chat with the AI assistant in natural language. Export a polished report when leadership needs an answer.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <span class="eyebrow">Built on real research</span>
+      <h2>Honest numbers, cited sources.</h2>
+      <div class="stat">
+        <div class="value">Up to 80%</div>
+        <div>of a data scientist's time goes to data preparation, not analysis.</div>
+        <cite><a href="https://www.anaconda.com/state-of-data-science-2022">Anaconda — State of Data Science 2022</a></cite>
+      </div>
+      <div class="stat">
+        <div class="value">$12.9M / year</div>
+        <div>average cost of poor data quality to a single organisation.</div>
+        <cite><a href="https://www.gartner.com/smarterwithgartner/how-to-improve-your-data-quality">Gartner — How to Improve Your Data Quality</a></cite>
+      </div>
+      <div class="stat">
+        <div class="value">91%</div>
+        <div>of deployed ML models silently degrade over time without monitoring.</div>
+        <cite><a href="https://www.nature.com/articles/s41598-022-15245-z">Nature Scientific Reports (2022)</a></cite>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <FAQ items={faq} />
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="cta-strip">
+        <h2>Ready to stop wrangling and start analysing?</h2>
+        <p>60 days of full Tier 3 access. No credit card.</p>
+        <a class="btn btn-primary" href={SITE.appUrl}>Launch the app →</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

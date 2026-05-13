@@ -1,0 +1,88 @@
+modules = ["python-3.11", "system", "nix", "nodejs-20", "postgresql-16"]
+[deployment]
+deploymentTarget = "autoscale"
+build = ["bash", "-c", "uv sync --frozen 2>&1 | tail -20 && cd frontend && npm install --include=dev && npm run build"]
+run = ["bash", "scripts/start-prod.sh"]
+
+[nix]
+channel = "stable-25_05"
+packages = ["cairo", "cargo", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "libcxx", "libiconv", "libxcrypt", "libyaml", "pkg-config", "qhull", "rustc", "tcl", "tk", "xsimd"]
+
+[agent]
+integrations = ["python_openai_ai_integrations:1.0.0", "streamlit_database:1.0.0", "resend:1.0.0"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Backend API"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Streamlit (legacy)"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd frontend && npm run dev"
+waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Backend API"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "uvicorn backend.main:app --host 0.0.0.0 --port 8000"
+waitForPort = 8000
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Streamlit (legacy)"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "streamlit run app.py --server.port 5173 --server.address 0.0.0.0 --server.headless true"
+waitForPort = 5173
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 5173
+externalPort = 5173
+
+[[ports]]
+localPort = 8000
+externalPort = 8000
+
+[[ports]]
+localPort = 8001
+externalPort = 3000
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 120000

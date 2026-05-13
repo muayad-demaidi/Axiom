@@ -1,0 +1,38 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "6p4SnNwQ7rXe2Xw9o6Z4g"
+uri = "file://DataVision_Pro_Execution_Plan.pdf"
+type = "pdf"
+title = "خطة DataVision Pro التنفيذية الشاملة"
+
+[[outputs]]
+id = "6o3gj3HPyz5OEza0iowcN"
+uri = "file://ملخص_تحديثات_DataVisionPro.pdf"
+type = "pdf"
+title = "ملخص تحديثات DataVision Pro - أبريل 2026"
+
+[[outputs]]
+id = "kFg2rOlMV_zTBSFeFVurg"
+uri = "file://axiom_project_export.zip"
+type = "unspecified"
+title = "AXIOM Project — Full Export"
+
+[[outputs]]
+id = "S_2RywOLpEmwLZ4QSOMWX"
+uri = "file://axiom_project_complete.zip"
+type = "unspecified"
+title = "AXIOM Project — Complete Backup (88 MB)"
+
+[[outputs]]
+id = "yhgB5ISSs510o5X9YSwH0"
+uri = "file://axiom_project_slim.zip"
+type = "unspecified"
+title = "AXIOM Project — Slim Backup (13 MB, fast download)"
+
+[[outputs]]
+id = "SOnwiEZYKWbFmaPWJJoan"
+uri = "file://docs/presentation_script_ar.md"
+type = "text"
+title = "سكريبت التقديم — 5 دقائق (عربي)"

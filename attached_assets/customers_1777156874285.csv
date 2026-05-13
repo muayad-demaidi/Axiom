@@ -1,0 +1,1001 @@
+customer_id,customer_name,segment,region,acquisition_date,status,lifetime_value,acquisition_cost
+CUST00001,Company_1,Startup,Latin America,2024-07-06,At Risk,78739.62,4415.52
+CUST00002,Company_2,SMB,Latin America,2024-06-21,Active,67148.81,1204.07
+CUST00003,Company_3,Enterprise,North America,2025-04-22,New,1536.21,4934.31
+CUST00004,Company_4,Startup,North America,2024-07-22,Active,86648.33,4580.37
+CUST00005,Company_5,Mid-Market,Middle East,2025-01-22,Active,40312.1,4832.82
+CUST00006,Company_6,SMB,Middle East,2024-09-05,Active,64899.31,4337.02
+CUST00007,Company_7,Startup,Middle East,2024-09-14,Active,40280.06,4449.51
+CUST00008,Company_8,SMB,Asia,2024-07-28,Churned,88254.84,3194.73
+CUST00009,Company_9,SMB,Latin America,2024-09-27,Active,65432.71,4303.9
+CUST00010,Company_10,Mid-Market,Latin America,2024-11-11,At Risk,58359.23,2903.06
+CUST00011,Company_11,Mid-Market,North America,2024-10-01,Churned,98046.21,2921.98
+CUST00012,Company_12,SMB,Latin America,2024-11-21,Active,28783.41,3031.61
+CUST00013,Company_13,SMB,North America,2024-10-13,Active,7460.17,4983.43
+CUST00014,Company_14,Startup,Asia,2024-07-03,Active,52085.03,969.78
+CUST00015,Company_15,Mid-Market,Middle East,2025-03-09,Active,42977.77,4125.24
+CUST00016,Company_16,Startup,Asia,2025-03-04,Active,45974.71,1729.91
+CUST00017,Company_17,Enterprise,Middle East,2024-09-16,Active,62390.38,2125.52
+CUST00018,Company_18,Startup,Middle East,2024-10-08,Active,61897.04,862.4
+CUST00019,Company_19,SMB,North America,2025-03-09,At Risk,39834.17,2082.08
+CUST00020,Company_20,Enterprise,Middle East,2024-08-19,Active,86424.83,4958.43
+CUST00021,Company_21,Startup,Asia,2024-10-26,New,65494.39,2286.81
+CUST00022,Company_22,Enterprise,Europe,2024-11-13,Active,89101.26,3513.6
+CUST00023,Company_23,Mid-Market,North America,2024-10-03,New,91402.24,1043.21
+CUST00024,Company_24,Startup,Middle East,2025-02-27,Active,17563.9,4651.24
+CUST00025,Company_25,Startup,Middle East,2025-03-28,At Risk,68375.63,4224.85
+CUST00026,Company_26,Mid-Market,Latin America,2024-10-29,Active,32433.67,2238.32
+CUST00027,Company_27,Startup,North America,2024-06-06,Active,83806.48,2068.08
+CUST00028,Company_28,Enterprise,North America,2024-11-11,At Risk,73552.31,2445.2
+CUST00029,Company_29,Mid-Market,Asia,2024-12-11,At Risk,20676.02,2305.66
+CUST00030,Company_30,Enterprise,Europe,2024-04-28,At Risk,93934.35,1661.23
+CUST00031,Company_31,Startup,Asia,2024-12-20,Active,68664.42,4958.81
+CUST00032,Company_32,Startup,Asia,2024-11-16,Churned,94914.68,4147.46
+CUST00033,Company_33,Startup,Asia,2025-03-21,Active,20989.21,1705.65
+CUST00034,Company_34,Startup,Europe,2024-07-27,Active,87100.8,4917.76
+CUST00035,Company_35,Enterprise,Asia,2024-12-12,At Risk,67139.21,569.89
+CUST00036,Company_36,Startup,North America,2025-04-22,Active,55676.37,2470.54
+CUST00037,Company_37,Mid-Market,Europe,2025-04-06,New,82230.78,3062.68
+CUST00038,Company_38,Mid-Market,Middle East,2025-04-08,Active,63653.52,669.14
+CUST00039,Company_39,SMB,Latin America,2024-10-01,New,67290.42,1224.67
+CUST00040,Company_40,Mid-Market,Latin America,2024-08-15,Churned,26113.39,1661.59
+CUST00041,Company_41,SMB,North America,2025-01-01,Active,81888.32,3741.02
+CUST00042,Company_42,Mid-Market,Latin America,2024-12-02,Active,65379.97,4728.85
+CUST00043,Company_43,Mid-Market,Latin America,2025-04-05,At Risk,84594.53,3310.41
+CUST00044,Company_44,Startup,Latin America,2024-07-27,At Risk,35801.17,3031.98
+CUST00045,Company_45,Mid-Market,Middle East,2024-10-08,Active,33839.3,2915.42
+CUST00046,Company_46,Startup,Latin America,2024-09-09,Churned,3366.39,2078.17
+CUST00047,Company_47,Startup,Asia,2025-04-07,Active,77091.93,4224.71
+CUST00048,Company_48,Mid-Market,North America,2025-04-20,Churned,33701.12,2933.45
+CUST00049,Company_49,Enterprise,North America,2024-11-20,New,33394.02,1535.46
+CUST00050,Company_50,Startup,North America,2025-01-05,Active,69179.77,1115.74
+CUST00051,Company_51,Mid-Market,Middle East,2024-07-06,Churned,26034.03,4934.81
+CUST00052,Company_52,Enterprise,Middle East,2024-11-24,Active,90993.03,578.63
+CUST00053,Company_53,Mid-Market,Latin America,2025-01-15,Active,54268.53,4700.48
+CUST00054,Company_54,Mid-Market,Asia,2025-04-19,At Risk,96978.25,1482.36
+CUST00055,Company_55,Enterprise,Latin America,2024-09-22,Active,8590.22,3458.97
+CUST00056,Company_56,Mid-Market,North America,2024-12-15,Active,34345.71,1856.9
+CUST00057,Company_57,Startup,Asia,2024-11-26,At Risk,38765.56,4369.15
+CUST00058,Company_58,SMB,North America,2025-02-22,Active,73311.65,2945.5
+CUST00059,Company_59,SMB,Asia,2024-08-11,Active,22083.26,1134.76
+CUST00060,Company_60,Mid-Market,Europe,2025-04-04,Active,38159.24,1714.26
+CUST00061,Company_61,SMB,Middle East,2025-02-18,Active,91153.61,1941.43
+CUST00062,Company_62,SMB,Middle East,2025-04-08,Active,12340.54,4486.65
+CUST00063,Company_63,SMB,North America,2025-03-10,Churned,74787.08,3950.32
+CUST00064,Company_64,Startup,North America,2025-02-14,Active,70546.03,4233.14
+CUST00065,Company_65,Startup,Europe,2024-08-22,Active,13920.0,735.13
+CUST00066,Company_66,SMB,Latin America,2025-03-18,Active,69160.58,3104.52
+CUST00067,Company_67,Enterprise,Asia,2024-07-31,Active,57408.6,4996.3
+CUST00068,Company_68,Enterprise,Europe,2024-11-20,Active,29464.71,4033.4
+CUST00069,Company_69,Enterprise,Europe,2024-05-26,Churned,31802.98,1043.18
+CUST00070,Company_70,Startup,North America,2025-03-20,Active,83466.24,3554.68
+CUST00071,Company_71,Startup,North America,2024-12-06,New,23870.48,3853.96
+CUST00072,Company_72,Startup,Latin America,2024-11-25,Active,51765.27,2814.12
+CUST00073,Company_73,Startup,Latin America,2024-08-25,Active,68433.82,854.39
+CUST00074,Company_74,SMB,North America,2024-09-18,Active,13860.27,656.09
+CUST00075,Company_75,Startup,Middle East,2025-03-30,Active,93303.03,4720.14
+CUST00076,Company_76,SMB,Latin America,2024-06-15,At Risk,26802.8,1658.81
+CUST00077,Company_77,Enterprise,Europe,2024-10-21,At Risk,32564.66,2205.36
+CUST00078,Company_78,SMB,North America,2025-02-08,Active,66945.46,4078.75
+CUST00079,Company_79,Enterprise,Asia,2024-10-28,Churned,8740.97,3601.67
+CUST00080,Company_80,Startup,Asia,2025-03-27,Churned,63133.66,4858.55
+CUST00081,Company_81,Enterprise,Middle East,2024-08-10,New,91686.97,917.78
+CUST00082,Company_82,Enterprise,North America,2024-08-28,Active,25659.96,3681.14
+CUST00083,Company_83,SMB,Europe,2025-01-10,Active,36828.86,870.03
+CUST00084,Company_84,Enterprise,Middle East,2024-11-04,Active,24001.06,500.74
+CUST00085,Company_85,Mid-Market,Europe,2025-02-15,Active,82058.11,1041.04
+CUST00086,Company_86,Enterprise,Asia,2024-05-28,At Risk,17593.17,3275.27
+CUST00087,Company_87,Startup,Europe,2025-01-25,New,35316.2,3542.87
+CUST00088,Company_88,Enterprise,Asia,2024-10-23,Active,60501.16,2472.53
+CUST00089,Company_89,Mid-Market,Latin America,2024-12-19,At Risk,41050.89,707.32
+CUST00090,Company_90,SMB,Asia,2025-03-12,New,7481.46,3353.27
+CUST00091,Company_91,Enterprise,Asia,2025-04-07,New,94824.35,886.18
+CUST00092,Company_92,Mid-Market,Middle East,2024-09-17,At Risk,34452.14,1137.77
+CUST00093,Company_93,Startup,Middle East,2024-06-07,Churned,45119.47,2806.59
+CUST00094,Company_94,Startup,North America,2025-04-18,Active,17586.99,2031.68
+CUST00095,Company_95,SMB,North America,2025-02-22,New,86669.67,2591.39
+CUST00096,Company_96,Startup,Asia,2025-02-09,Active,29851.45,3357.85
+CUST00097,Company_97,Mid-Market,Latin America,2025-02-13,Active,2962.48,1220.03
+CUST00098,Company_98,Enterprise,North America,2025-01-08,Active,32323.86,4518.89
+CUST00099,Company_99,Mid-Market,Asia,2024-05-13,Churned,98421.91,3017.66
+CUST00100,Company_100,SMB,Middle East,2024-11-25,Active,15537.44,599.42
+CUST00101,Company_101,Enterprise,North America,2024-11-21,At Risk,4089.05,3328.04
+CUST00102,Company_102,Mid-Market,North America,2024-12-11,Active,58239.38,2584.31
+CUST00103,Company_103,SMB,Asia,2025-03-29,Active,37794.99,3657.38
+CUST00104,Company_104,SMB,Asia,2024-04-29,Active,79702.55,4028.15
+CUST00105,Company_105,Enterprise,Europe,2025-03-01,Active,73456.89,4724.8
+CUST00106,Company_106,Enterprise,Europe,2025-01-18,Active,19356.48,4992.56
+CUST00107,Company_107,Startup,Latin America,2024-10-03,Active,56898.6,2973.28
+CUST00108,Company_108,Startup,North America,2024-11-26,Active,4211.16,3026.79
+CUST00109,Company_109,Enterprise,Europe,2025-01-23,At Risk,44508.34,601.0
+CUST00110,Company_110,Startup,Asia,2025-03-14,Active,71691.27,4393.27
+CUST00111,Company_111,Enterprise,North America,2024-08-02,Churned,42080.92,629.23
+CUST00112,Company_112,Startup,Europe,2024-10-12,Active,12677.46,3346.99
+CUST00113,Company_113,Mid-Market,Latin America,2025-01-01,Active,7091.83,943.6
+CUST00114,Company_114,SMB,Latin America,2024-10-10,Churned,85512.29,1786.27
+CUST00115,Company_115,Enterprise,Latin America,2024-06-01,Churned,89241.37,1131.48
+CUST00116,Company_116,Enterprise,Latin America,2024-12-08,Active,34966.16,1118.27
+CUST00117,Company_117,Enterprise,Asia,2024-08-27,Active,17253.06,835.7
+CUST00118,Company_118,Mid-Market,Latin America,2025-01-27,New,97883.01,1930.47
+CUST00119,Company_119,SMB,Middle East,2025-02-03,Active,55040.52,2406.43
+CUST00120,Company_120,Startup,Latin America,2024-09-08,Active,48188.85,2590.13
+CUST00121,Company_121,Startup,Europe,2024-08-10,Active,74419.17,2478.69
+CUST00122,Company_122,SMB,North America,2024-07-01,At Risk,17718.06,2856.61
+CUST00123,Company_123,Startup,Europe,2024-08-06,At Risk,58418.98,4369.04
+CUST00124,Company_124,Enterprise,North America,2024-12-26,Active,89126.07,3343.08
+CUST00125,Company_125,SMB,Asia,2024-10-06,Active,3283.78,577.79
+CUST00126,Company_126,Mid-Market,North America,2024-11-02,Active,67621.03,1278.29
+CUST00127,Company_127,SMB,Middle East,2024-11-05,Active,55590.97,2070.27
+CUST00128,Company_128,Enterprise,Latin America,2024-09-03,Active,95129.28,4770.7
+CUST00129,Company_129,SMB,Europe,2025-02-14,Active,26611.15,851.36
+CUST00130,Company_130,Mid-Market,North America,2024-09-15,Active,86030.27,3695.54
+CUST00131,Company_131,Mid-Market,Europe,2024-11-29,At Risk,31589.58,648.92
+CUST00132,Company_132,SMB,Latin America,2024-05-20,Churned,43556.49,2131.42
+CUST00133,Company_133,SMB,Asia,2024-12-31,At Risk,22115.47,3965.67
+CUST00134,Company_134,Startup,Latin America,2024-07-28,Active,86495.51,2047.68
+CUST00135,Company_135,Startup,Asia,2025-04-13,New,20345.56,2436.27
+CUST00136,Company_136,Enterprise,Europe,2024-11-10,New,86042.29,4573.87
+CUST00137,Company_137,Startup,Asia,2024-08-05,Active,46105.72,797.76
+CUST00138,Company_138,Enterprise,Asia,2024-11-03,Active,83673.46,2874.48
+CUST00139,Company_139,Enterprise,Asia,2024-04-26,At Risk,27184.37,2148.07
+CUST00140,Company_140,SMB,Asia,2024-12-27,At Risk,14140.28,4837.15
+CUST00141,Company_141,Startup,Asia,2024-07-24,New,55941.17,4071.6
+CUST00142,Company_142,Mid-Market,North America,2024-06-08,Churned,51434.27,1049.35
+CUST00143,Company_143,Mid-Market,Asia,2024-04-27,Active,36304.13,4673.34
+CUST00144,Company_144,SMB,Asia,2025-03-26,Active,66619.32,1450.46
+CUST00145,Company_145,Mid-Market,Latin America,2024-06-27,Active,10419.14,881.68
+CUST00146,Company_146,Mid-Market,Latin America,2024-09-06,At Risk,62578.11,2937.17
+CUST00147,Company_147,SMB,Latin America,2025-02-09,New,21963.85,3814.84
+CUST00148,Company_148,Mid-Market,Asia,2025-01-27,Active,13766.5,3722.23
+CUST00149,Company_149,SMB,Latin America,2024-10-17,Active,91051.21,2903.25
+CUST00150,Company_150,Enterprise,North America,2025-01-31,Active,46519.78,2717.32
+CUST00151,Company_151,Startup,Europe,2024-08-22,Active,76578.27,4862.95
+CUST00152,Company_152,Mid-Market,Latin America,2025-01-11,At Risk,9822.58,4192.51
+CUST00153,Company_153,SMB,Latin America,2024-10-15,Active,6689.02,3643.88
+CUST00154,Company_154,Mid-Market,North America,2024-08-20,Active,49990.37,1378.45
+CUST00155,Company_155,Startup,Middle East,2025-03-31,Active,32239.56,4188.97
+CUST00156,Company_156,Mid-Market,Middle East,2024-10-26,Active,1485.82,3874.01
+CUST00157,Company_157,Enterprise,North America,2024-12-23,Active,19146.17,4964.12
+CUST00158,Company_158,SMB,Latin America,2024-11-24,Active,22658.78,1098.48
+CUST00159,Company_159,Startup,Europe,2024-08-23,Active,29562.13,3718.83
+CUST00160,Company_160,Enterprise,Latin America,2024-06-26,Churned,87876.02,4905.87
+CUST00161,Company_161,Mid-Market,North America,2024-09-20,Churned,42639.65,2581.67
+CUST00162,Company_162,Mid-Market,North America,2025-01-25,Churned,68263.81,3800.35
+CUST00163,Company_163,Mid-Market,Asia,2024-05-23,At Risk,2821.21,4889.17
+CUST00164,Company_164,Startup,North America,2025-02-17,New,81578.64,2963.68
+CUST00165,Company_165,SMB,Asia,2024-12-05,At Risk,24792.57,3645.69
+CUST00166,Company_166,Startup,North America,2024-10-14,Active,31594.89,590.38
+CUST00167,Company_167,Enterprise,Asia,2024-12-24,Active,5480.39,2838.49
+CUST00168,Company_168,SMB,Asia,2025-03-11,Active,41559.6,1651.1
+CUST00169,Company_169,Startup,Latin America,2024-09-02,Active,85405.1,1090.6
+CUST00170,Company_170,Mid-Market,Asia,2025-04-11,At Risk,38494.69,3688.69
+CUST00171,Company_171,Enterprise,Middle East,2024-05-14,Churned,90951.92,675.9
+CUST00172,Company_172,Mid-Market,North America,2024-07-14,Active,86877.31,4571.89
+CUST00173,Company_173,Startup,Europe,2025-02-11,Churned,7134.13,2829.98
+CUST00174,Company_174,Enterprise,North America,2025-02-12,Active,31221.92,3417.04
+CUST00175,Company_175,SMB,Latin America,2024-12-15,New,91131.31,1640.46
+CUST00176,Company_176,SMB,Latin America,2025-02-19,At Risk,3951.09,1319.87
+CUST00177,Company_177,Startup,Asia,2024-12-01,At Risk,76815.02,1596.89
+CUST00178,Company_178,Startup,Latin America,2024-10-11,Active,90736.37,1545.32
+CUST00179,Company_179,SMB,Latin America,2024-06-09,Active,77278.65,4390.26
+CUST00180,Company_180,SMB,North America,2024-06-23,Active,74637.62,4043.03
+CUST00181,Company_181,Startup,Middle East,2024-07-29,Active,84492.22,4337.31
+CUST00182,Company_182,SMB,Middle East,2025-01-18,Active,66913.17,3806.92
+CUST00183,Company_183,Enterprise,Asia,2024-05-25,New,42886.52,3395.98
+CUST00184,Company_184,Startup,Latin America,2025-03-14,Active,7212.8,2875.44
+CUST00185,Company_185,Enterprise,Latin America,2024-08-18,Active,79008.78,1694.67
+CUST00186,Company_186,Mid-Market,Middle East,2024-06-25,Active,90620.11,3674.13
+CUST00187,Company_187,Enterprise,Asia,2024-09-17,Active,51647.06,1114.63
+CUST00188,Company_188,Startup,Latin America,2025-03-21,New,53718.54,2799.78
+CUST00189,Company_189,Mid-Market,Asia,2025-04-21,Active,40925.41,1378.74
+CUST00190,Company_190,SMB,North America,2024-06-16,New,85831.38,2771.42
+CUST00191,Company_191,Enterprise,Latin America,2024-06-14,Active,2465.53,1822.58
+CUST00192,Company_192,Enterprise,Latin America,2024-10-10,New,62830.31,740.66
+CUST00193,Company_193,Startup,Latin America,2025-04-16,Active,90833.9,2766.69
+CUST00194,Company_194,SMB,Middle East,2025-04-16,Churned,11219.01,1318.24
+CUST00195,Company_195,Startup,Middle East,2024-11-05,Active,95957.29,1225.2
+CUST00196,Company_196,SMB,Latin America,2024-07-16,Churned,96800.14,2229.65
+CUST00197,Company_197,Startup,Latin America,2024-09-05,Churned,93049.11,2128.04
+CUST00198,Company_198,SMB,North America,2025-01-17,Active,46792.06,4401.31
+CUST00199,Company_199,Mid-Market,North America,2024-07-14,Active,38914.03,3040.87
+CUST00200,Company_200,Startup,Asia,2024-11-29,New,70888.83,4345.55
+CUST00201,Company_201,Mid-Market,Asia,2024-04-26,Active,32550.33,1160.76
+CUST00202,Company_202,Startup,Middle East,2025-02-27,New,7766.07,2107.9
+CUST00203,Company_203,Startup,Europe,2024-12-31,Churned,90240.79,2998.98
+CUST00204,Company_204,Startup,North America,2024-12-16,Active,63850.75,1189.08
+CUST00205,Company_205,Enterprise,Asia,2024-09-27,Active,21508.3,1076.26
+CUST00206,Company_206,Startup,North America,2024-05-31,New,2822.45,3476.31
+CUST00207,Company_207,SMB,North America,2024-12-09,Active,72628.08,3442.25
+CUST00208,Company_208,Enterprise,Europe,2024-09-16,Active,85427.19,1553.71
+CUST00209,Company_209,SMB,North America,2025-03-15,Churned,41159.11,1522.06
+CUST00210,Company_210,SMB,Europe,2024-06-19,Active,9008.92,3854.51
+CUST00211,Company_211,SMB,Europe,2024-08-23,At Risk,65213.5,1026.45
+CUST00212,Company_212,SMB,North America,2025-03-04,Active,30395.98,4654.69
+CUST00213,Company_213,SMB,North America,2024-11-21,Active,15250.73,4746.82
+CUST00214,Company_214,Mid-Market,Asia,2025-01-09,Active,51529.26,4419.47
+CUST00215,Company_215,Enterprise,North America,2024-08-05,Active,48702.53,1448.05
+CUST00216,Company_216,SMB,North America,2025-02-23,Active,52160.27,575.61
+CUST00217,Company_217,Mid-Market,North America,2024-12-15,Churned,82569.3,4715.11
+CUST00218,Company_218,Mid-Market,Asia,2024-06-01,At Risk,48970.04,2047.87
+CUST00219,Company_219,SMB,Europe,2025-02-19,Churned,90153.52,1896.85
+CUST00220,Company_220,Startup,Asia,2024-08-10,Active,84339.25,1677.55
+CUST00221,Company_221,SMB,North America,2024-12-04,Active,65460.48,1600.41
+CUST00222,Company_222,Mid-Market,Latin America,2025-02-11,New,6628.33,3805.49
+CUST00223,Company_223,SMB,North America,2024-10-25,Active,86629.49,4585.52
+CUST00224,Company_224,Mid-Market,Asia,2024-09-26,Active,90651.63,4037.25
+CUST00225,Company_225,SMB,Asia,2024-05-26,Active,38129.67,3533.49
+CUST00226,Company_226,Mid-Market,Middle East,2024-12-14,Active,53089.02,1794.91
+CUST00227,Company_227,SMB,Latin America,2024-12-30,Active,28821.05,2961.34
+CUST00228,Company_228,Startup,Asia,2024-06-21,At Risk,2456.92,1566.35
+CUST00229,Company_229,Startup,Europe,2025-03-23,At Risk,48465.66,1001.78
+CUST00230,Company_230,Mid-Market,North America,2024-10-04,Active,13806.54,1041.32
+CUST00231,Company_231,Startup,Europe,2024-05-11,At Risk,19149.15,3216.96
+CUST00232,Company_232,Startup,Asia,2025-01-03,Active,48590.37,673.16
+CUST00233,Company_233,Enterprise,Asia,2024-09-17,Active,86836.8,4879.65
+CUST00234,Company_234,SMB,Europe,2024-12-09,Churned,84618.63,4979.6
+CUST00235,Company_235,SMB,Europe,2024-12-20,Active,96541.77,1172.41
+CUST00236,Company_236,Startup,Middle East,2025-02-04,Active,48785.38,2422.86
+CUST00237,Company_237,Startup,North America,2025-04-05,Churned,55648.88,3956.34
+CUST00238,Company_238,Mid-Market,Europe,2024-05-10,At Risk,82389.51,4797.8
+CUST00239,Company_239,SMB,North America,2024-07-08,Churned,70267.67,4510.95
+CUST00240,Company_240,Enterprise,Latin America,2025-01-09,Active,19099.39,1646.4
+CUST00241,Company_241,Enterprise,Asia,2025-04-20,Active,40419.3,883.39
+CUST00242,Company_242,Startup,Europe,2024-04-28,Active,92986.77,1799.28
+CUST00243,Company_243,Mid-Market,Latin America,2024-12-31,Active,15466.59,2467.57
+CUST00244,Company_244,Mid-Market,Asia,2024-07-18,At Risk,21726.28,2119.72
+CUST00245,Company_245,SMB,Middle East,2024-06-26,Churned,40665.34,3982.41
+CUST00246,Company_246,Startup,Asia,2024-08-02,Active,94047.54,1660.05
+CUST00247,Company_247,Startup,Europe,2025-03-12,At Risk,12268.0,4363.87
+CUST00248,Company_248,Mid-Market,Latin America,2024-12-23,Active,67621.29,1515.35
+CUST00249,Company_249,Enterprise,Latin America,2025-02-13,Churned,14080.13,2126.08
+CUST00250,Company_250,Enterprise,Latin America,2024-10-03,Active,52925.6,2515.14
+CUST00251,Company_251,SMB,Asia,2024-10-19,Active,54119.79,1810.48
+CUST00252,Company_252,Startup,North America,2025-03-18,Active,5219.98,3948.68
+CUST00253,Company_253,Startup,North America,2025-03-18,New,95457.66,2342.96
+CUST00254,Company_254,Enterprise,Asia,2025-01-01,Active,80855.64,4491.62
+CUST00255,Company_255,Startup,Europe,2024-06-05,Active,30982.57,4836.15
+CUST00256,Company_256,Startup,Asia,2024-12-22,Active,13931.8,4369.13
+CUST00257,Company_257,Mid-Market,North America,2025-04-01,Active,35217.04,2851.81
+CUST00258,Company_258,SMB,Asia,2024-07-24,Active,89533.38,2794.14
+CUST00259,Company_259,SMB,Latin America,2024-05-22,At Risk,14135.68,1471.43
+CUST00260,Company_260,SMB,Europe,2024-09-26,Active,35582.39,3165.25
+CUST00261,Company_261,Mid-Market,Europe,2024-08-21,New,49936.14,4787.27
+CUST00262,Company_262,SMB,Middle East,2024-11-30,Active,4255.55,862.73
+CUST00263,Company_263,SMB,Asia,2025-04-06,Active,27535.34,3886.06
+CUST00264,Company_264,Enterprise,Latin America,2025-01-13,Active,59967.76,4412.93
+CUST00265,Company_265,Enterprise,Asia,2024-08-23,Churned,33072.49,4940.17
+CUST00266,Company_266,SMB,Middle East,2024-06-09,Active,87182.02,2006.41
+CUST00267,Company_267,Mid-Market,Middle East,2025-01-29,Active,93739.78,2100.08
+CUST00268,Company_268,Mid-Market,Asia,2024-08-17,At Risk,44712.74,1533.99
+CUST00269,Company_269,Mid-Market,Asia,2024-10-09,At Risk,53670.03,4050.79
+CUST00270,Company_270,Startup,Asia,2024-12-26,Churned,63450.02,1130.18
+CUST00271,Company_271,Startup,North America,2025-01-29,At Risk,66788.96,1704.95
+CUST00272,Company_272,Mid-Market,Middle East,2024-12-14,Active,7262.54,1828.68
+CUST00273,Company_273,Enterprise,Europe,2024-05-16,Active,6314.26,2187.19
+CUST00274,Company_274,Startup,North America,2024-11-12,At Risk,86693.18,2397.49
+CUST00275,Company_275,Mid-Market,Latin America,2024-07-01,Active,22767.33,3015.61
+CUST00276,Company_276,Startup,Europe,2024-09-07,Active,58826.44,4767.68
+CUST00277,Company_277,Startup,Europe,2024-12-11,Churned,62842.51,1612.76
+CUST00278,Company_278,Startup,Europe,2024-06-21,Active,17281.96,4006.49
+CUST00279,Company_279,Startup,Middle East,2024-05-09,Active,76398.07,3543.76
+CUST00280,Company_280,Mid-Market,Latin America,2025-01-13,Churned,86728.62,1022.23
+CUST00281,Company_281,Startup,North America,2024-10-11,At Risk,29252.39,4146.7
+CUST00282,Company_282,SMB,Latin America,2025-02-09,Active,87906.18,907.75
+CUST00283,Company_283,Mid-Market,North America,2024-10-10,Active,9022.68,3825.17
+CUST00284,Company_284,Mid-Market,Middle East,2024-06-11,Active,80245.93,3721.04
+CUST00285,Company_285,Mid-Market,Latin America,2024-07-29,Active,64371.0,3602.31
+CUST00286,Company_286,Startup,Europe,2025-03-17,Active,58727.97,1745.12
+CUST00287,Company_287,Mid-Market,Latin America,2024-06-07,Active,23783.14,3080.15
+CUST00288,Company_288,Enterprise,Middle East,2025-04-12,Churned,36822.34,3927.1
+CUST00289,Company_289,SMB,Middle East,2024-12-20,Active,91120.13,3369.16
+CUST00290,Company_290,Enterprise,Middle East,2025-02-09,New,47108.37,4119.38
+CUST00291,Company_291,SMB,North America,2025-02-01,Active,59843.63,3595.47
+CUST00292,Company_292,SMB,Latin America,2024-07-03,New,93649.3,1735.02
+CUST00293,Company_293,Startup,Europe,2025-01-02,Active,47182.36,1188.75
+CUST00294,Company_294,SMB,Europe,2024-06-29,Active,39438.65,3343.91
+CUST00295,Company_295,SMB,Asia,2025-03-17,Active,89427.01,3918.91
+CUST00296,Company_296,Enterprise,Middle East,2025-03-26,Churned,91177.91,1140.45
+CUST00297,Company_297,SMB,Europe,2025-02-03,At Risk,36109.19,1286.69
+CUST00298,Company_298,Mid-Market,Middle East,2024-05-25,Churned,59606.98,554.31
+CUST00299,Company_299,Mid-Market,Europe,2024-11-24,Churned,96409.05,2892.87
+CUST00300,Company_300,SMB,Latin America,2024-10-22,Active,6491.6,2940.31
+CUST00301,Company_301,Mid-Market,Asia,2024-11-12,Active,4940.44,2750.34
+CUST00302,Company_302,Startup,Middle East,2024-07-01,Active,52141.47,1922.05
+CUST00303,Company_303,Mid-Market,North America,2024-05-19,Active,29832.77,2425.15
+CUST00304,Company_304,Startup,North America,2024-12-28,At Risk,58603.14,3948.07
+CUST00305,Company_305,SMB,Europe,2025-03-27,At Risk,72705.24,1318.09
+CUST00306,Company_306,Startup,Latin America,2025-04-02,Active,7838.36,1406.97
+CUST00307,Company_307,Startup,Middle East,2024-10-01,At Risk,88354.38,3501.4
+CUST00308,Company_308,SMB,Asia,2025-01-29,Active,28411.81,4401.05
+CUST00309,Company_309,SMB,Latin America,2025-01-06,Active,38753.4,2031.77
+CUST00310,Company_310,Startup,Europe,2024-08-13,Active,34366.64,4697.35
+CUST00311,Company_311,Enterprise,Latin America,2024-06-10,Active,84143.65,759.54
+CUST00312,Company_312,SMB,Asia,2024-10-20,Active,17894.57,1033.34
+CUST00313,Company_313,SMB,Latin America,2024-05-30,Active,3838.65,2569.82
+CUST00314,Company_314,Enterprise,Middle East,2024-11-08,Active,97208.36,3755.68
+CUST00315,Company_315,Mid-Market,Europe,2024-06-05,Active,98082.62,2168.77
+CUST00316,Company_316,Enterprise,Asia,2025-03-22,Active,26511.59,2996.36
+CUST00317,Company_317,Mid-Market,Europe,2024-07-23,Active,1925.91,628.57
+CUST00318,Company_318,Enterprise,Middle East,2025-04-04,New,64945.79,2578.25
+CUST00319,Company_319,Startup,Asia,2024-07-01,At Risk,65197.86,1591.59
+CUST00320,Company_320,SMB,Asia,2024-07-03,New,94095.31,2823.66
+CUST00321,Company_321,Enterprise,Europe,2024-08-12,Active,30548.58,2866.25
+CUST00322,Company_322,SMB,Latin America,2025-04-10,Churned,19760.91,3889.22
+CUST00323,Company_323,Mid-Market,Latin America,2024-05-16,Active,62021.85,2929.29
+CUST00324,Company_324,Startup,North America,2025-01-26,At Risk,56803.44,3264.21
+CUST00325,Company_325,SMB,North America,2024-11-05,Active,72055.94,2883.41
+CUST00326,Company_326,Enterprise,Asia,2024-06-08,Active,88627.61,4956.7
+CUST00327,Company_327,Enterprise,Europe,2024-08-13,Active,56414.77,4062.29
+CUST00328,Company_328,Startup,Asia,2024-11-19,Active,15857.45,3900.4
+CUST00329,Company_329,Mid-Market,Europe,2024-12-10,Active,60214.77,3322.67
+CUST00330,Company_330,Startup,Middle East,2024-10-19,New,38036.06,2877.67
+CUST00331,Company_331,Startup,North America,2024-12-30,Active,45820.77,2051.41
+CUST00332,Company_332,SMB,Asia,2025-03-18,At Risk,95988.95,4027.86
+CUST00333,Company_333,Mid-Market,Middle East,2024-05-05,Active,55939.76,1353.24
+CUST00334,Company_334,Startup,Latin America,2025-01-01,Churned,15815.07,664.47
+CUST00335,Company_335,SMB,North America,2025-04-03,Churned,44872.7,3641.77
+CUST00336,Company_336,SMB,Europe,2024-12-15,Active,23614.62,1151.83
+CUST00337,Company_337,Mid-Market,Latin America,2024-09-07,Active,14412.77,4567.22
+CUST00338,Company_338,Mid-Market,Latin America,2025-01-03,Churned,71511.18,3968.07
+CUST00339,Company_339,SMB,Middle East,2024-06-17,Active,63228.34,3210.1
+CUST00340,Company_340,Mid-Market,Asia,2024-08-31,Active,50281.1,1912.66
+CUST00341,Company_341,SMB,Asia,2024-12-06,Active,42900.59,3370.74
+CUST00342,Company_342,Mid-Market,Middle East,2024-05-14,Active,32899.56,2645.86
+CUST00343,Company_343,Mid-Market,Latin America,2024-08-02,Active,9712.86,1810.17
+CUST00344,Company_344,Mid-Market,North America,2025-02-08,Active,30627.7,4752.86
+CUST00345,Company_345,Enterprise,Latin America,2024-06-20,At Risk,84001.07,1228.5
+CUST00346,Company_346,Mid-Market,Middle East,2024-12-06,At Risk,78583.86,3890.23
+CUST00347,Company_347,Enterprise,Latin America,2024-09-12,Active,97259.45,4100.17
+CUST00348,Company_348,SMB,Latin America,2024-08-27,Active,65950.64,4783.08
+CUST00349,Company_349,Startup,Latin America,2025-02-27,Active,55810.34,2972.37
+CUST00350,Company_350,Startup,Latin America,2024-06-15,Active,30308.4,2906.94
+CUST00351,Company_351,Startup,North America,2024-09-05,At Risk,8609.16,4641.3
+CUST00352,Company_352,SMB,Europe,2025-02-10,Churned,62183.82,4104.92
+CUST00353,Company_353,Mid-Market,Europe,2024-09-24,At Risk,49328.06,3936.36
+CUST00354,Company_354,Enterprise,Asia,2025-04-06,New,76148.38,4051.12
+CUST00355,Company_355,SMB,Europe,2024-10-27,Active,41773.93,2719.31
+CUST00356,Company_356,Startup,Europe,2024-12-19,Churned,98569.58,686.38
+CUST00357,Company_357,Startup,Europe,2024-10-24,Churned,40363.59,1392.19
+CUST00358,Company_358,Startup,Latin America,2025-04-10,Churned,33974.09,3393.46
+CUST00359,Company_359,Startup,Latin America,2024-04-27,At Risk,87227.65,2282.75
+CUST00360,Company_360,Enterprise,North America,2025-02-02,At Risk,40155.14,3230.47
+CUST00361,Company_361,Startup,Latin America,2024-11-06,Active,87218.83,2982.55
+CUST00362,Company_362,Enterprise,Latin America,2024-10-07,New,3708.07,2473.97
+CUST00363,Company_363,Startup,Europe,2025-02-08,Churned,69566.74,1556.28
+CUST00364,Company_364,SMB,North America,2025-03-30,Active,8113.43,3735.32
+CUST00365,Company_365,Enterprise,North America,2024-09-12,At Risk,15675.01,4590.7
+CUST00366,Company_366,Enterprise,Europe,2024-08-13,Active,70307.43,3964.84
+CUST00367,Company_367,SMB,Europe,2025-01-10,At Risk,29682.61,1040.17
+CUST00368,Company_368,Startup,North America,2024-10-29,New,21832.91,2920.77
+CUST00369,Company_369,Startup,Middle East,2025-04-03,Active,80351.09,4259.15
+CUST00370,Company_370,Mid-Market,Europe,2025-04-17,At Risk,94678.44,3159.42
+CUST00371,Company_371,Mid-Market,Europe,2025-01-22,At Risk,24005.68,2478.06
+CUST00372,Company_372,Enterprise,North America,2024-10-26,Churned,32402.4,1780.46
+CUST00373,Company_373,Mid-Market,Middle East,2025-02-05,Active,71693.26,1986.76
+CUST00374,Company_374,SMB,Middle East,2024-07-25,Active,81713.99,1589.71
+CUST00375,Company_375,SMB,Asia,2024-11-04,Active,99917.07,1380.77
+CUST00376,Company_376,SMB,Middle East,2025-04-19,Active,28063.7,3149.89
+CUST00377,Company_377,Enterprise,Europe,2025-04-08,Active,56105.24,2792.23
+CUST00378,Company_378,SMB,Latin America,2025-03-28,At Risk,14267.88,3806.75
+CUST00379,Company_379,Enterprise,North America,2025-03-01,New,33753.17,1885.68
+CUST00380,Company_380,Enterprise,Europe,2025-03-19,Active,5451.89,2573.71
+CUST00381,Company_381,SMB,North America,2024-06-10,Active,21873.02,3561.67
+CUST00382,Company_382,SMB,Middle East,2024-09-15,At Risk,51147.95,4834.55
+CUST00383,Company_383,Enterprise,North America,2024-09-20,Active,17212.15,2069.92
+CUST00384,Company_384,SMB,Europe,2025-04-09,New,89048.95,1841.94
+CUST00385,Company_385,Mid-Market,Latin America,2025-03-13,At Risk,71320.59,2521.8
+CUST00386,Company_386,Enterprise,Europe,2025-04-12,Churned,3745.86,3757.43
+CUST00387,Company_387,Startup,Asia,2024-08-22,Active,87793.45,4826.98
+CUST00388,Company_388,Enterprise,North America,2024-09-05,Active,97754.78,2914.41
+CUST00389,Company_389,SMB,Europe,2024-11-07,Active,50684.3,4155.98
+CUST00390,Company_390,SMB,Middle East,2024-05-31,Active,32146.46,2589.8
+CUST00391,Company_391,Enterprise,Middle East,2024-10-28,Churned,27082.98,679.36
+CUST00392,Company_392,Enterprise,Europe,2024-11-23,Active,9654.53,4523.95
+CUST00393,Company_393,Startup,Asia,2024-08-12,Active,49669.33,1804.45
+CUST00394,Company_394,Startup,North America,2024-10-28,At Risk,5963.86,1124.0
+CUST00395,Company_395,Enterprise,Asia,2024-07-11,Active,50879.88,4982.73
+CUST00396,Company_396,SMB,Latin America,2025-02-16,Active,26002.3,2063.3
+CUST00397,Company_397,Enterprise,Europe,2025-03-20,At Risk,48166.76,1114.42
+CUST00398,Company_398,Mid-Market,Asia,2024-08-27,Active,42420.03,1901.94
+CUST00399,Company_399,Mid-Market,Latin America,2025-03-06,Active,31206.31,2812.27
+CUST00400,Company_400,SMB,Asia,2025-03-10,Active,45415.19,895.81
+CUST00401,Company_401,Enterprise,Latin America,2025-03-04,Active,47929.36,2086.79
+CUST00402,Company_402,Enterprise,Middle East,2024-04-26,Active,83535.48,3509.85
+CUST00403,Company_403,Mid-Market,Middle East,2025-03-24,Active,66912.55,4621.69
+CUST00404,Company_404,Enterprise,Europe,2024-07-04,Active,43882.5,2288.47
+CUST00405,Company_405,SMB,Asia,2024-11-22,Active,90618.95,3040.54
+CUST00406,Company_406,SMB,Middle East,2024-05-02,Active,75818.34,3362.28
+CUST00407,Company_407,Startup,North America,2024-10-25,Churned,8495.97,818.39
+CUST00408,Company_408,SMB,Middle East,2024-10-05,Churned,16220.84,2040.01
+CUST00409,Company_409,Enterprise,Middle East,2025-01-18,Churned,9085.12,3579.14
+CUST00410,Company_410,Enterprise,Asia,2025-02-13,Active,32567.47,3810.47
+CUST00411,Company_411,Mid-Market,Latin America,2025-04-17,Active,44129.02,2101.78
+CUST00412,Company_412,Mid-Market,North America,2024-07-14,At Risk,50920.35,530.31
+CUST00413,Company_413,SMB,North America,2025-01-11,Churned,85289.81,530.9
+CUST00414,Company_414,Startup,Latin America,2025-01-24,At Risk,2777.67,2921.54
+CUST00415,Company_415,Enterprise,Asia,2024-08-07,Active,43400.55,2981.69
+CUST00416,Company_416,Startup,Middle East,2025-02-27,Active,41688.84,3000.74
+CUST00417,Company_417,Enterprise,Latin America,2024-05-22,Churned,94800.12,3747.89
+CUST00418,Company_418,SMB,North America,2024-06-10,New,24862.65,4645.71
+CUST00419,Company_419,SMB,North America,2025-03-03,New,13118.18,4955.77
+CUST00420,Company_420,Mid-Market,Middle East,2024-06-18,New,15083.76,3654.8
+CUST00421,Company_421,Startup,Middle East,2024-07-12,At Risk,52494.13,2812.99
+CUST00422,Company_422,Mid-Market,Europe,2024-04-25,Churned,39699.48,1134.48
+CUST00423,Company_423,SMB,Latin America,2024-10-09,Active,75660.06,2228.79
+CUST00424,Company_424,Startup,Middle East,2024-05-17,Churned,32995.05,3076.05
+CUST00425,Company_425,Enterprise,Europe,2024-12-08,Active,13668.21,4999.14
+CUST00426,Company_426,Mid-Market,Asia,2025-02-16,Active,39300.7,1071.42
+CUST00427,Company_427,SMB,North America,2025-01-09,Churned,88420.53,4068.84
+CUST00428,Company_428,Enterprise,Latin America,2025-01-13,At Risk,41147.13,4995.23
+CUST00429,Company_429,SMB,Asia,2024-10-05,Churned,83529.14,4123.81
+CUST00430,Company_430,Enterprise,Latin America,2024-05-04,Active,37781.48,3952.15
+CUST00431,Company_431,Mid-Market,Latin America,2024-08-18,Active,28857.18,1664.07
+CUST00432,Company_432,Enterprise,Middle East,2024-09-29,New,77711.41,515.13
+CUST00433,Company_433,Startup,Europe,2025-04-15,Churned,21714.22,1516.94
+CUST00434,Company_434,Enterprise,Latin America,2025-01-21,Active,23951.24,4054.1
+CUST00435,Company_435,SMB,Asia,2024-09-29,Active,5931.47,982.77
+CUST00436,Company_436,Enterprise,Latin America,2025-03-10,New,19596.73,1832.53
+CUST00437,Company_437,Mid-Market,Europe,2025-04-23,Active,38502.72,3031.27
+CUST00438,Company_438,SMB,North America,2024-11-12,Active,40557.7,3109.15
+CUST00439,Company_439,SMB,Latin America,2024-08-23,Active,42642.18,2943.45
+CUST00440,Company_440,SMB,Asia,2024-09-10,Active,48489.6,4913.98
+CUST00441,Company_441,SMB,North America,2024-10-03,Active,57619.15,555.29
+CUST00442,Company_442,Startup,North America,2024-11-18,Active,19753.47,2694.19
+CUST00443,Company_443,SMB,Middle East,2024-06-18,Active,61780.47,2769.89
+CUST00444,Company_444,SMB,Middle East,2025-03-29,Active,34318.9,1819.95
+CUST00445,Company_445,SMB,Latin America,2025-01-09,Active,73667.06,2862.82
+CUST00446,Company_446,Mid-Market,Asia,2024-06-07,New,56163.24,3529.76
+CUST00447,Company_447,Mid-Market,Middle East,2024-09-30,Churned,55872.59,3527.4
+CUST00448,Company_448,SMB,Europe,2025-02-22,Active,68863.21,895.36
+CUST00449,Company_449,Startup,Europe,2025-04-14,Active,33968.88,4111.07
+CUST00450,Company_450,Enterprise,North America,2024-07-31,Active,43494.06,4688.19
+CUST00451,Company_451,Startup,North America,2024-05-20,Churned,58706.89,1056.25
+CUST00452,Company_452,SMB,North America,2025-04-18,Active,42734.01,2374.88
+CUST00453,Company_453,SMB,Europe,2024-11-08,New,44981.49,2802.88
+CUST00454,Company_454,Startup,Middle East,2024-07-30,Churned,27976.22,1106.7
+CUST00455,Company_455,SMB,Middle East,2024-12-19,New,29451.12,2765.23
+CUST00456,Company_456,Enterprise,Latin America,2024-05-06,Active,70196.78,1430.86
+CUST00457,Company_457,Mid-Market,Asia,2024-06-08,At Risk,1423.83,4709.12
+CUST00458,Company_458,Enterprise,Europe,2024-05-03,Churned,10433.75,2518.12
+CUST00459,Company_459,Enterprise,North America,2024-04-25,Active,94932.18,4977.06
+CUST00460,Company_460,Enterprise,Asia,2025-03-17,Active,19514.79,709.3
+CUST00461,Company_461,Startup,North America,2024-11-20,Active,42393.97,1074.11
+CUST00462,Company_462,Startup,Asia,2024-06-17,Active,85118.83,2494.45
+CUST00463,Company_463,Enterprise,Asia,2024-08-06,At Risk,1010.13,4434.62
+CUST00464,Company_464,Startup,Middle East,2024-09-23,At Risk,92592.74,2998.52
+CUST00465,Company_465,SMB,Latin America,2024-05-04,Active,6295.37,3795.54
+CUST00466,Company_466,Mid-Market,Latin America,2024-06-03,Active,17916.04,2406.03
+CUST00467,Company_467,Startup,North America,2024-06-07,New,3881.25,682.3
+CUST00468,Company_468,Startup,Europe,2025-01-17,Active,52432.48,3415.16
+CUST00469,Company_469,Enterprise,Latin America,2025-01-27,Active,94366.34,3353.01
+CUST00470,Company_470,Mid-Market,Europe,2024-09-26,Active,84064.62,821.43
+CUST00471,Company_471,SMB,North America,2024-07-15,New,64335.11,1268.97
+CUST00472,Company_472,SMB,Europe,2024-11-07,At Risk,19363.38,2642.7
+CUST00473,Company_473,Mid-Market,Asia,2024-06-15,Active,87090.11,2509.87
+CUST00474,Company_474,SMB,Asia,2024-12-03,Active,75722.76,3885.88
+CUST00475,Company_475,Mid-Market,North America,2024-06-22,Active,27417.93,2243.36
+CUST00476,Company_476,Enterprise,Europe,2025-02-12,Active,80703.83,3484.85
+CUST00477,Company_477,SMB,Europe,2025-01-25,Churned,87837.98,3669.91
+CUST00478,Company_478,SMB,North America,2025-03-24,Active,70124.38,3402.52
+CUST00479,Company_479,Mid-Market,Latin America,2025-01-25,Active,10938.03,3182.57
+CUST00480,Company_480,SMB,Middle East,2025-04-16,Active,98440.44,4125.58
+CUST00481,Company_481,Startup,Latin America,2024-08-12,Active,8524.1,3456.98
+CUST00482,Company_482,Enterprise,Middle East,2024-05-24,New,65792.92,4253.83
+CUST00483,Company_483,SMB,Europe,2024-08-09,Active,11942.0,3365.08
+CUST00484,Company_484,SMB,Middle East,2025-02-15,Active,90635.92,1215.38
+CUST00485,Company_485,SMB,Middle East,2025-03-30,At Risk,35647.79,1892.5
+CUST00486,Company_486,Mid-Market,Europe,2025-03-17,Active,51638.8,1986.6
+CUST00487,Company_487,Enterprise,Asia,2025-03-09,Active,18697.4,922.62
+CUST00488,Company_488,Enterprise,Middle East,2024-07-28,Active,55109.66,3615.38
+CUST00489,Company_489,SMB,North America,2025-02-03,Active,93945.15,3178.0
+CUST00490,Company_490,SMB,Latin America,2024-11-17,New,90261.67,3153.9
+CUST00491,Company_491,Mid-Market,Europe,2025-03-23,Active,7325.7,2653.33
+CUST00492,Company_492,Enterprise,Europe,2024-10-13,Active,38447.59,2944.06
+CUST00493,Company_493,Startup,Middle East,2024-07-12,At Risk,27475.7,536.39
+CUST00494,Company_494,SMB,Asia,2024-12-30,Active,48654.79,933.12
+CUST00495,Company_495,Startup,Asia,2024-11-28,New,83539.19,3575.09
+CUST00496,Company_496,Startup,Latin America,2025-03-29,Active,74146.33,1676.6
+CUST00497,Company_497,Enterprise,Latin America,2024-06-20,Active,35053.84,985.6
+CUST00498,Company_498,Startup,Asia,2024-09-18,Active,38883.92,1978.95
+CUST00499,Company_499,SMB,Asia,2024-12-14,Active,65771.24,1645.17
+CUST00500,Company_500,SMB,Asia,2024-05-11,Active,20228.29,632.18
+CUST00501,Company_501,Mid-Market,Middle East,2024-11-07,Active,11170.07,2347.51
+CUST00502,Company_502,Enterprise,North America,2024-10-30,Active,25016.26,621.63
+CUST00503,Company_503,Enterprise,Latin America,2024-09-03,Active,13279.21,501.76
+CUST00504,Company_504,Startup,Europe,2024-12-28,Active,35846.44,4066.13
+CUST00505,Company_505,SMB,Asia,2024-09-21,Active,93819.01,1917.37
+CUST00506,Company_506,SMB,Asia,2024-11-12,Active,12909.65,3054.14
+CUST00507,Company_507,Mid-Market,North America,2024-11-23,Active,82013.89,1839.88
+CUST00508,Company_508,Startup,Asia,2024-11-27,Active,53930.16,4685.11
+CUST00509,Company_509,SMB,Latin America,2024-04-30,At Risk,63657.4,3781.32
+CUST00510,Company_510,Enterprise,Asia,2024-09-29,Active,17838.15,2161.27
+CUST00511,Company_511,Mid-Market,North America,2025-04-08,Active,15985.96,1447.82
+CUST00512,Company_512,Enterprise,Middle East,2024-07-08,Active,17111.62,1120.13
+CUST00513,Company_513,Mid-Market,Latin America,2024-12-31,Active,67039.22,3930.88
+CUST00514,Company_514,Enterprise,Middle East,2025-02-22,At Risk,75031.04,2538.67
+CUST00515,Company_515,Startup,Europe,2024-06-09,Active,92104.25,1543.84
+CUST00516,Company_516,SMB,North America,2025-04-01,Active,40421.04,4638.32
+CUST00517,Company_517,Enterprise,Europe,2025-04-07,Active,46734.97,2255.43
+CUST00518,Company_518,Startup,Europe,2025-03-05,New,47489.91,2945.72
+CUST00519,Company_519,Enterprise,Europe,2024-12-09,Active,27719.89,4360.1
+CUST00520,Company_520,Startup,Europe,2024-10-23,Churned,33495.03,4250.19
+CUST00521,Company_521,Mid-Market,North America,2024-07-16,Active,84835.2,3370.79
+CUST00522,Company_522,Startup,Middle East,2024-09-16,Active,35028.5,4498.81
+CUST00523,Company_523,Enterprise,Asia,2024-06-13,Active,87040.51,4784.44
+CUST00524,Company_524,SMB,Europe,2024-08-02,Active,31221.5,4708.01
+CUST00525,Company_525,Mid-Market,Asia,2025-04-02,Active,34648.43,2070.53
+CUST00526,Company_526,Mid-Market,Asia,2024-11-30,Active,56467.81,2287.27
+CUST00527,Company_527,Startup,Europe,2024-09-10,Active,11209.56,1582.27
+CUST00528,Company_528,Enterprise,Latin America,2024-05-08,Active,92284.16,4265.73
+CUST00529,Company_529,Startup,Asia,2024-05-07,Active,82219.58,1048.21
+CUST00530,Company_530,Mid-Market,Latin America,2025-04-03,Active,67379.88,2097.88
+CUST00531,Company_531,SMB,Middle East,2024-12-30,Active,98824.38,543.8
+CUST00532,Company_532,Startup,Asia,2025-03-26,Active,2583.94,3175.91
+CUST00533,Company_533,Enterprise,North America,2024-10-13,Active,41694.97,3462.73
+CUST00534,Company_534,Startup,Middle East,2025-03-09,Active,85975.96,1620.44
+CUST00535,Company_535,Startup,Middle East,2025-04-18,Churned,43868.71,3815.29
+CUST00536,Company_536,Startup,Latin America,2024-08-08,Active,1518.89,2216.92
+CUST00537,Company_537,SMB,Europe,2024-10-30,New,16617.66,1902.7
+CUST00538,Company_538,Enterprise,North America,2024-05-11,At Risk,43973.17,4802.74
+CUST00539,Company_539,Enterprise,North America,2024-06-13,Churned,67126.84,3149.12
+CUST00540,Company_540,Mid-Market,Latin America,2024-12-29,Active,17102.77,1635.44
+CUST00541,Company_541,Mid-Market,Latin America,2024-12-07,Churned,45356.26,4924.59
+CUST00542,Company_542,Startup,Middle East,2024-07-12,Churned,2266.07,2243.97
+CUST00543,Company_543,Mid-Market,Latin America,2025-01-21,At Risk,48272.55,3415.23
+CUST00544,Company_544,Enterprise,Europe,2024-11-23,Active,89696.52,3757.34
+CUST00545,Company_545,Startup,Middle East,2024-05-11,Churned,60080.04,2400.33
+CUST00546,Company_546,Mid-Market,Middle East,2025-04-05,Churned,44624.91,2911.63
+CUST00547,Company_547,SMB,Middle East,2024-12-31,Active,17063.67,1579.02
+CUST00548,Company_548,Mid-Market,North America,2025-03-30,Churned,21039.44,2596.2
+CUST00549,Company_549,SMB,North America,2024-07-17,Active,8574.49,1898.6
+CUST00550,Company_550,Mid-Market,Middle East,2024-11-07,Churned,74498.69,2963.56
+CUST00551,Company_551,Enterprise,Europe,2025-01-14,Churned,8636.39,3514.51
+CUST00552,Company_552,Mid-Market,Asia,2024-05-12,Active,39010.93,3263.02
+CUST00553,Company_553,SMB,Middle East,2024-12-01,At Risk,75234.62,3995.23
+CUST00554,Company_554,SMB,Latin America,2025-03-21,At Risk,71569.45,686.89
+CUST00555,Company_555,Mid-Market,Asia,2024-12-15,Active,58175.68,853.69
+CUST00556,Company_556,Startup,North America,2024-10-17,Active,57559.47,1423.91
+CUST00557,Company_557,SMB,North America,2024-07-05,Churned,9942.48,4936.11
+CUST00558,Company_558,Enterprise,Asia,2024-07-24,Active,18316.61,4101.21
+CUST00559,Company_559,Mid-Market,Latin America,2025-03-12,Active,53939.7,4658.54
+CUST00560,Company_560,SMB,North America,2024-05-17,At Risk,35459.95,1724.41
+CUST00561,Company_561,Mid-Market,North America,2024-11-23,New,2874.77,3082.35
+CUST00562,Company_562,Mid-Market,Middle East,2025-02-12,Active,80018.51,2996.98
+CUST00563,Company_563,Startup,Europe,2024-08-30,Active,65727.51,3062.84
+CUST00564,Company_564,Mid-Market,Latin America,2024-06-22,Active,33252.76,3729.05
+CUST00565,Company_565,Mid-Market,Middle East,2025-03-14,Churned,10722.31,2272.91
+CUST00566,Company_566,Mid-Market,Europe,2024-07-18,At Risk,59528.88,3547.45
+CUST00567,Company_567,Enterprise,North America,2024-12-09,Active,35506.41,4047.97
+CUST00568,Company_568,Mid-Market,Europe,2025-01-17,Active,26283.54,1800.83
+CUST00569,Company_569,Enterprise,North America,2024-08-14,Active,72425.46,4755.84
+CUST00570,Company_570,Mid-Market,Middle East,2024-08-18,Churned,33486.86,2831.22
+CUST00571,Company_571,Startup,North America,2024-12-18,Active,14468.8,3797.43
+CUST00572,Company_572,Startup,Europe,2024-06-15,At Risk,48683.72,3780.16
+CUST00573,Company_573,SMB,Middle East,2024-07-17,Active,83018.11,3043.59
+CUST00574,Company_574,Mid-Market,Europe,2024-08-13,At Risk,85116.22,1952.08
+CUST00575,Company_575,Startup,Europe,2024-11-10,Active,85084.97,3501.23
+CUST00576,Company_576,Startup,Asia,2024-11-29,Churned,42671.06,892.78
+CUST00577,Company_577,Mid-Market,North America,2024-12-09,New,79302.49,4916.46
+CUST00578,Company_578,SMB,North America,2025-03-07,New,85172.85,1327.99
+CUST00579,Company_579,Enterprise,Europe,2024-05-15,New,46494.28,1739.42
+CUST00580,Company_580,Startup,North America,2024-10-17,Active,32555.2,4794.98
+CUST00581,Company_581,Startup,Latin America,2024-06-19,Active,70494.49,1339.44
+CUST00582,Company_582,Enterprise,North America,2025-02-09,Active,90542.46,1265.42
+CUST00583,Company_583,Startup,Middle East,2025-02-18,Active,97243.1,4120.41
+CUST00584,Company_584,Enterprise,North America,2025-02-13,Active,29732.26,1630.8
+CUST00585,Company_585,Enterprise,Latin America,2024-09-14,Churned,95660.93,926.27
+CUST00586,Company_586,SMB,Europe,2024-12-06,At Risk,50428.94,1519.89
+CUST00587,Company_587,Enterprise,North America,2024-05-02,Active,31297.44,4497.68
+CUST00588,Company_588,Enterprise,Middle East,2024-08-26,At Risk,98851.41,1761.44
+CUST00589,Company_589,Enterprise,Latin America,2024-12-26,Active,87902.99,3627.77
+CUST00590,Company_590,Enterprise,Asia,2024-08-03,At Risk,69549.24,2278.13
+CUST00591,Company_591,Startup,Europe,2025-03-13,Active,89599.28,1679.53
+CUST00592,Company_592,Enterprise,Europe,2025-04-09,Active,68467.3,1148.21
+CUST00593,Company_593,Startup,Europe,2024-07-26,Active,44599.98,4874.86
+CUST00594,Company_594,Mid-Market,Latin America,2025-01-03,At Risk,94856.91,2845.02
+CUST00595,Company_595,Mid-Market,North America,2024-07-13,New,96361.52,1016.4
+CUST00596,Company_596,Enterprise,North America,2025-02-16,Active,32103.33,1394.66
+CUST00597,Company_597,SMB,North America,2024-05-25,Active,36085.14,2332.84
+CUST00598,Company_598,SMB,North America,2025-03-20,Churned,38889.32,2948.77
+CUST00599,Company_599,Startup,Europe,2025-02-17,Active,82392.45,1318.09
+CUST00600,Company_600,Startup,Asia,2025-01-31,Active,79323.42,1749.78
+CUST00601,Company_601,Mid-Market,Europe,2024-05-06,Active,98328.4,4026.68
+CUST00602,Company_602,Startup,Asia,2024-08-29,At Risk,47056.15,2378.67
+CUST00603,Company_603,SMB,Asia,2025-04-19,Active,73939.94,506.31
+CUST00604,Company_604,Mid-Market,North America,2024-10-28,Active,85815.33,742.73
+CUST00605,Company_605,Enterprise,Middle East,2024-07-02,Active,22901.81,2476.98
+CUST00606,Company_606,Startup,Latin America,2025-03-19,New,62434.99,770.53
+CUST00607,Company_607,Enterprise,Middle East,2024-05-05,Active,55223.06,1282.57
+CUST00608,Company_608,Startup,Asia,2025-02-21,Churned,74539.87,3775.44
+CUST00609,Company_609,SMB,Middle East,2024-05-17,Active,69847.37,2661.73
+CUST00610,Company_610,Startup,Asia,2025-03-27,Active,81466.47,2671.08
+CUST00611,Company_611,SMB,Europe,2025-03-23,New,31803.37,3191.98
+CUST00612,Company_612,SMB,Europe,2024-11-19,Active,22419.28,4048.33
+CUST00613,Company_613,Enterprise,North America,2024-11-25,At Risk,80714.67,1213.64
+CUST00614,Company_614,Startup,Latin America,2024-08-25,New,36695.78,1278.71
+CUST00615,Company_615,Enterprise,Europe,2024-07-06,Churned,29469.78,1046.32
+CUST00616,Company_616,SMB,Latin America,2024-11-20,Active,34345.03,4715.73
+CUST00617,Company_617,SMB,North America,2025-03-01,At Risk,7569.05,3097.81
+CUST00618,Company_618,SMB,Latin America,2025-01-23,At Risk,77541.29,916.88
+CUST00619,Company_619,SMB,Europe,2024-07-27,New,71800.81,1492.91
+CUST00620,Company_620,Mid-Market,Europe,2024-12-16,At Risk,55716.55,3765.16
+CUST00621,Company_621,SMB,Middle East,2024-09-25,Active,71892.41,630.46
+CUST00622,Company_622,Startup,Middle East,2025-01-23,Churned,37940.18,3765.45
+CUST00623,Company_623,SMB,Middle East,2024-11-23,Active,30241.54,4601.59
+CUST00624,Company_624,Mid-Market,Latin America,2024-08-30,Active,86367.8,753.72
+CUST00625,Company_625,Startup,Europe,2024-12-13,Churned,42823.0,1338.89
+CUST00626,Company_626,Mid-Market,North America,2024-06-04,At Risk,20395.31,510.7
+CUST00627,Company_627,Mid-Market,Asia,2025-02-07,Churned,75155.35,990.64
+CUST00628,Company_628,Startup,Europe,2024-06-06,At Risk,34251.31,3276.46
+CUST00629,Company_629,Mid-Market,Middle East,2025-01-19,Active,21973.28,701.68
+CUST00630,Company_630,SMB,Middle East,2025-03-04,Active,3694.21,2416.26
+CUST00631,Company_631,Enterprise,Latin America,2024-05-22,Active,97089.57,2765.31
+CUST00632,Company_632,Enterprise,Middle East,2025-01-19,Active,47261.65,4579.83
+CUST00633,Company_633,Enterprise,Latin America,2024-07-07,Active,17014.03,2634.31
+CUST00634,Company_634,Startup,North America,2024-09-16,New,76023.3,1141.45
+CUST00635,Company_635,Startup,Middle East,2024-10-03,Active,88877.46,1801.81
+CUST00636,Company_636,Startup,Latin America,2024-12-26,Active,53268.83,3524.88
+CUST00637,Company_637,Enterprise,Middle East,2025-01-19,Active,3807.59,1004.52
+CUST00638,Company_638,Enterprise,Latin America,2024-11-21,Churned,37149.15,1542.84
+CUST00639,Company_639,Startup,Europe,2025-01-29,Active,25067.06,4981.0
+CUST00640,Company_640,Enterprise,Latin America,2024-12-03,Active,64003.35,524.91
+CUST00641,Company_641,Mid-Market,Asia,2025-04-19,Active,52366.92,1184.82
+CUST00642,Company_642,Mid-Market,North America,2024-07-03,Active,36217.95,4296.59
+CUST00643,Company_643,Enterprise,Europe,2024-05-14,Churned,65202.01,956.22
+CUST00644,Company_644,Startup,North America,2024-08-23,Active,58858.5,651.38
+CUST00645,Company_645,SMB,Europe,2024-10-14,Active,90742.52,1045.91
+CUST00646,Company_646,SMB,Middle East,2024-05-28,New,60083.49,3621.19
+CUST00647,Company_647,Enterprise,Latin America,2024-07-04,Active,51263.48,4969.0
+CUST00648,Company_648,SMB,Middle East,2024-05-27,Active,82543.34,3157.86
+CUST00649,Company_649,Startup,North America,2025-01-11,Churned,21039.55,1059.42
+CUST00650,Company_650,Mid-Market,North America,2025-01-21,Churned,25112.9,1327.0
+CUST00651,Company_651,Mid-Market,Europe,2024-08-11,Active,78573.74,2919.57
+CUST00652,Company_652,Startup,North America,2024-05-17,Churned,44792.67,3720.46
+CUST00653,Company_653,SMB,Latin America,2024-09-17,Active,41514.35,3483.1
+CUST00654,Company_654,Enterprise,North America,2024-05-08,New,88820.72,3086.27
+CUST00655,Company_655,Mid-Market,Middle East,2025-02-24,Churned,61400.79,4938.21
+CUST00656,Company_656,SMB,Latin America,2025-03-07,Active,80488.0,1391.15
+CUST00657,Company_657,SMB,North America,2024-05-30,Active,81174.05,1278.07
+CUST00658,Company_658,Mid-Market,Asia,2025-01-20,Active,12882.64,4365.78
+CUST00659,Company_659,Mid-Market,Asia,2025-01-10,Churned,65716.54,1808.7
+CUST00660,Company_660,Enterprise,Middle East,2024-06-16,At Risk,95299.12,1996.37
+CUST00661,Company_661,Startup,Europe,2024-06-11,New,48522.68,2969.01
+CUST00662,Company_662,SMB,Europe,2024-05-05,Active,73486.06,2215.74
+CUST00663,Company_663,Enterprise,North America,2025-01-07,At Risk,57106.56,1794.38
+CUST00664,Company_664,Mid-Market,Latin America,2025-04-02,Active,21279.75,4627.29
+CUST00665,Company_665,Startup,Europe,2025-01-29,Active,20324.17,1081.73
+CUST00666,Company_666,Startup,Asia,2024-11-20,Churned,43949.48,2319.3
+CUST00667,Company_667,SMB,Europe,2025-03-14,Active,48816.07,513.35
+CUST00668,Company_668,Startup,Asia,2025-03-25,Active,50810.11,4133.54
+CUST00669,Company_669,Mid-Market,Europe,2024-05-06,At Risk,95545.07,1257.88
+CUST00670,Company_670,Mid-Market,Middle East,2024-12-31,Active,10925.2,3978.45
+CUST00671,Company_671,Mid-Market,Latin America,2025-03-13,New,38672.15,1168.71
+CUST00672,Company_672,Enterprise,North America,2024-10-01,Active,51940.2,2375.32
+CUST00673,Company_673,Mid-Market,Asia,2024-05-30,Active,96348.16,3776.83
+CUST00674,Company_674,Enterprise,Europe,2024-09-20,Active,50927.17,1718.64
+CUST00675,Company_675,Mid-Market,North America,2024-11-08,Active,77752.3,1912.63
+CUST00676,Company_676,Mid-Market,Asia,2024-12-26,New,75178.53,3502.95
+CUST00677,Company_677,Startup,Asia,2024-11-14,Active,57077.96,1344.65
+CUST00678,Company_678,SMB,Middle East,2024-06-07,Active,13939.61,4783.03
+CUST00679,Company_679,Mid-Market,Europe,2025-03-05,Active,22657.11,1349.54
+CUST00680,Company_680,Startup,North America,2025-03-09,At Risk,24773.89,3874.98
+CUST00681,Company_681,Startup,Europe,2024-11-16,Active,4827.31,4111.69
+CUST00682,Company_682,SMB,Europe,2024-12-21,Churned,38542.58,2184.67
+CUST00683,Company_683,Startup,Latin America,2024-06-04,At Risk,61440.86,1203.08
+CUST00684,Company_684,Startup,Asia,2024-07-09,Active,15282.36,1246.57
+CUST00685,Company_685,SMB,Asia,2024-11-12,New,18328.56,4934.53
+CUST00686,Company_686,Enterprise,Latin America,2025-04-22,At Risk,70991.65,3764.34
+CUST00687,Company_687,SMB,Latin America,2024-07-28,Active,17756.09,2525.21
+CUST00688,Company_688,SMB,Europe,2024-05-22,Churned,14398.22,1658.07
+CUST00689,Company_689,Mid-Market,Asia,2024-09-15,At Risk,97806.35,585.1
+CUST00690,Company_690,Mid-Market,North America,2024-06-22,At Risk,2458.79,3517.09
+CUST00691,Company_691,Enterprise,Middle East,2024-08-31,Active,33215.41,4806.12
+CUST00692,Company_692,SMB,Latin America,2025-04-01,Churned,4458.73,980.79
+CUST00693,Company_693,SMB,North America,2024-04-25,Active,83966.77,3895.21
+CUST00694,Company_694,Enterprise,North America,2025-02-05,Active,58770.04,1189.57
+CUST00695,Company_695,Mid-Market,Europe,2024-05-16,At Risk,5747.23,4064.47
+CUST00696,Company_696,SMB,Latin America,2024-12-06,At Risk,61920.85,2167.58
+CUST00697,Company_697,Enterprise,North America,2024-11-14,Active,13186.54,3704.28
+CUST00698,Company_698,Mid-Market,Middle East,2024-10-28,Active,50077.53,4668.27
+CUST00699,Company_699,Startup,North America,2025-02-02,Churned,67271.88,3290.63
+CUST00700,Company_700,Enterprise,Middle East,2025-03-22,New,15702.2,4643.15
+CUST00701,Company_701,Enterprise,Middle East,2024-05-21,Active,50207.99,1557.61
+CUST00702,Company_702,SMB,Middle East,2025-04-02,Active,46283.68,4901.6
+CUST00703,Company_703,Startup,Latin America,2024-08-31,At Risk,91659.3,4427.82
+CUST00704,Company_704,Mid-Market,Middle East,2025-04-22,Active,99574.44,984.08
+CUST00705,Company_705,Startup,Latin America,2024-07-28,Active,65792.97,2360.93
+CUST00706,Company_706,SMB,North America,2024-06-29,Churned,85631.06,4671.63
+CUST00707,Company_707,SMB,Middle East,2024-10-18,Active,65041.31,851.52
+CUST00708,Company_708,Mid-Market,Asia,2025-01-24,Active,87752.34,2541.93
+CUST00709,Company_709,Mid-Market,North America,2024-09-27,At Risk,43893.93,3756.17
+CUST00710,Company_710,Mid-Market,Asia,2024-05-13,Active,61191.0,650.51
+CUST00711,Company_711,SMB,Asia,2025-03-10,Active,84671.78,3887.74
+CUST00712,Company_712,Mid-Market,Europe,2024-06-21,Active,91890.49,2125.41
+CUST00713,Company_713,Mid-Market,Latin America,2025-01-22,Active,3443.59,1622.17
+CUST00714,Company_714,Mid-Market,Europe,2024-11-08,Active,11291.32,3091.88
+CUST00715,Company_715,Enterprise,Latin America,2024-07-12,Active,93186.03,2949.49
+CUST00716,Company_716,Mid-Market,Europe,2024-06-04,At Risk,57282.37,4432.73
+CUST00717,Company_717,SMB,North America,2024-12-06,At Risk,99029.02,3542.01
+CUST00718,Company_718,Enterprise,Asia,2025-01-10,Active,79470.67,2398.39
+CUST00719,Company_719,SMB,North America,2024-12-25,Active,81995.88,3425.62
+CUST00720,Company_720,Startup,Latin America,2024-05-17,Active,39226.13,3875.67
+CUST00721,Company_721,Enterprise,Asia,2024-11-07,Churned,26496.6,4717.98
+CUST00722,Company_722,Mid-Market,Asia,2024-12-16,Active,60227.66,3669.18
+CUST00723,Company_723,Enterprise,Latin America,2024-08-28,At Risk,88024.18,2947.43
+CUST00724,Company_724,SMB,North America,2025-01-15,Active,72844.15,2178.41
+CUST00725,Company_725,Enterprise,Asia,2025-03-14,New,47745.34,4511.68
+CUST00726,Company_726,Startup,North America,2024-09-11,Active,75566.85,4066.34
+CUST00727,Company_727,Mid-Market,North America,2025-03-06,At Risk,69349.36,847.32
+CUST00728,Company_728,Mid-Market,North America,2024-08-29,Churned,91392.09,3647.94
+CUST00729,Company_729,Startup,Asia,2025-02-04,Active,27092.17,2924.37
+CUST00730,Company_730,SMB,Middle East,2024-08-16,Churned,12811.83,966.4
+CUST00731,Company_731,Enterprise,Europe,2025-03-15,At Risk,47535.07,3042.32
+CUST00732,Company_732,SMB,Latin America,2024-05-07,Churned,36747.0,1366.28
+CUST00733,Company_733,SMB,North America,2024-12-08,At Risk,97511.25,3686.65
+CUST00734,Company_734,SMB,Asia,2024-05-03,Active,1742.91,1753.08
+CUST00735,Company_735,Mid-Market,Latin America,2024-09-17,Active,93404.92,1176.55
+CUST00736,Company_736,Enterprise,Middle East,2024-10-04,Active,95552.84,868.88
+CUST00737,Company_737,Mid-Market,Middle East,2024-12-03,At Risk,6044.88,2708.6
+CUST00738,Company_738,Mid-Market,Asia,2024-11-26,Active,89067.42,1398.36
+CUST00739,Company_739,Mid-Market,North America,2024-10-10,At Risk,47607.11,4348.08
+CUST00740,Company_740,Enterprise,Middle East,2024-05-20,Active,76848.92,513.5
+CUST00741,Company_741,Startup,Middle East,2024-08-27,Active,8846.3,4296.37
+CUST00742,Company_742,Mid-Market,Middle East,2025-02-18,Active,95565.35,2844.92
+CUST00743,Company_743,Mid-Market,Asia,2024-12-30,Active,61147.3,4649.65
+CUST00744,Company_744,Mid-Market,Latin America,2024-05-04,Active,89970.74,1420.75
+CUST00745,Company_745,Enterprise,Europe,2024-08-07,Active,67623.35,960.23
+CUST00746,Company_746,Enterprise,Asia,2024-08-08,Active,54144.22,3312.31
+CUST00747,Company_747,SMB,North America,2024-04-25,At Risk,18077.07,3680.27
+CUST00748,Company_748,Mid-Market,Asia,2024-10-23,Active,18617.46,2176.63
+CUST00749,Company_749,Mid-Market,Asia,2025-02-20,Active,47784.46,561.56
+CUST00750,Company_750,Enterprise,Europe,2024-09-12,At Risk,87173.78,2331.33
+CUST00751,Company_751,Enterprise,Europe,2024-12-10,Active,12406.65,1552.04
+CUST00752,Company_752,Mid-Market,Europe,2024-06-27,Active,99840.13,2063.61
+CUST00753,Company_753,Startup,Latin America,2024-07-11,Active,87715.31,2780.4
+CUST00754,Company_754,SMB,Asia,2024-12-12,Active,39863.32,3660.54
+CUST00755,Company_755,SMB,North America,2024-07-20,Active,26058.71,4834.51
+CUST00756,Company_756,Mid-Market,Europe,2024-10-24,Active,92277.61,1148.0
+CUST00757,Company_757,SMB,Europe,2025-03-09,Active,13197.95,3559.55
+CUST00758,Company_758,SMB,Asia,2024-09-17,Active,35381.7,1549.45
+CUST00759,Company_759,Mid-Market,North America,2025-03-07,Active,9307.32,1493.17
+CUST00760,Company_760,SMB,Europe,2024-07-25,Active,95392.77,3350.99
+CUST00761,Company_761,Enterprise,Asia,2024-08-25,Active,62144.67,3992.0
+CUST00762,Company_762,Mid-Market,Middle East,2025-01-25,Active,34281.78,4900.04
+CUST00763,Company_763,Enterprise,Latin America,2024-06-27,Churned,28272.83,3959.74
+CUST00764,Company_764,Mid-Market,Asia,2025-03-22,At Risk,44965.34,1207.92
+CUST00765,Company_765,Enterprise,Europe,2024-11-29,Churned,10046.47,1514.31
+CUST00766,Company_766,SMB,North America,2024-11-02,At Risk,89045.54,3926.25
+CUST00767,Company_767,Startup,Middle East,2024-08-09,Churned,51583.1,2871.45
+CUST00768,Company_768,Enterprise,North America,2024-12-27,Active,72784.71,1829.34
+CUST00769,Company_769,Enterprise,North America,2024-06-20,Active,24140.84,2623.02
+CUST00770,Company_770,Startup,North America,2024-06-08,Active,50871.18,4617.0
+CUST00771,Company_771,Startup,Asia,2024-07-19,Active,21897.53,3900.2
+CUST00772,Company_772,Enterprise,Asia,2024-06-01,Active,81793.37,2528.14
+CUST00773,Company_773,Enterprise,Latin America,2024-10-23,New,77752.23,4912.49
+CUST00774,Company_774,Enterprise,Middle East,2024-10-05,New,15672.03,4076.94
+CUST00775,Company_775,Mid-Market,North America,2024-12-25,Active,8376.18,526.42
+CUST00776,Company_776,Enterprise,Europe,2025-03-13,Active,82595.48,1005.65
+CUST00777,Company_777,Enterprise,North America,2024-08-28,Active,11855.14,2992.86
+CUST00778,Company_778,Startup,Middle East,2024-11-17,Churned,55299.91,2074.79
+CUST00779,Company_779,Startup,North America,2025-01-16,Churned,53914.24,4156.51
+CUST00780,Company_780,Mid-Market,Asia,2025-04-13,Active,21091.46,4530.59
+CUST00781,Company_781,Mid-Market,Asia,2024-07-20,Churned,59544.29,1582.93
+CUST00782,Company_782,SMB,Middle East,2024-09-16,Churned,50772.77,3934.79
+CUST00783,Company_783,Enterprise,Latin America,2024-08-24,Active,51409.73,2909.29
+CUST00784,Company_784,Enterprise,North America,2024-07-31,Active,36610.3,2263.85
+CUST00785,Company_785,Startup,Middle East,2025-02-07,New,84004.43,4040.51
+CUST00786,Company_786,SMB,Europe,2024-09-04,At Risk,9352.69,3042.16
+CUST00787,Company_787,Enterprise,Europe,2025-03-27,Active,44423.68,3358.78
+CUST00788,Company_788,SMB,Latin America,2025-03-08,Active,26721.82,780.14
+CUST00789,Company_789,Mid-Market,Asia,2024-06-28,Active,84994.89,3136.46
+CUST00790,Company_790,Enterprise,Middle East,2024-11-09,Churned,23282.97,1853.2
+CUST00791,Company_791,Enterprise,North America,2024-08-27,Active,76935.46,2719.82
+CUST00792,Company_792,Mid-Market,Middle East,2025-04-05,Active,61540.02,1499.05
+CUST00793,Company_793,Enterprise,Latin America,2024-11-18,Active,87604.24,3265.14
+CUST00794,Company_794,Mid-Market,Middle East,2024-11-18,Active,59785.6,1163.61
+CUST00795,Company_795,Mid-Market,Latin America,2025-02-18,Active,56091.95,1053.07
+CUST00796,Company_796,SMB,Latin America,2024-08-23,Active,80311.86,1347.85
+CUST00797,Company_797,Startup,Latin America,2024-09-13,Active,56686.16,4178.59
+CUST00798,Company_798,Startup,Middle East,2025-04-06,At Risk,84609.66,650.9
+CUST00799,Company_799,Mid-Market,Europe,2024-06-20,Active,5882.48,3783.1
+CUST00800,Company_800,SMB,North America,2025-02-22,Active,50019.84,754.28
+CUST00801,Company_801,Mid-Market,Latin America,2024-09-16,At Risk,81456.46,3163.36
+CUST00802,Company_802,SMB,Asia,2024-06-07,Active,84988.15,3981.01
+CUST00803,Company_803,SMB,Latin America,2024-09-03,Active,83571.48,1539.83
+CUST00804,Company_804,Startup,Middle East,2024-07-14,Active,60833.75,1381.76
+CUST00805,Company_805,Startup,Latin America,2025-04-12,At Risk,99403.16,1801.3
+CUST00806,Company_806,SMB,Asia,2024-05-24,Churned,18957.24,3648.26
+CUST00807,Company_807,Startup,Europe,2025-03-31,Active,18271.3,1646.72
+CUST00808,Company_808,SMB,Middle East,2024-11-19,Churned,4249.44,2757.96
+CUST00809,Company_809,Enterprise,Middle East,2024-12-23,New,98944.38,1105.1
+CUST00810,Company_810,Mid-Market,Middle East,2024-10-24,Active,35454.03,2575.38
+CUST00811,Company_811,Startup,Asia,2024-09-29,Churned,76443.36,3311.28
+CUST00812,Company_812,Mid-Market,Middle East,2024-09-17,Active,6911.32,823.19
+CUST00813,Company_813,Startup,Europe,2025-03-30,Active,30570.12,4169.4
+CUST00814,Company_814,Mid-Market,North America,2025-04-13,Active,62760.89,4718.46
+CUST00815,Company_815,Mid-Market,North America,2024-12-13,At Risk,52953.23,1370.96
+CUST00816,Company_816,Startup,Latin America,2024-07-25,Active,21567.08,3917.45
+CUST00817,Company_817,Startup,North America,2025-03-19,Active,46697.7,1910.6
+CUST00818,Company_818,Startup,Asia,2024-10-13,Active,11769.42,3545.26
+CUST00819,Company_819,Startup,North America,2024-10-31,Active,54727.64,1880.05
+CUST00820,Company_820,SMB,Asia,2024-05-25,Churned,10597.2,4380.54
+CUST00821,Company_821,Startup,Asia,2024-08-11,Active,63957.61,2061.99
+CUST00822,Company_822,Startup,Latin America,2025-01-21,Active,16380.4,4319.74
+CUST00823,Company_823,Startup,North America,2024-07-28,Active,55161.5,3947.64
+CUST00824,Company_824,Enterprise,Latin America,2024-07-10,Active,13782.95,1383.46
+CUST00825,Company_825,Mid-Market,Middle East,2024-09-22,Active,40670.33,1206.29
+CUST00826,Company_826,Startup,Europe,2024-09-13,Churned,35831.32,4008.45
+CUST00827,Company_827,Startup,North America,2024-12-11,Active,75884.66,2256.36
+CUST00828,Company_828,Mid-Market,Middle East,2025-01-07,Active,64475.0,4772.27
+CUST00829,Company_829,Mid-Market,Middle East,2024-08-30,Active,93771.79,4743.27
+CUST00830,Company_830,SMB,Latin America,2025-04-07,At Risk,92269.15,3620.66
+CUST00831,Company_831,Mid-Market,Latin America,2024-12-04,Active,72774.61,2752.61
+CUST00832,Company_832,Mid-Market,Europe,2024-10-25,At Risk,77287.99,1377.35
+CUST00833,Company_833,Enterprise,Europe,2025-01-29,Active,62866.33,4470.77
+CUST00834,Company_834,SMB,Europe,2025-02-11,Churned,69474.66,868.99
+CUST00835,Company_835,Enterprise,Europe,2024-05-23,Active,62105.01,2166.58
+CUST00836,Company_836,Mid-Market,Latin America,2025-02-16,Churned,31864.74,1936.49
+CUST00837,Company_837,Startup,Asia,2024-05-12,Active,35718.27,4812.93
+CUST00838,Company_838,SMB,Latin America,2024-09-02,Active,57898.65,1031.52
+CUST00839,Company_839,Mid-Market,Asia,2025-01-18,Active,72297.52,4505.67
+CUST00840,Company_840,Mid-Market,Latin America,2024-08-08,At Risk,41205.79,2553.96
+CUST00841,Company_841,Startup,Latin America,2024-09-28,Active,15124.11,713.75
+CUST00842,Company_842,Startup,Europe,2024-06-22,Churned,46482.3,3779.9
+CUST00843,Company_843,Startup,Asia,2024-07-25,New,96355.59,953.96
+CUST00844,Company_844,SMB,Middle East,2025-01-09,Active,22194.6,1566.52
+CUST00845,Company_845,Enterprise,Middle East,2024-06-14,New,65257.84,4098.78
+CUST00846,Company_846,SMB,Middle East,2024-09-04,Active,98271.64,1196.29
+CUST00847,Company_847,Startup,Europe,2024-10-08,At Risk,38247.53,1964.62
+CUST00848,Company_848,SMB,Middle East,2025-02-15,New,88900.48,2124.49
+CUST00849,Company_849,Startup,Latin America,2024-04-29,New,86536.86,3149.61
+CUST00850,Company_850,Enterprise,Europe,2024-09-07,Active,34565.45,4054.7
+CUST00851,Company_851,SMB,Middle East,2024-12-06,At Risk,10753.22,1538.65
+CUST00852,Company_852,Enterprise,Europe,2024-10-25,Active,18675.38,1426.02
+CUST00853,Company_853,Enterprise,Latin America,2024-07-24,Active,37209.17,1498.56
+CUST00854,Company_854,Startup,Europe,2025-02-26,Active,95954.3,2217.25
+CUST00855,Company_855,SMB,Middle East,2024-10-30,Active,28170.56,2907.96
+CUST00856,Company_856,SMB,Europe,2025-02-21,Churned,92759.61,560.5
+CUST00857,Company_857,Enterprise,North America,2025-03-28,Active,18955.1,4011.34
+CUST00858,Company_858,Startup,Middle East,2025-03-12,New,97011.43,4670.22
+CUST00859,Company_859,Enterprise,Latin America,2024-09-04,Churned,30066.85,4295.84
+CUST00860,Company_860,Enterprise,Asia,2024-10-13,At Risk,63676.13,667.33
+CUST00861,Company_861,Enterprise,Europe,2024-12-30,At Risk,7899.43,2860.27
+CUST00862,Company_862,Enterprise,Europe,2024-06-24,At Risk,30666.75,4163.12
+CUST00863,Company_863,SMB,Middle East,2024-06-13,Active,21860.33,2048.52
+CUST00864,Company_864,Mid-Market,Middle East,2024-12-03,Active,1338.25,4536.67
+CUST00865,Company_865,SMB,North America,2024-10-13,Active,16520.21,4490.96
+CUST00866,Company_866,Startup,Latin America,2025-03-09,Active,59717.26,1137.67
+CUST00867,Company_867,Mid-Market,Europe,2024-12-05,Active,39602.1,2721.34
+CUST00868,Company_868,Enterprise,Europe,2024-11-01,Churned,72534.53,615.5
+CUST00869,Company_869,SMB,Asia,2025-04-18,Active,67436.39,1768.37
+CUST00870,Company_870,Mid-Market,Europe,2025-01-14,Active,80130.65,4153.43
+CUST00871,Company_871,Enterprise,Europe,2024-12-24,Active,86835.48,4888.13
+CUST00872,Company_872,SMB,North America,2024-07-12,Active,82162.72,4609.95
+CUST00873,Company_873,Mid-Market,Asia,2025-04-02,Churned,45358.02,691.61
+CUST00874,Company_874,SMB,Europe,2025-04-24,Churned,31564.05,4670.29
+CUST00875,Company_875,Mid-Market,Europe,2024-05-16,New,50727.94,4201.92
+CUST00876,Company_876,Startup,Latin America,2024-05-30,Active,53977.72,4404.66
+CUST00877,Company_877,SMB,Europe,2025-03-20,Active,32004.28,4616.72
+CUST00878,Company_878,SMB,North America,2024-09-27,Active,54460.65,2696.81
+CUST00879,Company_879,Mid-Market,Europe,2024-06-19,New,11472.19,1450.48
+CUST00880,Company_880,Startup,Europe,2025-04-14,Active,23873.14,594.61
+CUST00881,Company_881,SMB,Middle East,2024-12-28,Active,74858.76,605.97
+CUST00882,Company_882,Startup,Europe,2025-01-10,Active,19100.39,3391.3
+CUST00883,Company_883,Startup,Asia,2025-01-09,Active,14764.75,2017.76
+CUST00884,Company_884,SMB,Middle East,2024-05-09,Active,29446.98,2731.53
+CUST00885,Company_885,Enterprise,Asia,2024-10-29,Churned,37733.86,1091.01
+CUST00886,Company_886,Mid-Market,Asia,2024-05-20,Churned,33526.32,4889.81
+CUST00887,Company_887,SMB,North America,2024-05-17,Active,38085.93,1084.74
+CUST00888,Company_888,Startup,Europe,2024-08-05,Active,14851.32,2501.63
+CUST00889,Company_889,Mid-Market,Asia,2024-05-23,Active,17374.12,2495.09
+CUST00890,Company_890,SMB,Europe,2025-04-01,Churned,24347.66,538.87
+CUST00891,Company_891,Mid-Market,Europe,2024-06-20,At Risk,40797.21,3505.09
+CUST00892,Company_892,Mid-Market,North America,2024-06-25,At Risk,34254.01,2921.95
+CUST00893,Company_893,Startup,North America,2024-06-11,Active,79342.16,2738.73
+CUST00894,Company_894,Enterprise,Asia,2024-05-29,Churned,53026.27,4181.38
+CUST00895,Company_895,Enterprise,Asia,2024-06-09,New,57994.4,1585.12
+CUST00896,Company_896,Mid-Market,Middle East,2024-05-27,Churned,56498.7,4374.94
+CUST00897,Company_897,Startup,Europe,2025-03-17,Active,40478.73,4391.5
+CUST00898,Company_898,Startup,Europe,2024-12-06,Churned,98067.85,4220.88
+CUST00899,Company_899,SMB,North America,2025-01-15,Churned,4695.55,2036.29
+CUST00900,Company_900,Mid-Market,North America,2024-11-26,Active,22367.94,1231.51
+CUST00901,Company_901,SMB,Asia,2024-11-27,Active,29180.82,2638.3
+CUST00902,Company_902,Startup,Middle East,2024-10-17,Churned,88248.51,1669.28
+CUST00903,Company_903,Mid-Market,Middle East,2024-06-07,At Risk,91968.04,734.82
+CUST00904,Company_904,Enterprise,North America,2024-11-29,New,84764.28,1757.62
+CUST00905,Company_905,Enterprise,North America,2024-08-28,Active,42278.15,2611.08
+CUST00906,Company_906,SMB,Middle East,2025-03-09,Churned,91547.77,1007.31
+CUST00907,Company_907,Mid-Market,Middle East,2025-02-23,Active,10752.3,4749.5
+CUST00908,Company_908,Startup,Asia,2024-11-10,New,65591.04,3452.46
+CUST00909,Company_909,SMB,Middle East,2024-07-18,Active,93785.15,1113.53
+CUST00910,Company_910,Enterprise,Europe,2024-06-04,Active,75735.08,4154.29
+CUST00911,Company_911,Startup,Middle East,2024-11-21,Active,28508.85,4676.4
+CUST00912,Company_912,Mid-Market,Latin America,2025-04-13,Churned,72033.08,1682.53
+CUST00913,Company_913,Enterprise,Middle East,2024-06-02,Active,30181.57,1144.64
+CUST00914,Company_914,Startup,North America,2025-04-22,Churned,12046.63,1951.14
+CUST00915,Company_915,Enterprise,North America,2025-01-18,Active,72004.93,4245.12
+CUST00916,Company_916,Mid-Market,Latin America,2025-04-21,Active,18743.44,1287.92
+CUST00917,Company_917,SMB,Europe,2024-10-22,Active,11995.43,4007.06
+CUST00918,Company_918,Startup,Middle East,2024-12-11,Active,55624.25,3723.18
+CUST00919,Company_919,Startup,Middle East,2024-07-03,Active,62441.9,3431.15
+CUST00920,Company_920,Mid-Market,Latin America,2025-03-03,Churned,6054.57,2449.93
+CUST00921,Company_921,Enterprise,Asia,2024-07-09,Active,1442.42,2150.47
+CUST00922,Company_922,Enterprise,Asia,2025-01-25,Active,88324.96,883.66
+CUST00923,Company_923,Enterprise,Europe,2024-12-14,Active,12410.0,2108.1
+CUST00924,Company_924,Startup,Middle East,2025-03-08,Active,58805.91,3208.29
+CUST00925,Company_925,Startup,Middle East,2025-03-09,Active,95401.08,4541.94
+CUST00926,Company_926,Enterprise,Middle East,2024-09-07,New,51679.1,4249.06
+CUST00927,Company_927,Startup,North America,2024-09-25,Active,14840.0,644.97
+CUST00928,Company_928,SMB,Asia,2025-02-12,Churned,39954.97,1124.88
+CUST00929,Company_929,Mid-Market,Latin America,2025-04-07,Churned,62780.17,4318.2
+CUST00930,Company_930,Mid-Market,North America,2024-08-01,Active,76521.12,4726.93
+CUST00931,Company_931,Startup,North America,2025-04-23,Active,61086.86,751.14
+CUST00932,Company_932,SMB,Asia,2025-04-20,Active,4397.26,3655.63
+CUST00933,Company_933,SMB,Middle East,2025-04-22,Active,15167.18,2145.8
+CUST00934,Company_934,Enterprise,Europe,2025-04-17,At Risk,37808.37,2139.31
+CUST00935,Company_935,Mid-Market,Latin America,2024-09-01,Churned,70865.65,3392.01
+CUST00936,Company_936,Mid-Market,Asia,2024-05-01,New,58848.47,4145.97
+CUST00937,Company_937,Mid-Market,Europe,2024-08-07,Churned,5424.8,1736.77
+CUST00938,Company_938,Startup,Asia,2025-02-25,Active,79891.7,3674.09
+CUST00939,Company_939,SMB,Asia,2024-06-13,Churned,60907.32,3361.44
+CUST00940,Company_940,Enterprise,Asia,2024-12-04,Churned,88827.85,2827.94
+CUST00941,Company_941,Startup,Asia,2024-06-27,Churned,42347.66,3210.92
+CUST00942,Company_942,Enterprise,Middle East,2024-10-22,At Risk,49529.98,581.24
+CUST00943,Company_943,Startup,North America,2024-07-08,New,41149.53,518.3
+CUST00944,Company_944,Mid-Market,Asia,2025-01-15,Active,72523.0,2976.97
+CUST00945,Company_945,Enterprise,Europe,2024-10-30,Active,75460.95,2858.49
+CUST00946,Company_946,SMB,Europe,2024-10-24,Churned,72601.0,821.01
+CUST00947,Company_947,SMB,Europe,2025-04-14,Active,29868.33,2714.12
+CUST00948,Company_948,Startup,North America,2024-07-01,Churned,63967.12,3908.88
+CUST00949,Company_949,Mid-Market,North America,2024-10-11,Active,34514.29,2935.41
+CUST00950,Company_950,Startup,Europe,2025-03-12,Active,83585.84,2829.26
+CUST00951,Company_951,Enterprise,Middle East,2024-10-13,Active,6456.5,3730.59
+CUST00952,Company_952,SMB,North America,2025-02-02,Churned,4734.35,1273.3
+CUST00953,Company_953,SMB,North America,2024-08-09,Active,11069.13,2558.66
+CUST00954,Company_954,SMB,Middle East,2024-08-13,Churned,21033.96,1166.22
+CUST00955,Company_955,SMB,Asia,2024-07-11,New,4725.9,2857.28
+CUST00956,Company_956,Enterprise,North America,2024-10-27,Active,8090.05,3163.74
+CUST00957,Company_957,SMB,Europe,2025-01-02,Active,31299.59,1047.53
+CUST00958,Company_958,Startup,Europe,2024-12-16,Active,10879.28,839.82
+CUST00959,Company_959,SMB,Middle East,2024-07-26,Active,80405.3,1250.3
+CUST00960,Company_960,Enterprise,Europe,2024-09-01,Active,6332.87,3138.52
+CUST00961,Company_961,Mid-Market,Latin America,2024-10-24,Active,90885.02,1353.29
+CUST00962,Company_962,Mid-Market,Europe,2024-05-28,Active,87213.11,1738.59
+CUST00963,Company_963,SMB,Middle East,2025-02-21,Active,21630.05,3661.46
+CUST00964,Company_964,Mid-Market,Middle East,2024-12-02,Churned,8081.18,1617.55
+CUST00965,Company_965,Enterprise,Middle East,2025-01-31,New,11447.97,2288.87
+CUST00966,Company_966,SMB,Latin America,2025-03-30,Active,56349.74,4679.8
+CUST00967,Company_967,Enterprise,North America,2024-04-25,At Risk,60490.66,4212.48
+CUST00968,Company_968,Mid-Market,Asia,2024-07-30,Active,32242.7,1649.63
+CUST00969,Company_969,Mid-Market,Europe,2024-07-20,Active,30386.53,3189.09
+CUST00970,Company_970,SMB,North America,2025-03-21,Active,53618.63,3496.12
+CUST00971,Company_971,Mid-Market,Middle East,2025-01-01,Active,31257.18,4551.09
+CUST00972,Company_972,SMB,North America,2025-04-23,Active,93497.63,2963.6
+CUST00973,Company_973,SMB,North America,2024-05-09,Active,38880.55,3025.79
+CUST00974,Company_974,Startup,Latin America,2024-09-13,New,22761.56,4498.01
+CUST00975,Company_975,Startup,Middle East,2025-03-01,Active,15450.52,744.72
+CUST00976,Company_976,Startup,Middle East,2025-02-07,At Risk,63539.11,3326.64
+CUST00977,Company_977,Enterprise,Europe,2024-07-03,Churned,33339.5,2374.92
+CUST00978,Company_978,Mid-Market,Europe,2025-03-02,Active,19690.69,4593.94
+CUST00979,Company_979,Mid-Market,Europe,2025-01-28,Active,28305.74,4822.43
+CUST00980,Company_980,Startup,Europe,2024-06-17,Active,31480.28,1266.11
+CUST00981,Company_981,SMB,North America,2025-04-05,Active,62957.51,1766.61
+CUST00982,Company_982,SMB,North America,2025-02-20,Active,18293.47,1730.56
+CUST00983,Company_983,SMB,Europe,2025-01-01,Active,73547.57,952.82
+CUST00984,Company_984,SMB,Europe,2024-12-27,Active,31183.34,2673.25
+CUST00985,Company_985,Enterprise,Europe,2024-09-05,Active,49342.65,2808.87
+CUST00986,Company_986,Mid-Market,Asia,2024-12-24,Active,65829.06,3078.4
+CUST00987,Company_987,Startup,Europe,2024-12-19,Active,54818.39,3483.31
+CUST00988,Company_988,Enterprise,Asia,2024-05-11,New,66561.12,783.13
+CUST00989,Company_989,Mid-Market,Europe,2025-04-08,Active,32936.95,3301.18
+CUST00990,Company_990,Enterprise,Middle East,2025-01-28,Churned,96381.54,4612.14
+CUST00991,Company_991,SMB,Latin America,2024-12-13,New,46439.98,2547.46
+CUST00992,Company_992,Enterprise,North America,2025-04-11,Active,32871.43,980.21
+CUST00993,Company_993,Enterprise,Middle East,2024-09-25,Active,30343.0,886.75
+CUST00994,Company_994,SMB,Latin America,2024-10-27,Active,5226.8,1767.89
+CUST00995,Company_995,SMB,Asia,2024-07-16,New,68795.78,3886.36
+CUST00996,Company_996,Startup,North America,2024-06-18,Churned,26989.01,1674.5
+CUST00997,Company_997,Startup,Asia,2024-06-25,Active,95934.09,4164.49
+CUST00998,Company_998,Mid-Market,Asia,2025-04-17,Churned,21834.03,4188.47
+CUST00999,Company_999,Startup,North America,2024-06-22,Active,53419.63,2557.0
+CUST01000,Company_1000,Startup,Latin America,2024-09-13,Active,73811.6,1853.55

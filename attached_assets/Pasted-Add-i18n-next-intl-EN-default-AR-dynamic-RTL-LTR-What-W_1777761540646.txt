@@ -1,0 +1,53 @@
+Add i18n (next-intl, EN default + AR, dynamic RTL/LTR)
+What & Why
+Today every label, button, toast, and error message in the AXIOM frontend is a hard-coded Arabic string. New users expect English by default and the option to switch to Arabic from a Settings page; the direction (LTR for English, RTL for Arabic) must follow the chosen locale automatically. We are adopting next-intl because it is the de-facto Next.js 14 App Router i18n library, supports server-side rendering of translated content, and integrates cleanly with the existing useMode / ToastProvider patterns.
+
+Done looks like
+The frontend renders entirely in English on first visit (default locale). No Arabic strings appear unless the user opts in.
+A new Settings page (linked from the user menu) shows a "Language / اللغة" selector with English and Arabic. Picking one persists the choice (cookie + user profile if logged in) and reloads the active page in the chosen locale.
+The whole document direction (<html dir="…" lang="…">) flips between ltr and rtl based on the active locale, including Tailwind logical properties (ms-*, me-*, start-*, end-*) so layout mirrors correctly.
+Every existing user-facing string in frontend/src/ is wired to the translation catalogue. No literal Arabic or English copy remains hard-coded inside JSX or component logic.
+Server-rendered routes (app/ directory) and chat-stream tool result strings ("تم الحفظ", "Saved", confidence band labels, etc.) both honour the active locale.
+Adding a new locale in the future is a one-folder change (drop in frontend/messages/<locale>.json); no code changes needed.
+Out of scope
+Translating backend-generated PDF reports, AI assistant prose, or OpenAI tool outputs (still rendered in whatever language the LLM produced — locale only controls UI chrome).
+Adding a third locale beyond English and Arabic.
+Translating the marketing/landing pages outside app/app/* if they already exist in a separate Next.js route group (handle them as a follow-up if desired).
+Right-to-left support for embedded Recharts/Plotly axis labels (charts stay LTR for numeric axes — readable in both locales).
+Steps
+Install and wire next-intl — Add next-intl to frontend/package.json, configure middleware for locale detection, and add [locale] segment routing under the App Router. Default locale = en, supported = ["en", "ar"].
+Create translation catalogues — Build frontend/messages/en.json and frontend/messages/ar.json with a namespaced structure (common.*, chat.*, predict.*, pivot.*, dashboard.*, settings.*, errors.*). Move the existing Arabic strings into ar.json as the source of truth and produce English equivalents for every key.
+Refactor every component to use translations — Replace every hard-coded string in frontend/src/ (components + pages + hooks
+toast/dialog primitives) with useTranslations(...) lookups. No Arabic or English literals should remain in JSX.
+Dynamic dir/lang on <html> — Update the root layout to set lang and dir from the active locale on every render. Audit Tailwind utility usage and switch directional classes (ml-*/mr-*, pl-*/pr-*, text-left/text-right, flex-row-reverse) to logical equivalents (ms-*, me-*, ps-*, pe-*, text-start, text-end) so layouts mirror automatically.
+Settings page + locale switcher — Build app/app/settings/page.tsx with a Language selector. Persist the choice to a NEXT_LOCALE cookie and (when logged in) call a new PATCH /api/users/me/locale backend endpoint that stores users.locale. Add a link to the Settings page from the user avatar menu.
+Backend locale persistence — Add a locale column to the User model (default "en", nullable for existing rows) plus a migration in models.init_db. Expose GET/PATCH /api/users/me so the frontend can read and update it. Login responses should echo the stored locale so the client can hydrate before the first render.
+Tool / error messages — Update backend/chat.py tool summaries (profile_dataset, make_chart, predict_column, cluster_dataset, query_model, cross_predict_column, join_datasets) to return locale-agnostic structured payloads; the frontend renders user-facing wording from the catalogue. Same for FastAPI error envelopes' detail strings — keys not prose.
+Tests — Extend tests/test_api_endpoints.py with locale round-trips on /api/users/me, login, and one chat tool. Re-point the paused frontend test suite from #223 (the Arabic literals it asserts against) at translation-key lookups so it keeps working in both locales.
+Relevant files
+frontend/src/app/layout.tsx
+frontend/src/components/AppChrome.tsx
+frontend/src/components/product/ChatPanel.tsx
+frontend/src/components/product/ArtifactDrawer.tsx
+frontend/src/components/product/PredictionCard.tsx
+frontend/src/components/product/RecommendationsPanel.tsx
+frontend/src/components/ui/Toast.tsx
+frontend/src/components/ui/ConfirmDialog.tsx
+frontend/src/app/app/dashboard/page.tsx
+frontend/src/app/app/pivot/page.tsx
+frontend/src/app/app/predict/page.tsx
+frontend/src/app/app/visualize/page.tsx
+frontend/src/app/app/upload/page.tsx
+frontend/src/app/app/join/page.tsx
+frontend/src/app/app/report/page.tsx
+frontend/src/app/login/page.tsx
+frontend/src/app/signup/page.tsx
+frontend/src/lib/api.ts
+frontend/package.json
+frontend/tailwind.config.ts
+models.py
+backend/main.py
+backend/auth.py
+backend/chat.py
+tests/test_api_endpoints.py
+frontend/src/tests/setup.ts

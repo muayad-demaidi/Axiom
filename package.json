@@ -1,0 +1,13 @@
+{
+  "name": "axiom-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "marketing-site"
+  ],
+  "scripts": {
+    "test": "npm test --workspaces",
+    "build": "npm run build --workspace=frontend"
+  }
+}

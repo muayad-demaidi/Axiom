@@ -1,0 +1,113 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { SITE } from "../utils/site";
+import FAQ from "../components/FAQ.astro";
+
+const description =
+  "AXIOM features: auto-cleaning pipeline, descriptive stats, interactive visualisations, K-Means clustering, predictive models, AI chat assistant, time-period comparison, and exportable reports.";
+
+const softwareLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "AXIOM",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  url: SITE.url + "/features",
+  description,
+  featureList: [
+    "Auto data cleaning pipeline",
+    "Descriptive statistics",
+    "Interactive visualizations",
+    "ML & K-Means clustering",
+    "Predictive analytics",
+    "AI chat assistant",
+    "Time-period comparison",
+    "Export reports",
+  ],
+};
+
+const faq = [
+  { q: "Can I reorder the cleaning steps?", a: "Yes — every substep can be moved up/down or toggled off. The pipeline replays from scratch every time the order changes, so the result is always reproducible." },
+  { q: "Does the AI chat see my whole dataset?", a: "It sees a structured summary (schema, stats, samples) — never the raw rows in their entirety, which keeps prompts fast and your data exposure minimal." },
+  { q: "What ML models are included?", a: "Linear and Random Forest regression, Random Forest classification, and K-Means clustering. More models are on the roadmap." },
+  { q: "Can I export reports?", a: "Tier 3 users can export full reports including the cleaning recipe, statistics, charts, and AI-generated narrative." },
+];
+
+const faqLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+};
+---
+<BaseLayout title="Features" description={description} jsonLd={[softwareLd, faqLd]}>
+  <section class="hero" style="padding-top:5rem; padding-bottom:2rem;">
+    <div class="container">
+      <span class="eyebrow">Features</span>
+      <h1>Everything you need between <em>upload</em> and <em>answer</em>.</h1>
+      <p class="lead">No code. No modelling. No "first set up the warehouse." Just the analysis layer, working out of the box.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>1. Smart upload</h3>
+          <p>CSV and Excel up to 200 MB. Automatic encoding, delimiter, and header detection. Multi-sheet Excel supported (one dataset per sheet).</p>
+        </div>
+        <div class="card">
+          <h3>2. Auto-cleaning pipeline</h3>
+          <p>Trim Whitespace · Drop Duplicates · Infer Types · Handle Missing Values · Detect Outliers · plus inserted custom substeps (Drop Column, Rename Column, Replace Values). Reorderable, toggleable, and saveable as a recipe.</p>
+        </div>
+        <div class="card">
+          <h3>3. Descriptive statistics</h3>
+          <p>Per-column 5-number summary, mean, std, mode, missing-rate, and unique-count — with currency codes and your preferred number/date formats applied automatically.</p>
+        </div>
+        <div class="card">
+          <h3>4. Interactive visualisations</h3>
+          <p>Bar, scatter, box, pie, line, and heatmap — all powered by Plotly. Each chart links back to the underlying rows.</p>
+        </div>
+        <div class="card">
+          <h3>5. ML &amp; K-Means clustering</h3>
+          <p>Risk clustering with scatter visualisations, K choice via elbow + silhouette, and Random Forest predictions in a separate ML tab.</p>
+        </div>
+        <div class="card">
+          <h3>6. Predictive analytics</h3>
+          <p>Linear models, trend analysis, and Random Forest regression with built-in train/test splits and reported MAPE / RMSE.</p>
+        </div>
+        <div class="card">
+          <h3>7. AI chat assistant</h3>
+          <p>GPT-powered, dataset-aware chat. Ask "what changed since last quarter?" or "which segment is driving churn?" and get a sourced answer.</p>
+        </div>
+        <div class="card">
+          <h3>8. Time-period comparison</h3>
+          <p>Save snapshots of your dataset by time period, then diff them — find drift, growth, or anomalies before they hit a board slide.</p>
+        </div>
+        <div class="card">
+          <h3>9. Reports &amp; export</h3>
+          <p>Tier 3 export: full PDF/HTML report with the cleaning recipe, key stats, charts, and AI-written narrative for stakeholders.</p>
+        </div>
+        <div class="card">
+          <h3>10. Reusable cleaning recipes</h3>
+          <p>Save the exact sequence of substeps and replay it on next month's file in one click — the difference between cleaning <em>once</em> and cleaning <em>forever</em>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <FAQ items={faq} />
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="cta-strip">
+        <h2>See it on your own data.</h2>
+        <p>60-day Tier 3 trial. No credit card.</p>
+        <a class="btn btn-primary" href={SITE.appUrl}>Launch the app →</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

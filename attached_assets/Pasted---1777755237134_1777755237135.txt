@@ -1,0 +1,197 @@
+ # برومبت شامل لتدقيق وتحسين الويبسايت
+
+## البرومبت:
+
+---
+
+**أنت خبير تقني متخصص في تطوير الويب، تجربة المستخدم (UX/UI)، وضمان الجودة (QA). مهمتك الشاملة هي تدقيق، اختبار، وتقييم الويبسايت بالكامل وفق أعلى المعايير العالمية، ثم إصلاح كل ما يحتاج إصلاح.**
+
+---
+
+### ١. التدقيق التقني الشامل (Technical Audit)
+
+**أ. اختبارات الوظائف (Functionality Testing)**
+- اختبر **كل** الـ endpoints والـ API routes المذكورة في الملفات:
+  - `POST /api/datasets/upload` — رفع ملفات، اكتشاف تلقائي للعلاقات
+  - `POST /api/projects/{id}/cross-predict` — التنبؤ المتقاطع
+  - `GET /api/projects/{id}/data-model` — نموذج البيانات
+  - `POST /api/chats` و `GET /api/chats/{id}/artifacts` — المحادثة والتحليلات
+- تأكد من أن كل endpoint يرجع الـ response الصحيح ويحتوي على البيانات المتوقعة
+- اختبر حالات الخطأ (404, 400, 422) وتأكد من أن رسائل الخطأ واضحة ومفيدة
+- تحقق من أن الـ Background Tasks (اكتشاف العلاقات بعد الرفع) تشتغل بشكل صحيح
+
+**ب. اختبارات التكامل (Integration Testing)**
+- اختبر تدفق البيانات بين المكونات: Frontend ↔ Backend ↔ Database
+- تأكد من أن `cross_predict_column` tool في المحادثة تستدعي الـ endpoint الصحيح
+- تحقق من أن الـ SHAP explanations (feature_importance.shap_top) تظهر في وضع Expert
+- اختبر أن الـ join_plan يُرجع معلومات صحيحة عن الدمج بين الجداول
+
+**ج. اختبارات الأداء (Performance Testing)**
+- استخدم Locust أو أداة مماثلة لمحاكاة 10, 100, 1000 مستخدم متزامن
+- قيس:
+  - Time to First Byte (TTFB)
+  - Largest Contentful Paint (LCP)
+  - First Input Delay (FID)
+  - Cumulative Layout Shift (CLS)
+- تأكد أن تحميل Parquet files يكون **Lazy** — لا تحمل إلا ما هو مطلوب
+- تحقق من وجود حد أقصى لحجم الـ merged frame (تجنب OOM)
+
+**د. اختبارات الأمان (Security Testing)**
+- تحقق من حماية الـ routes المحمية (Authentication & Authorization)
+- تأكد من أن الـ file uploads محمية ضد الملفات الضارة
+- اختبر SQL Injection و XSS في المدخلات
+
+---
+
+### ٢. تقييم تجربة المستخدم (UX Evaluation)
+
+**أ. سهولة الاستخدام (Usability)**
+- هل المستخدم يقدر يكمل المهمة الأساسية (رفع ملف → تحليل → تنبؤ) بدون تعليمات؟
+- هل الـ Navigation واضح وبديهي؟
+- هل الـ Feedback على الأخطاء واضح ويشرح الخطوة التالية؟
+- هل الـ Onboarding (التعريف الأول) كافي للمستخدم الجديد؟
+
+**ب. التصميم والتناسق (Visual Design & Consistency)**
+- هل الألوان متناسقة ومتبعة لـ Design System واضح؟
+- هل الـ Typography (الخطوط) مناسبة للعربي والإنجليزي؟
+- هل الـ Spacing متناسق في كل الصفحات؟
+- هل الـ Icons واضحة المعنى ومتناسقة؟
+
+**ج. الوصولية (Accessibility / a11y)**
+- هل كل الصور لها `alt` text؟
+- هل الألوان لها contrast ratio ≥ 4.5:1 (WCAG AA)؟
+- هل الـ Keyboard Navigation شغال (Tab, Enter, Escape)؟
+- هل الـ Screen Readers (مثل NVDA, VoiceOver) تقدر تقرأ المحتوى؟
+- هل الـ ARIA labels موجودة وصحيحة؟
+
+**د. التجربة العربية (Arabic UX)**
+- هل الـ RTL شغال بشكل كامل (document.dir === "rtl")؟
+- هل النصوص العربية واضحة ولا فيها حروف مقطوعة أو مشكلة؟
+- هل الـ Date/Time formatting بالتقويم الهجري/الميلادي حسب السياق؟
+- هل الأرقام غربية (Western digits) في الـ gauges والمؤشرات؟
+- هل الـ Icons الاتجاهية (chevrons, arrows) تنعكس في RTL؟
+
+---
+
+### ٣. معايير المواقع العالمية (International Standards)
+
+قيم الموقع حسب:
+
+| المعيار | التفاصيل |
+|---------|----------|
+| **Google Core Web Vitals** | LCP < 2.5s, FID < 100ms, CLS < 0.1 |
+| **WCAG 2.1 AA** | Contrast, keyboard, screen reader, focus |
+| **Lighthouse Score** | Performance ≥ 90, Accessibility ≥ 90, Best Practices ≥ 90, SEO ≥ 90 |
+| **Mobile-First** | 375px viewport, touch targets ≥ 44×44px, no horizontal scroll |
+| **PWA** | Service Worker, Manifest, Offline capability (إن أمكن) |
+| **SEO** | Meta tags, Open Graph, Structured Data, Canonical URLs |
+
+---
+
+### ٤. اختبارات محددة للميزات (Feature-Specific Testing)
+
+**أ. رفع الملفات والتحليل**
+- اختبر رفع CSV, Excel, Parquet
+- تأكد من ظهور الإشعار (Toast) لما ينكتشف رابط تلقائي
+- تحقق من أن الـ Data Preview يعرض البيانات بشكل صحيح
+
+**ب. نموذج البيانات (Data Model)**
+- اختبر رفع جدولين واكتشاف العلاقة بينهم
+- تأكد من أن Confirm/Reject/Reset buttons تشتغل
+- تحقق من ظهور الأسئلة المفتوحة (Open Questions)
+
+**ج. التنبؤات (Predictions)**
+- اختبر Guided Mode و Expert Mode
+- تأكد من ظهور SHAP explanations في Expert Mode
+- تحقق من أن الـ Confidence Gauge ملوّن بشكل صحيح (≥70 أخضر، 40-69 أصفر، <40 أحمر)
+- اختبر التنبؤ المتقاطع (Cross-Predict) مع جدولين أو أكثر
+
+**د. المحادثة الذكية (Chat)**
+- اختبر سؤال بالعربي: "توقّع لي المبيعات"
+- تأكد من أن الـ Streaming tokens تظهر تدريجياً
+- تحقق من ظهور الـ Artifacts (charts, predictions, profiles) في الـ Drawer
+- اختبر أداة `cross_predict_column` من المحادثة
+
+**هـ. Tahleel (التحليل العميق)**
+- تأكد من ظهور زر "ابدأ تحليل Tahleel"
+- تحقق من أن الـ Banner "Tahleel يعمل…" يظهر أثناء التشغيل
+
+---
+
+### ٥. الإصلاح والتحسين (Fix & Optimize)
+
+**لكل مشكلة تجدها:**
+1. **وثّقها** — وصف واضح + خطوات إعادة الإنتاج + screenshot (إن أمكن)
+2. **صنّفها** — Critical / High / Medium / Low
+3. **أصلحها** — اكتب الكود الإصلاحي مع شرح التغيير
+4. **اختبرها** — تأكد أن الإصلاح ما كسر شي تاني (Regression Test)
+
+**أولويات الإصلاح:**
+1. 🚨 **Critical** — الموقع ما بيشتغل أو بيانات بتضيع
+2. 🔴 **High** — ميزة أساسية معطلة أو UX سيئ جداً
+3. 🟡 **Medium** — مشكلة تصميم أو أداء
+4. 🟢 **Low** — تحسين جمالي أو اقتراح
+
+---
+
+### ٦. التقرير النهائي (Final Report)
+
+قدّم تقريراً شاملاً يحتوي على:
+
+```
+═══════════════════════════════════════
+تقرير تدقيق وتحسين الويبسايت
+═══════════════════════════════════════
+
+١. ملخص تنفيذي
+   - الدرجة الكلية: X/100
+   - الحالة: ✅ جاهز للإطلاق / ⚠️ يحتاج تحسينات / ❌ لا يُنصح بالإطلاق
+
+٢. نتائج الاختبارات التقنية
+   - الوظائف: X/Y ناجحة
+   - الأداء: LCP=Xs, FID=Xms, CLS=X
+   - الأمان: X ثغرات (Critical/High/Medium/Low)
+   - الوصولية: X/Y معايير WCAG
+
+٣. تقييم UX/UI
+   - سهولة الاستخدام: X/10
+   - التصميم: X/10
+   - التناسق: X/10
+   - التجربة العربية: X/10
+
+٤. Lighthouse Score
+   - Performance: X
+   - Accessibility: X
+   - Best Practices: X
+   - SEO: X
+
+٥. المشاكل المكتشفة والمحلولة
+   - Critical: X (محلولة: Y)
+   - High: X (محلولة: Y)
+   - Medium: X (محلولة: Y)
+   - Low: X (محلولة: Y)
+
+٦. التحسينات المطبقة
+   - [قائمة التحسينات مع قبل/بعد]
+
+٧. التوصيات المستقبلية
+   - [اقتراحات لتحسينات إضافية]
+
+═══════════════════════════════════════
+```
+
+---
+
+### ٧. القيود والشروط
+
+- **لا تغيّر** Business Logic أو API Schema إلا إذا كان فيه Bug واضح
+- **لا تضيف** Dependencies جديدة إلا إذا كانت ضرورية جداً
+- **حافظ** على التوافق مع الـ Backend الموجود (202 اختبار ناجح)
+- **اختبر** كل تغيير قبل وبعد (Regression Test)
+- **وثّق** كل تغيير بـ Commit Message واضح
+
+---
+
+**ابدأ العمل. اقرأ كل الملفات المذكورة في الـ tickets (#223, #224, #246, #259, #260, #261, #265)، حللها، اختبرها، أصلحها، وحسّنها حتى نحصل على أفضل تجربة مستخدم ممكنة.**
+
+---

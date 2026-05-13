@@ -1,0 +1,360 @@
+Build a bug-fix task on top of the current app without changing the existing UI design, layout, colors, spacing, or interaction style. The goal is to fix incorrect aggregation results for uploaded CSV files, especially the acdoca_dirty_1200_rows.csv case, where grouping by fiscal year and summing DMBTR produces obviously wrong totals in the app compared with the Excel pivot result shown in the screenshots.
+
+Main problem to solve
+The app currently groups and sums incorrectly after upload. In the acdoca_dirty_1200_rows.csv file:
+
+GJAHR is the fiscal year column.
+
+DMBTR is the local currency amount column.
+
+The app currently returns inflated, impossible totals for 2021 and 2022.
+
+Excel pivot output shows the expected totals are approximately:
+
+2021 = 31,681,590.02
+
+2022 = 29,337,166.98
+
+2023 = 35,667,672.60
+
+The root cause is likely incorrect numeric parsing and inconsistent cleaning logic. The uploaded CSV contains mixed number formats in DMBTR, including examples like:
+
+3378.49
+
+1,583
+
+3,705
+
+5,461
+
+2,904
+
+1071.34
+
+9,897
+
+8,542
+
+This means the parser must correctly distinguish between:
+
+decimal point format,
+
+decimal comma format,
+
+thousands separators,
+
+values with no decimals,
+
+malformed values,
+
+NaN,
+
+ERROR,
+
+text contamination.
+
+Critical diagnosis
+Do not assume the previous logic is correct. The problem is likely one or more of these:
+
+Numeric parser is treating 3,705 as 3.705 or 3705 inconsistently.
+
+Parser is mixing decimal and thousands logic row by row without a deterministic rule.
+
+Group-by is running on partially cleaned strings instead of fully normalized numeric values.
+
+Cleaning logic is applied in preview mode but not in aggregation mode.
+
+Different parts of the app use different parsing functions.
+
+Some rows are being concatenated or mis-split because of delimiter/import issues.
+
+The app may be summing string fragments or malformed parsed values.
+
+Missing or invalid rows may be handled inconsistently between preview and grouped results.
+
+What you must do
+1. Create one canonical numeric parsing pipeline
+Implement a single shared parser for uploaded numeric fields that is used everywhere:
+
+preview tables,
+
+grouped tables,
+
+pivot tables,
+
+charts,
+
+KPI cards,
+
+dashboard,
+
+chat answers.
+
+No separate parser logic in different modules.
+
+2. Add robust mixed-locale parsing for numeric fields
+For DMBTR and similar amount fields, build a parsing routine that:
+
+trims spaces,
+
+removes currency noise if present,
+
+handles NaN, empty strings, ERROR, and invalid tokens as null,
+
+detects whether , or . is decimal separator,
+
+detects whether , or . is thousands separator,
+
+normalizes value to a real decimal number,
+
+never silently produces absurdly large values.
+
+Use deterministic rules like:
+
+If a value contains both . and ,, infer which one is decimal by the rightmost separator and normalize.
+
+If a value contains only , and exactly 3 digits after it, treat it as thousands separator unless business validation says otherwise.
+
+If a value contains only , and 1–2 digits after it, treat it as decimal comma.
+
+If a value contains only ., apply equivalent logic.
+
+Preserve sign if negative values exist.
+
+Return null for impossible values rather than unsafe parsing.
+
+3. Add validation layer before aggregation
+Before running any GROUP BY, validate:
+
+parsed numeric success rate,
+
+number of null/invalid values,
+
+min/max values,
+
+suspicious outliers,
+
+whether totals are within realistic ranges.
+
+If grouped results are extremely inflated, the app must stop and warn:
+“Possible numeric parsing issue detected in DMBTR. Aggregation blocked until values are normalized.”
+
+4. Fix grouping logic
+Ensure GROUP BY GJAHR is done only after:
+
+GJAHR is normalized to a clean year,
+
+DMBTR is fully parsed into a numeric field,
+
+null or invalid values are handled consistently.
+
+Do not group on raw imported strings.
+
+5. Add debugging transparency
+For any grouped answer, provide a calculation trace panel showing:
+
+source column used,
+
+parsed numeric column used,
+
+number of total rows,
+
+number of valid amount rows,
+
+number of invalid amount rows,
+
+null handling rule,
+
+aggregation used,
+
+grouping column used.
+
+Required behavior for this exact file
+When acdoca_dirty_1200_rows.csv is uploaded, the app must:
+
+Detect GJAHR as fiscal year.
+
+Detect DMBTR as amount.
+
+Normalize DMBTR correctly.
+
+Group by GJAHR.
+
+Sum parsed DMBTR.
+
+Return values aligned with the Excel pivot shown in the screenshot, not the inflated current results.
+
+Specific test cases from the file
+Use these sample raw values from the dataset to test the parser:
+
+3378.49
+
+1,583
+
+3,705
+
+4,386
+
+5,461
+
+2097
+
+865,518
+
+2495
+
+1071.34
+
+4742.99
+
+2547.66
+
+1435.13
+
+2,904
+
+3,821
+
+76.19
+
+2433
+
+628.12
+
+547
+
+2536
+
+The parser must not randomly convert these into mixed scales.
+
+Important business rule
+For amount fields like DMBTR:
+
+default aggregation must be SUM,
+
+never AVERAGE by default,
+
+never infer mean for currency totals,
+
+allow manual override only after the correct default is set.
+
+Add a “field parse settings” option
+Without changing the app design, add an advanced option for uploaded numeric fields:
+
+Auto detect
+
+Decimal point .
+
+Decimal comma ,
+
+Thousands comma
+
+Thousands dot
+
+Mixed locale smart parse
+
+Also add preview:
+
+raw value,
+
+parsed value,
+
+parse status.
+
+Add a reconciliation mode
+For uploaded datasets, add a reconciliation/debug mode that can show:
+
+raw distinct sample values,
+
+parsed distinct sample values,
+
+grouped totals before cleaning,
+
+grouped totals after cleaning,
+
+number of rows excluded,
+
+top suspicious values,
+
+duplicate count.
+
+Add hard safeguards
+The app must reject or warn on:
+
+parsed values with unrealistic number inflation,
+
+totals that jump abnormally after cleaning,
+
+inconsistent parser behavior across rows in the same column,
+
+grouping by a field that is not normalized.
+
+Technical implementation requirements
+Implement a shared semantic pipeline like this:
+
+Raw import layer
+
+Column profiling layer
+
+Type inference layer
+
+Canonical cleaning/parsing layer
+
+Validation layer
+
+Aggregation layer
+
+Presentation layer
+
+The aggregation layer must only consume the cleaned/validated fields, never raw strings.
+
+Required output for this bug fix
+When the user asks:
+“show me local currency amount grouped by fiscal year”
+
+the app should return:
+
+a clean table,
+
+aggregation = SUM,
+
+grouped by GJAHR,
+
+based on parsed DMBTR,
+
+with a small explanation of parsing/cleaning assumptions,
+
+and values matching the validated totals from the reference screenshot.
+
+Also fix the explanation quality
+The app currently gives generic explanations like “maybe outliers,” “maybe grouping issue,” or “missing values excluded,” which are too vague. Replace vague explanations with exact diagnostics such as:
+
+“The DMBTR parser interpreted comma-separated values inconsistently.”
+
+“Some values like 3,705 were treated as decimal-style instead of thousands-style.”
+
+“Aggregation was performed on partially normalized values.”
+
+“The grouped totals were inflated because mixed locale numeric parsing was not standardized.”
+
+Final instruction
+Do not just patch this one dataset manually. Build a reusable numeric normalization and aggregation validation framework so future uploaded financial CSV files also group correctly.
+
+Before coding, first provide:
+
+the exact root-cause hypothesis,
+
+the parser strategy,
+
+the validation strategy,
+
+the aggregation fix,
+
+how you will test against the uploaded acdoca_dirty_1200_rows.csv,
+
+how you will preserve the current app UI unchanged.
+
+One extra line to paste at the end
+You can append this too:
+
+“Never run SUM, GROUP BY, pivot, chart, or dashboard calculations on raw imported amount strings. Always aggregate only on a canonical parsed numeric field that passed validation

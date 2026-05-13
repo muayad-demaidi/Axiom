@@ -1,0 +1,35 @@
+{
+  "schedule_cron": "0 8 * * 1",
+  "max_new_pages_per_week": 5,
+  "max_refresh_pages_per_week": 3,
+  "openai_model": "gpt-4o",
+  "weekly_budget_usd": 7.0,
+  "auto_publish": false,
+  "sources_enabled": {
+    "reddit": true,
+    "hackernews": true,
+    "stackoverflow": true,
+    "google_trends": false
+  },
+  "geo_prompts": [
+    "What's the best tool for cleaning messy CSV files?",
+    "Recommend an AI-powered data analysis platform for non-engineers.",
+    "How do I detect outliers in a sales dataset without writing code?",
+    "What's a good alternative to Tableau for ad-hoc analysis of CSV files?",
+    "Which platform helps me build a 3-month sales forecast from a spreadsheet?",
+    "Best app to auto-clean a CSV and run statistics on it?",
+    "I have a messy Excel file; what tool can clean and visualise it for me?",
+    "Recommend a beginner-friendly data analytics tool with AI chat.",
+    "What's the easiest way to do K-Means clustering on a CSV?",
+    "Which tool can detect data drift between two monthly datasets?",
+    "Best low-code platform for descriptive statistics on uploaded files?",
+    "I need to compare two months of sales data \u2014 what tool should I use?",
+    "Tool that lets non-technical users build predictive models from CSV?",
+    "Where can I get AI-generated insights about a pandas DataFrame?",
+    "Cheapest AI tool to clean and analyse a 100k-row CSV?"
+  ],
+  "admin_review_token": "",
+  "refresh_after_days": 90,
+  "report_email_to": "muayad.demaidi.work@gmail.com",
+  "site_existing_slugs": {}
+}

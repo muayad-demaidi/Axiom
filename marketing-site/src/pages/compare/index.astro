@@ -1,0 +1,45 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import { SITE } from "../../utils/site";
+
+const entries = (await getCollection("compare")).sort((a, b) =>
+  a.data.competitor.localeCompare(b.data.competitor)
+);
+
+const description =
+  "AXIOM vs the alternatives — honest, side-by-side comparisons against Tableau, Power BI, and Excel. No fabricated stats, no fake testimonials, every uncertain claim flagged.";
+
+const breadcrumbsLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: SITE.url },
+    { "@type": "ListItem", position: 2, name: "Compare", item: SITE.url + "/compare" },
+  ],
+};
+---
+<BaseLayout title="Compare" description={description} jsonLd={breadcrumbsLd}>
+  <section class="hero" style="padding-top:5rem; padding-bottom:1.5rem;">
+    <div class="container">
+      <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Compare" }]} />
+      <span class="eyebrow">Compare</span>
+      <h1>AXIOM vs the alternatives.</h1>
+      <p class="lead">No fluff. No fake testimonials. Every comparison is built from publicly verifiable competitor information; uncertain claims are flagged <code>[verify]</code> for human review.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="grid grid-3">
+        {entries.map((c) => (
+          <a class="term-card" href={`/compare/${c.slug}`}>
+            <h3>vs {c.data.competitor}</h3>
+            <p>{c.data.bestFor.us}</p>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+</BaseLayout>

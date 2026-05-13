@@ -1,0 +1,38 @@
+فهمت المشكلة! من الصورة، المستخدم مختار الإنجليزي (mode = "موجّه" / Guided)، بس الـ UI طالع فيه كلمات عربي:
+المفروض (English)	اللي طالع (Mixed)
+"New chat"	"New chat" ✅
+"No data uploaded yet"	"No data uploaded yet — drop a file in and the assistant can start analysing it." ✅
+"What stands out in this data?"	"What stands out in this data?" ✅
+"Make a chart of the most important trend"	"Make a chart of the most important trend" ✅
+"Ask anything about your data..."	"Ask anything about your data... · اسأل عن بياناتك" ❌
+"Attach"	"إرفاق بيانات" ❌
+"ثلاث"	"ثلاث" ❌
+ليه هيك صار؟
+المشكلة من #273 (i18n) — في 3 سيناريوهات ممكنة:
+السيناريو	السبب
+١. Fallback مش شغال	لو translation key مش موجود بـ messages/en.json، المفروض يرجع للـ fallback (English). بس ممكن يرجع للـ Arabic!
+٢. Hard-coded Arabic	بعض الـ components لسا فيها hard-coded Arabic strings ما تمسحت
+٣. Locale mixing	الـ useTranslations() بياخد locale من context، بس ممكن يكون فيه bug يخليه ياخد Arabic حتى لو English مختار
+الرد اللي لازم تبعته للـ Agent:
+"في مشكلة خطيرة — الـ UI مختار English بس في كلمات Arabic ظاهرة:
+الكلمات العربي الظاهرة:
+•  'اسأل عن بياناتك' (بدل 'Ask anything about your data...')
+•  'إرفاق بيانات' (بدل 'Attach')
+•  'ثلاث' (بدل '3' أو 'Three')
+المطلوب:
+1.  افحص messages/en.json — تأكد إن كل keys موجودة ومكتوبة بالإنجليزي
+2.  افحص الـ fallback logic — لو key مش موجود، يجب يرجع الإنجليزي (مش العربي)
+3.  ابحث عن hard-coded Arabic في components:
+•  Chat input placeholder
+•  Attach button
+•  أي مكان فيه 'ثلاث' أو 'إرفاق'
+4.  تأكد من locale context — useTranslations() بيستخدم locale من NextIntlClientProvider صح
+الهدف: لما يكون mode = English → 100% English. لما يكون mode = Arabic → 100% Arabic. ما في mixing!
+ابعتلي:
+•  قائمة الـ keys الناقصة من messages/en.json
+•  قائمة الـ components اللي فيها hard-coded Arabic
+•  التصليحات المطبقة"
+----
+لو بدك أقصر:
+"Bug: English mode shows Arabic text. Fix: check messages/en.json for missing keys, check fallback logic, find hard-coded Arabic in components. No mixing allowed!"
+ابعت الرد للـ Agent فوراً — هاد bug Critical.

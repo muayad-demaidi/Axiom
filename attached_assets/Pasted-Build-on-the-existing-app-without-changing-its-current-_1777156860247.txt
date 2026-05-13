@@ -1,0 +1,377 @@
+Build on the existing app without changing its current UI design, layout, navigation, styling, or user experience. Keep the actual design exactly as it is, and only add backend / logic / data features needed for CSV-based analytics and data modeling.
+
+The goal of this project is to turn the app into a data analyst assistant that can accept multiple CSV uploads, understand relationships between tables based on business logic explained by the user, help the user model the data correctly, and answer business/data questions accurately and consistently.
+
+Main objective
+The app must allow a user to upload multiple CSV files, inspect them, infer likely relationships, ask the user for clarification when needed, propose a data model, explain the model in plain business language, and then answer important analytics questions using those uploaded datasets.
+
+The system must behave like a reliable analytics copilot, not just a generic chatbot. It should reduce mistakes, explain uncertainty, and help users build a proper semantic understanding of their data.
+
+Critical product rules
+Do not redesign the current app.
+
+Do not modify the visual design unless a change is technically necessary for the new feature.
+
+Keep all current pages, components, spacing, colors, typography, and interaction patterns intact.
+
+Add functionality behind the existing design.
+
+If a new screen or panel is necessary, it must match the current design system.
+
+Required core features
+CSV upload:
+
+Allow uploading one or many CSV files.
+
+Read headers, data types, sample rows, null patterns, cardinality, and value distributions.
+
+Handle common CSV issues such as inconsistent casing, date parsing, duplicate column names, empty rows, and delimiter problems.
+
+Schema understanding:
+
+Detect possible keys such as customer_id, product_id, deal_id, campaign_id, date, region, sales_rep, and similar fields.
+
+Detect possible primary keys, foreign keys, composite keys, and shared dimensions.
+
+Detect fact-like tables vs dimension-like tables vs summary tables.
+
+Relationship inference:
+
+Suggest relationships between files using column names, value overlap, uniqueness, cardinality, and business logic.
+
+Never assume relationships blindly when evidence is weak.
+
+When confidence is low, ask the user a clarification question before finalizing the model.
+
+Explain every proposed relationship in plain language.
+
+Business-logic-driven modeling:
+
+Let the user describe how tables relate in business terms.
+
+Use the user explanation to refine or override technical guesses.
+
+Support one-to-many, many-to-one, many-to-many, and date-based relationships.
+
+Detect when a bridge table is needed.
+
+Detect when a table is a monthly summary and should not be directly joined to row-level transactional tables except through an appropriate date grain.
+
+Analyst assistant behavior:
+
+Answer analytics questions across revenue, trends, customer metrics, pipeline, web analytics, campaign performance, segmentation, comparisons, and anomaly detection.
+
+If the data does not support a question, say so clearly and explain what is missing.
+
+If relationships are uncertain, explain the uncertainty before answering.
+
+Prefer accurate answers over overly confident answers.
+
+Value-added data modeling help:
+
+When the user uploads files, provide a modeling assistant experience.
+
+Suggest star schema improvements where useful.
+
+Suggest dimension tables, date tables, bridge tables, naming cleanup, grain alignment, and best join paths.
+
+Warn against bad joins, double counting, fan traps, duplicate grain, and summary-to-detail join mistakes.
+
+Help the user understand why a model may produce wrong numbers.
+
+Explainability:
+
+Show the model in business terms and technical terms.
+
+Explain:
+
+table purpose,
+
+grain of each table,
+
+likely keys,
+
+relationship direction,
+
+cardinality,
+
+confidence level,
+
+risks / assumptions.
+
+Reliability:
+
+The app should answer the main analytics questions correctly and with minimal hallucination.
+
+If unsure, ask before answering.
+
+The chatbot should not fabricate joins, measures, or business definitions.
+
+Required workflow after CSV upload
+After files are uploaded, the app should automatically do this:
+
+Profile each file.
+
+Summarize each table:
+
+row count,
+
+column count,
+
+likely grain,
+
+likely business purpose,
+
+candidate keys,
+
+suspicious columns,
+
+date columns,
+
+numeric measures.
+
+Propose relationships between tables.
+
+Assign a confidence score to each proposed relationship.
+
+Ask the user targeted clarification questions only where needed.
+
+Build a refined relationship map.
+
+Explain the final model in simple language.
+
+Make the data available to the chatbot for analytics questions.
+
+How the assistant should ask clarification questions
+When uncertain, ask short, analyst-style questions such as:
+
+“Is customer_id in sales_pipeline meant to link to the customer master table?”
+
+“Is monthly_kpis a summary table that should stay separate from transaction-level sales?”
+
+“Should campaign performance connect to website analytics through date only, source only, or both?”
+
+“Can one customer have many deals?”
+
+“Can one transaction include more than one product, or is each row already at product line level?”
+
+“Should region be treated as a descriptive attribute or a join key?”
+
+Example files and example relationship explanation
+Use this example to guide the implementation.
+
+Example uploaded files:
+
+sales_transactions.csv
+
+customers.csv
+
+website_analytics.csv
+
+sales_pipeline.csv
+
+monthly_kpis.csv
+
+marketing_campaigns.csv
+
+Example business explanation of relationships:
+
+customers.csv is the customer master table. One customer can have many sales transactions and many pipeline deals.
+
+sales_pipeline.csv links to customers.csv using customer_id. Each pipeline row represents one deal.
+
+sales_transactions.csv is a transaction-level fact table. If it contains customer_id, it should link many-to-one to customers.csv. If it does not contain customer_id, explain that customer-level analysis from transactions is limited unless another bridge exists.
+
+monthly_kpis.csv is a monthly summary table. It should not be joined directly to transaction-level facts at row level because that can create duplication. It is best used separately by month or through a conformed calendar table at monthly grain.
+
+website_analytics.csv is daily web traffic by source. It may connect to campaign or reporting analysis through date and source logic, but not necessarily through a direct row-level foreign key.
+
+marketing_campaigns.csv contains campaign-level performance. It may relate to website_analytics.csv by campaign source, date period, channel, or naming rules if such business logic is confirmed by the user.
+
+sales_transactions.csv and sales_pipeline.csv may share dimensions such as sales rep, region, date, and customer, but they usually represent different business processes and should remain separate fact tables.
+
+A date dimension should be created and linked where appropriate.
+
+Shared dimensions such as customer, region, product, channel, and sales rep should be recognized when possible.
+
+The app should explain this example model like this
+Example explanation:
+
+customers is a dimension/master table.
+
+sales_transactions is a fact table at transaction grain.
+
+sales_pipeline is a fact table at deal grain.
+
+monthly_kpis is a summary/aggregated table at month grain.
+
+website_analytics is a fact table at daily-source grain.
+
+marketing_campaigns is a fact table at campaign grain.
+
+Example relationship logic:
+
+customers.customer_id → sales_pipeline.customer_id = one-to-many
+
+customers.customer_id → sales_transactions.customer_id = one-to-many, only if the field exists
+
+date_dimension.date → website_analytics.date = one-to-many
+
+date_dimension.month → monthly_kpis.month = one-to-many at month grain
+
+sales_transactions and monthly_kpis should not be directly joined row-to-row
+
+marketing_campaigns to website_analytics should only be linked if the business logic confirms a valid shared key or attribution rule
+
+The chatbot must answer important analytics questions
+The assistant must be able to answer questions like these, using uploaded data and the final modeled relationships:
+
+Revenue and sales
+What was total revenue in a selected period?
+
+Compare revenue month over month / quarter over quarter / year over year.
+
+Which products, regions, or sales reps perform best?
+
+What are the top and bottom contributors by revenue or profit?
+
+What is the revenue breakdown by product, region, channel, or time?
+
+Trend and anomaly analysis
+What trends are visible in sales, traffic, conversions, or pipeline?
+
+Detect anomalies or unusual spikes/drops.
+
+What changed compared to the previous period?
+
+What might explain a drop or increase in a KPI?
+
+Customer analytics
+How many active, new, churned, or at-risk customers do we have?
+
+What is customer acquisition cost vs lifetime value?
+
+Which customer segments generate the most value?
+
+What is customer distribution by segment or region?
+
+Pipeline and forecasting
+What is the weighted pipeline value?
+
+How many deals are in each stage?
+
+What is the average sales cycle length?
+
+Which reps have the strongest pipeline?
+
+What is the expected close value this month or quarter?
+
+Marketing and web analytics
+Which traffic source drives the most sessions and conversions?
+
+Which campaigns perform best by CTR, CPL, or conversion rate?
+
+How does website traffic trend over time?
+
+What is the conversion rate by source, channel, or campaign type?
+
+Drill-down and segmentation
+Break down a metric by date, region, segment, product, source, or sales rep.
+
+Filter by a time range or business segment.
+
+Show top 10 / bottom 10 items by a metric.
+
+Compare one group versus another.
+
+Accuracy and modeling rules
+The assistant must follow these rules:
+
+Always determine table grain before joining.
+
+Avoid double counting caused by joining summary and detail tables incorrectly.
+
+Warn when keys are not unique.
+
+Warn when join columns have poor match rates.
+
+Warn when the relationship is many-to-many and may distort measures.
+
+If a relationship is inferred rather than confirmed, label it as inferred.
+
+If a question cannot be answered from the current data, say exactly why.
+
+Desired output behavior inside the app
+When a user uploads files, the app should provide:
+
+table summaries,
+
+proposed relationships,
+
+confidence levels,
+
+clarifying questions,
+
+final relationship map,
+
+model explanation,
+
+suggested business measures,
+
+safe join guidance,
+
+analytics-ready chat capability.
+
+Suggested internal architecture
+Implement:
+
+CSV parser and profiler,
+
+schema inference engine,
+
+relationship inference engine,
+
+business-rule clarification layer,
+
+semantic model builder,
+
+analytics QA layer,
+
+chat interface connected to the uploaded data model.
+
+The system should separate:
+
+raw uploaded data,
+
+inferred schema metadata,
+
+confirmed user business rules,
+
+final semantic model,
+
+query-answering layer.
+
+Important UX rule
+The app should feel like the same product as today. Add these capabilities without changing the current visual identity.
+
+Success criteria
+The project is successful if:
+
+users can upload multiple CSV files,
+
+the app can infer and explain relationships,
+
+the app can ask smart clarification questions,
+
+the app helps users with data modeling as a value-added feature,
+
+the chatbot answers important analytics questions accurately,
+
+the app avoids common modeling mistakes,
+
+the existing design remains unchanged.
+
+Recommended add-on
+You can also append this final instruction to Replit:
+
+“Before coding, first summarize your implementation plan, list the exact new components/functions you will add, explain how you will preserve the current design unchanged, and show how you will handle the example CSV relationships above.
