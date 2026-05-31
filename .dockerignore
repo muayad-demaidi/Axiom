@@ -1,0 +1,37 @@
+# Large binary files
+*.zip
+*.pdf
+*.pyc
+*.db
+*.csv
+
+# Development/local files
+__pycache__/
+.git/
+.next/
+node_modules/
+.env
+.env.local
+*.local
+
+# Frontend (not needed for backend)
+frontend/
+marketing-site/
+attached_assets/
+screenshots/
+docs/
+
+# Data files
+Jordanian_Banks/
+Jordanian_Banks_Clean/
+extracted_texts/
+export_extras/
+static/
+tests/e2e/
+
+# Python cache
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
