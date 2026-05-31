@@ -10,10 +10,9 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements or project file
-COPY pyproject.toml .
-# Install dependencies using pip (simple for Docker)
-RUN pip install --no-cache-dir .
+# Copy and install only backend requirements (fast & lightweight)
+COPY requirements-backend.txt .
+RUN pip install --no-cache-dir -r requirements-backend.txt
 
 # Copy project files
 COPY . .
