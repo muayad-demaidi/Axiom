@@ -32,7 +32,7 @@
 html, body {
   background: var(--surface);
   color: var(--text);
-  font-family: var(--font-inter), Inter, "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-inter), Inter, var(--font-arabic), "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   transition: background-color 200ms ease, color 200ms ease;
 }

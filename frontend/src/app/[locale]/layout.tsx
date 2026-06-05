@@ -1,7 +1,7 @@
 import "../globals.css";
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Noto_Sans_Arabic } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { SITE, organizationJsonLd } from "@/lib/site";
@@ -19,6 +19,17 @@ const jetbrains = JetBrains_Mono({
   weight: ["400", "500", "600"],
   display: "swap",
   variable: "--font-jetbrains",
+});
+
+// Arabic-optimised typeface. Inter has no Arabic glyphs, so without
+// this the RTL UI falls back to inconsistent system fonts. Exposed as
+// a CSS variable and chained after Inter in the body stack so Latin
+// glyphs stay on Inter and Arabic glyphs render with Noto Sans Arabic.
+const notoArabic = Noto_Sans_Arabic({
+  subsets: ["arabic"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-arabic",
 });
 
 export const metadata: Metadata = {
@@ -95,7 +106,7 @@ export default async function LocaleLayout({
       lang={locale}
       dir={dir}
       suppressHydrationWarning
-      className={`${inter.variable} ${jetbrains.variable}`}
+      className={`${inter.variable} ${jetbrains.variable} ${notoArabic.variable}`}
     >
       <body suppressHydrationWarning>
         <script

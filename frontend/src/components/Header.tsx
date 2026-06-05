@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { ThemeToggle } from "./ThemeToggle";
+import { LanguageToggle } from "./LanguageToggle";
 import { UserMenu } from "./UserMenu";
 
 const LINKS: { href: string; key: "features" | "pricing" | "glossary" | "guides" | "compare" | "about" }[] = [
@@ -50,6 +51,7 @@ export function Header({ current = "" }: { current?: string }) {
           })}
         </nav>
         <div className="flex items-center gap-2">
+          <LanguageToggle />
           <ThemeToggle />
           <UserMenu variant="marketing" />
         </div>
