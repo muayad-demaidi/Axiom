@@ -184,6 +184,28 @@ export default function UploadPage() {
     }
   }
 
+  async function loadSample() {
+    setBusy(true); setError(null); setProgress(t("trySampleLoading"));
+    try {
+      const pid = getActiveProjectId();
+      const data = await api<UploadResponse>(
+        `/api/datasets/sample${pid ? `?project_id=${pid}` : ""}`,
+        { method: "POST" },
+      );
+      setActiveDatasetId(data.id);
+      setDatasets((arr) => [
+        { id: data.id, filename: data.filename, dataset_name: data.dataset_name, rows: data.rows, cols: data.cols },
+        ...(arr ?? []),
+      ]);
+      // Straight to the analysis surface — the whole point is a fast aha.
+      router.push(pid ? `/app/project/${pid}` : "/app/statistics");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : t("uploadFailedGeneric"));
+      setProgress(null);
+      setBusy(false);
+    }
+  }
+
   function pick(d: Dataset) {
     setActiveDatasetId(d.id);
     const pid = getActiveProjectId();
@@ -263,6 +285,21 @@ export default function UploadPage() {
         {progress && <p className="text-[12px] text-[var(--accent)] mt-2" role="status" aria-live="polite">{progress}</p>}
         {error && <p className="text-[12px] text-red-600 mt-2" role="alert">{error}</p>}
       </label>
+
+      <div className="mt-3 flex flex-col items-center gap-1.5 text-center">
+        <button
+          type="button"
+          onClick={loadSample}
+          disabled={busy}
+          className="btn btn-ghost text-[13px]"
+          style={{ minHeight: 40 }}
+        >
+          ✨ {t("trySample")}
+        </button>
+        <p className="text-[12px] text-[var(--text-muted)] max-w-md">
+          {t("trySampleHelp")}
+        </p>
+      </div>
 
       {mode !== "guided" && lastUploaded && (
         <UploadPreview
