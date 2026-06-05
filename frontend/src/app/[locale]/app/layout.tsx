@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { ProductSidebar } from "@/components/product/ProductSidebar";
 import { UserMenu } from "@/components/UserMenu";
+import { LanguageToggle } from "@/components/LanguageToggle";
 import { AppChrome, HeaderToggle } from "@/components/product/AppChrome";
 
 export const metadata = { title: "AXIOM — Workspace" };
@@ -33,6 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <span className="ml-2 text-xs font-mono text-[var(--text-muted)] font-normal">{t("workspaceLabel")}</span>
             </Link>
             <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
+              <LanguageToggle />
               <HeaderToggle />
               <span className="hidden sm:inline">{t("trialBanner")}</span>
               <UserMenu variant="app" />

@@ -327,7 +327,18 @@ async def report_pdf(
             styles["BodyText"],
         ))
 
-    doc.build(story)
+    # Brand watermark on every page — a quiet organic-growth loop: every
+    # exported report that gets shared carries the AXIOM mark + URL.
+    def _axiom_footer(canvas, _doc):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillGray(0.55)
+        canvas.drawCentredString(
+            A4[0] / 2.0, 1.0 * cm, "Made with AXIOM  ·  axiom-opal-five.vercel.app"
+        )
+        canvas.restoreState()
+
+    doc.build(story, onFirstPage=_axiom_footer, onLaterPages=_axiom_footer)
     buf.seek(0)
     filename = f"axiom-report-{record.id}.pdf"
 
