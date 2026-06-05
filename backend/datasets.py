@@ -196,31 +196,30 @@ async def upload_dataset(
 
 
 def _build_sample_financial_df() -> pd.DataFrame:
-    """A 24-month Arabic small-business financials sample.
+    """A 36-month Arabic small-business financials sample.
 
     Powers the "try with an example" onboarding so a brand-new user
     reaches a real analysis (trend, forecast, correlations) within
-    seconds — without having to find and upload their own file. The
-    sales series carries a genuine upward trend plus seasonal
-    Ramadan/Eid and year-end bumps, so the forecasting path produces a
-    confident, baseline-beating result (a satisfying first impression).
+    seconds — without having to find and upload their own file. Three
+    years of history gives the seasonal Holt-Winters model two-plus full
+    cycles to validate against, so the forecast beats the naive baseline
+    (MASE < 1, PASS) and the onboarding result reads as confident rather
+    than flagged.
     """
     import numpy as np
 
+    n = 36
     rng = np.random.default_rng(42)
-    months = pd.date_range("2024-01-01", periods=24, freq="MS")
-    t = np.arange(24)
+    months = pd.date_range("2023-01-01", periods=n, freq="MS")
+    t = np.arange(n)
     # A clear, dominant upward trend with a subtle seasonal wiggle and
-    # low noise. Tuned so the forecast beats the naive baseline
-    # (MASE < 1) on *both* the Prophet and linear-fallback paths, giving
-    # a confident, high-quality first result rather than a scary
-    # "can't beat a random walk" warning on the onboarding sample.
+    # low noise — a relatable "business is steadily growing" story.
     seasonal = 1 + 0.015 * np.sin((t % 12) / 12 * 2 * np.pi - 0.6)
     base = 48000 + 2400 * t
-    sales = np.round(base * seasonal * (1 + rng.normal(0, 0.004, 24)))
-    expenses = np.round(sales * rng.uniform(0.58, 0.68, 24))
+    sales = np.round(base * seasonal * (1 + rng.normal(0, 0.004, n)))
+    expenses = np.round(sales * rng.uniform(0.58, 0.68, n))
     profit = sales - expenses
-    orders = np.round(sales / rng.uniform(180, 220, 24))
+    orders = np.round(sales / rng.uniform(180, 220, n))
 
     return pd.DataFrame({
         "التاريخ": months,

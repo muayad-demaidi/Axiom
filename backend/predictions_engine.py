@@ -611,8 +611,12 @@ def _fit_prophet(
         upper = np.asarray(forecast_tail["yhat_upper"], dtype=float)
         future_dates = pd.to_datetime(forecast_tail["ds"]).tolist()
     except Exception as exc:
-        log.warning("prophet unavailable (%s) — degrading to linear trend", exc)
-        return _fit_linear_trend(work, periods, freq, history_points)
+        log.warning("prophet unavailable (%s) — trying Holt-Winters", exc)
+        try:
+            return _fit_holt_winters(work, periods, freq, history_points)
+        except Exception as exc2:
+            log.warning("Holt-Winters failed (%s) — linear trend fallback", exc2)
+            return _fit_linear_trend(work, periods, freq, history_points)
 
     backtest_metrics = _regression_metrics(work["y"].to_numpy(), yhat_in)
     backtest_metrics["mape"] = _safe_mape(work["y"].to_numpy(), yhat_in)
@@ -667,6 +671,96 @@ def _fit_prophet(
             "weekly_seasonality": "auto",
             "freq": freq,
             "periods": periods,
+        },
+        "feature_importance": {},
+        "trend_direction": trend["direction"],
+        "trend_slope": trend["slope"],
+    }
+
+
+def _seasonal_periods(freq: str) -> int:
+    """Observations per seasonal cycle for the inferred frequency."""
+    return {"D": 7, "W": 52, "MS": 12, "M": 12, "QS": 4, "Q": 4}.get(freq, 0)
+
+
+def _fit_holt_winters(
+    work: pd.DataFrame, periods: int, freq: str, history_points: list[dict],
+) -> dict[str, Any]:
+    """Holt-Winters (statsmodels) trend + seasonal forecast.
+
+    The seasonal tier between Prophet and the linear fallback — already
+    installed, far lighter than Prophet (no Stan/cmdstanpy, no OOM risk
+    on small instances), and able to model seasonality when at least two
+    full cycles of history are present. Raises on any failure so the
+    caller drops to the linear fit.
+    """
+    from statsmodels.tsa.holtwinters import ExponentialSmoothing
+
+    y = work["y"].to_numpy(dtype=float)
+    n = y.size
+    m = _seasonal_periods(freq)
+    use_seasonal = m >= 2 and n >= 2 * m
+
+    def _fit(arr: np.ndarray):
+        kw: dict[str, Any] = {
+            "trend": "add",
+            "initialization_method": "estimated",
+        }
+        if m >= 2 and arr.size >= 2 * m:
+            kw["seasonal"] = "add"
+            kw["seasonal_periods"] = m
+        return ExponentialSmoothing(arr, **kw).fit()
+
+    model = _fit(y)
+    fitted = np.asarray(model.fittedvalues, dtype=float)
+    yhat_out = np.asarray(model.forecast(periods), dtype=float)
+    residual_std = float(np.std(y - fitted)) or 1.0
+    lower = yhat_out - CI_Z * residual_std
+    upper = yhat_out + CI_Z * residual_std
+    last_ds = work["ds"].iloc[-1]
+    future_dates = pd.date_range(last_ds, periods=periods + 1, freq=freq)[1:]
+
+    backtest = _regression_metrics(y, fitted)
+    backtest["mape"] = _safe_mape(y, fitted)
+    cv = _cross_validate_timeseries(y, fitted)
+    trend = _trend_from_predictions(yhat_out)
+
+    def _hw_refit(train_df: pd.DataFrame, horizon: int) -> np.ndarray:
+        return np.asarray(
+            _fit(train_df["y"].to_numpy(dtype=float)).forecast(horizon),
+            dtype=float,
+        )
+
+    # Seasonal holdouts need two full cycles left in training or the
+    # refit drops to trend-only and unfairly fails a seasonal forecast;
+    # below that bar return UNKNOWN instead of a misleading MASE.
+    min_train = 2 * m if use_seasonal else MIN_ROWS_TIMESERIES
+    holdout_mase = _walk_forward_mase(work, _hw_refit, min_train=min_train)
+    baseline = _baseline_status(holdout_mase)
+    engine = "holt_winters_seasonal" if use_seasonal else "holt_winters"
+    return {
+        "family": "timeseries",
+        "model_used": engine,
+        "freq": freq,
+        "periods": periods,
+        "history": history_points,
+        "forecast": [
+            {"ds": pd.Timestamp(d).isoformat(),
+             "yhat": float(yh), "lower": float(lo), "upper": float(up)}
+            for d, yh, lo, up in zip(future_dates, yhat_out, lower, upper)
+        ],
+        "metrics": {**backtest, "mase": holdout_mase, "n_train": int(n)},
+        "quality_status": baseline["quality_status"],
+        "baseline_warning": baseline["warning"],
+        "cross_validation": cv,
+        "confidence_interval": {
+            "method": "analytical_95",
+            "lower": [float(v) for v in lower],
+            "upper": [float(v) for v in upper],
+        },
+        "parameters": {
+            "freq": freq, "periods": periods, "model": engine,
+            "seasonal_periods": m if use_seasonal else None,
         },
         "feature_importance": {},
         "trend_direction": trend["direction"],
