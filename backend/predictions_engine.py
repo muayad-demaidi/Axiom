@@ -620,6 +620,23 @@ def _fit_prophet(
     cv = _cross_validate_timeseries(work["y"].to_numpy(), yhat_in)
     trend = _trend_from_predictions(yhat_out)
 
+    # Out-of-sample naive-baseline guardrail: refit Prophet on an earlier
+    # slice and score the held-out tail (no look-ahead) so we can tell the
+    # user whether the model actually beats a random walk.
+    def _prophet_fit_predict(train_df: pd.DataFrame, horizon: int) -> np.ndarray:
+        m = Prophet(
+            interval_width=0.95,
+            yearly_seasonality="auto",
+            weekly_seasonality="auto",
+            daily_seasonality=False,
+        )
+        m.fit(train_df[["ds", "y"]])
+        fut = m.make_future_dataframe(periods=horizon, freq=freq)
+        return m.predict(fut)["yhat"].to_numpy()[-horizon:]
+
+    holdout_mase = _walk_forward_mase(work, _prophet_fit_predict)
+    baseline = _baseline_status(holdout_mase)
+
     return {
         "family": "timeseries",
         "model_used": engine,
@@ -633,8 +650,11 @@ def _fit_prophet(
         ],
         "metrics": {
             **backtest_metrics,
+            "mase": holdout_mase,
             "n_train": int(len(work)),
         },
+        "quality_status": baseline["quality_status"],
+        "baseline_warning": baseline["warning"],
         "cross_validation": cv,
         "confidence_interval": {
             "method": "prophet_native_95",
@@ -674,6 +694,17 @@ def _fit_linear_trend(
     backtest["mape"] = _safe_mape(y, fitted)
     cv = _cross_validate_timeseries(y, fitted)
     trend = _trend_from_predictions(yhat_out)
+
+    # Out-of-sample naive-baseline guardrail (walk-forward holdout).
+    def _linear_fit_predict(train_df: pd.DataFrame, horizon: int) -> np.ndarray:
+        ty = train_df["y"].to_numpy(dtype=float)
+        tx = np.arange(ty.size, dtype=float).reshape(-1, 1)
+        m = LinearRegression().fit(tx, ty)
+        fx = np.arange(ty.size, ty.size + horizon, dtype=float).reshape(-1, 1)
+        return m.predict(fx)
+
+    holdout_mase = _walk_forward_mase(work, _linear_fit_predict)
+    baseline = _baseline_status(holdout_mase)
     return {
         "family": "timeseries",
         "model_used": "linear_trend",
@@ -685,7 +716,9 @@ def _fit_linear_trend(
              "yhat": float(yh), "lower": float(lo), "upper": float(up)}
             for d, yh, lo, up in zip(future_dates, yhat_out, lower, upper)
         ],
-        "metrics": {**backtest, "n_train": int(len(work))},
+        "metrics": {**backtest, "mase": holdout_mase, "n_train": int(len(work))},
+        "quality_status": baseline["quality_status"],
+        "baseline_warning": baseline["warning"],
         "cross_validation": cv,
         "confidence_interval": {
             "method": "analytical_95",
@@ -755,6 +788,93 @@ def _trend_from_predictions(values: np.ndarray) -> dict[str, Any]:
     else:
         direction = "decreasing"
     return {"slope": round(slope, 6), "direction": direction}
+
+
+# ---------------------------------------------------------------------------
+# Naive-baseline guardrail (MASE)
+# ---------------------------------------------------------------------------
+
+def _mase(y_true: np.ndarray, y_pred: np.ndarray, seasonality: int = 1) -> float | None:
+    """Mean Absolute Scaled Error.
+
+    Scales the model's MAE by the MAE of a naive random-walk forecast
+    (``y[t] = y[t-seasonality]``) on the same series. ``MASE < 1`` means
+    the model beats the naive baseline; ``MASE >= 1`` means it does not —
+    i.e. the series behaves like a random walk the model can't improve
+    on. Returns ``None`` when the scaling factor is undefined (flat or
+    too-short series).
+    """
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    n = y_true.size
+    if n <= seasonality or y_pred.size != n:
+        return None
+    naive_err = float(np.mean(np.abs(y_true[seasonality:] - y_true[:-seasonality])))
+    if not np.isfinite(naive_err) or naive_err == 0.0:
+        return None
+    model_err = float(np.mean(np.abs(y_true - y_pred)))
+    return round(model_err / naive_err, 4)
+
+
+def _baseline_status(mase: float | None) -> dict[str, Any]:
+    """Translate an (out-of-sample) MASE into a PASS/FAIL guardrail.
+
+    When the model fails to beat the naive baseline we attach a
+    business-facing warning so the UI never presents an over-confident
+    forecast that is statistically no better than "tomorrow = today".
+    """
+    if mase is None:
+        return {"quality_status": "UNKNOWN", "warning": None}
+    if mase > 1.0:
+        return {
+            "quality_status": "FAIL_HIGH_NOISE",
+            "warning": (
+                "High volatility and noise detected: the model "
+                f"(MASE={mase:.2f}) does not beat a naive random-walk "
+                "baseline. Treat long-term predictions with extreme caution."
+            ),
+        }
+    return {"quality_status": "PASS", "warning": None}
+
+
+def _walk_forward_mase(
+    work: pd.DataFrame,
+    fit_predict,
+    seasonality: int = 1,
+    min_train: int = MIN_ROWS_TIMESERIES,
+) -> float | None:
+    """Out-of-sample walk-forward evaluation returning a holdout MASE.
+
+    ``fit_predict(train_df, horizon)`` must train **only** on
+    ``train_df`` and return ``horizon`` point forecasts. We hold out the
+    tail of the series and forecast it from the earlier portion alone —
+    so unlike an in-sample fit this contains no look-ahead bias. The
+    resulting MAE is scaled by the naive MAE computed on the training
+    portion only. Returns ``None`` when the series is too short to leave
+    a trustworthy split or the refit fails.
+    """
+    y = work["y"].to_numpy(dtype=float)
+    n = y.size
+    horizon = max(1, min(n // 5, 12))
+    if n - horizon < min_train:
+        return None
+    train_df = work.iloc[: n - horizon]
+    train_y = y[: n - horizon]
+    actual = y[n - horizon:]
+    if train_y.size <= seasonality:
+        return None
+    naive_err = float(np.mean(np.abs(train_y[seasonality:] - train_y[:-seasonality])))
+    if not np.isfinite(naive_err) or naive_err == 0.0:
+        return None
+    try:
+        preds = np.asarray(fit_predict(train_df, horizon), dtype=float)
+    except Exception as exc:  # pragma: no cover - defensive
+        log.warning("walk-forward refit failed: %s", exc)
+        return None
+    if preds.size != horizon or not np.all(np.isfinite(preds)):
+        return None
+    model_err = float(np.mean(np.abs(actual - preds)))
+    return round(model_err / naive_err, 4)
 
 
 # ---------------------------------------------------------------------------
@@ -1077,6 +1197,8 @@ def _assemble_response(
         "trend_direction": family_payload.get("trend_direction"),
         "trend_slope": family_payload.get("trend_slope"),
         "predictions": family_payload.get("predictions") or family_payload.get("forecast", []),
+        "quality_status": family_payload.get("quality_status", "UNKNOWN"),
+        "baseline_warning": family_payload.get("baseline_warning"),
     }
     # Family-specific extras the Expert UI may want to show.
     for key in ("freq", "periods", "history", "forecast", "candidates", "classes"):
@@ -1098,6 +1220,9 @@ def _assemble_response(
         "confidence_score": round(confidence_score, 4),
         "recommendations": recommendations,
     }
+    baseline_warning = family_payload.get("baseline_warning")
+    if baseline_warning:
+        guided["warning"] = baseline_warning
     if inventory and inventory.get("available"):
         guided["inventory_highlights"] = _inventory_highlights(inventory)
 
@@ -1126,6 +1251,10 @@ def _confidence_from_metrics(
             score = max(0.0, min(1.0, 1.0 - float(mape)))
     else:  # pragma: no cover - defensive
         score = 0.5
+    # A forecast that can't beat a naive random walk must never be
+    # presented as high/medium confidence, regardless of its MAPE.
+    if family_payload.get("quality_status") == "FAIL_HIGH_NOISE":
+        return min(score, 0.49), "low"
     if score >= 0.75:
         band = "high"
     elif score >= 0.5:
@@ -1203,6 +1332,13 @@ def _guided_recommendations(
         else:
             recs.append("Use predicted probabilities to prioritise high-confidence cases.")
     elif problem_type == "timeseries":
+        # Surface the naive-baseline guardrail first so it isn't buried.
+        if family_payload.get("quality_status") == "FAIL_HIGH_NOISE":
+            recs.append(
+                "The model does not beat a naive random-walk baseline "
+                "(MASE ≥ 1) — rely on short-term forecasts only and "
+                "gather more history before planning on long horizons."
+            )
         if trend == "increasing":
             recs.append("Trend is rising — plan for higher capacity.")
         elif trend == "decreasing":
