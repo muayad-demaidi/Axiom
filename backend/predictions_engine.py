@@ -683,37 +683,52 @@ def _seasonal_periods(freq: str) -> int:
     return {"D": 7, "W": 52, "MS": 12, "M": 12, "QS": 4, "Q": 4}.get(freq, 0)
 
 
+def _seasonal_trend_forecast(
+    arr: np.ndarray, m: int, horizon: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """Closed-form trend + additive-seasonal decomposition forecast.
+
+    Returns ``(fitted, forecast)``. OLS line for trend; mean of detrended
+    residuals at each within-cycle position for the centered seasonal
+    indices (applied only with >= 2 full cycles). Pure NumPy, no iterative
+    optimisation, so it is microseconds even on a fractional-CPU instance.
+    """
+    k = arr.size
+    t = np.arange(k, dtype=float)
+    slope, intercept = np.polyfit(t, arr, 1)
+    trend = slope * t + intercept
+    idx: np.ndarray | None = None
+    if m >= 2 and k >= 2 * m:
+        detr = arr - trend
+        pos = np.arange(k) % m
+        idx = np.array([detr[pos == j].mean() for j in range(m)], dtype=float)
+        idx = idx - idx.mean()
+        seas = idx[pos]
+    else:
+        seas = np.zeros(k)
+    fitted = trend + seas
+    ft = np.arange(k, k + horizon, dtype=float)
+    ftrend = slope * ft + intercept
+    fseas = idx[np.arange(k, k + horizon) % m] if idx is not None else np.zeros(horizon)
+    return fitted, ftrend + fseas
+
+
 def _fit_holt_winters(
     work: pd.DataFrame, periods: int, freq: str, history_points: list[dict],
 ) -> dict[str, Any]:
-    """Holt-Winters (statsmodels) trend + seasonal forecast.
+    """Fast classical trend + seasonal forecast (no iterative fitting).
 
-    The seasonal tier between Prophet and the linear fallback — already
-    installed, far lighter than Prophet (no Stan/cmdstanpy, no OOM risk
-    on small instances), and able to model seasonality when at least two
-    full cycles of history are present. Raises on any failure so the
-    caller drops to the linear fit.
+    The seasonal tier between Prophet and the linear fallback. Holt-Winters
+    was replaced by closed-form decomposition because its MLE fit took
+    minutes on a fractional-CPU instance; this captures the same trend +
+    seasonality in microseconds. (Name kept for call-site stability.)
     """
-    from statsmodels.tsa.holtwinters import ExponentialSmoothing
-
     y = work["y"].to_numpy(dtype=float)
     n = y.size
     m = _seasonal_periods(freq)
     use_seasonal = m >= 2 and n >= 2 * m
 
-    def _fit(arr: np.ndarray):
-        kw: dict[str, Any] = {
-            "trend": "add",
-            "initialization_method": "estimated",
-        }
-        if m >= 2 and arr.size >= 2 * m:
-            kw["seasonal"] = "add"
-            kw["seasonal_periods"] = m
-        return ExponentialSmoothing(arr, **kw).fit()
-
-    model = _fit(y)
-    fitted = np.asarray(model.fittedvalues, dtype=float)
-    yhat_out = np.asarray(model.forecast(periods), dtype=float)
+    fitted, yhat_out = _seasonal_trend_forecast(y, m, periods)
     residual_std = float(np.std(y - fitted)) or 1.0
     lower = yhat_out - CI_Z * residual_std
     upper = yhat_out + CI_Z * residual_std
@@ -726,10 +741,9 @@ def _fit_holt_winters(
     trend = _trend_from_predictions(yhat_out)
 
     def _hw_refit(train_df: pd.DataFrame, horizon: int) -> np.ndarray:
-        return np.asarray(
-            _fit(train_df["y"].to_numpy(dtype=float)).forecast(horizon),
-            dtype=float,
-        )
+        return _seasonal_trend_forecast(
+            train_df["y"].to_numpy(dtype=float), m, horizon
+        )[1]
 
     # Seasonal holdouts need two full cycles left in training or the
     # refit drops to trend-only and unfairly fails a seasonal forecast;
@@ -737,7 +751,7 @@ def _fit_holt_winters(
     min_train = 2 * m if use_seasonal else MIN_ROWS_TIMESERIES
     holdout_mase = _walk_forward_mase(work, _hw_refit, min_train=min_train)
     baseline = _baseline_status(holdout_mase)
-    engine = "holt_winters_seasonal" if use_seasonal else "holt_winters"
+    engine = "seasonal_trend" if use_seasonal else "trend"
     return {
         "family": "timeseries",
         "model_used": engine,

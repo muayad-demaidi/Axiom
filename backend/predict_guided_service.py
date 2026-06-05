@@ -312,14 +312,14 @@ def _fit_prophet(
         }
     except Exception as exc:
         log.warning(
-            "Prophet unavailable (%s) — trying Holt-Winters (statsmodels)",
+            "Prophet unavailable (%s) — using fast seasonal-trend decomposition",
             exc,
         )
         try:
-            return _fit_holt_winters(work, periods, freq)
+            return _fit_seasonal_trend(work, periods, freq)
         except Exception as exc2:
             log.warning(
-                "Holt-Winters failed (%s) — degrading to linear trend fit",
+                "Seasonal-trend failed (%s) — degrading to linear trend fit",
                 exc2,
             )
             return _fit_linear_trend(work, periods, freq)
@@ -330,39 +330,54 @@ def _seasonal_periods(freq: str) -> int:
     return {"D": 7, "W": 52, "MS": 12, "M": 12, "QS": 4, "Q": 4}.get(freq, 0)
 
 
-def _fit_holt_winters(
+def _seasonal_trend_forecast(
+    arr: np.ndarray, m: int, horizon: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """Closed-form trend + additive-seasonal decomposition forecast.
+
+    Returns ``(fitted, forecast)``. An OLS line gives the trend; the mean
+    of the detrended residuals at each within-cycle position gives the
+    (centered) seasonal indices. Seasonality is applied only with at
+    least two full cycles. Pure NumPy — no iterative optimisation — so it
+    runs in microseconds even on a fractional-CPU instance (the reason we
+    moved off Holt-Winters, whose MLE took minutes there).
+    """
+    k = arr.size
+    t = np.arange(k, dtype=float)
+    slope, intercept = np.polyfit(t, arr, 1)
+    trend = slope * t + intercept
+    idx: np.ndarray | None = None
+    if m >= 2 and k >= 2 * m:
+        detr = arr - trend
+        pos = np.arange(k) % m
+        idx = np.array([detr[pos == j].mean() for j in range(m)], dtype=float)
+        idx = idx - idx.mean()
+        seas = idx[pos]
+    else:
+        seas = np.zeros(k)
+    fitted = trend + seas
+    ft = np.arange(k, k + horizon, dtype=float)
+    ftrend = slope * ft + intercept
+    fseas = idx[np.arange(k, k + horizon) % m] if idx is not None else np.zeros(horizon)
+    return fitted, ftrend + fseas
+
+
+def _fit_seasonal_trend(
     work: pd.DataFrame, periods: int, freq: str
 ) -> dict[str, Any]:
-    """Holt-Winters (statsmodels) trend + seasonal forecast.
+    """Fast classical trend + seasonal forecast (no iterative fitting).
 
-    Sits between Prophet and the linear fallback: it captures both trend
-    and seasonality with a dependency that is already installed and far
-    lighter than Prophet (no Stan/cmdstanpy, no OOM risk on small free
-    instances). Seasonality is only switched on with at least two full
-    cycles of history; otherwise it degrades to a damped trend fit.
-    Raises on any failure so the caller drops to the linear fit — a
-    forecast is always produced.
+    The seasonal tier between Prophet and the linear fallback. Captures
+    trend and seasonality via closed-form decomposition, so it is orders
+    of magnitude faster than Holt-Winters on a fractional-CPU instance
+    while still beating a naive baseline on genuinely seasonal data.
     """
-    from statsmodels.tsa.holtwinters import ExponentialSmoothing
-
     y = work["y"].to_numpy(dtype=float)
     n = y.size
     m = _seasonal_periods(freq)
     use_seasonal = m >= 2 and n >= 2 * m
 
-    def _fit(arr: np.ndarray):
-        kw: dict[str, Any] = {
-            "trend": "add",
-            "initialization_method": "estimated",
-        }
-        if m >= 2 and arr.size >= 2 * m:
-            kw["seasonal"] = "add"
-            kw["seasonal_periods"] = m
-        return ExponentialSmoothing(arr, **kw).fit()
-
-    model = _fit(y)
-    fitted = np.asarray(model.fittedvalues, dtype=float)
-    yhat = np.asarray(model.forecast(periods), dtype=float)
+    fitted, yhat = _seasonal_trend_forecast(y, m, periods)
     mape = _safe_mape(y, fitted)
     resid_std = float(np.std(y - fitted)) or 1.0
 
@@ -384,21 +399,17 @@ def _fit_holt_winters(
 
     from . import predictions_engine as pe
 
-    def _hw_refit(train_df: pd.DataFrame, h: int) -> np.ndarray:
-        return np.asarray(
-            _fit(train_df["y"].to_numpy(dtype=float)).forecast(h), dtype=float
-        )
+    def _refit(train_df: pd.DataFrame, h: int) -> np.ndarray:
+        return _seasonal_trend_forecast(train_df["y"].to_numpy(dtype=float), m, h)[1]
 
-    # When seasonality is in play, the holdout is only trustworthy if the
-    # training window keeps at least two full cycles — otherwise the
-    # refit silently drops to trend-only and unfairly fails a genuinely
-    # seasonal forecast. Below that bar we return UNKNOWN (no false
-    # alarm) rather than a misleading MASE.
+    # Seasonal holdouts need two full cycles in the training window or the
+    # refit drops to trend-only and unfairly fails a seasonal forecast;
+    # below that bar return UNKNOWN instead of a misleading MASE.
     min_train = 2 * m if use_seasonal else MIN_ROWS_TIMESERIES
-    holdout_mase = pe._walk_forward_mase(work, _hw_refit, min_train=min_train)
+    holdout_mase = pe._walk_forward_mase(work, _refit, min_train=min_train)
     baseline = pe._baseline_status(holdout_mase)
     return {
-        "engine": "holt_winters_seasonal" if use_seasonal else "holt_winters",
+        "engine": "seasonal_trend" if use_seasonal else "trend",
         "freq": freq,
         "periods": periods,
         "history": history_points,
