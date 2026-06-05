@@ -277,6 +277,25 @@ def _fit_prophet(
             }
             for _, r in fcst.tail(periods).iterrows()
         ]
+        # Out-of-sample naive-baseline guardrail (shared with the
+        # predictions engine): refit on an earlier slice, score the
+        # held-out tail, and flag the forecast when it can't beat a
+        # random walk so the guided UI never over-promises.
+        from . import predictions_engine as pe
+
+        def _prophet_refit(train_df: pd.DataFrame, h: int) -> np.ndarray:
+            m = Prophet(
+                interval_width=0.85,
+                yearly_seasonality="auto",
+                weekly_seasonality="auto",
+                daily_seasonality=False,
+            )
+            m.fit(train_df[["ds", "y"]])
+            fut = m.make_future_dataframe(periods=h, freq=freq)
+            return m.predict(fut)["yhat"].to_numpy()[-h:]
+
+        holdout_mase = pe._walk_forward_mase(work, _prophet_refit)
+        baseline = pe._baseline_status(holdout_mase)
         return {
             "engine": "prophet",
             "freq": freq,
@@ -285,8 +304,11 @@ def _fit_prophet(
             "forecast": forecast_points,
             "metrics": {
                 "mape": round(mape, 4) if mape is not None else None,
+                "mase": holdout_mase,
                 "n_train": int(len(work)),
             },
+            "quality_status": baseline["quality_status"],
+            "baseline_warning": baseline["warning"],
         }
     except Exception as exc:
         log.warning(
@@ -328,6 +350,18 @@ def _fit_linear_trend(
         }
         for d, p in zip(future_dates, yhat)
     ]
+    # Out-of-sample naive-baseline guardrail (walk-forward holdout).
+    from . import predictions_engine as pe
+
+    def _linear_refit(train_df: pd.DataFrame, h: int) -> np.ndarray:
+        ty = train_df["y"].to_numpy(dtype=float)
+        tx = np.arange(ty.size).reshape(-1, 1)
+        mm = LinearRegression().fit(tx, ty)
+        fx = np.arange(ty.size, ty.size + h).reshape(-1, 1)
+        return mm.predict(fx)
+
+    holdout_mase = pe._walk_forward_mase(work, _linear_refit)
+    baseline = pe._baseline_status(holdout_mase)
     return {
         "engine": "linear_trend",
         "freq": freq,
@@ -336,8 +370,11 @@ def _fit_linear_trend(
         "forecast": forecast_points,
         "metrics": {
             "mape": round(mape, 4) if mape is not None else None,
+            "mase": holdout_mase,
             "n_train": int(len(work)),
         },
+        "quality_status": baseline["quality_status"],
+        "baseline_warning": baseline["warning"],
     }
 
 
@@ -1227,6 +1264,10 @@ def run_prediction(
         }
         mape = (model_payload.get("metrics") or {}).get("mape")
         signal = 1.0 - min(float(mape), 1.0) if mape is not None else 0.5
+        # A forecast that can't beat a naive random walk must not read as
+        # a strong signal, no matter how flattering its in-sample MAPE is.
+        if model_payload.get("quality_status") == "FAIL_HIGH_NOISE":
+            signal = min(signal, 0.15)
         sub_scores = {
             "data_volume": _data_volume_score(int(len(df))),
             "data_quality": _data_quality_score(df, [target, time_column]),
@@ -1260,6 +1301,13 @@ def run_prediction(
         feature_importance = model_payload.get("feature_importance", [])
 
     confidence = compute_confidence(sub_scores)
+    # Honest ceiling: a forecast that loses to a naive random walk is
+    # never high/medium confidence, no matter how strong the other
+    # signals (volume, coverage) look. Applied before the narrative so
+    # the Arabic copy reflects the downgrade too.
+    if model_payload.get("quality_status") == "FAIL_HIGH_NOISE":
+        confidence["band"] = "low"
+        confidence["score"] = min(confidence["score"], 35.0)
     narrative = _arabic_narrative(
         target, formatted_numbers, feature_importance, confidence["band"]
     )
@@ -1276,4 +1324,6 @@ def run_prediction(
         "formatted_numbers": formatted_numbers,
         "confidence": confidence,
         "narrative": narrative,
+        "quality_status": model_payload.get("quality_status"),
+        "baseline_warning": model_payload.get("baseline_warning"),
     }
