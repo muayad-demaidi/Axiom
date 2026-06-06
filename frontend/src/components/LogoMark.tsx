@@ -1,9 +1,10 @@
 /**
- * AXIOM brand mark — a geometric "A" (apex + two legs + crossbar) that
- * doubles as an upward growth chevron, set in an indigo-gradient rounded
- * square. Inline SVG, so it stays razor-sharp at every size (28px header
- * to large hero) and themes cleanly — unlike the old raster node-graph
- * blob it replaces. Decorative; pair with a visible "AXIOM" wordmark.
+ * AXIOM brand mark — a four-point "AI spark" (a large sparkle plus a
+ * small twinkle) in a vivid indigo→violet→pink gradient, the visual
+ * language of the current generation of AI tools (Gemini, Notion AI,
+ * the ✨ generative motif). Inline SVG, so it stays razor-sharp at every
+ * size and renders the gradient cleanly on light or dark. Decorative;
+ * pair with a visible "AXIOM" wordmark.
  */
 export function LogoMark({ className = "h-7 w-7" }: { className?: string }) {
   return (
@@ -16,21 +17,29 @@ export function LogoMark({ className = "h-7 w-7" }: { className?: string }) {
     >
       <defs>
         <linearGradient
-          id="axiom-mark-grad"
-          x1="0"
-          y1="0"
-          x2="32"
-          y2="32"
+          id="axiom-spark-grad"
+          x1="3"
+          y1="4"
+          x2="29"
+          y2="29"
           gradientUnits="userSpaceOnUse"
         >
           <stop stopColor="#6366F1" />
-          <stop offset="1" stopColor="#4338CA" />
+          <stop offset="0.5" stopColor="#8B5CF6" />
+          <stop offset="1" stopColor="#EC4899" />
         </linearGradient>
       </defs>
-      <rect width="32" height="32" rx="8" fill="url(#axiom-mark-grad)" />
-      <path d="M16 8 L24 24" stroke="white" strokeWidth="2.8" strokeLinecap="round" />
-      <path d="M16 8 L8 24" stroke="white" strokeWidth="2.8" strokeLinecap="round" />
-      <path d="M11.4 18.8 H20.6" stroke="white" strokeWidth="2.8" strokeLinecap="round" />
+      {/* main spark */}
+      <path
+        d="M15 4 Q15 17 28 17 Q15 17 15 30 Q15 17 2 17 Q15 17 15 4 Z"
+        fill="url(#axiom-spark-grad)"
+      />
+      {/* twinkle */}
+      <path
+        d="M25.5 2.5 Q25.5 7 30 7 Q25.5 7 25.5 11.5 Q25.5 7 21 7 Q25.5 7 25.5 2.5 Z"
+        fill="url(#axiom-spark-grad)"
+        opacity="0.9"
+      />
     </svg>
   );
 }

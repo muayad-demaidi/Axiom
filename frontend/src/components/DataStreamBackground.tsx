@@ -3,24 +3,18 @@ import { useEffect, useRef } from "react";
 
 /**
  * Ambient section background: calm drifting accent glows + a faint grid,
- * with a refined "data stream" of falling glyphs layered on top.
+ * with an animated "data stream" of falling glyphs layered on top.
  *
- * The stream is deliberately understated — sparse, dim, slow, in the
- * brand indigo, and radially masked so it fades to nothing in the centre
- * (behind the headline) and only whispers at the edges. It keeps the
- * "live data ingestion" motif without the old Matrix-rain wall fighting
- * the copy. Fully stilled under prefers-reduced-motion.
+ * The stream is understated — sparse, slow, in the brand indigo, and
+ * radially masked (see globals.css) so it fades to nothing in the centre
+ * (behind the headline) and only whispers at the edges. It always
+ * animates so the "live data ingestion" motif reads.
  */
 export function DataStreamBackground({ className = "" }: { className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const prefersReduced =
-      typeof window !== "undefined" &&
-      window.matchMedia &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -28,8 +22,6 @@ export function DataStreamBackground({ className = "" }: { className?: string })
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const fontSize = 16;
-    // Column spacing wider than 1 glyph → an airy (not wall-of-text)
-    // stream, but dense enough to read clearly once masked to the edges.
     const colStep = fontSize * 1.45;
     const glyphs =
       "0101ABEFHKLMNPRTXZ{}[]()<>/\\|=+-*·%$#@?:;.~БДЖЛПФЦ";
@@ -61,42 +53,6 @@ export function DataStreamBackground({ className = "" }: { className?: string })
       getComputedStyle(document.documentElement).getPropertyValue(name).trim() ||
       fallback;
 
-    // Static snapshot — one frozen frame of the stream, used when the
-    // visitor prefers reduced motion. Keeps the data-stream motif without
-    // any animation (so the accessibility preference is honoured) instead
-    // of dropping it entirely.
-    const drawStatic = () => {
-      const strong = readVar("--stream-strong", "rgba(129,140,248,0.65)");
-      const soft = readVar("--stream-soft", "rgba(99,102,241,0.28)");
-      ctx.clearRect(0, 0, width, height);
-      for (let i = 0; i < columnCount; i++) {
-        const d = drops[i];
-        const x = Math.round(i * colStep);
-        for (let t = 1; t <= d.trail; t++) {
-          const ty = Math.round(d.y - t * fontSize);
-          if (ty < -fontSize || ty > height) continue;
-          ctx.globalAlpha = Math.max(0, 1 - t / d.trail) * 0.5;
-          ctx.fillStyle = soft;
-          ctx.fillText(glyphs[(Math.random() * glyphs.length) | 0], x, ty);
-        }
-        ctx.globalAlpha = 0.9;
-        ctx.fillStyle = strong;
-        ctx.fillText(glyphs[(Math.random() * glyphs.length) | 0], x, Math.round(d.y));
-      }
-      ctx.globalAlpha = 1;
-    };
-
-    if (prefersReduced) {
-      resize();
-      drawStatic();
-      const roStatic = new ResizeObserver(() => {
-        resize();
-        drawStatic();
-      });
-      roStatic.observe(canvas);
-      return () => roStatic.disconnect();
-    }
-
     let last = 0;
     const frame = (now: number) => {
       // ~12fps — slow, ambient.
@@ -119,10 +75,9 @@ export function DataStreamBackground({ className = "" }: { className?: string })
         for (let t = 1; t <= d.trail; t++) {
           const ty = Math.round(d.y - t * fontSize);
           if (ty < -fontSize || ty > height) continue;
-          const ch = glyphs[(Math.random() * glyphs.length) | 0];
           ctx.globalAlpha = Math.max(0, 1 - t / d.trail) * 0.55;
           ctx.fillStyle = soft;
-          ctx.fillText(ch, x, ty);
+          ctx.fillText(glyphs[(Math.random() * glyphs.length) | 0], x, ty);
         }
         ctx.globalAlpha = 0.95;
         ctx.fillStyle = strong;
@@ -132,7 +87,7 @@ export function DataStreamBackground({ className = "" }: { className?: string })
         if (d.y - d.trail * fontSize > height) {
           d.y = -Math.random() * height * 0.5 - fontSize;
           d.speed = 0.12 + Math.random() * 0.22;
-          d.trail = 8 + Math.floor(Math.random() * 16);
+          d.trail = 16 + Math.floor(Math.random() * 22);
         }
       }
       ctx.globalAlpha = 1;
