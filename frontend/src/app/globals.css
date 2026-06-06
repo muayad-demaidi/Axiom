@@ -159,6 +159,15 @@ a { color: inherit; }
   .ambient-glow { animation: none !important; }
 }
 
+/* Refined data-stream: dim, and radially masked so the falling glyphs
+   fade to nothing behind the centred headline and only whisper at the
+   edges — the motif stays, the legibility wins. */
+.data-stream-canvas {
+  opacity: 0.5;
+  -webkit-mask-image: radial-gradient(ellipse 62% 72% at 50% 42%, transparent 0%, transparent 38%, #000 82%);
+  mask-image: radial-gradient(ellipse 62% 72% at 50% 42%, transparent 0%, transparent 38%, #000 82%);
+}
+
 .prose-mark h1 { font-size: 2rem; font-weight: 700; margin: 1.5rem 0 0.75rem; }
 .prose-mark h2 { font-size: 1.5rem; font-weight: 700; margin: 1.5rem 0 0.5rem; }
 .prose-mark h3 { font-size: 1.15rem; font-weight: 600; margin: 1rem 0 0.4rem; }
