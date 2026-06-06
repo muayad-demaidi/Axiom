@@ -29,8 +29,9 @@ export function DataStreamBackground({ className = "" }: { className?: string })
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const fontSize = 16;
-    // Wider column spacing than 1 glyph → a sparse, airy stream.
-    const colStep = fontSize * 1.9;
+    // Column spacing wider than 1 glyph → an airy (not wall-of-text)
+    // stream, but dense enough to read clearly once masked to the edges.
+    const colStep = fontSize * 1.45;
     const glyphs =
       "0101ABEFHKLMNPRTXZ{}[]()<>/\\|=+-*·%$#@?:;.~БДЖЛПФЦ";
 
@@ -53,7 +54,7 @@ export function DataStreamBackground({ className = "" }: { className?: string })
       drops = new Array(columnCount).fill(0).map(() => ({
         y: Math.random() * height,
         speed: 0.12 + Math.random() * 0.22,
-        trail: 8 + Math.floor(Math.random() * 16),
+        trail: 16 + Math.floor(Math.random() * 22),
       }));
     };
 
