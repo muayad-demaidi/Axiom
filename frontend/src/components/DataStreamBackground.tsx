@@ -20,7 +20,6 @@ export function DataStreamBackground({ className = "" }: { className?: string })
       typeof window !== "undefined" &&
       window.matchMedia &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (prefersReduced) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -61,6 +60,42 @@ export function DataStreamBackground({ className = "" }: { className?: string })
     const readVar = (name: string, fallback: string) =>
       getComputedStyle(document.documentElement).getPropertyValue(name).trim() ||
       fallback;
+
+    // Static snapshot — one frozen frame of the stream, used when the
+    // visitor prefers reduced motion. Keeps the data-stream motif without
+    // any animation (so the accessibility preference is honoured) instead
+    // of dropping it entirely.
+    const drawStatic = () => {
+      const strong = readVar("--stream-strong", "rgba(129,140,248,0.65)");
+      const soft = readVar("--stream-soft", "rgba(99,102,241,0.28)");
+      ctx.clearRect(0, 0, width, height);
+      for (let i = 0; i < columnCount; i++) {
+        const d = drops[i];
+        const x = Math.round(i * colStep);
+        for (let t = 1; t <= d.trail; t++) {
+          const ty = Math.round(d.y - t * fontSize);
+          if (ty < -fontSize || ty > height) continue;
+          ctx.globalAlpha = Math.max(0, 1 - t / d.trail) * 0.5;
+          ctx.fillStyle = soft;
+          ctx.fillText(glyphs[(Math.random() * glyphs.length) | 0], x, ty);
+        }
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = strong;
+        ctx.fillText(glyphs[(Math.random() * glyphs.length) | 0], x, Math.round(d.y));
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    if (prefersReduced) {
+      resize();
+      drawStatic();
+      const roStatic = new ResizeObserver(() => {
+        resize();
+        drawStatic();
+      });
+      roStatic.observe(canvas);
+      return () => roStatic.disconnect();
+    }
 
     let last = 0;
     const frame = (now: number) => {
