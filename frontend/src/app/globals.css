@@ -163,9 +163,9 @@ a { color: inherit; }
    fade to nothing behind the centred headline and only whisper at the
    edges — the motif stays, the legibility wins. */
 .data-stream-canvas {
-  opacity: 0.5;
-  -webkit-mask-image: radial-gradient(ellipse 62% 72% at 50% 42%, transparent 0%, transparent 38%, #000 82%);
-  mask-image: radial-gradient(ellipse 62% 72% at 50% 42%, transparent 0%, transparent 38%, #000 82%);
+  opacity: 0.9;
+  -webkit-mask-image: radial-gradient(ellipse 58% 66% at 50% 42%, transparent 0%, transparent 30%, #000 78%);
+  mask-image: radial-gradient(ellipse 58% 66% at 50% 42%, transparent 0%, transparent 30%, #000 78%);
 }
 
 .prose-mark h1 { font-size: 2rem; font-weight: 700; margin: 1.5rem 0 0.75rem; }

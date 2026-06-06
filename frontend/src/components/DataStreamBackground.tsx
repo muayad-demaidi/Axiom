@@ -84,11 +84,11 @@ export function DataStreamBackground({ className = "" }: { className?: string })
           const ty = Math.round(d.y - t * fontSize);
           if (ty < -fontSize || ty > height) continue;
           const ch = glyphs[(Math.random() * glyphs.length) | 0];
-          ctx.globalAlpha = Math.max(0, 1 - t / d.trail) * 0.3;
+          ctx.globalAlpha = Math.max(0, 1 - t / d.trail) * 0.55;
           ctx.fillStyle = soft;
           ctx.fillText(ch, x, ty);
         }
-        ctx.globalAlpha = 0.7;
+        ctx.globalAlpha = 0.95;
         ctx.fillStyle = strong;
         ctx.fillText(glyphs[(Math.random() * glyphs.length) | 0], x, Math.round(d.y));
 
