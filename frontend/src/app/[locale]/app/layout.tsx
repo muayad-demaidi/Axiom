@@ -1,10 +1,10 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { ProductSidebar } from "@/components/product/ProductSidebar";
 import { UserMenu } from "@/components/UserMenu";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { LogoMark } from "@/components/LogoMark";
 import { AppChrome, HeaderToggle } from "@/components/product/AppChrome";
 
 export const metadata = { title: "AXIOM — Workspace" };
@@ -21,15 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               aria-label="AXIOM home"
               className="flex items-center gap-2.5 font-semibold tracking-tight"
             >
-              <Image
-                src="/logo-mark.png"
-                alt=""
-                aria-hidden="true"
-                width={26}
-                height={26}
-                priority
-                className="h-[26px] w-[26px] object-contain"
-              />
+              <LogoMark className="h-[26px] w-[26px]" />
               <span>AXIOM</span>
               <span className="ml-2 text-xs font-mono text-[var(--text-muted)] font-normal">{t("workspaceLabel")}</span>
             </Link>

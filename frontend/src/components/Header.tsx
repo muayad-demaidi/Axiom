@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
-import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "./LanguageToggle";
+import { LogoMark } from "./LogoMark";
 import { UserMenu } from "./UserMenu";
 
 const LINKS: { href: string; key: "features" | "pricing" | "glossary" | "guides" | "compare" | "about" }[] = [
@@ -25,15 +25,7 @@ export function Header({ current = "" }: { current?: string }) {
           aria-label="AXIOM home"
           className="flex items-center gap-2.5 font-semibold text-base tracking-tight"
         >
-          <Image
-            src="/logo-mark.png"
-            alt=""
-            aria-hidden="true"
-            width={28}
-            height={28}
-            priority
-            className="h-7 w-7 object-contain"
-          />
+          <LogoMark className="h-7 w-7" />
           <span>AXIOM</span>
         </Link>
         <nav aria-label="Primary" className="hidden md:flex gap-5 text-sm">
