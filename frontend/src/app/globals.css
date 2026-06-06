@@ -115,6 +115,50 @@ a { color: inherit; }
   color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase;
 }
 
+/* ----------------------------------------------------------------------
+   Ambient background — calm drifting accent glows over a faint grid.
+   A premium, legible alternative to the old Matrix-rain canvas. Soft
+   enough to sit behind copy without competing with it.
+   ---------------------------------------------------------------------- */
+.ambient-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--border) 60%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--border) 60%, transparent) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 60% at 50% 0%, #000 25%, transparent 78%);
+  mask-image: radial-gradient(ellipse 75% 60% at 50% 0%, #000 25%, transparent 78%);
+  opacity: 0.45;
+}
+.ambient-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.35;
+  will-change: transform;
+}
+.dark .ambient-glow { opacity: 0.45; }
+.ambient-glow-1 {
+  width: 36rem; height: 36rem; top: -9rem; left: -7rem;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 50%, transparent), transparent 70%);
+  animation: ambient-drift-1 24s ease-in-out infinite;
+}
+.ambient-glow-2 {
+  width: 30rem; height: 30rem; top: -5rem; right: -6rem;
+  background: radial-gradient(circle, color-mix(in srgb, #7c3aed 42%, transparent), transparent 70%);
+  animation: ambient-drift-2 28s ease-in-out infinite;
+}
+.ambient-glow-3 {
+  width: 26rem; height: 26rem; bottom: -11rem; left: 42%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 34%, transparent), transparent 70%);
+  animation: ambient-drift-3 32s ease-in-out infinite;
+}
+@keyframes ambient-drift-1 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(3.5rem, 2rem); } }
+@keyframes ambient-drift-2 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-3rem, 2.5rem); } }
+@keyframes ambient-drift-3 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(2rem, -2rem); } }
+@media (prefers-reduced-motion: reduce) {
+  .ambient-glow { animation: none !important; }
+}
+
 .prose-mark h1 { font-size: 2rem; font-weight: 700; margin: 1.5rem 0 0.75rem; }
 .prose-mark h2 { font-size: 1.5rem; font-weight: 700; margin: 1.5rem 0 0.5rem; }
 .prose-mark h3 { font-size: 1.15rem; font-weight: 600; margin: 1rem 0 0.4rem; }
