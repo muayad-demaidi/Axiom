@@ -244,6 +244,32 @@ TOOL_SCHEMA: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "run_analysis_code",
+            "description": (
+                "Run a short pandas/numpy snippet over a dataset to compute "
+                "ANYTHING the other tools don't cover (custom rolling "
+                "windows, cohort tables, bespoke ratios, multi-step "
+                "transforms). The dataset is preloaded as `df`; pandas is "
+                "`pd`, numpy is `np`. Put the answer in a variable named "
+                "`result` (DataFrame, Series, number, or dict); use "
+                "print(...) for intermediate notes. No imports, file, or "
+                "network access. Prefer this over guessing — never fabricate "
+                "a number."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "integer"},
+                    "code": {"type": "string"},
+                    "title": {"type": "string"},
+                },
+                "required": ["dataset_id", "code"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "predict_column",
             "description": (
                 "Fit a linear regression on the numeric columns of a "
@@ -616,6 +642,39 @@ def _run_make_chart(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
         "blocked": bool(payload.get("blocked")),
         "error": payload.get("error"),
         "points_count": len(payload.get("points") or payload.get("matrix") or []),
+    }
+    return summary, [_artifact_view(a)]
+
+
+def _run_analysis_code(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
+    """Execute an agent-written pandas snippet in the isolated sandbox.
+
+    The dataset is exposed read-only as ``df``. Failures (including
+    security rejections) are raised so the dispatch loop hands the message
+    back to the model, which can correct its code and retry.
+    """
+    import io as _io
+    from . import sandbox as _sandbox
+
+    rec, df = _load_df(db, int(args["dataset_id"]), ctx["user_id"], project_id=ctx.get("project_id"))
+    code = str(args.get("code") or "")
+    buf = _io.BytesIO()
+    df.to_parquet(buf, index=False)
+    res = _sandbox.run_user_code(code, frames={"df": buf.getvalue()}, timeout=15)
+    if not res.get("ok"):
+        raise ValueError(res.get("error") or "code execution failed")
+    title = args.get("title") or "Analysis result"
+    a = models.save_chat_artifact(
+        db, session_id=ctx["session_id"], user_id=ctx["user_id"],
+        project_id=ctx["project_id"], kind="analysis", title=title,
+        params={"dataset_id": rec.id, "code": code[:4000]},
+        result={"result": res.get("result"), "stdout": res.get("stdout"),
+                "code": code[:4000]},
+        dataset_id=rec.id, pinned=False,
+    )
+    summary = {
+        "stdout": (res.get("stdout") or "")[:1500],
+        "result": res.get("result"),
     }
     return summary, [_artifact_view(a)]
 
@@ -1707,6 +1766,7 @@ _TOOL_HANDLERS = {
     "profile_dataset": _run_profile,
     "make_chart": _run_make_chart,
     "aggregate_time": _run_aggregate_time,
+    "run_analysis_code": _run_analysis_code,
     "predict_column": _run_predict,
     "cross_predict_column": _run_cross_predict,
     "cluster_dataset": _run_cluster,
