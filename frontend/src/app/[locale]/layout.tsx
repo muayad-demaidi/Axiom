@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     description: SITE.description,
     images: [SITE.socialImage],
   },
-  icons: { icon: "/logo-mark.svg" },
+  icons: { icon: "/logo-mark.png" },
   manifest: "/manifest.webmanifest",
 };
 

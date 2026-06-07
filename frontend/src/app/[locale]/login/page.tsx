@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LogoMark } from "@/components/LogoMark";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { api, setToken } from "@/lib/api";
 import type { AuthResponse } from "@/lib/types";
@@ -40,7 +40,15 @@ export default function LoginPage() {
         aria-label={tAuth("homeAria")}
         className="flex items-center gap-3 mb-8 font-semibold text-lg tracking-tight"
       >
-        <LogoMark className="h-10 w-10" />
+        <Image
+          src="/logo-mark.png"
+          alt=""
+          aria-hidden="true"
+          width={40}
+          height={40}
+          priority
+          className="h-10 w-10 object-contain"
+        />
         <span>AXIOM</span>
       </Link>
       <form onSubmit={submit} className="card w-full max-w-sm space-y-4">

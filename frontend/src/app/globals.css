@@ -8,10 +8,10 @@
   --text: #111827;
   --text-muted: #6b7280;
   --border: #e5e7eb;
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
-  --stream-strong: rgba(79, 70, 229, 0.55);
-  --stream-soft: rgba(99, 102, 241, 0.22);
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --stream-strong: rgba(37, 99, 235, 0.55);
+  --stream-soft: rgba(59, 130, 246, 0.22);
   --stream-fade: rgba(255, 255, 255, 0.10);
 }
 
@@ -21,10 +21,10 @@
   --text: #e6ecff;
   --text-muted: #94a3c4;
   --border: #1a2750;
-  --accent: #818cf8;
-  --accent-hover: #a5b4fc;
-  --stream-strong: rgba(129, 140, 248, 0.65);
-  --stream-soft: rgba(99, 102, 241, 0.28);
+  --accent: #60a5fa;
+  --accent-hover: #93c5fd;
+  --stream-strong: rgba(147, 197, 253, 0.65);
+  --stream-soft: rgba(96, 165, 250, 0.28);
   --stream-fade: rgba(5, 11, 31, 0.10);
   color-scheme: dark;
 }
@@ -113,59 +113,6 @@ a { color: inherit; }
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 0.72rem; font-weight: 600;
   color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase;
-}
-
-/* ----------------------------------------------------------------------
-   Ambient background — calm drifting accent glows over a faint grid.
-   A premium, legible alternative to the old Matrix-rain canvas. Soft
-   enough to sit behind copy without competing with it.
-   ---------------------------------------------------------------------- */
-.ambient-grid {
-  background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--border) 60%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--border) 60%, transparent) 1px, transparent 1px);
-  background-size: 46px 46px;
-  -webkit-mask-image: radial-gradient(ellipse 75% 60% at 50% 0%, #000 25%, transparent 78%);
-  mask-image: radial-gradient(ellipse 75% 60% at 50% 0%, #000 25%, transparent 78%);
-  opacity: 0.45;
-}
-.ambient-glow {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(90px);
-  opacity: 0.35;
-  will-change: transform;
-}
-.dark .ambient-glow { opacity: 0.45; }
-.ambient-glow-1 {
-  width: 36rem; height: 36rem; top: -9rem; left: -7rem;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 50%, transparent), transparent 70%);
-  animation: ambient-drift-1 24s ease-in-out infinite;
-}
-.ambient-glow-2 {
-  width: 30rem; height: 30rem; top: -5rem; right: -6rem;
-  background: radial-gradient(circle, color-mix(in srgb, #7c3aed 42%, transparent), transparent 70%);
-  animation: ambient-drift-2 28s ease-in-out infinite;
-}
-.ambient-glow-3 {
-  width: 26rem; height: 26rem; bottom: -11rem; left: 42%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 34%, transparent), transparent 70%);
-  animation: ambient-drift-3 32s ease-in-out infinite;
-}
-@keyframes ambient-drift-1 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(3.5rem, 2rem); } }
-@keyframes ambient-drift-2 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-3rem, 2.5rem); } }
-@keyframes ambient-drift-3 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(2rem, -2rem); } }
-@media (prefers-reduced-motion: reduce) {
-  .ambient-glow { animation: none !important; }
-}
-
-/* Refined data-stream: dim, and radially masked so the falling glyphs
-   fade to nothing behind the centred headline and only whisper at the
-   edges — the motif stays, the legibility wins. */
-.data-stream-canvas {
-  opacity: 0.9;
-  -webkit-mask-image: radial-gradient(ellipse 58% 66% at 50% 42%, transparent 0%, transparent 30%, #000 78%);
-  mask-image: radial-gradient(ellipse 58% 66% at 50% 42%, transparent 0%, transparent 30%, #000 78%);
 }
 
 .prose-mark h1 { font-size: 2rem; font-weight: 700; margin: 1.5rem 0 0.75rem; }

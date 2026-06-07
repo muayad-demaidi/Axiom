@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { LogoMark } from "./LogoMark";
 import { SITE } from "@/lib/site";
 
 export function Footer() {
@@ -13,7 +13,14 @@ export function Footer() {
       <div className="container-x grid gap-10 py-12 md:grid-cols-[2fr_1fr_1fr_1fr]">
         <div>
           <Link href="/" aria-label="AXIOM home" className="inline-flex items-center gap-3">
-            <LogoMark className="h-10 w-10" />
+            <Image
+              src="/logo-mark.png"
+              alt=""
+              aria-hidden="true"
+              width={40}
+              height={40}
+              className="h-10 w-10 object-contain"
+            />
             <span className="text-lg font-semibold tracking-tight">AXIOM</span>
           </Link>
           <p className="text-sm text-[var(--text-muted)] mt-3 max-w-[320px]">
