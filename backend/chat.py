@@ -210,6 +210,40 @@ TOOL_SCHEMA: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "aggregate_time",
+            "description": (
+                "Roll a daily / transaction-level dataset up to weekly, "
+                "monthly, quarterly, or yearly periods over a date column, "
+                "aggregating a numeric value column (SUM by default). Use "
+                "this for the common 'show me weekly/monthly sales' ask and "
+                "to turn many daily rows into one clean trend. Returns a "
+                "line chart of the period series plus totals and the overall "
+                "trend direction."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "integer"},
+                    "date_column": {"type": "string"},
+                    "value_column": {"type": "string"},
+                    "granularity": {
+                        "type": "string",
+                        "enum": ["daily", "weekly", "monthly", "quarterly", "yearly"],
+                        "default": "monthly",
+                    },
+                    "agg": {
+                        "type": "string",
+                        "enum": ["sum", "avg", "min", "max", "median", "count"],
+                        "default": "sum",
+                    },
+                },
+                "required": ["dataset_id", "date_column", "value_column"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "predict_column",
             "description": (
                 "Fit a linear regression on the numeric columns of a "
@@ -582,6 +616,70 @@ def _run_make_chart(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
         "blocked": bool(payload.get("blocked")),
         "error": payload.get("error"),
         "points_count": len(payload.get("points") or payload.get("matrix") or []),
+    }
+    return summary, [_artifact_view(a)]
+
+
+def _run_aggregate_time(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
+    """Roll a date+value series up to weekly/monthly/etc. periods.
+
+    The core daily-files scenario: turn many daily rows into a clean
+    period trend. Reuses the proven line-chart payload builder so the
+    artifact renders exactly like any other chart, and returns totals +
+    trend so the assistant can narrate the result.
+    """
+    rec, df = _load_df(db, int(args["dataset_id"]), ctx["user_id"], project_id=ctx.get("project_id"))
+    date_col = str(args.get("date_column") or "")
+    value_col = str(args.get("value_column") or "")
+    if date_col not in df.columns:
+        raise ValueError(f"date column '{date_col}' not in dataset")
+    if value_col not in df.columns:
+        raise ValueError(f"value column '{value_col}' not in dataset")
+    gran = (args.get("granularity") or "monthly").lower()
+    agg = (args.get("agg") or "sum").lower()
+    rule = {"daily": "D", "weekly": "W", "monthly": "MS",
+            "quarterly": "QS", "yearly": "YS"}.get(gran, "MS")
+    aggfn = {"sum": "sum", "avg": "mean", "mean": "mean", "min": "min",
+             "max": "max", "median": "median", "count": "count"}.get(agg, "sum")
+
+    work = pd.DataFrame({
+        "ds": pd.to_datetime(df[date_col], errors="coerce"),
+        "y": _canonical_num(df[value_col]),
+    }).dropna()
+    if work.empty:
+        raise ValueError("no valid (date, value) rows to aggregate")
+    grouped = work.set_index("ds").resample(rule)["y"].agg(aggfn).dropna()
+    if grouped.empty:
+        raise ValueError("aggregation produced no periods")
+
+    fmt = "%Y-%m-%d" if gran in ("daily", "weekly") else (
+        "%Y-%m" if gran in ("monthly", "quarterly") else "%Y")
+    agg_df = pd.DataFrame({
+        "period": [d.strftime(fmt) for d in grouped.index],
+        value_col: [float(v) for v in grouped.values],
+    })
+    payload = _compute_chart_payload(agg_df, "line", "period", value_col, 20, aggregation="sum")
+    title = f"{value_col} — {gran} ({agg})"
+    payload["title"] = title
+    a = models.save_chat_artifact(
+        db, session_id=ctx["session_id"], user_id=ctx["user_id"],
+        project_id=ctx["project_id"], kind="chart", title=title,
+        params={"dataset_id": rec.id, "date_column": date_col,
+                "value_column": value_col, "granularity": gran, "agg": agg},
+        result=payload, dataset_id=rec.id, pinned=False,
+    )
+    vals = [float(v) for v in grouped.values]
+    total = float(sum(vals))
+    first, last = vals[0], vals[-1]
+    direction = "increasing" if last > first else ("decreasing" if last < first else "stable")
+    summary = {
+        "granularity": gran, "agg": agg, "periods": len(vals),
+        "total": round(total, 2), "average": round(total / len(vals), 2),
+        "first_period": agg_df["period"].iloc[0],
+        "last_period": agg_df["period"].iloc[-1],
+        "first_value": round(first, 2), "last_value": round(last, 2),
+        "trend": direction,
+        "change_pct": round(((last - first) / first * 100), 1) if first else None,
     }
     return summary, [_artifact_view(a)]
 
@@ -1608,6 +1706,7 @@ def _run_join_datasets(db, args: dict, ctx: dict) -> tuple[dict, list[dict]]:
 _TOOL_HANDLERS = {
     "profile_dataset": _run_profile,
     "make_chart": _run_make_chart,
+    "aggregate_time": _run_aggregate_time,
     "predict_column": _run_predict,
     "cross_predict_column": _run_cross_predict,
     "cluster_dataset": _run_cluster,
@@ -1746,6 +1845,30 @@ def _recent_learned_notes(db, project_id: int, user_id: int, limit: int = 6) -> 
         .all()
     )
     return [n.content[:600] for n in notes]
+
+
+_FACT_SIGNALS = (
+    "i prefer", "i'd prefer", "we prefer", "i like", "we like", "i always",
+    "we always", "our company", "our team", "we focus", "i focus", "my role",
+    "i am the", "i'm the", "our goal", "please always", "from now on",
+    "بفضل", "بفضّل", "بحب", "دايما", "دائما", "دائماً", "شركتنا", "فريقنا",
+    "نركز", "بركز", "هدفنا", "أنا مدير", "انا مدير", "من الآن", "بدي دايما",
+)
+
+
+def _extract_user_facts(text: str) -> list[str]:
+    """Heuristically detect durable user preferences/identity statements.
+
+    Conservative on purpose: only short messages that carry an explicit
+    preference/identity signal become facts, so analytical questions
+    aren't stored as noise. Zero extra LLM cost — keeps the chat hot path
+    fast. Dedup is handled downstream by models.append_user_fact.
+    """
+    t = (text or "").strip()
+    if not t or len(t) > 240:
+        return []
+    low = t.lower()
+    return [t] if any(sig in low for sig in _FACT_SIGNALS) else []
 
 
 def _auto_title(text: str) -> str:
@@ -2140,6 +2263,13 @@ async def stream(
                         user_message=last_user.content,
                         ai_response=final_text,
                     )
+            except Exception:
+                pass
+            # Learn durable facts about the user from what they said
+            # (cross-project memory). Best-effort, never blocks the reply.
+            try:
+                for _fact in _extract_user_facts(last_user.content):
+                    models.append_user_fact(db, user.id, _fact, source="chat")
             except Exception:
                 pass
             yield _event({"type": "done"})
