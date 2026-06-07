@@ -1949,6 +1949,15 @@ async def stream(
             "This project currently has no uploaded datasets. Ask the user "
             "to upload data before attempting numeric analysis."
         )
+    # Long-term, cross-project memory about the user (business profile,
+    # reporting preferences, learned facts). Lets the assistant reason in
+    # the user's real business terms and stop re-asking what it knows.
+    try:
+        _user_mem = models.build_user_memory_prompt(db, user.id)
+        if _user_mem:
+            system_parts.append(_user_mem)
+    except Exception:
+        pass
     if kb_text:
         system_parts.append(
             "Project knowledge base (user-attached reference text):\n" + kb_text

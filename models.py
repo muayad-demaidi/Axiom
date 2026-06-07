@@ -179,6 +179,47 @@ class ProjectLearnedNote(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
+class UserMemory(Base):
+    """Per-user long-term memory: business profile + reporting preferences.
+
+    This is the production home of what used to live in the legacy
+    Streamlit ``context/business_memory.py`` (replit.db). One row per
+    user. ``profile`` holds the user's business context (industry,
+    currency, fiscal-year start, KPIs, role); ``preferences`` holds how
+    they like the product to behave (report style, detail level, default
+    language, chart style). Both are free-form JSON so the schema can
+    grow without migrations. Injected into the AI system prompt so the
+    assistant reasons in the user's actual business terms.
+    """
+    __tablename__ = "user_memory"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False,
+                     unique=True, index=True)
+    profile = Column(JSON, nullable=True)
+    preferences = Column(JSON, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class UserLearnedFact(Base):
+    """Durable facts the assistant learns about a user over time.
+
+    Distinct from ``ProjectLearnedNote`` (which is per-project history):
+    these are cross-project truths about the *user* — e.g. "focuses on
+    the Gulf market", "prefers weekly cohorts", "reports go to the CFO".
+    Accumulated from chat or set explicitly, deduplicated by the caller,
+    and fed back into the system prompt so the product feels like it
+    remembers and grows with the user.
+    """
+    __tablename__ = "user_learned_facts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    fact = Column(Text, nullable=False)
+    source = Column(String(16), nullable=False, default="chat")  # chat|manual
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 class DatasetRecord(Base):
     """Model to store uploaded dataset records for historical tracking"""
     __tablename__ = "dataset_records"
@@ -1755,6 +1796,133 @@ def clear_learned_notes(db, project_id):
            .delete(synchronize_session=False))
     db.commit()
     return int(n or 0)
+
+
+def get_user_memory(db, user_id):
+    """Return ``{profile, preferences}`` for a user (empty dicts if unset)."""
+    if user_id is None:
+        return {"profile": {}, "preferences": {}}
+    row = db.query(UserMemory).filter(UserMemory.user_id == user_id).first()
+    if not row:
+        return {"profile": {}, "preferences": {}}
+    return {
+        "profile": dict(row.profile or {}),
+        "preferences": dict(row.preferences or {}),
+    }
+
+
+def upsert_user_memory(db, user_id, profile=None, preferences=None):
+    """Create or merge a user's memory row. Merges (not replaces) JSON.
+
+    Passing a partial ``profile``/``preferences`` dict updates only those
+    keys, so callers can set one field without clobbering the rest.
+    """
+    if user_id is None:
+        return None
+    try:
+        row = db.query(UserMemory).filter(UserMemory.user_id == user_id).first()
+        if not row:
+            row = UserMemory(user_id=user_id, profile={}, preferences={})
+            db.add(row)
+        merged_profile = dict(row.profile or {})
+        if isinstance(profile, dict):
+            merged_profile.update({k: v for k, v in profile.items() if v is not None})
+        merged_prefs = dict(row.preferences or {})
+        if isinstance(preferences, dict):
+            merged_prefs.update({k: v for k, v in preferences.items() if v is not None})
+        row.profile = merged_profile
+        row.preferences = merged_prefs
+        row.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(row)
+        return row
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return None
+
+
+def append_user_fact(db, user_id, fact, source="chat", dedupe=True):
+    """Append a durable learned fact about a user (best-effort, deduped)."""
+    if user_id is None or not fact:
+        return None
+    text_val = str(fact).strip()
+    if not text_val:
+        return None
+    if len(text_val) > 500:
+        text_val = text_val[:500] + "…"
+    try:
+        if dedupe:
+            exists = (
+                db.query(UserLearnedFact)
+                .filter(UserLearnedFact.user_id == user_id,
+                        UserLearnedFact.fact == text_val)
+                .first()
+            )
+            if exists:
+                return exists
+        row = UserLearnedFact(
+            user_id=user_id, fact=text_val,
+            source=(source or "chat")[:16], created_at=datetime.utcnow(),
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return row
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return None
+
+
+def list_user_facts(db, user_id, limit=20):
+    """Most recent durable facts about a user (newest first)."""
+    if user_id is None:
+        return []
+    return (
+        db.query(UserLearnedFact)
+        .filter(UserLearnedFact.user_id == user_id)
+        .order_by(UserLearnedFact.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def build_user_memory_prompt(db, user_id, fact_limit=12):
+    """Render the user's memory as a compact system-prompt block.
+
+    Returns an empty string when nothing is known, so the caller can
+    conditionally append it. Kept short and structured so it never
+    crowds the context window.
+    """
+    if user_id is None:
+        return ""
+    mem = get_user_memory(db, user_id)
+    profile, prefs = mem["profile"], mem["preferences"]
+    facts = list_user_facts(db, user_id, limit=fact_limit)
+    if not profile and not prefs and not facts:
+        return ""
+    lines = ["## WHAT YOU KNOW ABOUT THIS USER (long-term memory)"]
+    if profile:
+        pretty = ", ".join(f"{k}: {v}" for k, v in profile.items() if v)
+        if pretty:
+            lines.append(f"Business profile — {pretty}.")
+    if prefs:
+        pretty = ", ".join(f"{k}: {v}" for k, v in prefs.items() if v)
+        if pretty:
+            lines.append(f"Reporting preferences — {pretty}.")
+    if facts:
+        lines.append("Remembered facts:")
+        lines.extend(f"- {f.fact}" for f in facts)
+    lines.append(
+        "Use this to tailor analysis, currency, fiscal calendar, and the "
+        "tone/format of reports. Do not re-ask for things you already know."
+    )
+    return "\n".join(lines)
 
 
 def get_project_ai_context(db, project_id, recent_notes=10):
