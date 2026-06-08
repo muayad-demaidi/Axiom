@@ -1892,8 +1892,34 @@ def _project_knowledge(db, project_id: int, user_id: int) -> str | None:
         return None
 
 
-def _recent_learned_notes(db, project_id: int, user_id: int, limit: int = 6) -> list[str]:
-    notes = (
+_NOTE_STOPWORDS = {
+    "the", "a", "an", "of", "to", "in", "on", "for", "and", "or", "is",
+    "are", "was", "were", "be", "by", "with", "from", "this", "that", "it",
+    "as", "at", "what", "how", "show", "me", "my", "our", "you", "your",
+    "can", "do", "does", "the", "please", "give",
+    "في", "من", "على", "عن", "الى", "إلى", "هذا", "هذه", "ما", "كيف",
+    "اعرض", "لي", "هو", "هي", "كل", "مع", "عند",
+}
+
+
+def _note_tokens(s: str) -> set[str]:
+    """Significant tokens (Latin words or Arabic words), lowercased."""
+    import re
+    toks = re.findall(r"[a-z0-9]+|[؀-ۿ]+", (s or "").lower())
+    return {t for t in toks if len(t) >= 3 and t not in _NOTE_STOPWORDS}
+
+
+def _recent_learned_notes(
+    db, project_id: int, user_id: int, limit: int = 6, query: str | None = None,
+) -> list[str]:
+    """Project notes for the prompt — relevance-ranked when a query is given.
+
+    Pulls a recent candidate window, then (if we have the current
+    question) surfaces the notes whose tokens overlap it most, padded with
+    the most recent ones. This makes long-running projects feel like the
+    assistant *remembers the relevant past*, not just the last few lines.
+    """
+    rows = (
         db.query(models.ProjectLearnedNote)
         .join(models.Project, models.Project.id == models.ProjectLearnedNote.project_id)
         .filter(
@@ -1901,10 +1927,26 @@ def _recent_learned_notes(db, project_id: int, user_id: int, limit: int = 6) -> 
             models.Project.user_id == user_id,
         )
         .order_by(models.ProjectLearnedNote.created_at.desc())
-        .limit(limit)
+        .limit(40)
         .all()
     )
-    return [n.content[:600] for n in notes]
+    contents = [r.content[:600] for r in rows]
+    q = _note_tokens(query) if query else set()
+    if not q:
+        return contents[:limit]
+    scored = sorted(
+        ((len(q & _note_tokens(c)), i, c) for i, c in enumerate(contents)),
+        key=lambda t: (-t[0], t[1]),
+    )
+    picked: list[str] = [c for score, _, c in scored if score > 0][:limit]
+    # Pad with most-recent notes not already chosen, preserving recency.
+    if len(picked) < limit:
+        for c in contents:
+            if c not in picked:
+                picked.append(c)
+            if len(picked) >= limit:
+                break
+    return picked
 
 
 _FACT_SIGNALS = (
@@ -1987,7 +2029,10 @@ async def stream(
         db, [d.get("id") for d in datasets_ctx if d.get("id")]
     )
     kb_text = _project_knowledge(db, project_id, user.id) if project_id else None
-    learned = _recent_learned_notes(db, project_id, user.id) if project_id else []
+    learned = (
+        _recent_learned_notes(db, project_id, user.id, query=last_user.content)
+        if project_id else []
+    )
 
     user_lang = ai_assistant.detect_language(last_user.content)
 
@@ -2004,6 +2049,27 @@ async def stream(
     system_parts = [
         ai_assistant._apply_mode_directive(ai_assistant.SYSTEM_PROMPT, storage_mode),
         METHODOLOGY_PROMPT,
+        (
+            "## HOW TO LEAD THE ANALYSIS (plan → act → verify)\n"
+            "For any non-trivial question, work like a senior analyst who "
+            "drives the process:\n"
+            "1. PLAN — in one short line, say the steps you'll take before "
+            "acting (e.g. 'I'll roll the data up to monthly, then compare to "
+            "last year').\n"
+            "2. ACT — use tools to COMPUTE; never estimate a number you "
+            "could calculate. Use `aggregate_time` to turn daily rows into "
+            "weekly/monthly periods, and `run_analysis_code` for anything "
+            "the other tools don't cover.\n"
+            "3. VERIFY — before stating a figure, sanity-check it (does the "
+            "total tie out? is the trend consistent?). If a result looks "
+            "off, or a forecast fails its naive baseline (MASE ≥ 1), say so "
+            "plainly instead of overclaiming.\n"
+            "4. CONCLUDE — end with the DECISION the number supports, tied "
+            "to the user's business and what you remember about them — not "
+            "just the raw number.\n"
+            "For greetings or trivial messages, skip the plan and answer "
+            "directly."
+        ),
     ]
     # Behavioural deltas the chat UX is built around.
     if effective_mode == "guided":
