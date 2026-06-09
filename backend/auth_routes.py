@@ -114,6 +114,13 @@ async def register(req: RegisterRequest, db=Depends(get_db_session)):
     )
     if not user:
         raise HTTPException(500, "Could not create user")
+    # Best-effort welcome email (no-op if RESEND_API_KEY isn't set). Never
+    # let an email hiccup fail the signup the user just completed.
+    try:
+        from email_service import send_welcome_email  # type: ignore
+        send_welcome_email(user.email, user.username, getattr(user, "trial_end", None))
+    except Exception as exc:  # pragma: no cover - best effort
+        log.warning("welcome email skipped: %s", exc)
     return {"token": issue_token(user.id, user.email), "user": _user_view(user)}
 
 

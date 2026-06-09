@@ -1,6 +1,76 @@
+import json
 import os
 import requests
 import resend
+
+
+def _pulse_items(items, limit=4):
+    """Best-effort: turn a list of dicts/strings into short bullet lines."""
+    out = []
+    for it in (items or [])[:limit]:
+        if isinstance(it, dict):
+            txt = (it.get("headline") or it.get("label") or it.get("message")
+                   or it.get("title") or json.dumps(it, ensure_ascii=False))
+        else:
+            txt = str(it)
+        out.append(txt[:160])
+    return out
+
+
+def send_pulse_email(user_email, user_name, project_name, payload):
+    """Weekly Pulse digest email. No-op (returns False) without a key."""
+    api_key, from_email = get_resend_credentials()
+    if not api_key:
+        print("Resend API key not available, skipping pulse email")
+        return False
+    resend.api_key = api_key
+
+    changes = _pulse_items((payload or {}).get("top_changes"))
+    anomalies = _pulse_items((payload or {}).get("anomalies"))
+    recs = _pulse_items((payload or {}).get("recommendations"))
+
+    def _section(title, items):
+        if not items:
+            return ""
+        lis = "".join(f"<li>{i}</li>" for i in items)
+        return (f'<h3 style="color:#4f46e5;margin:1rem 0 .4rem;">{title}</h3>'
+                f'<ul style="color:#cbd5e1;line-height:1.7;margin:0;">{lis}</ul>')
+
+    body = (_section("📈 أبرز التغيّرات", changes)
+            + _section("⚠️ ملاحظات تستحق الانتباه", anomalies)
+            + _section("✅ توصيات", recs))
+    if not body:
+        body = ('<p style="color:#94a3b8;">بياناتك مستقرة هذا الأسبوع — '
+                'لا تغيّرات كبيرة. ارفع بيانات جديدة لتحليل أعمق.</p>')
+
+    html = f"""
+    <div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;color:#e2e8f0;padding:2rem;border-radius:12px;" dir="rtl">
+      <div style="text-align:center;margin-bottom:1.5rem;">
+        <h1 style="color:#4f46e5;margin:0;">AXIOM</h1>
+        <p style="color:#94a3b8;margin-top:.3rem;">نبضة مشروعك الأسبوعية</p>
+      </div>
+      <div style="background:rgba(79,70,229,.1);border:1px solid rgba(79,70,229,.2);border-radius:8px;padding:1.2rem 1.5rem;">
+        <h2 style="margin:0 0 .3rem;">أهلاً {user_name} 👋</h2>
+        <p style="color:#94a3b8;margin:0;">ملخّص مشروع <strong style="color:#4f46e5;">{project_name}</strong>:</p>
+        {body}
+      </div>
+      <div style="text-align:center;margin-top:1.5rem;">
+        <a href="https://axiom-opal-five.vercel.app/ar/app" style="background:#4f46e5;color:#fff;text-decoration:none;padding:.7rem 1.4rem;border-radius:8px;font-weight:600;">افتح لوحة التحكم</a>
+      </div>
+    </div>
+    """
+    try:
+        resend.Emails.send({
+            "from": from_email,
+            "to": [user_email],
+            "subject": f"نبضة AXIOM الأسبوعية — {project_name}",
+            "html": html,
+        })
+        print(f"Pulse email sent to {user_email}")
+        return True
+    except Exception as e:
+        print(f"Error sending pulse email: {e}")
+        return False
 
 
 def get_resend_credentials():

@@ -56,6 +56,7 @@ from . import scheduler as _daily_pulse_scheduler  # noqa: E402
 from .cross_predict import router as cross_predict_router  # noqa: E402
 from .notifications import router as notifications_router  # noqa: E402
 from .memory import router as memory_router  # noqa: E402
+from .cron import router as cron_router  # noqa: E402
 
 
 @asynccontextmanager
@@ -157,6 +158,7 @@ app.include_router(recommendations_router)
 app.include_router(cross_predict_router)
 app.include_router(notifications_router)
 app.include_router(memory_router)
+app.include_router(cron_router)
 
 
 from fastapi import Depends, HTTPException  # noqa: E402
